@@ -1,0 +1,25 @@
+/.bundle
+/log/*
+/tmp/*
+!/log/.keep
+!/tmp/.keep
+/tmp/pids/*
+!/tmp/pids/.keep
+/tmp/storage/*
+!/tmp/storage/.keep
+/storage/*
+!/storage/.keep
+/public/assets
+
+# Ignore master key for decrypting credentials and other encrypted files.
+/config/master.key
+/config/credentials/*.key
+
+# Ignore all environment files.
+/.env*
+!/.env.example
+
+# Ignore Byebug command history file.
+.byebug_history
+
+.DS_Store
