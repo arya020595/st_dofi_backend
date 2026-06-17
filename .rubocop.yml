@@ -29,6 +29,20 @@ Metrics/BlockLength:
   Exclude:
     - "config/**/*"
     - "test/**/*"
+    - "db/migrate/**/*"
+
+Metrics/MethodLength:
+  Exclude:
+    - "db/migrate/**/*"
+
+Metrics/AbcSize:
+  Exclude:
+    - "db/migrate/**/*"
+
+Rails/Output:
+  Exclude:
+    - "db/seeds.rb"
+    - "db/seeds/**/*"
 
 Layout/LineLength:
   Max: 120

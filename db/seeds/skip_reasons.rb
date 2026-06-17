@@ -1,0 +1,14 @@
+SKIP_REASONS = [
+  { reference_id: "SR-001", name: "No fish caught" },
+  { reference_id: "SR-002", name: "Engine malfunction" },
+  { reference_id: "SR-003", name: "Bad weather" },
+  { reference_id: "SR-004", name: "Other (see remarks)" }
+].freeze
+
+SKIP_REASONS.each do |attrs|
+  ManifestSkipReason.find_or_create_by!(reference_id: attrs[:reference_id]) do |reason|
+    reason.name = attrs[:name]
+  end
+end
+
+puts "Seeded #{ManifestSkipReason.count} skip reasons"
