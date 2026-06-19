@@ -1,0 +1,62 @@
+module Api
+  module V1
+    class UsersController < ApplicationController
+      before_action :set_user, only: %i[show update destroy]
+
+      def index
+        authorize User
+        scope = policy_scope(User).order(created_at: :desc)
+        pagy, records = pagy(:offset, scope)
+        render json: { status: "success", data: UserBlueprint.render_as_hash(records), meta: pagination_meta(pagy) }
+      end
+
+      def show
+        authorize @user
+        render json: { status: "success", data: UserBlueprint.render_as_hash(@user) }
+      end
+
+      def create
+        authorize User
+
+        case Users::Create.call(user_params)
+        in Success(user)
+          render json: { status: "success", data: UserBlueprint.render_as_hash(user) }, status: :created
+        in Failure(user)
+          render json: { status: "fail", errors: user.errors.full_messages }, status: :unprocessable_content
+        end
+      end
+
+      def update
+        authorize @user
+
+        case Users::Update.call(@user, user_params)
+        in Success(user)
+          render json: { status: "success", data: UserBlueprint.render_as_hash(user) }
+        in Failure(user)
+          render json: { status: "fail", errors: user.errors.full_messages }, status: :unprocessable_content
+        end
+      end
+
+      def destroy
+        authorize @user
+
+        if @user.discard
+          render json: { status: "success", message: "User removed." }
+        else
+          render json: { status: "fail", errors: @user.errors.full_messages }, status: :unprocessable_content
+        end
+      end
+
+      private
+
+      def set_user
+        @user = User.kept.find(params.expect(:id))
+      end
+
+      def user_params
+        params.expect(user: %i[name email password password_confirmation employee_id role_id
+                               status preferred_locale unit position])
+      end
+    end
+  end
+end

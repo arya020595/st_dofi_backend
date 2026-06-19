@@ -1,5 +1,6 @@
 class User < ApplicationRecord
   include Devise::JWT::RevocationStrategies::JTIMatcher
+  include Discard::Model
 
   devise :database_authenticatable, :jwt_authenticatable, :validatable,
          jwt_revocation_strategy: self
@@ -11,4 +12,10 @@ class User < ApplicationRecord
 
   validates :name, presence: true
   validates :preferred_locale, inclusion: { in: VALID_LOCALES }
+
+  def permission?(*codes)
+    return false unless role
+
+    role.permissions.exists?(code: codes)
+  end
 end

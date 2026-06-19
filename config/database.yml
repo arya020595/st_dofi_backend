@@ -8,8 +8,13 @@ default: &default
   pool: <%= ENV.fetch("RAILS_MAX_THREADS", 5) %>
 
 development:
-  <<: *default
-  database: <%= ENV.fetch("DATABASE_NAME", "dofi_backend_development") %>
+  primary:
+    <<: *default
+    database: <%= ENV.fetch("DATABASE_NAME", "dofi_backend_development") %>
+  queue:
+    <<: *default
+    database: <%= ENV.fetch("DATABASE_NAME", "dofi_backend_development") %>_queue
+    migrations_paths: db/queue_migrate
 
 # Warning: The database defined as "test" will be erased and
 # re-generated from your development database when you run "rake".

@@ -1,8 +1,13 @@
 class ApplicationController < ActionController::API
   include Pundit::Authorization
+  include Pagy::Method
+  include Dry::Monads[:result]
+
+  before_action :authenticate_user!
 
   rescue_from Pundit::NotAuthorizedError, with: :render_forbidden
   rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
+  rescue_from ActionController::ParameterMissing, with: :render_bad_request
 
   private
 
@@ -18,5 +23,13 @@ class ApplicationController < ActionController::API
 
   def render_not_found
     render json: { status: "fail", message: "Resource not found." }, status: :not_found
+  end
+
+  def render_bad_request(exception)
+    render json: { status: "fail", message: exception.message }, status: :bad_request
+  end
+
+  def pagination_meta(pagy)
+    { page: pagy.page, pages: pagy.last, count: pagy.count, limit: pagy.limit }
   end
 end
