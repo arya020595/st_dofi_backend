@@ -22,7 +22,7 @@ Requires Docker and Docker Compose. No local Ruby/PostgreSQL installation needed
    cp .env.example .env
    ```
 
-2. Build and start the stack (web app + Solid Queue worker + PostgreSQL/PostGIS):
+2. Build and start the stack (API + Solid Queue worker + PostgreSQL/PostGIS):
 
    ```bash
    docker compose up --build
@@ -31,8 +31,8 @@ Requires Docker and Docker Compose. No local Ruby/PostgreSQL installation needed
 3. In another terminal, prepare the database (first run only):
 
    ```bash
-   docker compose exec web bin/rails db:prepare
-   docker compose exec web bin/rails db:seed
+   docker compose exec api bin/rails db:prepare
+   docker compose exec api bin/rails db:seed
    ```
 
 4. The API is available at `http://localhost:3000`. Health check: `http://localhost:3000/up`.
@@ -40,14 +40,14 @@ Requires Docker and Docker Compose. No local Ruby/PostgreSQL installation needed
 Useful commands:
 
 ```bash
-docker compose exec web bin/rails console      # Rails console
-docker compose exec web bin/rails test         # Run the test suite
-docker compose exec web bin/rails db:migrate    # Run migrations
-docker compose logs -f web jobs                 # Tail logs
+docker compose exec api bin/rails console      # Rails console
+docker compose exec api bin/rails test         # Run the test suite
+docker compose exec api bin/rails db:migrate    # Run migrations
+docker compose logs -f api jobs                 # Tail logs
 docker compose down                             # Stop the stack
 ```
 
-Source code is bind-mounted into the `web`/`jobs` containers, so local edits are picked up without rebuilding. Rebuild only when `Gemfile`/`Gemfile.lock` or `Dockerfile.dev` change:
+Source code is bind-mounted into the `api`/`jobs` containers, so local edits are picked up without rebuilding. Rebuild only when `Gemfile`/`Gemfile.lock` or `Dockerfile.dev` change:
 
 ```bash
 docker compose up --build
@@ -107,7 +107,7 @@ Requires locally installed:
 
 ## Common commands
 
-Run these with `bin/rails`/`bundle` directly (Option B), or prefix with `docker compose exec web` (Option A).
+Run these with `bin/rails`/`bundle` directly (Option B), or prefix with `docker compose exec api` (Option A).
 
 ### Gems
 

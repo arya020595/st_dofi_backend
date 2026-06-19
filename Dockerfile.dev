@@ -15,7 +15,6 @@ RUN apt-get update -qq && \
       libpq-dev \
       libvips \
       libyaml-dev \
-      libgeos-dev \
       pkg-config \
       postgresql-client && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives

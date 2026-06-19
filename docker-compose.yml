@@ -2,7 +2,7 @@ name: dofi-backend
 
 services:
   db:
-    image: postgis/postgis:16-3.4-alpine
+    image: postgres:16-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DATABASE_USERNAME:-postgres}
@@ -18,7 +18,7 @@ services:
       timeout: 5s
       retries: 10
 
-  web:
+  api:
     build:
       context: .
       dockerfile: Dockerfile.dev
