@@ -37,7 +37,7 @@ services:
     env_file:
       - .env
     ports:
-      - "127.0.0.1:3012:3000"
+      - "3012:3000"
     volumes:
       - dofi_staging_storage:/rails/storage
     networks:
