@@ -25,6 +25,17 @@ module Api
 
         assert_includes codes, @permission.code
       end
+
+      test "index filters by code via ransack" do
+        other = create(:permission, code: "reports.export")
+
+        get "/api/v1/permissions", params: { q: { code_cont: "export" } }, headers: @headers
+
+        assert_response :ok
+        codes = response.parsed_body["data"].pluck("code")
+
+        assert_equal [other.code], codes
+      end
     end
   end
 end

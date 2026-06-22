@@ -31,6 +31,27 @@ module Api
         assert_response :ok
       end
 
+      test "index filters by name via ransack" do
+        create(:role, reference_id: "ROLE-FILTER", name: "Filterable Role")
+
+        get "/api/v1/roles", params: { q: { name_cont: "Filterable" } }, headers: @admin_headers
+
+        assert_response :ok
+        assert_equal ["Filterable Role"], response.parsed_body["data"].pluck("name")
+      end
+
+      test "index sorts by name descending via ransack" do
+        create(:role, reference_id: "ROLE-A", name: "Aardvark Role")
+        create(:role, reference_id: "ROLE-Z", name: "Zebra Role")
+
+        get "/api/v1/roles", params: { q: { s: "name desc" } }, headers: @admin_headers
+
+        assert_response :ok
+        names = response.parsed_body["data"].pluck("name")
+
+        assert_equal names.sort.reverse, names
+      end
+
       test "show includes assigned permissions" do
         get "/api/v1/roles/#{@target.id}", headers: @admin_headers
 

@@ -31,6 +31,34 @@ module Api
         assert_kind_of Array, response.parsed_body["data"]
       end
 
+      test "index filters by name via ransack" do
+        create(:user, role: @no_access_role, name: "Alice Tan", email: "alice@example.com")
+        create(:user, role: @no_access_role, name: "Bob Lim", email: "bob@example.com")
+
+        get "/api/v1/users", params: { q: { name_cont: "Alice" } }, headers: @admin_headers
+
+        assert_response :ok
+        assert_equal ["Alice Tan"], response.parsed_body["data"].pluck("name")
+      end
+
+      test "index sorts by name via ransack" do
+        create(:user, role: @no_access_role, name: "Zed", email: "zed@example.com")
+        create(:user, role: @no_access_role, name: "Amy", email: "amy@example.com")
+
+        get "/api/v1/users", params: { q: { s: "name asc" } }, headers: @admin_headers
+
+        assert_response :ok
+        names = response.parsed_body["data"].pluck("name")
+
+        assert_equal names.sort, names
+      end
+
+      test "index ignores non-whitelisted ransack attributes instead of raising" do
+        get "/api/v1/users", params: { q: { encrypted_password_cont: "x" } }, headers: @admin_headers
+
+        assert_response :ok
+      end
+
       test "show returns a single user" do
         get "/api/v1/users/#{@target.id}", headers: @admin_headers
 

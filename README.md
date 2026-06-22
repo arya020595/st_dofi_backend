@@ -5,7 +5,7 @@ API-only Rails backend for the FINS Capture Fisheries module: vessels, crews, ma
 ## Stack
 
 - Ruby 3.4.7 / Rails 8.1.3 (API-only)
-- PostgreSQL + PostGIS
+- PostgreSQL
 - Solid Queue / Solid Cache (DB-backed, no Redis)
 - Devise + devise-jwt for authentication, Pundit for authorization
 - dry-monads for the service layer, Blueprinter for serialization
@@ -22,7 +22,7 @@ Requires Docker and Docker Compose. No local Ruby/PostgreSQL installation needed
    cp .env.example .env
    ```
 
-2. Build and start the stack (API + Solid Queue worker + PostgreSQL/PostGIS):
+2. Build and start the stack (API + Solid Queue worker + PostgreSQL):
 
    ```bash
    docker compose up --build
@@ -66,8 +66,8 @@ docker compose -f docker-compose.production.yml up --build
 Requires locally installed:
 
 - Ruby 3.4.7 (see `.ruby-version`; a version manager such as `rbenv`/`asdf`/`mise` is recommended)
-- PostgreSQL with the PostGIS extension available
-- `libpq`, `libvips`, `libgeos` (native deps for `pg`, `image_processing`, and PostGIS-backed columns)
+- PostgreSQL
+- `libpq`, `libvips` (native deps for `pg` and `image_processing`)
 
 1. Install dependencies:
 
@@ -174,3 +174,8 @@ Runs, in order: `bin/setup`, `bin/rubocop`, `bin/bundler-audit`, `bin/brakeman`,
 ## Code style
 
 See [CLAUDE.md](CLAUDE.md) for the architectural and coding conventions (SOLID principles, layering, naming) followed in this codebase.
+
+## API documentation
+
+- [Search, filter, sort & pagination contract](docs/api/search-filter-sort-pagination.md) — how the frontend should call list (`index`) endpoints (Ransack query params + Pagy pagination).
+- [Postman collection](postman/DoFi-Backend.postman_collection.json)

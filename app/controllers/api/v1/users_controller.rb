@@ -1,12 +1,14 @@
 module Api
   module V1
     class UsersController < ApplicationController
+      include RansackSearchable
+
       before_action :set_user, only: %i[show update destroy]
 
       def index
         authorize User
-        scope = policy_scope(User).order(created_at: :desc)
-        pagy, records = pagy(:offset, scope)
+        result = apply_ransack_search(policy_scope(User), default_sort: "created_at desc")
+        pagy, records = pagy(:offset, result)
         render json: { status: "success", data: UserBlueprint.render_as_hash(records), meta: pagination_meta(pagy) }
       end
 

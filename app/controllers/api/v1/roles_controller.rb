@@ -1,12 +1,14 @@
 module Api
   module V1
     class RolesController < ApplicationController
+      include RansackSearchable
+
       before_action :set_role, only: %i[show update destroy]
 
       def index
         authorize Role
-        scope = policy_scope(Role).order(:name)
-        pagy, records = pagy(:offset, scope)
+        result = apply_ransack_search(policy_scope(Role), default_sort: "name asc")
+        pagy, records = pagy(:offset, result)
         render json: { status: "success", data: RoleBlueprint.render_as_hash(records), meta: pagination_meta(pagy) }
       end
 
