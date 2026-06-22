@@ -1,0 +1,72 @@
+# Deployment compose file for the ST Advisory staging server.
+# Copied by .github/workflows/cd.yml to /home/stadmin/st_dofi_backend_staging on every push to develop.
+# Pulls the prebuilt image from GHCR instead of building on the server.
+# Requires a .env file (not committed) alongside this file on the server — see NEW-SERVICE-DEPLOYMENT.md Part 1.
+name: dofi-backend-staging
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: dofi-backend-staging-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    volumes:
+      - dofi_staging_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - dofi-backend-staging-net
+
+  api:
+    image: ghcr.io/arya020595/st_dofi_backend:staging
+    container_name: dofi-backend-staging-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      RAILS_ENV: production
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:3012:3000"
+    volumes:
+      - dofi_staging_storage:/rails/storage
+    networks:
+      - dofi-backend-staging-net
+
+  jobs:
+    image: ghcr.io/arya020595/st_dofi_backend:staging
+    container_name: dofi-backend-staging-jobs
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      RAILS_ENV: production
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+    env_file:
+      - .env
+    volumes:
+      - dofi_staging_storage:/rails/storage
+    entrypoint: []
+    command: ["./bin/rails", "solid_queue:start"]
+    networks:
+      - dofi-backend-staging-net
+
+volumes:
+  dofi_staging_postgres_data:
+  dofi_staging_storage:
+
+networks:
+  dofi-backend-staging-net:
+    driver: bridge
