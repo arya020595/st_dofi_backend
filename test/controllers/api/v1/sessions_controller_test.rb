@@ -16,6 +16,15 @@ module Api
         assert_equal @user.email, response.parsed_body.dig("data", "user", "email")
       end
 
+      test "sign in response includes the access token alongside the Authorization header" do
+        post "/api/v1/auth/sign_in", params: { user: { email: @user.email, password: @password } }, as: :json
+
+        access_token = response.parsed_body.dig("data", "access_token")
+
+        assert_predicate access_token, :present?
+        assert_equal response.headers["Authorization"], "Bearer #{access_token}"
+      end
+
       test "sign in with invalid credentials is rejected" do
         post "/api/v1/auth/sign_in", params: { user: { email: @user.email, password: "wrong-password" } }, as: :json
 

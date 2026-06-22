@@ -17,7 +17,11 @@ module Api
       def create
         self.resource = warden.authenticate!(auth_options)
         sign_in(resource_name, resource)
-        render json: { status: "success", data: { user: UserBlueprint.render_as_hash(resource) } }, status: :ok
+        access_token = request.env["warden-jwt_auth.token"]
+        render json: {
+          status: "success",
+          data: { access_token: access_token, user: UserBlueprint.render_as_hash(resource) }
+        }, status: :ok
       end
 
       def destroy
