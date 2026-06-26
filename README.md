@@ -61,6 +61,10 @@ docker compose up --build
 docker compose -f docker-compose.production.yml up --build
 ```
 
+### Deployment (staging)
+
+`develop` auto-deploys to staging via `.github/workflows/cd.yml`, which copies `docker-compose.deploy.yml` to the server and runs it against a `.env` that already lives there (not managed by CI). If a frontend gets a browser CORS error calling the staging API (no `Access-Control-Allow-Origin` on the response), that frontend's origin is missing from `CORS_ORIGINS` in the server's `.env` — add it (see `.env.example`) and restart the `api` container; `rack-cors` only reads this at boot.
+
 ## Option B: Run manually with Rails
 
 Requires locally installed:

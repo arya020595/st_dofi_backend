@@ -2,6 +2,9 @@
 # Copied by .github/workflows/cd.yml to /home/stadmin/st_dofi_backend_staging on every push to develop.
 # Pulls the prebuilt image from GHCR instead of building on the server.
 # Requires a .env file (not committed) alongside this file on the server — see NEW-SERVICE-DEPLOYMENT.md Part 1.
+# That .env's CORS_ORIGINS must list every frontend origin calling this API directly from a
+# browser (see .env.example) — a missing entry shows up as a browser CORS error, not a 4xx/5xx.
+# Edit .env on the server and restart the api container (rack-cors reads it once at boot).
 name: dofi-backend-staging
 
 services:
