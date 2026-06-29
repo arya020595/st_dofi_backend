@@ -1,8 +1,5 @@
 ms:
   hello: "Hello world"
-  user_mailer:
-    reset_password_instructions:
-      subject: "Tetapkan semula kata laluan DoFi anda"
   activerecord:
     errors:
       models:

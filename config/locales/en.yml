@@ -29,9 +29,6 @@
 
 en:
   hello: "Hello world"
-  user_mailer:
-    reset_password_instructions:
-      subject: "Reset your DoFi password"
   activerecord:
     errors:
       models:

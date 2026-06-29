@@ -50,20 +50,6 @@ Rails.application.configure do
   config.active_job.queue_adapter = :solid_queue
   config.solid_queue.connects_to = { database: { writing: :queue } }
 
-  # SMTP delivery for transactional email (e.g. password reset instructions).
-  config.action_mailer.delivery_method = :smtp
-  config.action_mailer.raise_delivery_errors = true
-  config.action_mailer.default_url_options = { host: ENV.fetch("MAILER_HOST") }
-  config.action_mailer.smtp_settings = {
-    address: ENV.fetch("SMTP_ADDRESS"),
-    port: ENV.fetch("SMTP_PORT", 587),
-    domain: ENV.fetch("SMTP_DOMAIN", nil),
-    user_name: ENV.fetch("SMTP_USERNAME", nil),
-    password: ENV.fetch("SMTP_PASSWORD", nil),
-    authentication: ENV.fetch("SMTP_AUTHENTICATION", "plain"),
-    enable_starttls_auto: true
-  }
-
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
   # the I18n.default_locale when a translation cannot be found).
   config.i18n.fallbacks = true
