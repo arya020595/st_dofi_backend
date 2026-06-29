@@ -4,12 +4,23 @@ class ApplicationController < ActionController::API
   include Dry::Monads[:result]
 
   before_action :authenticate_user!
+  before_action :set_locale
 
   rescue_from Pundit::NotAuthorizedError, with: :render_forbidden
   rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
   rescue_from ActionController::ParameterMissing, with: :render_bad_request
 
   private
+
+  # Locale is never sent in the JSON body (see docs/locale) — only via the Accept-Language
+  # header, which the FE sets globally after login/preference update.
+  def set_locale
+    I18n.locale = User::VALID_LOCALES.include?(request_locale) ? request_locale : I18n.default_locale
+  end
+
+  def request_locale
+    request.headers["Accept-Language"]
+  end
 
   def append_info_to_payload(payload)
     super

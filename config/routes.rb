@@ -21,6 +21,12 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       resource :password, only: %i[create update], controller: "passwords"
+
+      # No default REST actions (only: []) — profile only exposes self-service member actions
+      # like :locale, scoped to current_user rather than an :id.
+      resource :profile, only: [], controller: "profiles" do
+        patch :locale
+      end
       resources :users, only: %i[index show create update destroy]
       resources :roles, only: %i[index show create update destroy]
       resources :permissions, only: %i[index]

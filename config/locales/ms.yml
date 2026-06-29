@@ -3,3 +3,10 @@ ms:
   user_mailer:
     reset_password_instructions:
       subject: "Tetapkan semula kata laluan DoFi anda"
+  activerecord:
+    errors:
+      models:
+        user:
+          attributes:
+            preferred_locale:
+              inclusion: "tidak termasuk dalam senarai"
