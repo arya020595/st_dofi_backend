@@ -20,6 +20,7 @@ Rails.application.routes.draw do
 
   namespace :api do
     namespace :v1 do
+      resource :password, only: %i[create update], controller: "passwords"
       resources :users, only: %i[index show create update destroy]
       resources :roles, only: %i[index show create update destroy]
       resources :permissions, only: %i[index]

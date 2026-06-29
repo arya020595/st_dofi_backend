@@ -2,7 +2,7 @@ class User < ApplicationRecord
   include Devise::JWT::RevocationStrategies::JTIMatcher
   include Discard::Model
 
-  devise :database_authenticatable, :jwt_authenticatable, :validatable,
+  devise :database_authenticatable, :jwt_authenticatable, :validatable, :recoverable,
          jwt_revocation_strategy: self
 
   belongs_to :role, optional: true
@@ -17,6 +17,12 @@ class User < ApplicationRecord
     return false unless role
 
     role.permissions.exists?(code: codes)
+  end
+
+  # Devise's default behavior emails on every save() once :recoverable's token/timestamp columns
+  # change; routing it through our own service/mailer keeps that side effect out of the model layer.
+  def send_reset_password_instructions
+    set_reset_password_token
   end
 
   def self.ransackable_attributes(_auth_object = nil)
