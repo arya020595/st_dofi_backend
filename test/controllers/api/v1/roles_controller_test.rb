@@ -6,9 +6,13 @@ module Api
       setup do
         @password = "Password123!"
 
-        @view_permission = create(:permission, code: "manifest_list.view")
+        @view_permission = Permission.find_or_create_by!(code: "manifest_list.view") do |permission|
+          permission.name = "Manifest list - View"
+        end
         role_permissions = %w[list view create update delete].map do |action|
-          create(:permission, code: "roles.#{action}")
+          Permission.find_or_create_by!(code: "roles.#{action}") do |permission|
+            permission.name = "Roles - #{action.capitalize}"
+          end
         end
         @admin_role = create(:role, permissions: role_permissions)
         @no_access_role = create(:role)
@@ -82,7 +86,7 @@ module Api
       end
 
       test "update replaces the permission set" do
-        another_permission = create(:permission, code: "dictionaries.view")
+        another_permission = create(:permission)
 
         patch "/api/v1/roles/#{@target.id}", params: { role: { name: "Renamed" },
                                                        permission_codes: [another_permission.code] },

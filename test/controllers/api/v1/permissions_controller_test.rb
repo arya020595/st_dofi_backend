@@ -5,7 +5,9 @@ module Api
     class PermissionsControllerTest < ActionDispatch::IntegrationTest
       setup do
         @password = "Password123!"
-        @permission = create(:permission, code: "dashboard.view")
+        @permission = Permission.find_or_create_by!(code: "dashboard.view") do |permission|
+          permission.name = "Dashboard - View"
+        end
         @role = create(:role, permissions: [@permission])
         @user = create(:user, role: @role, password: @password, password_confirmation: @password)
         @headers = auth_headers_for(@user, password: @password)
