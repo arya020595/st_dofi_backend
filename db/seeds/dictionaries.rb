@@ -209,7 +209,7 @@ DICTIONARIES = [
   { reference_id: "SP-0099", local_name: "Remis", scientific_name: "Corbiculidae spp.",
     group_name: "Mollusc", family_name: "Corbiculidae" },
   { reference_id: "SP-0100", local_name: "Kepah", scientific_name: "Meretrix meretrix",
-    group_name: "Mollusc", family_name: "Veneridae" },
+    group_name: "Mollusc", family_name: "Veneridae" }
 ].freeze
 
 DICTIONARIES.each do |attrs|
