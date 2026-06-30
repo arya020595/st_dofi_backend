@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "DoFi Backend - Auth, Users, Roles, Permissions",
-    "description": "# DoFi Backend API \u2014 Auth, Users, Roles, Permissions & Registrations\n\nCovers JWT authentication (sign in/me/sign out), DoFi officer user management, role management with permission assignment, the permissions catalog, and public self-registration endpoints for Jetty Managers and Fishermen.\n\n## Environments\n\nSelect one of these Postman environments before running anything \u2014 they provide `base_url` and the seeded admin credentials:\n\n| Environment | base_url | Notes |\n|---|---|---|\n| **DoFi Backend - Local** | `http://localhost:3000` | Local Docker dev stack (`docker compose up`). Safe to use freely. |\n| **DoFi Backend - Staging** | `http://46.202.163.155:3012` | Shared staging server, no TLS yet. Shared with other testers \u2014 be considerate with writes/deletes. |\n\n## Authentication flow\n\n1. Run **Auth \u2192 Sign In**. On success the response includes the JWT both as `data.access_token` in the JSON body and in the `Authorization` response header (`Bearer <token>`) \u2014 pick whichever your client finds easier. A test script automatically saves it into the `jwt_token` collection variable.\n2. Every other request in this collection uses collection-level Bearer auth (`{{jwt_token}}`) \u2014 no need to copy/paste tokens manually between requests.\n3. Run **Z - Sign Out (run last) \u2192 Sign Out** when you're done. This revokes the JWT (devise-jwt JTI denylist) and clears `jwt_token`. Anything run after Sign Out needs a fresh Sign In first.\n\n## Roles & permissions model\n\nEach `User` belongs to one `Role` (e.g. the seeded `DoFi Officer`), and each `Role` has many `Permission`s identified by a `code` (e.g. `roles.create`, `dofi_officer_users.update`). Endpoints are authorized via Pundit policies that check the signed-in user's role permissions:\n\n- **Roles**: `roles.list`/`roles.view`, `roles.create`, `roles.update`, `roles.delete`\n- **Users**: `dofi_officer_users.list`/`.view`, `.create`, `.update`, `.delete`\n- **Permissions**: read-only catalog, available to any authenticated user\n\nA failing permission check returns `401` (no/invalid session) or `403` (authenticated but not allowed), depending on the failure mode.\n\n## List endpoints: filter, sort & pagination\n\n`GET` index endpoints (`/api/v1/permissions`, `/api/v1/roles`, `/api/v1/users`) accept Ransack query params for filtering/sorting and Pagy params for pagination:\n\n- **Filter**: `q[<attribute>_<predicate>]=<value>`, e.g. `q[name_cont]=officer`, `q[status_eq]=active`.\n- **Sort**: `q[s]=<attribute> <asc|desc>`, or repeat `q[s][]=...` for multiple sort keys.\n- **Paginate**: `page` and `limit` query params (roles/users only \u2014 the permissions catalog is not paginated).\n- Non-whitelisted attributes (e.g. `encrypted_password`) are silently ignored rather than erroring or leaking data through the search index.\n\nFull contract: `docs/api/search-filter-sort-pagination.md` in the backend repo.\n\n## Soft delete\n\n`DELETE /api/v1/users/:id` soft-deletes via the `Discard` gem \u2014 the record is excluded from default scopes (so a subsequent `GET` returns `404`) but stays in the database for audit purposes.\n",
+    "name": "DoFi Backend API",
+    "description": "# DoFi Backend API \u2014 Auth, Users, Roles, Permissions, Registrations & Master Data\n\nCovers JWT authentication (sign in/me/sign out), DoFi officer user management, role management with permission assignment, the permissions catalog, and public self-registration endpoints for Jetty Managers and Fishermen.\n\n## Environments\n\nSelect one of these Postman environments before running anything \u2014 they provide `base_url` and the seeded admin credentials:\n\n| Environment | base_url | Notes |\n|---|---|---|\n| **DoFi Backend - Local** | `http://localhost:3000` | Local Docker dev stack (`docker compose up`). Safe to use freely. |\n| **DoFi Backend - Staging** | `http://46.202.163.155:3012` | Shared staging server, no TLS yet. Shared with other testers \u2014 be considerate with writes/deletes. |\n\n## Authentication flow\n\n1. Run **Auth \u2192 Sign In**. On success the response includes the JWT both as `data.access_token` in the JSON body and in the `Authorization` response header (`Bearer <token>`) \u2014 pick whichever your client finds easier. A test script automatically saves it into the `jwt_token` collection variable.\n2. Every other request in this collection uses collection-level Bearer auth (`{{jwt_token}}`) \u2014 no need to copy/paste tokens manually between requests.\n3. Run **Z - Sign Out (run last) \u2192 Sign Out** when you're done. This revokes the JWT (devise-jwt JTI denylist) and clears `jwt_token`. Anything run after Sign Out needs a fresh Sign In first.\n\n## Roles & permissions model\n\nEach `User` belongs to one `Role` (e.g. the seeded `DoFi Officer`), and each `Role` has many `Permission`s identified by a `code` (e.g. `roles.create`, `dofi_officer_users.update`). Endpoints are authorized via Pundit policies that check the signed-in user's role permissions:\n\n- **Roles**: `roles.list`/`roles.view`, `roles.create`, `roles.update`, `roles.delete`\n- **Users**: `dofi_officer_users.list`/`.view`, `.create`, `.update`, `.delete`\n- **Permissions**: read-only catalog, available to any authenticated user\n\nA failing permission check returns `401` (no/invalid session) or `403` (authenticated but not allowed), depending on the failure mode.\n\n## List endpoints: filter, sort & pagination\n\n`GET` index endpoints (`/api/v1/permissions`, `/api/v1/roles`, `/api/v1/users`) accept Ransack query params for filtering/sorting and Pagy params for pagination:\n\n- **Filter**: `q[<attribute>_<predicate>]=<value>`, e.g. `q[name_cont]=officer`, `q[status_eq]=active`.\n- **Sort**: `q[s]=<attribute> <asc|desc>`, or repeat `q[s][]=...` for multiple sort keys.\n- **Paginate**: `page` and `limit` query params (roles/users only \u2014 the permissions catalog is not paginated).\n- Non-whitelisted attributes (e.g. `encrypted_password`) are silently ignored rather than erroring or leaking data through the search index.\n\nFull contract: `docs/api/search-filter-sort-pagination.md` in the backend repo.\n\n## Soft delete\n\n`DELETE /api/v1/users/:id` soft-deletes via the `Discard` gem \u2014 the record is excluded from default scopes (so a subsequent `GET` returns `404`) but stays in the database for audit purposes.\n",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -52,6 +52,36 @@
     },
     {
       "key": "dictionary_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "port_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "zone_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "fishing_gear_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "nationality_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "position_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "reason_id",
       "value": "",
       "type": "string"
     }
@@ -2984,21 +3014,40 @@
     },
     {
       "name": "Registrations",
-      "description": "Public self-registration endpoints for Jetty Managers and Fishermen. No `Authorization` header is required — all four endpoints are unauthenticated. The expected flow before hitting these endpoints is: (1) user scans a BruneiID QR code, (2) BruneiID callback returns `ic_number` + `name` to the FE, (3) FE calls `GET /registrations/status` to check whether an account already exists for that IC, then routes to the appropriate register form or redirect.",
+      "description": "Public self-registration endpoints for Jetty Managers and Fishermen. No `Authorization` header is required \u2014 all four endpoints are unauthenticated. The expected flow before hitting these endpoints is: (1) user scans a BruneiID QR code, (2) BruneiID callback returns `ic_number` + `name` to the FE, (3) FE calls `GET /registrations/status` to check whether an account already exists for that IC, then routes to the appropriate register form or redirect.",
       "item": [
         {
           "name": "Check Registration Status",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/api/v1/registrations/status?ic_number=01-1234567",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "registrations", "status"],
-              "query": [{ "key": "ic_number", "value": "01-1234567" }]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "registrations",
+                "status"
+              ],
+              "query": [
+                {
+                  "key": "ic_number",
+                  "value": "01-1234567"
+                }
+              ]
             },
-            "description": "Checks whether a user account already exists for the given IC number. The FE calls this immediately after a successful BruneiID callback to decide which screen to show:\n\n| Response | `data.status` | FE action |\n|---|---|---|\n| 200 | `active` | Redirect to login |\n| 200 | `pending` | Show \"Registration Status: Pending\" screen |\n| 200 | `rejected` | Show \"Registration Status: Rejected\" screen (read `rejection_reason`) |\n| 404 | — | IC not found → show registration form |"
+            "description": "Checks whether a user account already exists for the given IC number. The FE calls this immediately after a successful BruneiID callback to decide which screen to show:\n\n| Response | `data.status` | FE action |\n|---|---|---|\n| 200 | `active` | Redirect to login |\n| 200 | `pending` | Show \"Registration Status: Pending\" screen |\n| 200 | `rejected` | Show \"Registration Status: Rejected\" screen (read `rejection_reason`) |\n| 404 | \u2014 | IC not found \u2192 show registration form |"
           },
           "event": [
             {
@@ -3017,18 +3066,40 @@
               "name": "Status - Active (Jetty Manager already registered)",
               "originalRequest": {
                 "method": "GET",
-                "header": [{ "key": "Accept", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
                 "url": {
                   "raw": "{{base_url}}/api/v1/registrations/status?ic_number=01-1234567",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "registrations", "status"],
-                  "query": [{ "key": "ic_number", "value": "01-1234567" }]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "registrations",
+                    "status"
+                  ],
+                  "query": [
+                    {
+                      "key": "ic_number",
+                      "value": "01-1234567"
+                    }
+                  ]
                 }
               },
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0001-0001-0001-000000000001\",\n    \"name\": \"Amiirul Azri Mizamuddin\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"active\",\n    \"preferred_locale\": \"en\",\n    \"unit\": \"Docks\",\n    \"position\": \"Jetty Supervisor\",\n    \"contact_no\": \"71111111\",\n    \"designation\": null,\n    \"registration_type\": null,\n    \"created_at\": \"2026-06-30T08:00:00.000Z\",\n    \"updated_at\": \"2026-06-30T08:00:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0001-0001-0001-0001-000000000002\",\n      \"name\": \"Jetty Manager\",\n      \"reference_id\": \"ROLE-002\",\n      \"description\": \"Port-level authority.\",\n      \"permissions\": []\n    },\n    \"company_profile\": null\n  }\n}"
             },
@@ -3036,18 +3107,40 @@
               "name": "Status - Pending (Fisherman awaiting approval)",
               "originalRequest": {
                 "method": "GET",
-                "header": [{ "key": "Accept", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
                 "url": {
                   "raw": "{{base_url}}/api/v1/registrations/status?ic_number=01-192839",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "registrations", "status"],
-                  "query": [{ "key": "ic_number", "value": "01-192839" }]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "registrations",
+                    "status"
+                  ],
+                  "query": [
+                    {
+                      "key": "ic_number",
+                      "value": "01-192839"
+                    }
+                  ]
                 }
               },
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0002-0002-0002-000000000002\",\n    \"name\": \"Muhammad Shahrizan Bin Haji Said\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"pending\",\n    \"preferred_locale\": \"en\",\n    \"unit\": null,\n    \"position\": null,\n    \"contact_no\": null,\n    \"designation\": \"Owner\",\n    \"registration_type\": \"Commercial\",\n    \"created_at\": \"2026-06-30T09:00:00.000Z\",\n    \"updated_at\": \"2026-06-30T09:00:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0003-0003-0003-0003-000000000003\",\n      \"name\": \"Fisherman\",\n      \"reference_id\": \"ROLE-003\",\n      \"description\": \"Fisherman role.\",\n      \"permissions\": []\n    },\n    \"company_profile\": {\n      \"id\": \"cp000001-0001-0001-0001-000000000001\",\n      \"registration_type\": \"Commercial\",\n      \"company_name\": \"Azri Fish Sdn Bhd\",\n      \"rocbn_no\": \"RC20390923\",\n      \"full_name\": \"Muhammad Shahrizan Bin Haji Said\",\n      \"ic_no\": \"01-192839\"\n    }\n  }\n}"
             },
@@ -3055,18 +3148,40 @@
               "name": "Status - Rejected (Fisherman rejected by officer)",
               "originalRequest": {
                 "method": "GET",
-                "header": [{ "key": "Accept", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
                 "url": {
                   "raw": "{{base_url}}/api/v1/registrations/status?ic_number=01-000099",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "registrations", "status"],
-                  "query": [{ "key": "ic_number", "value": "01-000099" }]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "registrations",
+                    "status"
+                  ],
+                  "query": [
+                    {
+                      "key": "ic_number",
+                      "value": "01-000099"
+                    }
+                  ]
                 }
               },
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0003-0003-0003-000000000003\",\n    \"name\": \"Ahmad Bin Abdullah\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"rejected\",\n    \"preferred_locale\": \"en\",\n    \"unit\": null,\n    \"position\": null,\n    \"contact_no\": null,\n    \"designation\": \"Owner\",\n    \"registration_type\": \"Small-Scale (Company)\",\n    \"created_at\": \"2026-06-30T07:00:00.000Z\",\n    \"updated_at\": \"2026-06-30T10:00:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0003-0003-0003-0003-000000000003\",\n      \"name\": \"Fisherman\",\n      \"reference_id\": \"ROLE-003\",\n      \"description\": \"Fisherman role.\",\n      \"permissions\": []\n    },\n    \"company_profile\": null\n  }\n}"
             },
@@ -3074,18 +3189,40 @@
               "name": "Status - Not Found (IC has no account)",
               "originalRequest": {
                 "method": "GET",
-                "header": [{ "key": "Accept", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
                 "url": {
                   "raw": "{{base_url}}/api/v1/registrations/status?ic_number=00-000000",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "registrations", "status"],
-                  "query": [{ "key": "ic_number", "value": "00-000000" }]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "registrations",
+                    "status"
+                  ],
+                  "query": [
+                    {
+                      "key": "ic_number",
+                      "value": "00-000000"
+                    }
+                  ]
                 }
               },
               "status": "Not Found",
               "code": 404,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"status\": \"fail\",\n  \"message\": \"Resource not found.\"\n}"
             }
@@ -3094,22 +3231,37 @@
         {
           "name": "Jetty Manager - Register",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Accept", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/registrations/jetty_manager",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "registrations", "jetty_manager"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "registrations",
+                "jetty_manager"
+              ]
             },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"user\": {\n    \"name\": \"Amiirul Azri Mizamuddin\",\n    \"ic_number\": \"01-1234567\",\n    \"unit\": \"Docks\",\n    \"position\": \"Jetty Supervisor\",\n    \"contact_no\": \"71111111\"\n  }\n}"
             },
-            "description": "Registers a new Jetty Manager account (role ROLE-002). All five fields are required. The account is created immediately as `active` — no officer approval step.\n\nThe `ic_number` and `name` are typically pre-filled from the BruneiID callback; `unit`, `position`, and `contact_no` are entered by the user on the registration form.\n\nA random secure password is generated server-side — the user never sets one. Future authentication is via BruneiID QR re-scan, not email/password."
+            "description": "Registers a new Jetty Manager account (role ROLE-002). All five fields are required. The account is created immediately as `active` \u2014 no officer approval step.\n\nThe `ic_number` and `name` are typically pre-filled from the BruneiID callback; `unit`, `position`, and `contact_no` are entered by the user on the registration form.\n\nA random secure password is generated server-side \u2014 the user never sets one. Future authentication is via BruneiID QR re-scan, not email/password."
           },
           "event": [
             {
@@ -3130,13 +3282,26 @@
               "originalRequest": {
                 "method": "POST",
                 "header": [
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "url": {
                   "raw": "{{base_url}}/api/v1/registrations/jetty_manager",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "registrations", "jetty_manager"]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "registrations",
+                    "jetty_manager"
+                  ]
                 },
                 "body": {
                   "mode": "raw",
@@ -3146,7 +3311,12 @@
               "status": "Created",
               "code": 201,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0001-0001-0001-000000000001\",\n    \"name\": \"Amiirul Azri Mizamuddin\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"active\",\n    \"preferred_locale\": \"en\",\n    \"unit\": \"Docks\",\n    \"position\": \"Jetty Supervisor\",\n    \"contact_no\": \"71111111\",\n    \"designation\": null,\n    \"registration_type\": null,\n    \"created_at\": \"2026-06-30T08:00:00.000Z\",\n    \"updated_at\": \"2026-06-30T08:00:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0001-0001-0001-0001-000000000002\",\n      \"name\": \"Jetty Manager\",\n      \"reference_id\": \"ROLE-002\",\n      \"description\": \"Port-level authority.\",\n      \"permissions\": []\n    },\n    \"company_profile\": null\n  }\n}"
             },
@@ -3155,13 +3325,26 @@
               "originalRequest": {
                 "method": "POST",
                 "header": [
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "url": {
                   "raw": "{{base_url}}/api/v1/registrations/jetty_manager",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "registrations", "jetty_manager"]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "registrations",
+                    "jetty_manager"
+                  ]
                 },
                 "body": {
                   "mode": "raw",
@@ -3171,7 +3354,12 @@
               "status": "Unprocessable Content",
               "code": 422,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"status\": \"fail\",\n  \"errors\": [\n    \"IC number can't be blank\",\n    \"Unit can't be blank\",\n    \"Position can't be blank\",\n    \"Contact no can't be blank\"\n  ]\n}"
             },
@@ -3180,13 +3368,26 @@
               "originalRequest": {
                 "method": "POST",
                 "header": [
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "url": {
                   "raw": "{{base_url}}/api/v1/registrations/jetty_manager",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "registrations", "jetty_manager"]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "registrations",
+                    "jetty_manager"
+                  ]
                 },
                 "body": {
                   "mode": "raw",
@@ -3196,7 +3397,12 @@
               "status": "Unprocessable Content",
               "code": 422,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"status\": \"fail\",\n  \"errors\": [\n    \"IC number has already been taken\"\n  ]\n}"
             }
@@ -3205,16 +3411,36 @@
         {
           "name": "Fisherman - Company Profile Lookup",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/api/v1/registrations/fisherman/company_profile?ic_no=01-192839",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "registrations", "fisherman", "company_profile"],
-              "query": [{ "key": "ic_no", "value": "01-192839" }]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "registrations",
+                "fisherman",
+                "company_profile"
+              ],
+              "query": [
+                {
+                  "key": "ic_no",
+                  "value": "01-192839"
+                }
+              ]
             },
-            "description": "Looks up the CompanyProfile whose `ic_no` matches the fisherman's IC number. Used by the FE to pre-fill Company Name and ROCBN No. on the registration form (read-only fields).\n\nOnly applies to `registration_type` = `\"Commercial\"` or `\"Small-Scale (Company)\"`. For `\"Small - Scale (Full-Time)\"` no lookup is needed.\n\nReturns 404 if no active CompanyProfile matches — the FE should show dashes and disable the Register button in this case."
+            "description": "Looks up the CompanyProfile whose `ic_no` matches the fisherman's IC number. Used by the FE to pre-fill Company Name and ROCBN No. on the registration form (read-only fields).\n\nOnly applies to `registration_type` = `\"Commercial\"` or `\"Small-Scale (Company)\"`. For `\"Small - Scale (Full-Time)\"` no lookup is needed.\n\nReturns 404 if no active CompanyProfile matches \u2014 the FE should show dashes and disable the Register button in this case."
           },
           "event": [
             {
@@ -3233,18 +3459,41 @@
               "name": "Company Profile Lookup - 200 Found",
               "originalRequest": {
                 "method": "GET",
-                "header": [{ "key": "Accept", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
                 "url": {
                   "raw": "{{base_url}}/api/v1/registrations/fisherman/company_profile?ic_no=01-192839",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "registrations", "fisherman", "company_profile"],
-                  "query": [{ "key": "ic_no", "value": "01-192839" }]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "registrations",
+                    "fisherman",
+                    "company_profile"
+                  ],
+                  "query": [
+                    {
+                      "key": "ic_no",
+                      "value": "01-192839"
+                    }
+                  ]
                 }
               },
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"cp000001-0001-0001-0001-000000000001\",\n    \"registration_type\": \"Commercial\",\n    \"company_name\": \"Azri Fish Sdn Bhd\",\n    \"rocbn_no\": \"RC20390923\",\n    \"full_name\": \"Muhammad Shahrizan Bin Haji Said\",\n    \"ic_no\": \"01-192839\"\n  }\n}"
             },
@@ -3252,18 +3501,41 @@
               "name": "Company Profile Lookup - 404 Not Found",
               "originalRequest": {
                 "method": "GET",
-                "header": [{ "key": "Accept", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
                 "url": {
                   "raw": "{{base_url}}/api/v1/registrations/fisherman/company_profile?ic_no=00-000000",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "registrations", "fisherman", "company_profile"],
-                  "query": [{ "key": "ic_no", "value": "00-000000" }]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "registrations",
+                    "fisherman",
+                    "company_profile"
+                  ],
+                  "query": [
+                    {
+                      "key": "ic_no",
+                      "value": "00-000000"
+                    }
+                  ]
                 }
               },
               "status": "Not Found",
               "code": 404,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"status\": \"fail\",\n  \"message\": \"Resource not found.\"\n}"
             }
@@ -3272,22 +3544,37 @@
         {
           "name": "Fisherman - Register (Commercial)",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Accept", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/registrations/fisherman",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "registrations", "fisherman"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "registrations",
+                "fisherman"
+              ]
             },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"user\": {\n    \"name\": \"Muhammad Shahrizan Bin Haji Said\",\n    \"ic_number\": \"01-192839\",\n    \"registration_type\": \"Commercial\",\n    \"designation\": \"Owner\"\n  }\n}"
             },
-            "description": "Registers a fisherman with `registration_type = \"Commercial\"`. The server looks up a `CompanyProfile` whose `ic_no` matches `ic_number` — if none is found, the request returns 404 (the IC lookup step above should have caught this first).\n\nThe account is created with `status: pending` and linked to the matched CompanyProfile. An officer must approve before the user can log in.\n\nValid `registration_type` values: `\"Commercial\"`, `\"Small-Scale (Company)\"`, `\"Small - Scale (Full-Time)\"`.\n\n`designation` (Owner or Admin) is only shown on the form for Commercial and Small-Scale (Company) types."
+            "description": "Registers a fisherman with `registration_type = \"Commercial\"`. The server looks up a `CompanyProfile` whose `ic_no` matches `ic_number` \u2014 if none is found, the request returns 404 (the IC lookup step above should have caught this first).\n\nThe account is created with `status: pending` and linked to the matched CompanyProfile. An officer must approve before the user can log in.\n\nValid `registration_type` values: `\"Commercial\"`, `\"Small-Scale (Company)\"`, `\"Small - Scale (Full-Time)\"`.\n\n`designation` (Owner or Admin) is only shown on the form for Commercial and Small-Scale (Company) types."
           },
           "event": [
             {
@@ -3308,13 +3595,26 @@
               "originalRequest": {
                 "method": "POST",
                 "header": [
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "url": {
                   "raw": "{{base_url}}/api/v1/registrations/fisherman",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "registrations", "fisherman"]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "registrations",
+                    "fisherman"
+                  ]
                 },
                 "body": {
                   "mode": "raw",
@@ -3324,7 +3624,12 @@
               "status": "Created",
               "code": 201,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0002-0002-0002-000000000002\",\n    \"name\": \"Muhammad Shahrizan Bin Haji Said\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"pending\",\n    \"preferred_locale\": \"en\",\n    \"unit\": null,\n    \"position\": null,\n    \"contact_no\": null,\n    \"designation\": \"Owner\",\n    \"registration_type\": \"Commercial\",\n    \"created_at\": \"2026-06-30T09:00:00.000Z\",\n    \"updated_at\": \"2026-06-30T09:00:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0003-0003-0003-0003-000000000003\",\n      \"name\": \"Fisherman\",\n      \"reference_id\": \"ROLE-003\",\n      \"description\": \"Fisherman role.\",\n      \"permissions\": []\n    },\n    \"company_profile\": {\n      \"id\": \"cp000001-0001-0001-0001-000000000001\",\n      \"registration_type\": \"Commercial\",\n      \"company_name\": \"Azri Fish Sdn Bhd\",\n      \"rocbn_no\": \"RC20390923\",\n      \"full_name\": \"Muhammad Shahrizan Bin Haji Said\",\n      \"ic_no\": \"01-192839\"\n    }\n  }\n}"
             },
@@ -3333,13 +3638,26 @@
               "originalRequest": {
                 "method": "POST",
                 "header": [
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "url": {
                   "raw": "{{base_url}}/api/v1/registrations/fisherman",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "registrations", "fisherman"]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "registrations",
+                    "fisherman"
+                  ]
                 },
                 "body": {
                   "mode": "raw",
@@ -3349,7 +3667,12 @@
               "status": "Not Found",
               "code": 404,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"status\": \"fail\",\n  \"message\": \"Resource not found.\"\n}"
             }
@@ -3358,22 +3681,37 @@
         {
           "name": "Fisherman - Register (Small-Scale Company)",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Accept", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/registrations/fisherman",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "registrations", "fisherman"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "registrations",
+                "fisherman"
+              ]
             },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"user\": {\n    \"name\": \"Roslan Bin Mat\",\n    \"ic_number\": \"01-192839\",\n    \"registration_type\": \"Small-Scale (Company)\",\n    \"designation\": \"Admin\"\n  }\n}"
             },
-            "description": "Same as the Commercial flow — the server looks up a CompanyProfile by `ic_number` and links the user to it. Returns 404 if no match is found."
+            "description": "Same as the Commercial flow \u2014 the server looks up a CompanyProfile by `ic_number` and links the user to it. Returns 404 if no match is found."
           },
           "event": [
             {
@@ -3393,13 +3731,26 @@
               "originalRequest": {
                 "method": "POST",
                 "header": [
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "url": {
                   "raw": "{{base_url}}/api/v1/registrations/fisherman",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "registrations", "fisherman"]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "registrations",
+                    "fisherman"
+                  ]
                 },
                 "body": {
                   "mode": "raw",
@@ -3409,7 +3760,12 @@
               "status": "Created",
               "code": 201,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0004-0004-0004-000000000004\",\n    \"name\": \"Roslan Bin Mat\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"pending\",\n    \"preferred_locale\": \"en\",\n    \"unit\": null,\n    \"position\": null,\n    \"contact_no\": null,\n    \"designation\": \"Admin\",\n    \"registration_type\": \"Small-Scale (Company)\",\n    \"created_at\": \"2026-06-30T09:30:00.000Z\",\n    \"updated_at\": \"2026-06-30T09:30:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0003-0003-0003-0003-000000000003\",\n      \"name\": \"Fisherman\",\n      \"reference_id\": \"ROLE-003\",\n      \"description\": \"Fisherman role.\",\n      \"permissions\": []\n    },\n    \"company_profile\": {\n      \"id\": \"cp000001-0001-0001-0001-000000000001\",\n      \"registration_type\": \"Small-Scale (Company)\",\n      \"company_name\": \"Azri Fish Sdn Bhd\",\n      \"rocbn_no\": \"RC20390923\",\n      \"full_name\": \"Muhammad Shahrizan Bin Haji Said\",\n      \"ic_no\": \"01-192839\"\n    }\n  }\n}"
             }
@@ -3418,22 +3774,37 @@
         {
           "name": "Fisherman - Register (Small-Scale Full-Time)",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Accept", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/registrations/fisherman",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "registrations", "fisherman"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "registrations",
+                "fisherman"
+              ]
             },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"user\": {\n    \"name\": \"Haji Sulaiman Bin Ahmad\",\n    \"ic_number\": \"01-555555\",\n    \"registration_type\": \"Small - Scale (Full-Time)\"\n  }\n}"
             },
-            "description": "Registers an individual fisherman with no company affiliation. No CompanyProfile lookup is performed — `company_profile` will be `null` in the response. The `designation` field is not required for this registration type.\n\nNote the exact string: `\"Small - Scale (Full-Time)\"` (space before and after the hyphen)."
+            "description": "Registers an individual fisherman with no company affiliation. No CompanyProfile lookup is performed \u2014 `company_profile` will be `null` in the response. The `designation` field is not required for this registration type.\n\nNote the exact string: `\"Small - Scale (Full-Time)\"` (space before and after the hyphen)."
           },
           "event": [
             {
@@ -3454,13 +3825,26 @@
               "originalRequest": {
                 "method": "POST",
                 "header": [
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "url": {
                   "raw": "{{base_url}}/api/v1/registrations/fisherman",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "registrations", "fisherman"]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "registrations",
+                    "fisherman"
+                  ]
                 },
                 "body": {
                   "mode": "raw",
@@ -3470,7 +3854,12 @@
               "status": "Created",
               "code": 201,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0005-0005-0005-000000000005\",\n    \"name\": \"Haji Sulaiman Bin Ahmad\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"pending\",\n    \"preferred_locale\": \"en\",\n    \"unit\": null,\n    \"position\": null,\n    \"contact_no\": null,\n    \"designation\": null,\n    \"registration_type\": \"Small - Scale (Full-Time)\",\n    \"created_at\": \"2026-06-30T10:00:00.000Z\",\n    \"updated_at\": \"2026-06-30T10:00:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0003-0003-0003-0003-000000000003\",\n      \"name\": \"Fisherman\",\n      \"reference_id\": \"ROLE-003\",\n      \"description\": \"Fisherman role.\",\n      \"permissions\": []\n    },\n    \"company_profile\": null\n  }\n}"
             },
@@ -3479,13 +3868,26 @@
               "originalRequest": {
                 "method": "POST",
                 "header": [
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "Accept", "value": "application/json" }
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
                 ],
                 "url": {
                   "raw": "{{base_url}}/api/v1/registrations/fisherman",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "registrations", "fisherman"]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "registrations",
+                    "fisherman"
+                  ]
                 },
                 "body": {
                   "mode": "raw",
@@ -3495,9 +3897,1099 @@
               "status": "Unprocessable Content",
               "code": 422,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"status\": \"fail\",\n  \"errors\": [\n    \"Registration type is not included in the list\"\n  ]\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Master Data",
+      "item": [
+        {
+          "name": "Master Data - Port",
+          "item": [
+            {
+              "name": "List Ports",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/ports?page=1&limit=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "ports?page=1&limit=10"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List Ports - Filtered",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/ports?q[port_name_cont]=Serasa&q[s]=reference_id asc&page=1&limit=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "ports?q[port_name_cont]=Serasa&q[s]=reference_id asc&page=1&limit=10"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Port",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/ports",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "ports"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"port\": {\n    \"port_name\": \"Muara Port\",\n    \"latitude\": \"5.0206\",\n    \"longitude\": \"115.0739\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "if (res.status === 'success') { pm.collectionVariables.set('port_id', res.data.id); }"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create Port - Validation Error (422)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/ports",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "ports"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"port\": {\n    \"port_name\": \"\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Show Port",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/ports/{{port_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "ports",
+                    "{{port_id}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Port",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/ports/{{port_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "ports",
+                    "{{port_id}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"port\": {\n    \"port_name\": \"Muara Port (Updated)\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Delete Port",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/ports/{{port_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "ports",
+                    "{{port_id}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Master Data - Zone",
+          "item": [
+            {
+              "name": "List Zones",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/zones?page=1&limit=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "zones?page=1&limit=10"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List Zones - Filtered",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/zones?q[name_cont]=Zone&q[s]=name asc&page=1&limit=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "zones?q[name_cont]=Zone&q[s]=name asc&page=1&limit=10"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Zone",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/zones",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "zones"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"zone\": {\n    \"name\": \"Zone 5\",\n    \"zone_type\": \"Deep Sea\",\n    \"start_range\": \"200 Nm\",\n    \"end_range\": \"500 Nm\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "if (res.status === 'success') { pm.collectionVariables.set('zone_id', res.data.id); }"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create Zone - Validation Error (422)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/zones",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "zones"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"zone\": {\n    \"name\": \"\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Show Zone",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/zones/{{zone_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "zones",
+                    "{{zone_id}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Zone",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/zones/{{zone_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "zones",
+                    "{{zone_id}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"zone\": {\n    \"name\": \"Zone 5 (Updated)\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Delete Zone",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/zones/{{zone_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "zones",
+                    "{{zone_id}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Master Data - Fishing Gear",
+          "item": [
+            {
+              "name": "List Fishing Gears",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/fishing_gears?page=1&limit=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "fishing_gears?page=1&limit=10"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List Fishing Gears - Filtered",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/fishing_gears?q[name_cont]=Net&q[s]=reference_id asc&page=1&limit=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "fishing_gears?q[name_cont]=Net&q[s]=reference_id asc&page=1&limit=10"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Fishing Gear",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/fishing_gears",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "fishing_gears"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fishing_gear\": {\n    \"local_name\": \"Pukat Hanyut\",\n    \"name\": \"Drift Net\",\n    \"gear_type\": \"Net\",\n    \"unit\": \"Meter\",\n    \"size\": \"25\",\n    \"fee\": \"8.00\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "if (res.status === 'success') { pm.collectionVariables.set('fishing_gear_id', res.data.id); }"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create Fishing Gear - Validation Error (422)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/fishing_gears",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "fishing_gears"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fishing_gear\": {\n    \"name\": \"\",\n    \"gear_type\": \"Net\",\n    \"unit\": \"InvalidUnit\",\n    \"fee\": \"0\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Show Fishing Gear",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/fishing_gears/{{fishing_gear_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "fishing_gears",
+                    "{{fishing_gear_id}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Fishing Gear",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/fishing_gears/{{fishing_gear_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "fishing_gears",
+                    "{{fishing_gear_id}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fishing_gear\": {\n    \"fee\": \"9.00\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Delete Fishing Gear",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/fishing_gears/{{fishing_gear_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "fishing_gears",
+                    "{{fishing_gear_id}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Master Data - Nationality",
+          "item": [
+            {
+              "name": "List Nationalities",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/nationalities?page=1&limit=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "nationalities?page=1&limit=10"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List Nationalities - Filtered",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/nationalities?q[name_cont]=ian&q[s]=reference_id asc&page=1&limit=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "nationalities?q[name_cont]=ian&q[s]=reference_id asc&page=1&limit=10"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Nationality",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/nationalities",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "nationalities"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nationality\": {\n    \"name\": \"Thai\",\n    \"code\": \"TH\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "if (res.status === 'success') { pm.collectionVariables.set('nationality_id', res.data.id); }"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create Nationality - Validation Error (422)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/nationalities",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "nationalities"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nationality\": {\n    \"name\": \"\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Show Nationality",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/nationalities/{{nationality_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "nationalities",
+                    "{{nationality_id}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Nationality",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/nationalities/{{nationality_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "nationalities",
+                    "{{nationality_id}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"nationality\": {\n    \"name\": \"Thai (Updated)\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Delete Nationality",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/nationalities/{{nationality_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "nationalities",
+                    "{{nationality_id}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Master Data - Position",
+          "item": [
+            {
+              "name": "List Positions",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/positions?page=1&limit=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "positions?page=1&limit=10"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List Positions - Filtered",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/positions?q[category_eq]=Fisherman&q[s]=reference_id asc&page=1&limit=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "positions?q[category_eq]=Fisherman&q[s]=reference_id asc&page=1&limit=10"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Position",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/positions",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "positions"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"position\": {\n    \"name\": \"Inspector\",\n    \"category\": \"DoFi Officer\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "if (res.status === 'success') { pm.collectionVariables.set('position_id', res.data.id); }"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create Position - Validation Error (422)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/positions",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "positions"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"position\": {\n    \"name\": \"Test\",\n    \"category\": \"InvalidCategory\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Show Position",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/positions/{{position_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "positions",
+                    "{{position_id}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Position",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/positions/{{position_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "positions",
+                    "{{position_id}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"position\": {\n    \"name\": \"Senior Inspector\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Delete Position",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/positions/{{position_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "positions",
+                    "{{position_id}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Master Data - Reason",
+          "item": [
+            {
+              "name": "List Reasons",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/reasons?page=1&limit=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "reasons?page=1&limit=10"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List Reasons - Filtered",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/reasons?q[name_cont]=weather&q[s]=reference_id asc&page=1&limit=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "reasons?q[name_cont]=weather&q[s]=reference_id asc&page=1&limit=10"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Reason",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/reasons",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "reasons"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": {\n    \"name\": \"Medical Emergency\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "if (res.status === 'success') { pm.collectionVariables.set('reason_id', res.data.id); }"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create Reason - Validation Error (422)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/reasons",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "reasons"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": {\n    \"name\": \"\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Show Reason",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/reasons/{{reason_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "reasons",
+                    "{{reason_id}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Reason",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/reasons/{{reason_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "reasons",
+                    "{{reason_id}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": {\n    \"name\": \"Medical Emergency (Updated)\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Delete Reason (soft)",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/master_data/reasons/{{reason_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "master_data",
+                    "reasons",
+                    "{{reason_id}}"
+                  ]
+                }
+              }
             }
           ]
         }
@@ -3511,14 +5003,31 @@
           "name": "List Dictionaries",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/api/v1/dictionaries?page=1&limit=10",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "dictionaries"],
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dictionaries"
+              ],
               "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "10" }
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
               ]
             },
             "description": "Returns a paginated list of fish species sorted by `reference_id` ascending. Supports Ransack filters: `q[local_name_cont]`, `q[group_name_eq]`, `q[family_name_eq]`, `q[s]=reference_id asc`."
@@ -3544,18 +5053,43 @@
               "name": "List Dictionaries - Example",
               "originalRequest": {
                 "method": "GET",
-                "header": [{ "key": "Accept", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
                 "url": {
                   "raw": "{{base_url}}/api/v1/dictionaries?page=1&limit=3",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "dictionaries"],
-                  "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "3" }]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "dictionaries"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "3"
+                    }
+                  ]
                 }
               },
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    {\n      \"id\": \"9962896b-9bfd-4c3c-88d3-b3ef67451efb\",\n      \"created_at\": \"2026-06-30T03:30:35.267Z\",\n      \"family_name\": \"Scombridae\",\n      \"group_name\": \"Pelagic Fish\",\n      \"image_url\": null,\n      \"local_name\": \"Ikan Tenggiri\",\n      \"reference_id\": \"SP-0001\",\n      \"scientific_name\": \"Scomberomorus commerson\",\n      \"updated_at\": \"2026-06-30T03:30:35.267Z\"\n    },\n    {\n      \"id\": \"b16e0026-625a-4c3a-8213-6204c478915f\",\n      \"created_at\": \"2026-06-30T03:30:35.289Z\",\n      \"family_name\": \"Scombridae\",\n      \"group_name\": \"Pelagic Fish\",\n      \"image_url\": null,\n      \"local_name\": \"Ikan Kembung\",\n      \"reference_id\": \"SP-0002\",\n      \"scientific_name\": \"Rastrelliger kanagurta\",\n      \"updated_at\": \"2026-06-30T03:30:35.289Z\"\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"pages\": 34,\n    \"count\": 100,\n    \"limit\": 3\n  }\n}"
             }
@@ -3565,15 +5099,35 @@
           "name": "List Dictionaries - Filtered by Group",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/api/v1/dictionaries?q[group_name_eq]=Crustacean&page=1&limit=10",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "dictionaries"],
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dictionaries"
+              ],
               "query": [
-                { "key": "q[group_name_eq]", "value": "Crustacean" },
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "10" }
+                {
+                  "key": "q[group_name_eq]",
+                  "value": "Crustacean"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
               ]
             },
             "description": "Filter by exact `group_name`. Other group values: `Pelagic Fish`, `Demersal Fish`, `Reef Fish`, `Cephalopod`, `Mollusc`."
@@ -3598,15 +5152,35 @@
           "name": "List Dictionaries - Search by Local Name",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/api/v1/dictionaries?q[local_name_cont]=Udang&page=1&limit=10",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "dictionaries"],
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dictionaries"
+              ],
               "query": [
-                { "key": "q[local_name_cont]", "value": "Udang" },
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "10" }
+                {
+                  "key": "q[local_name_cont]",
+                  "value": "Udang"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
               ]
             },
             "description": "Full-text trigram search on `local_name` (backed by a GIN index). Also works on `scientific_name` with `q[scientific_name_cont]`."
@@ -3629,11 +5203,23 @@
           "name": "Show Dictionary",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "dictionaries", "{{dictionary_id}}"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dictionaries",
+                "{{dictionary_id}}"
+              ]
             },
             "description": "Returns a single fish species by UUID. `image_url` is `null` unless an image has been uploaded."
           },
@@ -3654,17 +5240,34 @@
               "name": "Show Dictionary - Example",
               "originalRequest": {
                 "method": "GET",
-                "header": [{ "key": "Accept", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
                 "url": {
                   "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "dictionaries", "{{dictionary_id}}"]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "dictionaries",
+                    "{{dictionary_id}}"
+                  ]
                 }
               },
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"9962896b-9bfd-4c3c-88d3-b3ef67451efb\",\n    \"created_at\": \"2026-06-30T03:30:35.267Z\",\n    \"family_name\": \"Scombridae\",\n    \"group_name\": \"Pelagic Fish\",\n    \"image_url\": null,\n    \"local_name\": \"Ikan Tenggiri\",\n    \"reference_id\": \"SP-0001\",\n    \"scientific_name\": \"Scomberomorus commerson\",\n    \"updated_at\": \"2026-06-30T03:30:35.267Z\"\n  }\n}"
             }
@@ -3674,11 +5277,23 @@
           "name": "Show Dictionary - Not Found (404)",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/api/v1/dictionaries/00000000-0000-0000-0000-000000000000",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "dictionaries", "00000000-0000-0000-0000-000000000000"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dictionaries",
+                "00000000-0000-0000-0000-000000000000"
+              ]
             },
             "description": "Confirms that a non-existent UUID returns 404."
           },
@@ -3687,7 +5302,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test('Status is 404', () => pm.response.to.have.status(404));"]
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+                ]
               }
             }
           ],
@@ -3696,17 +5313,34 @@
               "name": "Show Dictionary - Not Found (404) - Example",
               "originalRequest": {
                 "method": "GET",
-                "header": [{ "key": "Accept", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
                 "url": {
                   "raw": "{{base_url}}/api/v1/dictionaries/00000000-0000-0000-0000-000000000000",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "dictionaries", "00000000-0000-0000-0000-000000000000"]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "dictionaries",
+                    "00000000-0000-0000-0000-000000000000"
+                  ]
                 }
               },
               "status": "Not Found",
               "code": 404,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"status\": \"fail\",\n  \"message\": \"Resource not found.\"\n}"
             }
@@ -3716,20 +5350,53 @@
           "name": "Create Dictionary (Single)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/api/v1/dictionaries",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "dictionaries"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dictionaries"
+              ]
             },
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "dictionary[local_name]", "value": "Ikan Harpon", "type": "text" },
-                { "key": "dictionary[scientific_name]", "value": "Eanicus sloharpon", "type": "text" },
-                { "key": "dictionary[group_name]", "value": "Pelagic Fish", "type": "text" },
-                { "key": "dictionary[family_name]", "value": "Sarcopterygii", "type": "text" },
-                { "key": "dictionary[image]", "type": "file", "src": [], "disabled": true, "description": "Optional. JPEG/PNG/WebP, max 5 MB." }
+                {
+                  "key": "dictionary[local_name]",
+                  "value": "Ikan Harpon",
+                  "type": "text"
+                },
+                {
+                  "key": "dictionary[scientific_name]",
+                  "value": "Eanicus sloharpon",
+                  "type": "text"
+                },
+                {
+                  "key": "dictionary[group_name]",
+                  "value": "Pelagic Fish",
+                  "type": "text"
+                },
+                {
+                  "key": "dictionary[family_name]",
+                  "value": "Sarcopterygii",
+                  "type": "text"
+                },
+                {
+                  "key": "dictionary[image]",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true,
+                  "description": "Optional. JPEG/PNG/WebP, max 5 MB."
+                }
               ]
             },
             "description": "Creates a single fish species entry. `reference_id` (SP-XXXX) is auto-generated. Send as `multipart/form-data` to include an image, or as JSON (without image). Returns the created entry wrapped in `data`."
@@ -3752,26 +5419,58 @@
               "name": "Create Dictionary (Single) - Example",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Accept", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
                 "url": {
                   "raw": "{{base_url}}/api/v1/dictionaries",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "dictionaries"]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "dictionaries"
+                  ]
                 },
                 "body": {
                   "mode": "formdata",
                   "formdata": [
-                    { "key": "dictionary[local_name]", "value": "Ikan Harpon", "type": "text" },
-                    { "key": "dictionary[scientific_name]", "value": "Eanicus sloharpon", "type": "text" },
-                    { "key": "dictionary[group_name]", "value": "Pelagic Fish", "type": "text" },
-                    { "key": "dictionary[family_name]", "value": "Sarcopterygii", "type": "text" }
+                    {
+                      "key": "dictionary[local_name]",
+                      "value": "Ikan Harpon",
+                      "type": "text"
+                    },
+                    {
+                      "key": "dictionary[scientific_name]",
+                      "value": "Eanicus sloharpon",
+                      "type": "text"
+                    },
+                    {
+                      "key": "dictionary[group_name]",
+                      "value": "Pelagic Fish",
+                      "type": "text"
+                    },
+                    {
+                      "key": "dictionary[family_name]",
+                      "value": "Sarcopterygii",
+                      "type": "text"
+                    }
                   ]
                 }
               },
               "status": "Created",
               "code": 201,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"96a5e46d-1726-4bf9-8067-c477dafda97d\",\n    \"created_at\": \"2026-06-30T04:01:02.491Z\",\n    \"family_name\": \"Sarcopterygii\",\n    \"group_name\": \"Pelagic Fish\",\n    \"image_url\": null,\n    \"local_name\": \"Ikan Harpon\",\n    \"reference_id\": \"SP-0101\",\n    \"scientific_name\": \"Eanicus sloharpon\",\n    \"updated_at\": \"2026-06-30T04:01:02.491Z\"\n  }\n}"
             }
@@ -3781,28 +5480,83 @@
           "name": "Create Dictionary (Bulk)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/api/v1/dictionaries",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "dictionaries"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dictionaries"
+              ]
             },
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "dictionaries[0][local_name]", "value": "Ikan Senangin Biru", "type": "text" },
-                { "key": "dictionaries[0][scientific_name]", "value": "Eleutheronema rhadinum", "type": "text" },
-                { "key": "dictionaries[0][group_name]", "value": "Pelagic Fish", "type": "text" },
-                { "key": "dictionaries[0][family_name]", "value": "Polynemidae", "type": "text" },
-                { "key": "dictionaries[0][image]", "type": "file", "src": [], "disabled": true, "description": "Optional image for row 0." },
-                { "key": "dictionaries[1][local_name]", "value": "Ikan Parang Merah", "type": "text" },
-                { "key": "dictionaries[1][scientific_name]", "value": "Trichiurus brevis", "type": "text" },
-                { "key": "dictionaries[1][group_name]", "value": "Demersal Fish", "type": "text" },
-                { "key": "dictionaries[1][family_name]", "value": "Trichiuridae", "type": "text" },
-                { "key": "dictionaries[1][image]", "type": "file", "src": [], "disabled": true, "description": "Optional image for row 1." }
+                {
+                  "key": "dictionaries[0][local_name]",
+                  "value": "Ikan Senangin Biru",
+                  "type": "text"
+                },
+                {
+                  "key": "dictionaries[0][scientific_name]",
+                  "value": "Eleutheronema rhadinum",
+                  "type": "text"
+                },
+                {
+                  "key": "dictionaries[0][group_name]",
+                  "value": "Pelagic Fish",
+                  "type": "text"
+                },
+                {
+                  "key": "dictionaries[0][family_name]",
+                  "value": "Polynemidae",
+                  "type": "text"
+                },
+                {
+                  "key": "dictionaries[0][image]",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true,
+                  "description": "Optional image for row 0."
+                },
+                {
+                  "key": "dictionaries[1][local_name]",
+                  "value": "Ikan Parang Merah",
+                  "type": "text"
+                },
+                {
+                  "key": "dictionaries[1][scientific_name]",
+                  "value": "Trichiurus brevis",
+                  "type": "text"
+                },
+                {
+                  "key": "dictionaries[1][group_name]",
+                  "value": "Demersal Fish",
+                  "type": "text"
+                },
+                {
+                  "key": "dictionaries[1][family_name]",
+                  "value": "Trichiuridae",
+                  "type": "text"
+                },
+                {
+                  "key": "dictionaries[1][image]",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true,
+                  "description": "Optional image for row 1."
+                }
               ]
             },
-            "description": "Creates multiple fish species in one request (matching the Add New Fish modal). Each row gets a sequential `reference_id`. All rows are inserted in a single transaction — if any row fails validation, none are saved. Send as `multipart/form-data` using `dictionaries[N][field]` keys."
+            "description": "Creates multiple fish species in one request (matching the Add New Fish modal). Each row gets a sequential `reference_id`. All rows are inserted in a single transaction \u2014 if any row fails validation, none are saved. Send as `multipart/form-data` using `dictionaries[N][field]` keys."
           },
           "event": [
             {
@@ -3824,30 +5578,78 @@
               "name": "Create Dictionary (Bulk) - Example",
               "originalRequest": {
                 "method": "POST",
-                "header": [{ "key": "Accept", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
                 "url": {
                   "raw": "{{base_url}}/api/v1/dictionaries",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "dictionaries"]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "dictionaries"
+                  ]
                 },
                 "body": {
                   "mode": "formdata",
                   "formdata": [
-                    { "key": "dictionaries[0][local_name]", "value": "Ikan Senangin Biru", "type": "text" },
-                    { "key": "dictionaries[0][scientific_name]", "value": "Eleutheronema rhadinum", "type": "text" },
-                    { "key": "dictionaries[0][group_name]", "value": "Pelagic Fish", "type": "text" },
-                    { "key": "dictionaries[0][family_name]", "value": "Polynemidae", "type": "text" },
-                    { "key": "dictionaries[1][local_name]", "value": "Ikan Parang Merah", "type": "text" },
-                    { "key": "dictionaries[1][scientific_name]", "value": "Trichiurus brevis", "type": "text" },
-                    { "key": "dictionaries[1][group_name]", "value": "Demersal Fish", "type": "text" },
-                    { "key": "dictionaries[1][family_name]", "value": "Trichiuridae", "type": "text" }
+                    {
+                      "key": "dictionaries[0][local_name]",
+                      "value": "Ikan Senangin Biru",
+                      "type": "text"
+                    },
+                    {
+                      "key": "dictionaries[0][scientific_name]",
+                      "value": "Eleutheronema rhadinum",
+                      "type": "text"
+                    },
+                    {
+                      "key": "dictionaries[0][group_name]",
+                      "value": "Pelagic Fish",
+                      "type": "text"
+                    },
+                    {
+                      "key": "dictionaries[0][family_name]",
+                      "value": "Polynemidae",
+                      "type": "text"
+                    },
+                    {
+                      "key": "dictionaries[1][local_name]",
+                      "value": "Ikan Parang Merah",
+                      "type": "text"
+                    },
+                    {
+                      "key": "dictionaries[1][scientific_name]",
+                      "value": "Trichiurus brevis",
+                      "type": "text"
+                    },
+                    {
+                      "key": "dictionaries[1][group_name]",
+                      "value": "Demersal Fish",
+                      "type": "text"
+                    },
+                    {
+                      "key": "dictionaries[1][family_name]",
+                      "value": "Trichiuridae",
+                      "type": "text"
+                    }
                   ]
                 }
               },
               "status": "Created",
               "code": 201,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    {\n      \"id\": \"acce65ba-06de-4356-b6f3-73744c5f1aa0\",\n      \"created_at\": \"2026-06-30T04:03:09.526Z\",\n      \"family_name\": \"Polynemidae\",\n      \"group_name\": \"Pelagic Fish\",\n      \"image_url\": null,\n      \"local_name\": \"Ikan Senangin Biru\",\n      \"reference_id\": \"SP-0106\",\n      \"scientific_name\": \"Eleutheronema rhadinum\",\n      \"updated_at\": \"2026-06-30T04:03:09.526Z\"\n    },\n    {\n      \"id\": \"b2b7ddb0-ccd6-4536-abbd-f0174b3445b1\",\n      \"created_at\": \"2026-06-30T04:03:09.537Z\",\n      \"family_name\": \"Trichiuridae\",\n      \"group_name\": \"Demersal Fish\",\n      \"image_url\": null,\n      \"local_name\": \"Ikan Parang Merah\",\n      \"reference_id\": \"SP-0107\",\n      \"scientific_name\": \"Trichiurus brevis\",\n      \"updated_at\": \"2026-06-30T04:03:09.537Z\"\n    }\n  ]\n}"
             }
@@ -3858,13 +5660,25 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/dictionaries",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "dictionaries"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dictionaries"
+              ]
             },
             "body": {
               "mode": "raw",
@@ -3890,13 +5704,25 @@
               "originalRequest": {
                 "method": "POST",
                 "header": [
-                  { "key": "Accept", "value": "application/json" },
-                  { "key": "Content-Type", "value": "application/json" }
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
                 ],
                 "url": {
                   "raw": "{{base_url}}/api/v1/dictionaries",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "dictionaries"]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "dictionaries"
+                  ]
                 },
                 "body": {
                   "mode": "raw",
@@ -3906,7 +5732,12 @@
               "status": "Unprocessable Content",
               "code": 422,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"status\": \"fail\",\n  \"errors\": [\n    \"Local name can't be blank\"\n  ]\n}"
             }
@@ -3916,23 +5747,57 @@
           "name": "Update Dictionary",
           "request": {
             "method": "PATCH",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "dictionaries", "{{dictionary_id}}"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dictionaries",
+                "{{dictionary_id}}"
+              ]
             },
             "body": {
               "mode": "formdata",
               "formdata": [
-                { "key": "dictionary[local_name]", "value": "Ikan Tenggiri", "type": "text" },
-                { "key": "dictionary[scientific_name]", "value": "Scomberomorus commerson", "type": "text" },
-                { "key": "dictionary[group_name]", "value": "Pelagic Fish", "type": "text" },
-                { "key": "dictionary[family_name]", "value": "Scombridae", "type": "text" },
-                { "key": "dictionary[image]", "type": "file", "src": [], "disabled": true, "description": "Optional. Replaces the existing image." }
+                {
+                  "key": "dictionary[local_name]",
+                  "value": "Ikan Tenggiri",
+                  "type": "text"
+                },
+                {
+                  "key": "dictionary[scientific_name]",
+                  "value": "Scomberomorus commerson",
+                  "type": "text"
+                },
+                {
+                  "key": "dictionary[group_name]",
+                  "value": "Pelagic Fish",
+                  "type": "text"
+                },
+                {
+                  "key": "dictionary[family_name]",
+                  "value": "Scombridae",
+                  "type": "text"
+                },
+                {
+                  "key": "dictionary[image]",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true,
+                  "description": "Optional. Replaces the existing image."
+                }
               ]
             },
-            "description": "Updates a single dictionary entry. Partial updates are supported — omit any field to leave it unchanged. `reference_id` is immutable and ignored even if sent. To replace the image, include the `image` file field."
+            "description": "Updates a single dictionary entry. Partial updates are supported \u2014 omit any field to leave it unchanged. `reference_id` is immutable and ignored even if sent. To replace the image, include the `image` file field."
           },
           "event": [
             {
@@ -3951,26 +5816,59 @@
               "name": "Update Dictionary - Example",
               "originalRequest": {
                 "method": "PATCH",
-                "header": [{ "key": "Accept", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
                 "url": {
                   "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "dictionaries", "{{dictionary_id}}"]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "dictionaries",
+                    "{{dictionary_id}}"
+                  ]
                 },
                 "body": {
                   "mode": "formdata",
                   "formdata": [
-                    { "key": "dictionary[local_name]", "value": "Ikan Tenggiri", "type": "text" },
-                    { "key": "dictionary[scientific_name]", "value": "Scomberomorus commerson", "type": "text" },
-                    { "key": "dictionary[group_name]", "value": "Pelagic Fish", "type": "text" },
-                    { "key": "dictionary[family_name]", "value": "Scombridae", "type": "text" }
+                    {
+                      "key": "dictionary[local_name]",
+                      "value": "Ikan Tenggiri",
+                      "type": "text"
+                    },
+                    {
+                      "key": "dictionary[scientific_name]",
+                      "value": "Scomberomorus commerson",
+                      "type": "text"
+                    },
+                    {
+                      "key": "dictionary[group_name]",
+                      "value": "Pelagic Fish",
+                      "type": "text"
+                    },
+                    {
+                      "key": "dictionary[family_name]",
+                      "value": "Scombridae",
+                      "type": "text"
+                    }
                   ]
                 }
               },
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"9962896b-9bfd-4c3c-88d3-b3ef67451efb\",\n    \"created_at\": \"2026-06-30T03:30:35.267Z\",\n    \"family_name\": \"Scombridae\",\n    \"group_name\": \"Pelagic Fish\",\n    \"image_url\": null,\n    \"local_name\": \"Ikan Tenggiri\",\n    \"reference_id\": \"SP-0001\",\n    \"scientific_name\": \"Scomberomorus commerson\",\n    \"updated_at\": \"2026-06-30T04:03:09.681Z\"\n  }\n}"
             }
@@ -3980,11 +5878,23 @@
           "name": "Delete Dictionary",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Accept", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["api", "v1", "dictionaries", "{{dictionary_id}}"]
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dictionaries",
+                "{{dictionary_id}}"
+              ]
             },
             "description": "Permanently deletes a dictionary entry. Unlike users, dictionary entries are hard-deleted (no soft delete / Discard). A subsequent GET on the same ID returns 404."
           },
@@ -4005,17 +5915,34 @@
               "name": "Delete Dictionary - Example",
               "originalRequest": {
                 "method": "DELETE",
-                "header": [{ "key": "Accept", "value": "application/json" }],
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
                 "url": {
                   "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "v1", "dictionaries", "{{dictionary_id}}"]
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "dictionaries",
+                    "{{dictionary_id}}"
+                  ]
                 }
               },
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"status\": \"success\",\n  \"message\": \"Dictionary entry removed.\"\n}"
             }
