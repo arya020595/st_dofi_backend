@@ -36,6 +36,7 @@ Rails.application.routes.draw do
 
       resources :roles, only: %i[index show create update destroy]
       resources :permissions, only: %i[index]
+      resources :dictionaries, only: %i[index show create update destroy]
     end
   end
 

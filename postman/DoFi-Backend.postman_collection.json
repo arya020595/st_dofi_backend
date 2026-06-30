@@ -49,6 +49,11 @@
       "key": "permission_code",
       "value": "dashboard.view",
       "type": "string"
+    },
+    {
+      "key": "dictionary_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -3493,6 +3498,526 @@
               "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
               "cookie": [],
               "body": "{\n  \"status\": \"fail\",\n  \"errors\": [\n    \"Registration type is not included in the list\"\n  ]\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Dictionary",
+      "description": "Fish species dictionary CRUD. Supports single and bulk create (multipart/form-data or JSON). Images are uploaded via the `image` field and stored via ActiveStorage (Cloudinary in staging/production, local disk in development). `reference_id` (SP-XXXX) is auto-generated and cannot be set manually.",
+      "item": [
+        {
+          "name": "List Dictionaries",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dictionaries?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "dictionaries"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            },
+            "description": "Returns a paginated list of fish species sorted by `reference_id` ascending. Supports Ransack filters: `q[local_name_cont]`, `q[group_name_eq]`, `q[family_name_eq]`, `q[s]=reference_id asc`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns data array', () => pm.expect(pm.response.json().data).to.be.an('array'));",
+                  "pm.test('Has pagination meta', () => pm.expect(pm.response.json().meta).to.have.property('count'));",
+                  "if (pm.response.json().data.length > 0) {",
+                  "  pm.collectionVariables.set('dictionary_id', pm.response.json().data[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "List Dictionaries - Example",
+              "originalRequest": {
+                "method": "GET",
+                "header": [{ "key": "Accept", "value": "application/json" }],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/dictionaries?page=1&limit=3",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "dictionaries"],
+                  "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "3" }]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "cookie": [],
+              "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    {\n      \"id\": \"9962896b-9bfd-4c3c-88d3-b3ef67451efb\",\n      \"created_at\": \"2026-06-30T03:30:35.267Z\",\n      \"family_name\": \"Scombridae\",\n      \"group_name\": \"Pelagic Fish\",\n      \"image_url\": null,\n      \"local_name\": \"Ikan Tenggiri\",\n      \"reference_id\": \"SP-0001\",\n      \"scientific_name\": \"Scomberomorus commerson\",\n      \"updated_at\": \"2026-06-30T03:30:35.267Z\"\n    },\n    {\n      \"id\": \"b16e0026-625a-4c3a-8213-6204c478915f\",\n      \"created_at\": \"2026-06-30T03:30:35.289Z\",\n      \"family_name\": \"Scombridae\",\n      \"group_name\": \"Pelagic Fish\",\n      \"image_url\": null,\n      \"local_name\": \"Ikan Kembung\",\n      \"reference_id\": \"SP-0002\",\n      \"scientific_name\": \"Rastrelliger kanagurta\",\n      \"updated_at\": \"2026-06-30T03:30:35.289Z\"\n    }\n  ],\n  \"meta\": {\n    \"page\": 1,\n    \"pages\": 34,\n    \"count\": 100,\n    \"limit\": 3\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "List Dictionaries - Filtered by Group",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dictionaries?q[group_name_eq]=Crustacean&page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "dictionaries"],
+              "query": [
+                { "key": "q[group_name_eq]", "value": "Crustacean" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            },
+            "description": "Filter by exact `group_name`. Other group values: `Pelagic Fish`, `Demersal Fish`, `Reef Fish`, `Cephalopod`, `Mollusc`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('All results are Crustacean', () => {",
+                  "  pm.response.json().data.forEach(d => pm.expect(d.group_name).to.eql('Crustacean'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List Dictionaries - Search by Local Name",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dictionaries?q[local_name_cont]=Udang&page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "dictionaries"],
+              "query": [
+                { "key": "q[local_name_cont]", "value": "Udang" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            },
+            "description": "Full-text trigram search on `local_name` (backed by a GIN index). Also works on `scientific_name` with `q[scientific_name_cont]`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns matching results', () => pm.expect(pm.response.json().data.length).to.be.above(0));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Show Dictionary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "dictionaries", "{{dictionary_id}}"]
+            },
+            "description": "Returns a single fish species by UUID. `image_url` is `null` unless an image has been uploaded."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has reference_id', () => pm.expect(pm.response.json().data).to.have.property('reference_id'));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Show Dictionary - Example",
+              "originalRequest": {
+                "method": "GET",
+                "header": [{ "key": "Accept", "value": "application/json" }],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "dictionaries", "{{dictionary_id}}"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "cookie": [],
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"9962896b-9bfd-4c3c-88d3-b3ef67451efb\",\n    \"created_at\": \"2026-06-30T03:30:35.267Z\",\n    \"family_name\": \"Scombridae\",\n    \"group_name\": \"Pelagic Fish\",\n    \"image_url\": null,\n    \"local_name\": \"Ikan Tenggiri\",\n    \"reference_id\": \"SP-0001\",\n    \"scientific_name\": \"Scomberomorus commerson\",\n    \"updated_at\": \"2026-06-30T03:30:35.267Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Show Dictionary - Not Found (404)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dictionaries/00000000-0000-0000-0000-000000000000",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "dictionaries", "00000000-0000-0000-0000-000000000000"]
+            },
+            "description": "Confirms that a non-existent UUID returns 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Status is 404', () => pm.response.to.have.status(404));"]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Show Dictionary - Not Found (404) - Example",
+              "originalRequest": {
+                "method": "GET",
+                "header": [{ "key": "Accept", "value": "application/json" }],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/dictionaries/00000000-0000-0000-0000-000000000000",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "dictionaries", "00000000-0000-0000-0000-000000000000"]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "cookie": [],
+              "body": "{\n  \"status\": \"fail\",\n  \"message\": \"Resource not found.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Dictionary (Single)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dictionaries",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "dictionaries"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "dictionary[local_name]", "value": "Ikan Harpon", "type": "text" },
+                { "key": "dictionary[scientific_name]", "value": "Eanicus sloharpon", "type": "text" },
+                { "key": "dictionary[group_name]", "value": "Pelagic Fish", "type": "text" },
+                { "key": "dictionary[family_name]", "value": "Sarcopterygii", "type": "text" },
+                { "key": "dictionary[image]", "type": "file", "src": [], "disabled": true, "description": "Optional. JPEG/PNG/WebP, max 5 MB." }
+              ]
+            },
+            "description": "Creates a single fish species entry. `reference_id` (SP-XXXX) is auto-generated. Send as `multipart/form-data` to include an image, or as JSON (without image). Returns the created entry wrapped in `data`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Has auto-generated reference_id', () => pm.expect(pm.response.json().data.reference_id).to.match(/^SP-\\d{4}$/));",
+                  "pm.collectionVariables.set('dictionary_id', pm.response.json().data.id);"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Create Dictionary (Single) - Example",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Accept", "value": "application/json" }],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/dictionaries",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "dictionaries"]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    { "key": "dictionary[local_name]", "value": "Ikan Harpon", "type": "text" },
+                    { "key": "dictionary[scientific_name]", "value": "Eanicus sloharpon", "type": "text" },
+                    { "key": "dictionary[group_name]", "value": "Pelagic Fish", "type": "text" },
+                    { "key": "dictionary[family_name]", "value": "Sarcopterygii", "type": "text" }
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "cookie": [],
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"96a5e46d-1726-4bf9-8067-c477dafda97d\",\n    \"created_at\": \"2026-06-30T04:01:02.491Z\",\n    \"family_name\": \"Sarcopterygii\",\n    \"group_name\": \"Pelagic Fish\",\n    \"image_url\": null,\n    \"local_name\": \"Ikan Harpon\",\n    \"reference_id\": \"SP-0101\",\n    \"scientific_name\": \"Eanicus sloharpon\",\n    \"updated_at\": \"2026-06-30T04:01:02.491Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Dictionary (Bulk)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dictionaries",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "dictionaries"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "dictionaries[0][local_name]", "value": "Ikan Senangin Biru", "type": "text" },
+                { "key": "dictionaries[0][scientific_name]", "value": "Eleutheronema rhadinum", "type": "text" },
+                { "key": "dictionaries[0][group_name]", "value": "Pelagic Fish", "type": "text" },
+                { "key": "dictionaries[0][family_name]", "value": "Polynemidae", "type": "text" },
+                { "key": "dictionaries[0][image]", "type": "file", "src": [], "disabled": true, "description": "Optional image for row 0." },
+                { "key": "dictionaries[1][local_name]", "value": "Ikan Parang Merah", "type": "text" },
+                { "key": "dictionaries[1][scientific_name]", "value": "Trichiurus brevis", "type": "text" },
+                { "key": "dictionaries[1][group_name]", "value": "Demersal Fish", "type": "text" },
+                { "key": "dictionaries[1][family_name]", "value": "Trichiuridae", "type": "text" },
+                { "key": "dictionaries[1][image]", "type": "file", "src": [], "disabled": true, "description": "Optional image for row 1." }
+              ]
+            },
+            "description": "Creates multiple fish species in one request (matching the Add New Fish modal). Each row gets a sequential `reference_id`. All rows are inserted in a single transaction — if any row fails validation, none are saved. Send as `multipart/form-data` using `dictionaries[N][field]` keys."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Returns array of created entries', () => pm.expect(pm.response.json().data).to.be.an('array'));",
+                  "pm.test('All have auto-generated reference_id', () => {",
+                  "  pm.response.json().data.forEach(d => pm.expect(d.reference_id).to.match(/^SP-\\d{4}$/));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Create Dictionary (Bulk) - Example",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Accept", "value": "application/json" }],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/dictionaries",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "dictionaries"]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    { "key": "dictionaries[0][local_name]", "value": "Ikan Senangin Biru", "type": "text" },
+                    { "key": "dictionaries[0][scientific_name]", "value": "Eleutheronema rhadinum", "type": "text" },
+                    { "key": "dictionaries[0][group_name]", "value": "Pelagic Fish", "type": "text" },
+                    { "key": "dictionaries[0][family_name]", "value": "Polynemidae", "type": "text" },
+                    { "key": "dictionaries[1][local_name]", "value": "Ikan Parang Merah", "type": "text" },
+                    { "key": "dictionaries[1][scientific_name]", "value": "Trichiurus brevis", "type": "text" },
+                    { "key": "dictionaries[1][group_name]", "value": "Demersal Fish", "type": "text" },
+                    { "key": "dictionaries[1][family_name]", "value": "Trichiuridae", "type": "text" }
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "cookie": [],
+              "body": "{\n  \"status\": \"success\",\n  \"data\": [\n    {\n      \"id\": \"acce65ba-06de-4356-b6f3-73744c5f1aa0\",\n      \"created_at\": \"2026-06-30T04:03:09.526Z\",\n      \"family_name\": \"Polynemidae\",\n      \"group_name\": \"Pelagic Fish\",\n      \"image_url\": null,\n      \"local_name\": \"Ikan Senangin Biru\",\n      \"reference_id\": \"SP-0106\",\n      \"scientific_name\": \"Eleutheronema rhadinum\",\n      \"updated_at\": \"2026-06-30T04:03:09.526Z\"\n    },\n    {\n      \"id\": \"b2b7ddb0-ccd6-4536-abbd-f0174b3445b1\",\n      \"created_at\": \"2026-06-30T04:03:09.537Z\",\n      \"family_name\": \"Trichiuridae\",\n      \"group_name\": \"Demersal Fish\",\n      \"image_url\": null,\n      \"local_name\": \"Ikan Parang Merah\",\n      \"reference_id\": \"SP-0107\",\n      \"scientific_name\": \"Trichiurus brevis\",\n      \"updated_at\": \"2026-06-30T04:03:09.537Z\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Dictionary - Validation Error (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dictionaries",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "dictionaries"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dictionary\": {\n    \"scientific_name\": \"No name fish\"\n  }\n}"
+            },
+            "description": "Omitting `local_name` triggers a validation error. Confirms 422 and field-level error messages."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('Returns errors array', () => pm.expect(pm.response.json().errors).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Create Dictionary - Validation Error (422) - Example",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/dictionaries",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "dictionaries"]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"dictionary\": {\n    \"scientific_name\": \"No name fish\"\n  }\n}"
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "cookie": [],
+              "body": "{\n  \"status\": \"fail\",\n  \"errors\": [\n    \"Local name can't be blank\"\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Dictionary",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "dictionaries", "{{dictionary_id}}"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "dictionary[local_name]", "value": "Ikan Tenggiri", "type": "text" },
+                { "key": "dictionary[scientific_name]", "value": "Scomberomorus commerson", "type": "text" },
+                { "key": "dictionary[group_name]", "value": "Pelagic Fish", "type": "text" },
+                { "key": "dictionary[family_name]", "value": "Scombridae", "type": "text" },
+                { "key": "dictionary[image]", "type": "file", "src": [], "disabled": true, "description": "Optional. Replaces the existing image." }
+              ]
+            },
+            "description": "Updates a single dictionary entry. Partial updates are supported — omit any field to leave it unchanged. `reference_id` is immutable and ignored even if sent. To replace the image, include the `image` file field."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has reference_id', () => pm.expect(pm.response.json().data.reference_id).to.match(/^SP-\\d{4}$/));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Update Dictionary - Example",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [{ "key": "Accept", "value": "application/json" }],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "dictionaries", "{{dictionary_id}}"]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    { "key": "dictionary[local_name]", "value": "Ikan Tenggiri", "type": "text" },
+                    { "key": "dictionary[scientific_name]", "value": "Scomberomorus commerson", "type": "text" },
+                    { "key": "dictionary[group_name]", "value": "Pelagic Fish", "type": "text" },
+                    { "key": "dictionary[family_name]", "value": "Scombridae", "type": "text" }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "cookie": [],
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"9962896b-9bfd-4c3c-88d3-b3ef67451efb\",\n    \"created_at\": \"2026-06-30T03:30:35.267Z\",\n    \"family_name\": \"Scombridae\",\n    \"group_name\": \"Pelagic Fish\",\n    \"image_url\": null,\n    \"local_name\": \"Ikan Tenggiri\",\n    \"reference_id\": \"SP-0001\",\n    \"scientific_name\": \"Scomberomorus commerson\",\n    \"updated_at\": \"2026-06-30T04:03:09.681Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete Dictionary",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "dictionaries", "{{dictionary_id}}"]
+            },
+            "description": "Permanently deletes a dictionary entry. Unlike users, dictionary entries are hard-deleted (no soft delete / Discard). A subsequent GET on the same ID returns 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Success message', () => pm.expect(pm.response.json().message).to.eql('Dictionary entry removed.'));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Delete Dictionary - Example",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [{ "key": "Accept", "value": "application/json" }],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["api", "v1", "dictionaries", "{{dictionary_id}}"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "content-type", "value": "application/json; charset=utf-8" }],
+              "cookie": [],
+              "body": "{\n  \"status\": \"success\",\n  \"message\": \"Dictionary entry removed.\"\n}"
             }
           ]
         }
