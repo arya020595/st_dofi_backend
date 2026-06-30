@@ -11,14 +11,19 @@ module Dictionaries
       invalid = dictionaries.reject(&:valid?)
       return Failure(invalid.first) if invalid.any?
 
-      Dictionary.transaction { dictionaries.each(&:save!) }
-
-      Success(dictionaries)
-    rescue ActiveRecord::RecordInvalid => e
-      Failure(e.record)
+      persist_all(dictionaries)
     end
 
     private
+
+    def persist_all(dictionaries)
+      Dictionary.transaction { dictionaries.each(&:save!) }
+      Success(dictionaries)
+    rescue ActiveRecord::RecordInvalid => e
+      Failure(e.record)
+    rescue ActiveStorage::IntegrityError, CloudinaryException => e
+      Failure(Dictionary.new.tap { |d| d.errors.add(:image, "could not be uploaded: #{e.message}") })
+    end
 
     def build_all(entries)
       # Reserve sequential reference IDs for the whole batch upfront so concurrent

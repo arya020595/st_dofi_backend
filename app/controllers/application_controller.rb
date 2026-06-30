@@ -9,6 +9,7 @@ class ApplicationController < ActionController::API
   rescue_from Pundit::NotAuthorizedError, with: :render_forbidden
   rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
   rescue_from ActionController::ParameterMissing, with: :render_bad_request
+  rescue_from ActiveStorage::IntegrityError, CloudinaryException, with: :render_storage_error
 
   private
 
@@ -38,6 +39,11 @@ class ApplicationController < ActionController::API
 
   def render_bad_request(exception)
     render json: { status: "fail", message: exception.message }, status: :bad_request
+  end
+
+  def render_storage_error(exception)
+    render json: { status: "fail", message: "Image upload failed: #{exception.message}" },
+           status: :unprocessable_content
   end
 
   def pagination_meta(pagy)
