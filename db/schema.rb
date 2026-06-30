@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 20_260_630_064_155) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_30_064155) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -23,8 +23,7 @@ ActiveRecord::Schema[8.1].define(version: 20_260_630_064_155) do
     t.bigint "record_id", null: false
     t.string "record_type", null: false
     t.index ["blob_id"], name: "index_active_storage_attachments_on_blob_id"
-    t.index %w[record_type record_id name blob_id], name: "index_active_storage_attachments_uniqueness",
-                                                    unique: true
+    t.index ["record_type", "record_id", "name", "blob_id"], name: "index_active_storage_attachments_uniqueness", unique: true
   end
 
   create_table "active_storage_blobs", force: :cascade do |t|
@@ -42,7 +41,7 @@ ActiveRecord::Schema[8.1].define(version: 20_260_630_064_155) do
   create_table "active_storage_variant_records", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
-    t.index %w[blob_id variation_digest], name: "index_active_storage_variant_records_uniqueness", unique: true
+    t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
   create_table "capture_report_expenses", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -372,7 +371,7 @@ ActiveRecord::Schema[8.1].define(version: 20_260_630_064_155) do
     t.uuid "role_id", null: false
     t.datetime "updated_at", null: false
     t.index ["permission_id"], name: "index_permission_roles_on_permission_id"
-    t.index %w[role_id permission_id], name: "index_permission_roles_on_role_id_and_permission_id", unique: true
+    t.index ["role_id", "permission_id"], name: "index_permission_roles_on_role_id_and_permission_id", unique: true
     t.index ["role_id"], name: "index_permission_roles_on_role_id"
   end
 
@@ -449,8 +448,7 @@ ActiveRecord::Schema[8.1].define(version: 20_260_630_064_155) do
     t.index ["jti"], name: "index_users_on_jti", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
     t.index ["role_id"], name: "index_users_on_role_id"
-    t.check_constraint "preferred_locale::text = ANY (ARRAY['en'::character varying, 'ms'::character varying]::text[])",
-                       name: "check_users_preferred_locale"
+    t.check_constraint "preferred_locale::text = ANY (ARRAY['en'::character varying::text, 'ms'::character varying::text])", name: "check_users_preferred_locale"
   end
 
   create_table "zones", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
