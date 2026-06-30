@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_17_120026) do
+ActiveRecord::Schema[8.1].define(version: 2026_06_17_120028) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -380,7 +380,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_17_120026) do
   create_table "users", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.datetime "brunei_id_verified_at"
     t.uuid "company_profile_id"
+    t.string "contact_no"
     t.datetime "created_at", null: false
+    t.string "designation"
     t.datetime "discarded_at"
     t.string "doft_registration_no"
     t.string "email", default: "", null: false
@@ -392,6 +394,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_17_120026) do
     t.string "position"
     t.string "preferred_locale", default: "en", null: false
     t.string "registration_type"
+    t.text "rejection_reason"
     t.datetime "remember_created_at"
     t.datetime "reset_password_sent_at"
     t.string "reset_password_token"
@@ -408,7 +411,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_17_120026) do
     t.index ["jti"], name: "index_users_on_jti", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
     t.index ["role_id"], name: "index_users_on_role_id"
-    t.check_constraint "preferred_locale::text = ANY (ARRAY['en'::character varying, 'ms'::character varying]::text[])", name: "check_users_preferred_locale"
+    t.check_constraint "preferred_locale::text = ANY (ARRAY['en'::character varying::text, 'ms'::character varying::text])", name: "check_users_preferred_locale"
   end
 
   create_table "zones", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

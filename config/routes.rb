@@ -26,6 +26,14 @@ Rails.application.routes.draw do
         patch :locale
       end
       resources :users, only: %i[index show create update destroy]
+
+      namespace :registrations do
+        resource :jetty_manager, only: %i[create], controller: "jetty_managers"
+        resource :fisherman, only: %i[create], controller: "fishermen"
+        get "fisherman/company_profile", to: "company_profile_lookups#show"
+        get "status", to: "status#show"
+      end
+
       resources :roles, only: %i[index show create update destroy]
       resources :permissions, only: %i[index]
     end
