@@ -1,8 +1,8 @@
 SKIP_REASONS = [
-  { reference_id: "SR-001", name: "No fish caught" },
-  { reference_id: "SR-002", name: "Engine malfunction" },
-  { reference_id: "SR-003", name: "Bad weather" },
-  { reference_id: "SR-004", name: "Other (see remarks)" }
+  { reference_id: "REA-001", name: "No fish caught" },
+  { reference_id: "REA-002", name: "Engine malfunction" },
+  { reference_id: "REA-003", name: "Bad weather" },
+  { reference_id: "REA-004", name: "Other (see remarks)" }
 ].freeze
 
 SKIP_REASONS.each do |attrs|

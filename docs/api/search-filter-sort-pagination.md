@@ -8,6 +8,12 @@ pagination. It currently covers:
 | `GET /api/v1/users` | Yes | Yes (JWT) | `dofi_officer_users.list` or `dofi_officer_users.view` |
 | `GET /api/v1/roles` | Yes | Yes (JWT) | `roles.list` or `roles.view` |
 | `GET /api/v1/permissions` | No (returns full filtered list) | Yes (JWT) | any authenticated user |
+| `GET /api/v1/master_data/ports` | Yes | Yes (JWT) | `ports.list` or `ports.view` |
+| `GET /api/v1/master_data/zones` | Yes | Yes (JWT) | `zones.list` or `zones.view` |
+| `GET /api/v1/master_data/fishing_gears` | Yes | Yes (JWT) | `fishing_gears.list` or `fishing_gears.view` |
+| `GET /api/v1/master_data/nationalities` | Yes | Yes (JWT) | `nationalities.list` or `nationalities.view` |
+| `GET /api/v1/master_data/positions` | Yes | Yes (JWT) | `positions.list` or `positions.view` |
+| `GET /api/v1/master_data/reasons` | Yes | Yes (JWT) | `reasons.list` or `reasons.view` |
 
 Send the JWT the same way as every other endpoint: `Authorization: Bearer <token>`.
 
@@ -162,6 +168,46 @@ Example — permissions whose code contains "export":
 ```
 GET /api/v1/permissions?q[code_cont]=export
 ```
+
+### Ports — `GET /api/v1/master_data/ports`
+
+Filterable/sortable fields: `id`, `reference_id`, `port_name`, `latitude`, `longitude`, `created_at`, `updated_at`
+
+Default sort: `reference_id asc`
+
+### Zones — `GET /api/v1/master_data/zones`
+
+Filterable/sortable fields: `id`, `name`, `zone_type`, `start_range`, `end_range`, `created_at`, `updated_at`
+
+Default sort: `name asc`
+
+### Fishing Gears — `GET /api/v1/master_data/fishing_gears`
+
+Filterable/sortable fields: `id`, `reference_id`, `local_name`, `name`, `gear_type`, `unit`, `size`, `fee`, `created_at`, `updated_at`
+
+Default sort: `reference_id asc`
+
+### Nationalities — `GET /api/v1/master_data/nationalities`
+
+Filterable/sortable fields: `id`, `reference_id`, `name`, `code`, `created_at`, `updated_at`
+
+Default sort: `reference_id asc`
+
+### Positions — `GET /api/v1/master_data/positions`
+
+Filterable/sortable fields: `id`, `reference_id`, `name`, `category`, `created_at`, `updated_at`
+
+Default sort: `reference_id asc`
+
+Valid `category` values: `Fisherman`, `Jetty Manager`, `DoFi Officer`
+
+### Reasons — `GET /api/v1/master_data/reasons`
+
+Filterable/sortable fields: `id`, `reference_id`, `name`, `discarded_at`, `created_at`, `updated_at`
+
+Default sort: `reference_id asc`
+
+Soft-deleted via Discard — `DELETE` sets `discarded_at` rather than removing the record.
 
 ---
 

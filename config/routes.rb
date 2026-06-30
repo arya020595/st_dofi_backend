@@ -37,6 +37,15 @@ Rails.application.routes.draw do
       resources :roles, only: %i[index show create update destroy]
       resources :permissions, only: %i[index]
       resources :dictionaries, only: %i[index show create update destroy]
+
+      namespace :master_data do
+        resources :ports, only: %i[index show create update destroy]
+        resources :zones, only: %i[index show create update destroy]
+        resources :fishing_gears, only: %i[index show create update destroy]
+        resources :nationalities, only: %i[index show create update destroy]
+        resources :positions, only: %i[index show create update destroy]
+        resources :reasons, only: %i[index show create update destroy]
+      end
     end
   end
 
