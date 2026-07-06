@@ -40,14 +40,15 @@ Requires Docker and Docker Compose. No local Ruby/PostgreSQL installation needed
 Useful commands:
 
 ```bash
-docker compose exec api bin/rails console      # Rails console
-docker compose exec api bin/rails test         # Run the test suite
+docker compose exec api bundle install          # Install/update gems after a Gemfile change
+docker compose exec api bin/rails console       # Rails console
+docker compose exec api bin/rails test          # Run the test suite
 docker compose exec api bin/rails db:migrate    # Run migrations
 docker compose logs -f api jobs                 # Tail logs
 docker compose down                             # Stop the stack
 ```
 
-Source code is bind-mounted into the `api`/`jobs` containers, so local edits are picked up without rebuilding. Rebuild only when `Gemfile`/`Gemfile.lock` or `Dockerfile.dev` change:
+Source code is bind-mounted into the `api`/`jobs` containers, so local edits are picked up without rebuilding. If you only added/bumped a gem, `docker compose exec api bundle install` is usually enough and is faster than a rebuild. Rebuild the image when `Dockerfile.dev` itself changes, or if `bundle install` inside the container doesn't pick up the change:
 
 ```bash
 docker compose up --build
