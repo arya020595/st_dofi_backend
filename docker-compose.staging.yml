@@ -50,6 +50,31 @@ services:
     networks:
       - dofi-backend-staging-net
 
+  # One-off bucket + scoped-user provisioning (idempotent — safe to re-run every deploy). Not
+  # started by `docker compose up -d` (profiles: [init]); the CD deploy script runs it explicitly
+  # via `docker compose run --rm mc-init`. See docs/MINIO.md.
+  mc-init:
+    image: minio/mc:RELEASE.2025-04-08T15-39-49Z
+    profiles: ["init"]
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY_ID}
+      MINIO_SECRET_ACCESS_KEY: ${MINIO_SECRET_ACCESS_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" &&
+        mc mb --ignore-existing "local/$$MINIO_BUCKET" &&
+        mc admin user add local "$$MINIO_ACCESS_KEY_ID" "$$MINIO_SECRET_ACCESS_KEY" &&
+        mc admin policy attach local readwrite --user "$$MINIO_ACCESS_KEY_ID"
+    networks:
+      - dofi-backend-staging-net
+
   api:
     image: ghcr.io/arya020595/st_dofi_backend:staging
     container_name: dofi-backend-staging-api

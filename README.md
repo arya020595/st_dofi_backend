@@ -194,3 +194,8 @@ See [CLAUDE.md](CLAUDE.md) for the architectural and coding conventions (SOLID p
 
 - [Search, filter, sort & pagination contract](docs/api/search-filter-sort-pagination.md) — how the frontend should call list (`index`) endpoints (Ransack query params + Pagy pagination).
 - [Postman collection](postman/DoFi-Backend.postman_collection.json)
+
+## Infrastructure documentation
+
+- [MinIO guide](docs/MINIO.md) — architecture and flow diagrams, how it's used and implemented, setup/start/stop for local, staging, and production, and the Cloudinary migration/cutover checklist.
+- [CI/CD setup guide](docs/CI-CD-SETUP.md) — how the GitHub Actions workflows and Docker Compose deploy files fit together.

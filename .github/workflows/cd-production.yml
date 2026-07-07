@@ -138,6 +138,7 @@ jobs:
             cd /home/stadmin/st_dofi_backend_production
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker compose -f docker-compose.production.yml pull
+            docker compose -f docker-compose.production.yml run --rm mc-init
             docker compose -f docker-compose.production.yml run --rm api bin/rails db:prepare
             docker compose -f docker-compose.production.yml up -d
             docker image prune -f
