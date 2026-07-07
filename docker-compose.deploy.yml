@@ -1,7 +1,7 @@
 # Deployment compose file for the ST Advisory staging server.
 # Copied by .github/workflows/cd.yml to /home/stadmin/st_dofi_backend_staging on every push to develop.
 # Pulls the prebuilt image from GHCR instead of building on the server.
-# Requires a .env file (not committed) alongside this file on the server — see NEW-SERVICE-DEPLOYMENT.md Part 1.
+# Requires a .env file (not committed) alongside this file on the server — see docs/CI-CD-SETUP.md Part 2.
 # That .env's CORS_ORIGINS must list every frontend origin calling this API directly from a
 # browser (see .env.example) — a missing entry shows up as a browser CORS error, not a 4xx/5xx.
 # Edit .env on the server and restart the api container (rack-cors reads it once at boot).
@@ -26,12 +26,36 @@ services:
     networks:
       - dofi-backend-staging-net
 
+  # S3-compatible object storage (replaces Cloudinary). Not published to the host — only
+  # reachable from the api/jobs containers over the internal network. Front it with the same
+  # reverse proxy that terminates TLS for the api container if the frontend needs to reach
+  # image URLs directly (see README.md's MinIO deployment notes).
+  minio:
+    image: minio/minio:RELEASE.2025-04-08T15-41-24Z
+    container_name: dofi-backend-staging-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - dofi_staging_minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - dofi-backend-staging-net
+
   api:
     image: ghcr.io/arya020595/st_dofi_backend:staging
     container_name: dofi-backend-staging-api
     restart: unless-stopped
     depends_on:
       db:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     environment:
       RAILS_ENV: production
@@ -53,6 +77,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     environment:
       RAILS_ENV: production
       DATABASE_HOST: db
@@ -69,6 +95,7 @@ services:
 volumes:
   dofi_staging_postgres_data:
   dofi_staging_storage:
+  dofi_staging_minio_data:
 
 networks:
   dofi-backend-staging-net:

@@ -438,6 +438,28 @@ jobs:
 
 This repo's actual file is [.github/workflows/cd.yml](../.github/workflows/cd.yml).
 
+### Production is a second, near-identical CD workflow
+
+This repo also has [.github/workflows/cd-production.yml](../.github/workflows/cd-production.yml), which
+deploys to `main` instead of `develop`, tags images `:production` instead of `:staging`, and copies
+[docker-compose.deploy.production.yml](../docker-compose.deploy.production.yml) instead of
+`docker-compose.deploy.yml`. Two differences worth calling out for any service that needs a real
+production environment (not just staging) on separate infrastructure:
+
+- **No `db:` service in the production compose file.** The production database runs on its own
+  dedicated server, not co-located with the app. `DATABASE_HOST`/`DATABASE_PORT` in the backend
+  server's `.env` point at that separate server instead of a Docker Compose service name — no
+  code change needed if `config/database.yml` already reads these from `ENV`.
+- **The `deploy` job is gated behind a GitHub `production` Environment** (Settings → Environments
+  → New environment → add required reviewers). Unlike staging's push-to-deploy, a human approves
+  the SSH deploy step before it runs — appropriate once "staging" becomes "a government client's
+  real production system."
+
+New secrets needed, parallel to the `STAGING_SSH_*` ones in Part 3:
+`PRODUCTION_SSH_HOST`, `PRODUCTION_SSH_USER`, `PRODUCTION_SSH_PORT`, `PRODUCTION_SSH_KEY`. Database
+and object-storage credentials are never GitHub secrets — they live only in the backend server's
+own `.env`, same as every other secret in this guide.
+
 ---
 
 ## Part 6 — Verifying the Deployment

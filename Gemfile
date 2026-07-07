@@ -37,6 +37,7 @@ gem "audited", "~> 5.8"
 gem "discard", "~> 1.4"
 
 # File storage
+gem "aws-sdk-s3", require: false
 gem "cloudinary"
 gem "image_processing", "~> 1.2"
 
