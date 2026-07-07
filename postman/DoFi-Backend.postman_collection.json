@@ -4997,7 +4997,7 @@
     },
     {
       "name": "Dictionary",
-      "description": "Fish species dictionary CRUD. Supports single and bulk create (multipart/form-data or JSON). Images are uploaded via the `image` field and stored via ActiveStorage (Cloudinary in staging/production, local disk in development). `reference_id` (SP-XXXX) is auto-generated and cannot be set manually.",
+      "description": "Fish species dictionary CRUD. Supports single and bulk create (multipart/form-data or JSON). Images are uploaded via the `image` field and stored via ActiveStorage (MinIO, S3-compatible, in staging/production; local disk in development). `reference_id` (SP-XXXX) is auto-generated and cannot be set manually.",
       "item": [
         {
           "name": "List Dictionaries",
