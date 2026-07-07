@@ -1,4 +1,4 @@
-name: CD
+name: CD Staging
 
 on:
   push:
@@ -116,14 +116,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Copy docker-compose.deploy.yml to server
+      - name: Copy docker-compose.staging.yml to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.STAGING_SSH_HOST }}
           username: ${{ secrets.STAGING_SSH_USER }}
           port: ${{ secrets.STAGING_SSH_PORT }}
           key: ${{ secrets.STAGING_SSH_KEY }}
-          source: docker-compose.deploy.yml
+          source: docker-compose.staging.yml
           target: /home/stadmin/st_dofi_backend_staging
 
       - name: Deploy on server
@@ -135,10 +135,11 @@ jobs:
           key: ${{ secrets.STAGING_SSH_KEY }}
           script: |
             cd /home/stadmin/st_dofi_backend_staging
+            mv -f docker-compose.staging.yml docker-compose.yml
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker compose -f docker-compose.deploy.yml pull
-            docker compose -f docker-compose.deploy.yml run --rm api bin/rails db:prepare
-            docker compose -f docker-compose.deploy.yml up -d
+            docker compose pull
+            docker compose run --rm api bin/rails db:prepare
+            docker compose up -d
             docker image prune -f
 
       - name: Notify Slack — deploy result

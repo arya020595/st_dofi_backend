@@ -54,23 +54,23 @@ Source code is bind-mounted into the `api`/`jobs` containers, so local edits are
 docker compose up --build
 ```
 
-### Production-style image
+### Production-style image (local test only)
 
-`docker-compose.production.yml` builds the production image (`Dockerfile.production`) and expects a `.env.production` file plus `RAILS_MASTER_KEY` (from `config/master.key`) to decrypt credentials:
+`docker-compose.production.local.yml` builds the production image (`Dockerfile.production`) and expects a `.env.production` file plus `RAILS_MASTER_KEY` (from `config/master.key`) to decrypt credentials. This is for testing the production image locally — it is not deployed anywhere:
 
 ```bash
-docker compose -f docker-compose.production.yml up --build
+docker compose -f docker-compose.production.local.yml up --build
 ```
 
 ### Deployment (staging)
 
-`develop` auto-deploys to staging via `.github/workflows/cd.yml`, which copies `docker-compose.deploy.yml` to the server and runs it against a `.env` that already lives there (not managed by CI). If a frontend gets a browser CORS error calling the staging API (no `Access-Control-Allow-Origin` on the response), that frontend's origin is missing from `CORS_ORIGINS` in the server's `.env` — add it (see `.env.example`) and restart the `api` container; `rack-cors` only reads this at boot.
+`develop` auto-deploys to staging via `.github/workflows/cd-staging.yml`, which copies `docker-compose.staging.yml` to the server and renames it to `docker-compose.yml` there (so `docker compose` picks it up by default — no `-f` flag needed for ad-hoc commands run directly on the server), then runs it against a `.env` that already lives there (not managed by CI). If a frontend gets a browser CORS error calling the staging API (no `Access-Control-Allow-Origin` on the response), that frontend's origin is missing from `CORS_ORIGINS` in the server's `.env` — add it (see `.env.example`) and restart the `api` container; `rack-cors` only reads this at boot.
 
 ### Deployment (production — 3 dedicated servers)
 
 Production runs on 3 separate government-provided servers instead of one shared host: a backend server (api + jobs + MinIO), a database server, and a frontend server (a separate repo, not part of this one).
 
-`main` auto-deploys to the backend server via `.github/workflows/cd-production.yml`, which copies `docker-compose.deploy.production.yml` (no `db:` service — only `api`, `jobs`, `minio`) and deploys the same way staging does. The deploy job is gated behind a GitHub `production` Environment with required reviewers (configured under repo Settings → Environments) — a human approves before the SSH deploy step runs.
+`main` auto-deploys to the backend server via `.github/workflows/cd-production.yml`, which copies `docker-compose.production.yml` (no `db:` service — only `api`, `jobs`, `minio`) and deploys the same way staging does. The deploy job is gated behind a GitHub `production` Environment with required reviewers (configured under repo Settings → Environments) — a human approves before the SSH deploy step runs.
 
 The backend server's `.env` must point `DATABASE_HOST`/`DATABASE_PORT` at the separate database server (see `.env.example`), and `CORS_ORIGINS` at the frontend server's real origin. The database server itself just needs PostgreSQL 16 running, with `pg_hba.conf` restricted to the backend server's IP and TLS required — it is not managed by this repo's CI/CD.
 

@@ -1,5 +1,7 @@
 # Deployment compose file for the ST Advisory staging server.
-# Copied by .github/workflows/cd.yml to /home/stadmin/st_dofi_backend_staging on every push to develop.
+# Copied by .github/workflows/cd-staging.yml to /home/stadmin/st_dofi_backend_staging on every push to
+# develop, then renamed to docker-compose.yml on the server (so docker compose picks it up by default,
+# no -f flag needed for manual/ad-hoc commands run directly on the server).
 # Pulls the prebuilt image from GHCR instead of building on the server.
 # Requires a .env file (not committed) alongside this file on the server — see docs/CI-CD-SETUP.md Part 2.
 # That .env's CORS_ORIGINS must list every frontend origin calling this API directly from a
