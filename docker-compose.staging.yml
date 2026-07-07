@@ -1,0 +1,129 @@
+# Deployment compose file for the ST Advisory staging server.
+# Copied by .github/workflows/cd-staging.yml to /home/stadmin/st_dofi_backend_staging on every push to
+# develop, then renamed to docker-compose.yml on the server (so docker compose picks it up by default,
+# no -f flag needed for manual/ad-hoc commands run directly on the server).
+# Pulls the prebuilt image from GHCR instead of building on the server.
+# Requires a .env file (not committed) alongside this file on the server — see docs/CI-CD-SETUP.md Part 2.
+# That .env's CORS_ORIGINS must list every frontend origin calling this API directly from a
+# browser (see .env.example) — a missing entry shows up as a browser CORS error, not a 4xx/5xx.
+# Edit .env on the server and restart the api container (rack-cors reads it once at boot).
+name: dofi-backend-staging
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: dofi-backend-staging-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    volumes:
+      - dofi_staging_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - dofi-backend-staging-net
+
+  # S3-compatible object storage (replaces Cloudinary). Not published to the host — only
+  # reachable from the api/jobs containers over the internal network. Front it with the same
+  # reverse proxy that terminates TLS for the api container if the frontend needs to reach
+  # image URLs directly (see README.md's MinIO deployment notes).
+  minio:
+    image: minio/minio:RELEASE.2025-04-08T15-41-24Z
+    container_name: dofi-backend-staging-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - dofi_staging_minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - dofi-backend-staging-net
+
+  # One-off bucket + scoped-user provisioning (idempotent — safe to re-run every deploy). Not
+  # started by `docker compose up -d` (profiles: [init]); the CD deploy script runs it explicitly
+  # via `docker compose run --rm mc-init`. See docs/MINIO.md.
+  mc-init:
+    image: minio/mc:RELEASE.2025-04-08T15-39-49Z
+    profiles: ["init"]
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY_ID}
+      MINIO_SECRET_ACCESS_KEY: ${MINIO_SECRET_ACCESS_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" &&
+        mc mb --ignore-existing "local/$$MINIO_BUCKET" &&
+        mc admin user add local "$$MINIO_ACCESS_KEY_ID" "$$MINIO_SECRET_ACCESS_KEY" &&
+        mc admin policy attach local readwrite --user "$$MINIO_ACCESS_KEY_ID"
+    networks:
+      - dofi-backend-staging-net
+
+  api:
+    image: ghcr.io/arya020595/st_dofi_backend:staging
+    container_name: dofi-backend-staging-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      RAILS_ENV: production
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+    env_file:
+      - .env
+    ports:
+      - "3012:3000"
+    volumes:
+      - dofi_staging_storage:/rails/storage
+    networks:
+      - dofi-backend-staging-net
+
+  jobs:
+    image: ghcr.io/arya020595/st_dofi_backend:staging
+    container_name: dofi-backend-staging-jobs
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      RAILS_ENV: production
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+    env_file:
+      - .env
+    volumes:
+      - dofi_staging_storage:/rails/storage
+    entrypoint: []
+    command: ["./bin/rails", "solid_queue:start"]
+    networks:
+      - dofi-backend-staging-net
+
+volumes:
+  dofi_staging_postgres_data:
+  dofi_staging_storage:
+  dofi_staging_minio_data:
+
+networks:
+  dofi-backend-staging-net:
+    driver: bridge

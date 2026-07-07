@@ -6,7 +6,7 @@ Guidance for Claude Code (and other contributors) when working in this repositor
 
 DoFi Backend — the FINS Capture Fisheries module API. API-only Rails 8.1.3 app (no views/assets) backing vessels, crews, manifests, capture reports, and related reference data for fisheries reporting.
 
-Stack: Ruby 3.4.7, PostgreSQL, Solid Queue/Solid Cache (DB-backed, no Redis), Devise + devise-jwt (auth) + Pundit (authorization), dry-monads (service layer), Blueprinter (serialization), Pagy + Ransack (pagination/search), Audited + Discard (audit trail/soft delete), Cloudinary (file storage), Faraday/JWT (BruneiID integration), Sentry + Lograge (monitoring).
+Stack: Ruby 3.4.7, PostgreSQL, Solid Queue/Solid Cache (DB-backed, no Redis), Devise + devise-jwt (auth) + Pundit (authorization), dry-monads (service layer), Blueprinter (serialization), Pagy + Ransack (pagination/search), Audited + Discard (audit trail/soft delete), MinIO/S3-compatible storage via Active Storage (file storage; Cloudinary is a legacy service kept only until the migration to MinIO completes), Faraday/JWT (BruneiID integration), Sentry + Lograge (monitoring).
 
 See [README.md](README.md) for setup (Docker or manual Rails) and how to run tests/CI.
 

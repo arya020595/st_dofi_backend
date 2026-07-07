@@ -9,7 +9,8 @@ class ApplicationController < ActionController::API
   rescue_from Pundit::NotAuthorizedError, with: :render_forbidden
   rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
   rescue_from ActionController::ParameterMissing, with: :render_bad_request
-  rescue_from ActiveStorage::IntegrityError, CloudinaryException, with: :render_storage_error
+  rescue_from ActiveStorage::IntegrityError, CloudinaryException, Aws::Errors::ServiceError,
+              Seahorse::Client::NetworkingError, with: :render_storage_error
 
   private
 

@@ -5,7 +5,7 @@ staging server over SSH. Written generally so it applies to any new service, wit
 (`st_dofi_backend`, a Rails API) used as the worked example throughout.
 
 If you're setting up CI/CD for **this** repo, you're done — `Dockerfile.production`,
-`docker-compose.deploy.yml`, `.github/workflows/ci.yml` and `cd.yml` already implement everything
+`docker-compose.staging.yml`, `.github/workflows/ci.yml` and `cd-staging.yml` already implement everything
 below. Use this doc to understand *why* they're structured that way, or as a template for a new
 service.
 
@@ -39,7 +39,7 @@ Two workflows, two concerns:
 
 - **CI** (`ci.yml`) — runs on every PR and push to the protected branches. Tests, lints, security
   scans, and a build-only Docker check. Never pushes an image or touches the server.
-- **CD** (`cd.yml`) — runs only on push to `develop` (or whichever branch maps to staging). Re-runs
+- **CD** (`cd-staging.yml`) — runs only on push to `develop` (or whichever branch maps to staging). Re-runs
   the test suite as a gate, then builds, pushes, and deploys.
 
 Running tests again in CD (instead of trusting a prior CI run) means CD is self-contained and
@@ -102,9 +102,9 @@ overrides for every environment:
 | File | Purpose |
 |------|---------|
 | `docker-compose.yml` | Local development. Builds the image from source, mounts the code as a volume for live reload, exposes the DB port to the host for inspection. |
-| `docker-compose.deploy.yml` | Server deployment. Pulls a prebuilt image from the registry (never builds on the server), no source volume mounts, named volumes for persistent data. |
+| `docker-compose.staging.yml` | Server deployment. Pulls a prebuilt image from the registry (never builds on the server), no source volume mounts, named volumes for persistent data. |
 
-This repo's [docker-compose.deploy.yml](../docker-compose.deploy.yml) is the one CD copies to the
+This repo's [docker-compose.staging.yml](../docker-compose.staging.yml) is the one CD copies to the
 server. Points worth copying for any new service:
 
 - `image: ghcr.io/<owner>/<repo>:staging` — pulls, never builds, on the server.
@@ -287,7 +287,7 @@ This repo's actual file is [.github/workflows/ci.yml](../.github/workflows/ci.ym
 
 ## Part 5 — CD Workflow (build, push, deploy)
 
-Create `.github/workflows/cd.yml`. Runs only on push to the branch that maps to staging
+Create `.github/workflows/cd-staging.yml`. Runs only on push to the branch that maps to staging
 (`develop` here).
 
 ```yaml
@@ -369,14 +369,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Copy docker-compose.deploy.yml to server
+      - name: Copy docker-compose.staging.yml to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.STAGING_SSH_HOST }}
           username: ${{ secrets.STAGING_SSH_USER }}
           port: ${{ secrets.STAGING_SSH_PORT }}
           key: ${{ secrets.STAGING_SSH_KEY }}
-          source: docker-compose.deploy.yml
+          source: docker-compose.staging.yml
           target: /opt/<service-name>
 
       - name: Deploy on server
@@ -389,9 +389,9 @@ jobs:
           script: |
             cd /opt/<service-name>
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker compose -f docker-compose.deploy.yml pull
-            docker compose -f docker-compose.deploy.yml run --rm api bin/rails db:prepare
-            docker compose -f docker-compose.deploy.yml up -d
+            docker compose -f docker-compose.staging.yml pull
+            docker compose -f docker-compose.staging.yml run --rm api bin/rails db:prepare
+            docker compose -f docker-compose.staging.yml up -d
             docker image prune -f
 
       - name: Notify Slack — deploy result
@@ -419,7 +419,7 @@ jobs:
    └─ Notifies Slack (if configured)
 
 3. deploy   (only if build-and-push passed)
-   ├─ Copies docker-compose.deploy.yml to the server
+   ├─ Copies docker-compose.staging.yml to the server
    ├─ SSHs in, pulls the new image
    ├─ Runs pending migrations (framework-dependent step)
    ├─ Restarts containers
@@ -430,13 +430,42 @@ jobs:
 > For frameworks that need a migration step (Rails, Django, etc.), run it **before**
 > `docker compose up -d`, against the new image, not the running container:
 > ```yaml
-> docker compose -f docker-compose.deploy.yml run --rm api bin/rails db:prepare
+> docker compose -f docker-compose.staging.yml run --rm api bin/rails db:prepare
 > ```
 > Running it as a one-off `run --rm` (rather than baking it into the entrypoint) keeps migration
 > failures visible as a distinct, loud CD step instead of silently crash-looping the app
 > container.
 
-This repo's actual file is [.github/workflows/cd.yml](../.github/workflows/cd.yml).
+This repo's actual file is [.github/workflows/cd-staging.yml](../.github/workflows/cd-staging.yml).
+
+> On the staging server specifically, the deploy step renames the copied file from
+> `docker-compose.staging.yml` to `docker-compose.yml` before running any `docker compose`
+> commands (`mv -f docker-compose.staging.yml docker-compose.yml`). This lets `docker compose`
+> pick the file up by its default name, so anyone SSHing in to run ad-hoc commands doesn't need
+> to remember a `-f <file>` flag. This is specific to this repo's staging server, not a required
+> part of the general pattern above.
+
+### Production is a second, near-identical CD workflow
+
+This repo also has [.github/workflows/cd-production.yml](../.github/workflows/cd-production.yml), which
+deploys to `main` instead of `develop`, tags images `:production` instead of `:staging`, and copies
+[docker-compose.production.yml](../docker-compose.production.yml) instead of
+`docker-compose.staging.yml`. Two differences worth calling out for any service that needs a real
+production environment (not just staging) on separate infrastructure:
+
+- **No `db:` service in the production compose file.** The production database runs on its own
+  dedicated server, not co-located with the app. `DATABASE_HOST`/`DATABASE_PORT` in the backend
+  server's `.env` point at that separate server instead of a Docker Compose service name — no
+  code change needed if `config/database.yml` already reads these from `ENV`.
+- **The `deploy` job is gated behind a GitHub `production` Environment** (Settings → Environments
+  → New environment → add required reviewers). Unlike staging's push-to-deploy, a human approves
+  the SSH deploy step before it runs — appropriate once "staging" becomes "a government client's
+  real production system."
+
+New secrets needed, parallel to the `STAGING_SSH_*` ones in Part 3:
+`PRODUCTION_SSH_HOST`, `PRODUCTION_SSH_USER`, `PRODUCTION_SSH_PORT`, `PRODUCTION_SSH_KEY`. Database
+and object-storage credentials are never GitHub secrets — they live only in the backend server's
+own `.env`, same as every other secret in this guide.
 
 ---
 
@@ -447,14 +476,14 @@ ssh <user>@<server-ip>
 cd /opt/<service-name>
 
 # All containers running and healthy?
-docker compose -f docker-compose.deploy.yml ps
+docker compose -f docker-compose.staging.yml ps
 
 # App responds?
 curl http://localhost:<published-port>
 
 # Any errors in the logs?
-docker compose -f docker-compose.deploy.yml logs api --tail=50
-docker compose -f docker-compose.deploy.yml logs jobs --tail=50
+docker compose -f docker-compose.staging.yml logs api --tail=50
+docker compose -f docker-compose.staging.yml logs jobs --tail=50
 ```
 
 ---
