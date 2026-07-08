@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "DoFi Backend API",
-    "description": "# DoFi Backend API \u2014 Auth, Users, Roles, Permissions, Registrations & Master Data\n\nCovers JWT authentication (sign in/me/sign out), DoFi officer user management, role management with permission assignment, the permissions catalog, and public self-registration endpoints for Jetty Managers and Fishermen.\n\n## Environments\n\nSelect one of these Postman environments before running anything \u2014 they provide `base_url` and the seeded admin credentials:\n\n| Environment | base_url | Notes |\n|---|---|---|\n| **DoFi Backend - Local** | `http://localhost:3000` | Local Docker dev stack (`docker compose up`). Safe to use freely. |\n| **DoFi Backend - Staging** | `http://46.202.163.155:3012` | Shared staging server, no TLS yet. Shared with other testers \u2014 be considerate with writes/deletes. |\n\n## Authentication flow\n\n1. Run **Auth \u2192 Sign In**. On success the response includes the JWT both as `data.access_token` in the JSON body and in the `Authorization` response header (`Bearer <token>`) \u2014 pick whichever your client finds easier. A test script automatically saves it into the `jwt_token` collection variable.\n2. Every other request in this collection uses collection-level Bearer auth (`{{jwt_token}}`) \u2014 no need to copy/paste tokens manually between requests.\n3. Run **Z - Sign Out (run last) \u2192 Sign Out** when you're done. This revokes the JWT (devise-jwt JTI denylist) and clears `jwt_token`. Anything run after Sign Out needs a fresh Sign In first.\n\n## Roles & permissions model\n\nEach `User` belongs to one `Role` (e.g. the seeded `DoFi Officer`), and each `Role` has many `Permission`s identified by a `code` (e.g. `roles.create`, `dofi_officer_users.update`). Endpoints are authorized via Pundit policies that check the signed-in user's role permissions:\n\n- **Roles**: `roles.list`/`roles.view`, `roles.create`, `roles.update`, `roles.delete`\n- **Users**: `dofi_officer_users.list`/`.view`, `.create`, `.update`, `.delete`\n- **Permissions**: read-only catalog, available to any authenticated user\n\nA failing permission check returns `401` (no/invalid session) or `403` (authenticated but not allowed), depending on the failure mode.\n\n## List endpoints: filter, sort & pagination\n\n`GET` index endpoints (`/api/v1/permissions`, `/api/v1/roles`, `/api/v1/users`) accept Ransack query params for filtering/sorting and Pagy params for pagination:\n\n- **Filter**: `q[<attribute>_<predicate>]=<value>`, e.g. `q[name_cont]=officer`, `q[status_eq]=active`.\n- **Sort**: `q[s]=<attribute> <asc|desc>`, or repeat `q[s][]=...` for multiple sort keys.\n- **Paginate**: `page` and `limit` query params (roles/users only \u2014 the permissions catalog is not paginated).\n- Non-whitelisted attributes (e.g. `encrypted_password`) are silently ignored rather than erroring or leaking data through the search index.\n\nFull contract: `docs/api/search-filter-sort-pagination.md` in the backend repo.\n\n## Soft delete\n\n`DELETE /api/v1/users/:id` soft-deletes via the `Discard` gem \u2014 the record is excluded from default scopes (so a subsequent `GET` returns `404`) but stays in the database for audit purposes.\n",
+    "description": "# DoFi Backend API — Auth, Users, Roles, Permissions, Registrations & Master Data\n\nCovers JWT authentication (sign in/me/sign out), DoFi officer user management, role management with permission assignment, the permissions catalog, and public self-registration endpoints for Jetty Managers and Fishermen.\n\n## Environments\n\nSelect one of these Postman environments before running anything — they provide `base_url` and the seeded admin credentials:\n\n| Environment | base_url | Notes |\n|---|---|---|\n| **DoFi Backend - Local** | `http://localhost:3000` | Local Docker dev stack (`docker compose up`). Safe to use freely. |\n| **DoFi Backend - Staging** | `http://46.202.163.155:3012` | Shared staging server, no TLS yet. Shared with other testers — be considerate with writes/deletes. |\n\n## Authentication flow\n\n1. Run **Auth → Sign In**. On success the response includes the JWT both as `data.access_token` in the JSON body and in the `Authorization` response header (`Bearer <token>`) — pick whichever your client finds easier. A test script automatically saves it into the `jwt_token` collection variable.\n2. Every other request in this collection uses collection-level Bearer auth (`{{jwt_token}}`) — no need to copy/paste tokens manually between requests.\n3. Run **Z - Sign Out (run last) → Sign Out** when you're done. This revokes the JWT (devise-jwt JTI denylist) and clears `jwt_token`. Anything run after Sign Out needs a fresh Sign In first.\n\n## Roles & permissions model\n\nEach `User` belongs to one `Role` (e.g. the seeded `DoFi Officer`), and each `Role` has many `Permission`s identified by a `code` (e.g. `roles.create`, `dofi_officer_users.update`). Endpoints are authorized via Pundit policies that check the signed-in user's role permissions:\n\n- **Roles**: `roles.list`/`roles.view`, `roles.create`, `roles.update`, `roles.delete`\n- **Users**: `dofi_officer_users.list`/`.view`, `.create`, `.update`, `.delete`\n- **Permissions**: read-only catalog, available to any authenticated user\n\nA failing permission check returns `401` (no/invalid session) or `403` (authenticated but not allowed), depending on the failure mode.\n\n## List endpoints: filter, sort & pagination\n\n`GET` index endpoints (`/api/v1/permissions`, `/api/v1/roles`, `/api/v1/users`) accept Ransack query params for filtering/sorting and Pagy params for pagination:\n\n- **Filter**: `q[<attribute>_<predicate>]=<value>`, e.g. `q[name_cont]=officer`, `q[status_eq]=active`.\n- **Sort**: `q[s]=<attribute> <asc|desc>`, or repeat `q[s][]=...` for multiple sort keys.\n- **Paginate**: `page` and `limit` query params (roles/users only — the permissions catalog is not paginated).\n- Non-whitelisted attributes (e.g. `encrypted_password`) are silently ignored rather than erroring or leaking data through the search index.\n\nFull contract: `docs/api/search-filter-sort-pagination.md` in the backend repo.\n\n## Soft delete\n\n`DELETE /api/v1/users/:id` soft-deletes via the `Discard` gem — the record is excluded from default scopes (so a subsequent `GET` returns `404`) but stays in the database for audit purposes.\n",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -84,6 +84,61 @@
       "key": "reason_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "approval_remark_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "fisherman_to_approve_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "fisherman_to_reject_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "commercial_fisherman_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "jetty_manager_to_approve_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "jetty_manager_to_reject_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "company_profile_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_company_profile_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_username",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "brunei_demo_fisherman_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "dofi_officer_role_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -121,9 +176,9 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"user\": {\n    \"email\": \"{{admin_email}}\",\n    \"password\": \"{{admin_password}}\"\n  }\n}"
+              "raw": "{\n  \"user\": {\n    \"username\": \"{{admin_username}}\",\n    \"password\": \"{{admin_password}}\"\n  }\n}"
             },
-            "description": "Authenticates with email/password and returns the JWT both as `data.access_token` in the JSON body and in the `Authorization` response header (`Bearer <token>`), plus the signed-in user's payload (including their role and full permission list). This request's test script auto-saves the token to the `jwt_token` collection variable, so every other request in the collection picks it up automatically. Browser JS clients should prefer `data.access_token` over the header unless the server's CORS config exposes `Authorization` (`Access-Control-Expose-Headers`)."
+            "description": "Authenticates with username/password and returns the JWT both as `data.access_token` in the JSON body and in the `Authorization` response header (`Bearer <token>`), plus the signed-in user's payload (including their role and full permission list). This request's test script auto-saves the token to the `jwt_token` collection variable, so every other request in the collection picks it up automatically. Browser JS clients should prefer `data.access_token` over the header unless the server's CORS config exposes `Authorization` (`Access-Control-Expose-Headers`)."
           },
           "event": [
             {
@@ -171,7 +226,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"user\": {\n    \"email\": \"{{admin_email}}\",\n    \"password\": \"{{admin_password}}\"\n  }\n}"
+                  "raw": "{\n  \"user\": {\n    \"username\": \"{{admin_username}}\",\n    \"password\": \"{{admin_password}}\"\n  }\n}"
                 }
               },
               "status": "OK",
@@ -204,7 +259,7 @@
                 },
                 {
                   "key": "authorization",
-                  "value": "Bearer <jwt> (redacted in docs \u2014 real value differs per sign-in)"
+                  "value": "Bearer <jwt> (redacted in docs — real value differs per sign-in)"
                 },
                 {
                   "key": "cache-control",
@@ -247,9 +302,9 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"user\": {\n    \"email\": \"{{admin_email}}\",\n    \"password\": \"wrong-password\"\n  }\n}"
+              "raw": "{\n  \"user\": {\n    \"username\": \"{{admin_username}}\",\n    \"password\": \"wrong-password\"\n  }\n}"
             },
-            "description": "Same endpoint with a wrong password, to confirm bad credentials are rejected with `401` without revealing which field (email vs. password) was wrong."
+            "description": "Same endpoint with a wrong password, to confirm bad credentials are rejected with `401` without revealing which field (username vs. password) was wrong."
           },
           "event": [
             {
@@ -291,7 +346,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"user\": {\n    \"email\": \"{{admin_email}}\",\n    \"password\": \"wrong-password\"\n  }\n}"
+                  "raw": "{\n  \"user\": {\n    \"username\": \"{{admin_username}}\",\n    \"password\": \"wrong-password\"\n  }\n}"
                 }
               },
               "status": "Unauthorized",
@@ -308,7 +363,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"error\": \"Invalid email or password.\"\n}"
+              "body": "{\n  \"error\": \"Invalid username or password.\"\n}"
             }
           ]
         },
@@ -488,6 +543,281 @@
               "body": "{\n  \"error\": \"You need to sign in or sign up before continuing.\"\n}"
             }
           ]
+        },
+        {
+          "name": "Setup - Register a Fisherman (for BruneiID Login demo)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/registrations/fisherman",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "registrations",
+                "fisherman"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user\": {\n    \"name\": \"Postman BruneiID Demo (Active)\",\n    \"ic_number\": \"01-800201\",\n    \"registration_type\": \"Small - Scale (Full-Time)\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "The Auth folder runs before Registrations/FINS Approval in this collection, so the BruneiID Login demos below register their own fishermen rather than assuming one already exists."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.status === 'success') { pm.collectionVariables.set('brunei_demo_fisherman_id', res.data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Approve the Fisherman (for BruneiID Login demo)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/fishermen/{{brunei_demo_fisherman_id}}/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "fishermen",
+                "{{brunei_demo_fisherman_id}}",
+                "approve"
+              ]
+            },
+            "description": "Uses the jwt_token already set by Auth → Sign In above. Requires fisherman_approvals.approve (DoFi Officer has it via full access)."
+          }
+        },
+        {
+          "name": "BruneiID Login - Active",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/brunei_id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "brunei_id"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ic_number\": \"01-800201\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Mock stand-in for the real BruneiID QR re-scan login used by Fishermen/Jetty Managers (no username/password for them, only registration). Trusts the given `ic_number` as already BruneiID-verified — same trust boundary registration itself relies on. Once the matched user is `active` (see the two Setup requests above), returns the same `access_token`/`Authorization` header shape as the officer `POST /api/v1/auth/sign_in`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Access token present', () => pm.expect(pm.response.json().data.access_token).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Register a Fisherman (Pending, for BruneiID Login demo)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/registrations/fisherman",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "registrations",
+                "fisherman"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user\": {\n    \"name\": \"Postman BruneiID Demo (Pending)\",\n    \"ic_number\": \"01-800202\",\n    \"registration_type\": \"Small - Scale (Full-Time)\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Deliberately left pending (not approved) to demonstrate the status-only login response below."
+          }
+        },
+        {
+          "name": "BruneiID Login - Pending",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/brunei_id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "brunei_id"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ic_number\": \"01-800202\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "The fisherman registered just above is still `pending` (not approved). Returns 200 with the same status-only shape as `GET /api/v1/registrations/status` (no `access_token`) so the FE can reuse its existing pending status screen instead of a new error shape."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status is pending', () => pm.expect(pm.response.json().data.status).to.eql('pending'));",
+                  "pm.test('No access_token for a non-active user', () => pm.expect(pm.response.json().data.access_token).to.be.undefined);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "BruneiID Login - Not Found (404)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/brunei_id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "brunei_id"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ic_number\": \"00-000000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "No registered user has this ic_number."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
         }
       ],
       "description": "Sign in/out and session introspection. devise-jwt issues a Bearer token on sign in (returned both in the `Authorization` response header and as `data.access_token` in the body); sign out revokes it via a JTI denylist, so a signed-out token can't be reused."
@@ -521,7 +851,7 @@
                 "locale"
               ]
             },
-            "description": "Saves the signed-in user's preferred language as `ms`. The locale is never sent as part of the JSON body on other requests \u2014 after this succeeds, the frontend should set `Accept-Language: ms` globally (e.g. `axios.defaults.headers.common['Accept-Language']`) so every subsequent request returns translated content/messages in Malay. Requires authentication; no special permission needed (self-service on the current user).",
+            "description": "Saves the signed-in user's preferred language as `ms`. The locale is never sent as part of the JSON body on other requests — after this succeeds, the frontend should set `Accept-Language: ms` globally (e.g. `axios.defaults.headers.common['Accept-Language']`) so every subsequent request returns translated content/messages in Malay. Requires authentication; no special permission needed (self-service on the current user).",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"locale\": \"ms\"\n}"
@@ -898,7 +1228,7 @@
                 "permissions"
               ]
             },
-            "description": "Returns the full permission catalog (`id`, `code`, `name`) \u2014 used to populate `permission_codes` when creating or updating a role. Not paginated."
+            "description": "Returns the full permission catalog (`id`, `code`, `name`) — used to populate `permission_codes` when creating or updating a role. Not paginated."
           },
           "event": [
             {
@@ -1093,7 +1423,7 @@
           ]
         }
       ],
-      "description": "Read-only catalog of permission codes that can be assigned to roles. Used to populate `permission_codes` when creating/updating a role in the Roles folder below. Available to any authenticated user \u2014 there's no separate `permissions.view` permission."
+      "description": "Read-only catalog of permission codes that can be assigned to roles. Used to populate `permission_codes` when creating/updating a role in the Roles folder below. Available to any authenticated user — there's no separate `permissions.view` permission."
     },
     {
       "name": "Roles",
@@ -1567,7 +1897,7 @@
               "mode": "raw",
               "raw": "{\n  \"role\": {\n    \"description\": \"Updated from the Postman collection\"\n  },\n  \"permission_codes\": [\"{{permission_code}}\"]\n}"
             },
-            "description": "Updates role attributes and/or replaces its permission assignments via `permission_codes` \u2014 this is a full replace, not a merge. Requires `roles.update`."
+            "description": "Updates role attributes and/or replaces its permission assignments via `permission_codes` — this is a full replace, not a merge. Requires `roles.update`."
           },
           "event": [
             {
@@ -2201,6 +2531,49 @@
           ]
         },
         {
+          "name": "Get DoFi Officer Role (setup)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/roles?q[reference_id_eq]=ROLE-001",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "roles"
+              ],
+              "query": [
+                {
+                  "key": "q[reference_id_eq]",
+                  "value": "ROLE-001"
+                }
+              ]
+            },
+            "description": "Looks up the real seeded DoFi Officer role's id and saves it to the `dofi_officer_role_id` collection variable, used by Create User below. Requires `roles.list`/`roles.view` (DoFi Officer has it via full access)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const match = pm.response.json().data.find(r => r.reference_id === 'ROLE-001');",
+                  "if (match) { pm.collectionVariables.set('dofi_officer_role_id', match.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Create User",
           "request": {
             "method": "POST",
@@ -2227,9 +2600,9 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"user\": {\n    \"name\": \"Postman Test Officer\",\n    \"email\": \"postman.test@dofi.gov.bn\",\n    \"password\": \"Password123!\",\n    \"password_confirmation\": \"Password123!\",\n    \"employee_id\": \"DOFI-POSTMAN-1\"\n  }\n}"
+              "raw": "{\n  \"user\": {\n    \"name\": \"Postman Test Officer\",\n    \"position\": \"Administrator\",\n    \"unit\": \"Block A\",\n    \"username\": \"mprt/postman.officer\",\n    \"role_id\": \"{{dofi_officer_role_id}}\"\n  }\n}"
             },
-            "description": "Creates a DoFi officer user. Requires `dofi_officer_users.create`. The response's `data.id` is auto-saved to the `user_id` collection variable for the requests below. Re-running this without changing the email/employee_id will 422 on a persistent environment (e.g. staging) since a prior run's user already exists \u2014 change the body or clean up the previous test user first."
+            "description": "Creates a DoFi officer user. Requires `dofi_officer_users.create`. No email or password is collected — the server auto-generates a password and returns it once as `data.temporary_password` (never shown again after this response); `position`/`unit`/`username` are required for this role. The response's `data.id` is auto-saved to the `user_id` collection variable for the requests below. Re-running this without changing `username` will 422 on a persistent environment (e.g. staging) since a prior run's user already exists — change the body or clean up the previous test user first."
           },
           "event": [
             {
@@ -2238,80 +2611,15 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 201', () => pm.response.to.have.status(201));",
-                  "const id = pm.response.json().data && pm.response.json().data.id;",
-                  "if (id) { pm.collectionVariables.set('user_id', id); }"
+                  "const body = pm.response.json();",
+                  "const id = body.data && body.data.id;",
+                  "if (id) { pm.collectionVariables.set('user_id', id); }",
+                  "pm.test('Returns a one-time temporary_password', () => pm.expect(body.data.temporary_password).to.be.a('string'));"
                 ]
               }
             }
           ],
-          "response": [
-            {
-              "name": "Create User - Example",
-              "originalRequest": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/api/v1/users",
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "users"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"user\": {\n    \"name\": \"Postman Test Officer\",\n    \"email\": \"postman.test@dofi.gov.bn\",\n    \"password\": \"Password123!\",\n    \"password_confirmation\": \"Password123!\",\n    \"employee_id\": \"DOFI-POSTMAN-1\"\n  }\n}"
-                }
-              },
-              "status": "Created",
-              "code": 201,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "x-frame-options",
-                  "value": "SAMEORIGIN"
-                },
-                {
-                  "key": "x-xss-protection",
-                  "value": "0"
-                },
-                {
-                  "key": "x-content-type-options",
-                  "value": "nosniff"
-                },
-                {
-                  "key": "x-permitted-cross-domain-policies",
-                  "value": "none"
-                },
-                {
-                  "key": "referrer-policy",
-                  "value": "strict-origin-when-cross-origin"
-                },
-                {
-                  "key": "content-type",
-                  "value": "application/json; charset=utf-8"
-                },
-                {
-                  "key": "cache-control",
-                  "value": "max-age=0, private, must-revalidate"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"a208b10a-88ce-4891-8268-0b76a4b2fe05\",\n    \"created_at\": \"2026-06-22T07:21:20.624Z\",\n    \"email\": \"postman.test@dofi.gov.bn\",\n    \"employee_id\": \"DOFI-POSTMAN-1\",\n    \"name\": \"Postman Test Officer\",\n    \"position\": null,\n    \"preferred_locale\": \"en\",\n    \"registration_type\": null,\n    \"role\": null,\n    \"status\": \"active\",\n    \"unit\": null,\n    \"updated_at\": \"2026-06-22T07:21:20.624Z\"\n  }\n}"
-            }
-          ]
+          "response": []
         },
         {
           "name": "Create User - Invalid (422)",
@@ -2340,9 +2648,9 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"user\": {\n    \"name\": \"\",\n    \"email\": \"\",\n    \"password\": \"Password123!\",\n    \"password_confirmation\": \"Password123!\"\n  }\n}"
+              "raw": "{\n  \"user\": {\n    \"name\": \"Incomplete Officer\",\n    \"role_id\": \"{{dofi_officer_role_id}}\"\n  }\n}"
             },
-            "description": "Submits a blank name/email to confirm validation errors return `422` with details, rather than a `500` or a silently-created invalid record."
+            "description": "Submits a DoFi Officer user with no position/unit/username to confirm these are required for this role (422 with details), rather than a `500` or a silently-created invalid record."
           },
           "event": [
             {
@@ -2355,74 +2663,7 @@
               }
             }
           ],
-          "response": [
-            {
-              "name": "Create User - Invalid (422) - Example",
-              "originalRequest": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/api/v1/users",
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "users"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"user\": {\n    \"name\": \"\",\n    \"email\": \"\",\n    \"password\": \"Password123!\",\n    \"password_confirmation\": \"Password123!\"\n  }\n}"
-                }
-              },
-              "status": "Unprocessable Content",
-              "code": 422,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "x-frame-options",
-                  "value": "SAMEORIGIN"
-                },
-                {
-                  "key": "x-xss-protection",
-                  "value": "0"
-                },
-                {
-                  "key": "x-content-type-options",
-                  "value": "nosniff"
-                },
-                {
-                  "key": "x-permitted-cross-domain-policies",
-                  "value": "none"
-                },
-                {
-                  "key": "referrer-policy",
-                  "value": "strict-origin-when-cross-origin"
-                },
-                {
-                  "key": "content-type",
-                  "value": "application/json; charset=utf-8"
-                },
-                {
-                  "key": "cache-control",
-                  "value": "no-cache"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"status\": \"fail\",\n  \"errors\": [\n    \"Email can't be blank\",\n    \"Name can't be blank\"\n  ]\n}"
-            }
-          ]
+          "response": []
         },
         {
           "name": "Show User",
@@ -2753,7 +2994,7 @@
                 "{{user_id}}"
               ]
             },
-            "description": "Confirms a soft-deleted user is excluded from the default scope \u2014 `GET` returns `404` even though the row still exists in the database."
+            "description": "Confirms a soft-deleted user is excluded from the default scope — `GET` returns `404` even though the row still exists in the database."
           },
           "event": [
             {
@@ -2833,7 +3074,7 @@
     },
     {
       "name": "Z - Sign Out (run last)",
-      "description": "Kept as the final folder so it runs after Permissions/Roles/Users. Signing out revokes jwt_token (devise-jwt JTI revocation), so anything run after this needs a fresh Sign In. Re-run **Auth \u2192 Sign In** afterwards before using the collection again. Re-run **Auth \u2192 Sign In** afterwards before using the collection again.",
+      "description": "Kept as the final folder so it runs after Permissions/Roles/Users. Signing out revokes jwt_token (devise-jwt JTI revocation), so anything run after this needs a fresh Sign In. Re-run **Auth → Sign In** afterwards before using the collection again. Re-run **Auth → Sign In** afterwards before using the collection again.",
       "item": [
         {
           "name": "Sign Out",
@@ -3013,8 +3254,277 @@
       ]
     },
     {
+      "name": "Profiling",
+      "description": "Officer-facing CRUD for `CompanyProfile` (the \"Add Profiling\" screen). Officers pre-create a company's profile — Owner and optionally Admin — before a Commercial/Small-Scale (Company) fisherman can self-register and match against it by IC number (see Registrations → Fisherman - Company Profile Lookup / Register (Commercial)). Requires `profiling.*` permissions.\n\nThe example below deliberately uses the same `ic_no` (`01-192839`), `company_name` (`Azri Fish Sdn Bhd`), and `rocbn_no` (`RC20390923`) as the Registrations folder's Fisherman examples, so running this folder first makes those downstream requests resolve against real data instead of 404ing.",
+      "item": [
+        {
+          "name": "List Profiling",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles?page=1&limit=10"
+              ]
+            },
+            "description": "Requires `profiling.view` or `profiling.list`."
+          }
+        },
+        {
+          "name": "List Profiling - Filtered (Select & Search Company)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles?q[company_name_cont]=Azri&q[s]=created_at desc&page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles?q[company_name_cont]=Azri&q[s]=created_at desc&page=1&limit=10"
+              ]
+            },
+            "description": "This is how the FE's \"Select & Search Company\" button works — search existing `CompanyProfile` rows by `company_name`/`rocbn_no` so an officer can reuse a company's details when adding a second (Admin) profiling entry for it."
+          }
+        },
+        {
+          "name": "Create Profiling (Owner + Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Commercial\",\n    \"company_name\": \"Azri Fish Sdn Bhd\",\n    \"company_address\": \"Spg 10, Pantai Serasa, Mukim Serasa\",\n    \"rocbn_no\": \"RC20390923\",\n    \"contact_no\": \"71111111\",\n    \"district\": \"Brunei - Muara\",\n    \"mukim\": \"Serasa\",\n    \"village\": \"Kapok\",\n    \"fisherman_card_no\": \"R-2026-012563\",\n    \"issue_date\": \"2026-01-01\",\n    \"license_expiry_date\": \"2026-12-31\",\n    \"worker_quota\": 34,\n    \"owner\": {\n      \"full_name\": \"Muhammad Shahrizan Bin Haji Said\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-192839\",\n      \"ic_colour\": \"Yellow\"\n    },\n    \"admin\": {\n      \"full_name\": \"Seruddin Bin Haji Abdullah\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-192840\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Submitting both `owner` and `admin` creates two `CompanyProfile` rows in one transaction (rolled back together on failure) sharing all company-level fields plus a single auto-generated `dofi_registration_no`; each row gets its own `reference_id`. `owner` is required, `admin` is optional. Requires `profiling.create`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Owner and Admin share dofi_registration_no', () => pm.expect(pm.response.json().data.owner_profile.dofi_registration_no).to.eql(pm.response.json().data.admin_profile.dofi_registration_no));",
+                  "if (pm.response.json().data.owner_profile) { pm.collectionVariables.set('company_profile_id', pm.response.json().data.owner_profile.id); }",
+                  "if (pm.response.json().data.admin_profile) { pm.collectionVariables.set('admin_company_profile_id', pm.response.json().data.admin_profile.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Profiling (Owner Only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Small-Scale (Company)\",\n    \"company_name\": \"Serasa Small Fish Co\",\n    \"company_address\": \"Spg 20, Serasa\",\n    \"rocbn_no\": \"RC99887766\",\n    \"contact_no\": \"72222222\",\n    \"district\": \"Brunei - Muara\",\n    \"mukim\": \"Serasa\",\n    \"village\": \"Kapok\",\n    \"fisherman_card_no\": \"R-2026-099001\",\n    \"issue_date\": \"2026-02-01\",\n    \"license_expiry_date\": \"2027-01-31\",\n    \"worker_quota\": 5,\n    \"owner\": {\n      \"full_name\": \"Roslan Bin Mat\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-441122\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Owner-only submission (no `admin` key) — creates a single `CompanyProfile` row; `data.admin_profile` is `null`. Requires `profiling.create`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('admin_profile is null', () => pm.expect(pm.response.json().data.admin_profile).to.be.null);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Profiling - Validation Error (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Commercial\",\n    \"company_name\": \"\",\n    \"owner\": {\n      \"full_name\": \"Nobody\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-000999\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Missing required company-level fields (company_name blank, plus several others omitted entirely). No row is persisted — the whole submission rolls back together."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Show Profiling",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{company_profile_id}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Profiling",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{company_profile_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_profile\": {\n    \"worker_quota\": 40\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Updates one profiling row at a time (e.g. just the Owner's, without touching the linked Admin row)."
+          }
+        },
+        {
+          "name": "Delete Profiling (soft)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{admin_company_profile_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{admin_company_profile_id}}"
+              ]
+            },
+            "description": "Deletes the Admin row only, demonstrating that Owner/Admin rows can be managed independently after creation. The Owner row (`company_profile_id`) is left in place so the Registrations folder's lookup/register examples below keep working."
+          }
+        }
+      ]
+    },
+    {
       "name": "Registrations",
-      "description": "Public self-registration endpoints for Jetty Managers and Fishermen. No `Authorization` header is required \u2014 all four endpoints are unauthenticated. The expected flow before hitting these endpoints is: (1) user scans a BruneiID QR code, (2) BruneiID callback returns `ic_number` + `name` to the FE, (3) FE calls `GET /registrations/status` to check whether an account already exists for that IC, then routes to the appropriate register form or redirect.",
+      "description": "Public self-registration endpoints for Jetty Managers and Fishermen. No `Authorization` header is required — all four endpoints are unauthenticated. The expected flow before hitting these endpoints is: (1) user scans a BruneiID QR code, (2) BruneiID callback returns `ic_number` + `name` to the FE, (3) FE calls `GET /registrations/status` to check whether an account already exists for that IC, then routes to the appropriate register form or redirect.",
       "item": [
         {
           "name": "Check Registration Status",
@@ -3047,7 +3557,7 @@
                 }
               ]
             },
-            "description": "Checks whether a user account already exists for the given IC number. The FE calls this immediately after a successful BruneiID callback to decide which screen to show:\n\n| Response | `data.status` | FE action |\n|---|---|---|\n| 200 | `active` | Redirect to login |\n| 200 | `pending` | Show \"Registration Status: Pending\" screen |\n| 200 | `rejected` | Show \"Registration Status: Rejected\" screen (read `rejection_reason`) |\n| 404 | \u2014 | IC not found \u2192 show registration form |"
+            "description": "Checks whether a user account already exists for the given IC number. The FE calls this immediately after a successful BruneiID callback to decide which screen to show:\n\n| Response | `data.status` | FE action |\n|---|---|---|\n| 200 | `active` | Redirect to login |\n| 200 | `pending` | Show \"Registration Status: Pending\" screen |\n| 200 | `rejected` | Show \"Registration Status: Rejected\" screen (read `rejection_reason`) |\n| 404 | — | IC not found → show registration form |"
           },
           "event": [
             {
@@ -3261,7 +3771,7 @@
               "mode": "raw",
               "raw": "{\n  \"user\": {\n    \"name\": \"Amiirul Azri Mizamuddin\",\n    \"ic_number\": \"01-1234567\",\n    \"unit\": \"Docks\",\n    \"position\": \"Jetty Supervisor\",\n    \"contact_no\": \"71111111\"\n  }\n}"
             },
-            "description": "Registers a new Jetty Manager account (role ROLE-002). All five fields are required. The account is created immediately as `active` \u2014 no officer approval step.\n\nThe `ic_number` and `name` are typically pre-filled from the BruneiID callback; `unit`, `position`, and `contact_no` are entered by the user on the registration form.\n\nA random secure password is generated server-side \u2014 the user never sets one. Future authentication is via BruneiID QR re-scan, not email/password."
+            "description": "Registers a new Jetty Manager account (role ROLE-002). All five fields are required. The account is created with `status: pending` — same as Fisherman registration, an officer must approve before the user can log in.\n\nThe `ic_number` and `name` are typically pre-filled from the BruneiID callback; `unit`, `position`, and `contact_no` are entered by the user on the registration form.\n\nA random secure password is generated server-side — the user never sets one. Future authentication is via BruneiID QR re-scan, not email/password."
           },
           "event": [
             {
@@ -3270,7 +3780,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('User status is active', () => pm.expect(pm.response.json().data.status).to.eql('active'));",
+                  "pm.test('User status is pending', () => pm.expect(pm.response.json().data.status).to.eql('pending'));",
                   "pm.test('Role is Jetty Manager', () => pm.expect(pm.response.json().data.role.reference_id).to.eql('ROLE-002'));"
                 ]
               }
@@ -3318,7 +3828,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0001-0001-0001-000000000001\",\n    \"name\": \"Amiirul Azri Mizamuddin\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"active\",\n    \"preferred_locale\": \"en\",\n    \"unit\": \"Docks\",\n    \"position\": \"Jetty Supervisor\",\n    \"contact_no\": \"71111111\",\n    \"designation\": null,\n    \"registration_type\": null,\n    \"created_at\": \"2026-06-30T08:00:00.000Z\",\n    \"updated_at\": \"2026-06-30T08:00:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0001-0001-0001-0001-000000000002\",\n      \"name\": \"Jetty Manager\",\n      \"reference_id\": \"ROLE-002\",\n      \"description\": \"Port-level authority.\",\n      \"permissions\": []\n    },\n    \"company_profile\": null\n  }\n}"
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0001-0001-0001-000000000001\",\n    \"name\": \"Amiirul Azri Mizamuddin\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"pending\",\n    \"preferred_locale\": \"en\",\n    \"unit\": \"Docks\",\n    \"position\": \"Jetty Supervisor\",\n    \"contact_no\": \"71111111\",\n    \"designation\": null,\n    \"registration_type\": null,\n    \"created_at\": \"2026-06-30T08:00:00.000Z\",\n    \"updated_at\": \"2026-06-30T08:00:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0001-0001-0001-0001-000000000002\",\n      \"name\": \"Jetty Manager\",\n      \"reference_id\": \"ROLE-002\",\n      \"description\": \"Port-level authority.\",\n      \"permissions\": []\n    },\n    \"company_profile\": null\n  }\n}"
             },
             {
               "name": "Jetty Manager - Register - 422 Missing Required Fields",
@@ -3440,7 +3950,7 @@
                 }
               ]
             },
-            "description": "Looks up the CompanyProfile whose `ic_no` matches the fisherman's IC number. Used by the FE to pre-fill Company Name and ROCBN No. on the registration form (read-only fields).\n\nOnly applies to `registration_type` = `\"Commercial\"` or `\"Small-Scale (Company)\"`. For `\"Small - Scale (Full-Time)\"` no lookup is needed.\n\nReturns 404 if no active CompanyProfile matches \u2014 the FE should show dashes and disable the Register button in this case."
+            "description": "Looks up the CompanyProfile whose `ic_no` matches the fisherman's IC number. Used by the FE to pre-fill Company Name and ROCBN No. on the registration form (read-only fields).\n\nOnly applies to `registration_type` = `\"Commercial\"` or `\"Small-Scale (Company)\"`. For `\"Small - Scale (Full-Time)\"` no lookup is needed.\n\nReturns 404 if no active CompanyProfile matches — the FE should show dashes and disable the Register button in this case."
           },
           "event": [
             {
@@ -3495,7 +4005,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"cp000001-0001-0001-0001-000000000001\",\n    \"registration_type\": \"Commercial\",\n    \"company_name\": \"Azri Fish Sdn Bhd\",\n    \"rocbn_no\": \"RC20390923\",\n    \"full_name\": \"Muhammad Shahrizan Bin Haji Said\",\n    \"ic_no\": \"01-192839\"\n  }\n}"
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"cp000001-0001-0001-0001-000000000001\",\n    \"registration_type\": \"Commercial\",\n    \"company_name\": \"Azri Fish Sdn Bhd\",\n    \"rocbn_no\": \"RC20390923\",\n    \"full_name\": \"Muhammad Shahrizan Bin Haji Said\",\n    \"ic_no\": \"01-192839\",\n    \"designation\": \"Owner\"\n  }\n}"
             },
             {
               "name": "Company Profile Lookup - 404 Not Found",
@@ -3574,7 +4084,7 @@
               "mode": "raw",
               "raw": "{\n  \"user\": {\n    \"name\": \"Muhammad Shahrizan Bin Haji Said\",\n    \"ic_number\": \"01-192839\",\n    \"registration_type\": \"Commercial\",\n    \"designation\": \"Owner\"\n  }\n}"
             },
-            "description": "Registers a fisherman with `registration_type = \"Commercial\"`. The server looks up a `CompanyProfile` whose `ic_no` matches `ic_number` \u2014 if none is found, the request returns 404 (the IC lookup step above should have caught this first).\n\nThe account is created with `status: pending` and linked to the matched CompanyProfile. An officer must approve before the user can log in.\n\nValid `registration_type` values: `\"Commercial\"`, `\"Small-Scale (Company)\"`, `\"Small - Scale (Full-Time)\"`.\n\n`designation` (Owner or Admin) is only shown on the form for Commercial and Small-Scale (Company) types."
+            "description": "Registers a fisherman with `registration_type = \"Commercial\"`. The server looks up a `CompanyProfile` whose `ic_no` matches `ic_number` — if none is found, the request returns 404 (the IC lookup step above should have caught this first).\n\nThe account is created with `status: pending` and linked to the matched CompanyProfile. An officer must approve before the user can log in.\n\nValid `registration_type` values: `\"Commercial\"`, `\"Small-Scale (Company)\"`, `\"Small - Scale (Full-Time)\"`.\n\n`designation` (Owner or Admin) is only shown on the form for Commercial and Small-Scale (Company) types."
           },
           "event": [
             {
@@ -3584,7 +4094,8 @@
                 "exec": [
                   "pm.test('Status is 201', () => pm.response.to.have.status(201));",
                   "pm.test('User status is pending', () => pm.expect(pm.response.json().data.status).to.eql('pending'));",
-                  "pm.test('Has company_profile', () => pm.expect(pm.response.json().data.company_profile).to.not.be.null);"
+                  "pm.test('Has company_profile', () => pm.expect(pm.response.json().data.company_profile).to.not.be.null);",
+                  "if (pm.response.json().status === 'success') { pm.collectionVariables.set('commercial_fisherman_id', pm.response.json().data.id); }"
                 ]
               }
             }
@@ -3711,7 +4222,7 @@
               "mode": "raw",
               "raw": "{\n  \"user\": {\n    \"name\": \"Roslan Bin Mat\",\n    \"ic_number\": \"01-192839\",\n    \"registration_type\": \"Small-Scale (Company)\",\n    \"designation\": \"Admin\"\n  }\n}"
             },
-            "description": "Same as the Commercial flow \u2014 the server looks up a CompanyProfile by `ic_number` and links the user to it. Returns 404 if no match is found."
+            "description": "Same as the Commercial flow — the server looks up a CompanyProfile by `ic_number` and links the user to it. Returns 404 if no match is found."
           },
           "event": [
             {
@@ -3804,7 +4315,7 @@
               "mode": "raw",
               "raw": "{\n  \"user\": {\n    \"name\": \"Haji Sulaiman Bin Ahmad\",\n    \"ic_number\": \"01-555555\",\n    \"registration_type\": \"Small - Scale (Full-Time)\"\n  }\n}"
             },
-            "description": "Registers an individual fisherman with no company affiliation. No CompanyProfile lookup is performed \u2014 `company_profile` will be `null` in the response. The `designation` field is not required for this registration type.\n\nNote the exact string: `\"Small - Scale (Full-Time)\"` (space before and after the hyphen)."
+            "description": "Registers an individual fisherman with no company affiliation. No CompanyProfile lookup is performed — `company_profile` will be `null` in the response. The `designation` field is not required for this registration type.\n\nNote the exact string: `\"Small - Scale (Full-Time)\"` (space before and after the hyphen)."
           },
           "event": [
             {
@@ -3905,6 +4416,750 @@
               ],
               "cookie": [],
               "body": "{\n  \"status\": \"fail\",\n  \"errors\": [\n    \"Registration type is not included in the list\"\n  ]\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "FINS Approval",
+      "description": "Officer review queues for BruneiID self-registered Fishermen and Jetty Managers (both now created with `status: pending`, requiring approval before they can log in), plus the predefined rejection-reason list used when rejecting either.",
+      "item": [
+        {
+          "name": "Approval Remarks",
+          "description": "Predefined rejection reasons selectable when rejecting a Fisherman or Jetty Manager below. Requires `approval_remarks.*`.",
+          "item": [
+            {
+              "name": "List Approval Remarks",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks?page=1&limit=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "approvals",
+                    "approval_remarks?page=1&limit=10"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List Approval Remarks - Filtered",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks?q[name_cont]=mismatch&q[s]=reference_id asc&page=1&limit=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "approvals",
+                    "approval_remarks?q[name_cont]=mismatch&q[s]=reference_id asc&page=1&limit=10"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Approval Remark",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "approvals",
+                    "approval_remarks"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"approval_remark\": {\n    \"name\": \"Postman Test Remark\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.json().status === 'success') { pm.collectionVariables.set('approval_remark_id', pm.response.json().data.id); }"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create Approval Remark - Validation Error (422)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "approvals",
+                    "approval_remarks"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"approval_remark\": {\n    \"name\": \"\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Show Approval Remark",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks/{{approval_remark_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "approvals",
+                    "approval_remarks",
+                    "{{approval_remark_id}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Approval Remark",
+              "request": {
+                "method": "PATCH",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks/{{approval_remark_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "approvals",
+                    "approval_remarks",
+                    "{{approval_remark_id}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"approval_remark\": {\n    \"name\": \"Postman Test Remark (Updated)\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Delete Approval Remark (soft)",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks/{{approval_remark_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "approvals",
+                    "approval_remarks",
+                    "{{approval_remark_id}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Fisherman Approvals",
+          "description": "Requires `fisherman_approvals.*`. Run the two \"Register Pending Fisherman\" setup requests first (each uses a fresh `ic_number` so they don't collide with the Registrations folder's own examples or each other).",
+          "item": [
+            {
+              "name": "Setup - Register Pending Fisherman (for Approve)",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/registrations/fisherman",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "registrations",
+                    "fisherman"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user\": {\n    \"name\": \"Postman Approve-Me Fisherman\",\n    \"ic_number\": \"01-700001\",\n    \"registration_type\": \"Small - Scale (Full-Time)\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Small-Scale (Full-Time) needs no CompanyProfile, so this works standalone regardless of what the Profiling/Registrations folders have run."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.json().status === 'success') { pm.collectionVariables.set('fisherman_to_approve_id', pm.response.json().data.id); }"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Setup - Register Pending Fisherman (for Reject)",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/registrations/fisherman",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "registrations",
+                    "fisherman"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user\": {\n    \"name\": \"Postman Reject-Me Fisherman\",\n    \"ic_number\": \"01-700002\",\n    \"registration_type\": \"Small - Scale (Full-Time)\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.json().status === 'success') { pm.collectionVariables.set('fisherman_to_reject_id', pm.response.json().data.id); }"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List Fisherman Approvals",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/approvals/fishermen?page=1&limit=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "approvals",
+                    "fishermen?page=1&limit=10"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List Fisherman Approvals - Filtered by status",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/approvals/fishermen?q[status_eq]=pending&q[s]=created_at desc&page=1&limit=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "approvals",
+                    "fishermen?q[status_eq]=pending&q[s]=created_at desc&page=1&limit=10"
+                  ]
+                },
+                "description": "Filter by raw AASM `status` (`pending`/`active`/`rejected`), not the display-only `approval_status` label."
+              }
+            },
+            {
+              "name": "Show Fisherman Approval",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/approvals/fishermen/{{fisherman_to_approve_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "approvals",
+                    "fishermen",
+                    "{{fisherman_to_approve_id}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Show Fisherman Approval (Commercial, Owner+Admin merge)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/approvals/fishermen/{{commercial_fisherman_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "approvals",
+                    "fishermen",
+                    "{{commercial_fisherman_id}}"
+                  ]
+                },
+                "description": "`commercial_fisherman_id` is captured by Registrations → \"Fisherman - Register (Commercial)\". `data.owner_profile` and `data.admin_profile` should both be populated (via CompanyProfile#sibling) if the Profiling folder's \"Create Profiling (Owner + Admin)\" ran earlier in this run."
+              }
+            },
+            {
+              "name": "Approve Fisherman",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/approvals/fishermen/{{fisherman_to_approve_id}}/approve",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "approvals",
+                    "fishermen",
+                    "{{fisherman_to_approve_id}}",
+                    "approve"
+                  ]
+                },
+                "description": "Requires `fisherman_approvals.approve`. Transitions `pending` → `active`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Status is active', () => pm.expect(pm.response.json().data.status).to.eql('active'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Reject Fisherman",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/approvals/fishermen/{{fisherman_to_reject_id}}/reject",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "approvals",
+                    "fishermen",
+                    "{{fisherman_to_reject_id}}",
+                    "reject"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"approval_remark_id\": \"{{approval_remark_id}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Requires `fisherman_approvals.approve` (reject uses the same permission code as approve). Transitions `pending` → `rejected` and copies the remark's `name` into `rejection_reason`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Status is rejected', () => pm.expect(pm.response.json().data.status).to.eql('rejected'));",
+                      "pm.test('rejection_reason is set', () => pm.expect(pm.response.json().data.rejection_reason).to.not.be.null);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Reject Fisherman - Invalid approval_remark_id (422)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/approvals/fishermen/{{fisherman_to_reject_id}}/reject",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "approvals",
+                    "fishermen",
+                    "{{fisherman_to_reject_id}}",
+                    "reject"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"approval_remark_id\": \"00000000-0000-0000-0000-000000000000\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Already-rejected from the previous request, so this also demonstrates the AASM guard (`may_reject?` false) rejecting a non-pending user with a 422 rather than a raised exception."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 422', () => pm.response.to.have.status(422));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Jetty Manager Approvals",
+          "description": "Requires `jetty_manager_approvals.*`.",
+          "item": [
+            {
+              "name": "Setup - Register Pending Jetty Manager (for Approve)",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/registrations/jetty_manager",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "registrations",
+                    "jetty_manager"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user\": {\n    \"name\": \"Postman Approve-Me Jetty Manager\",\n    \"ic_number\": \"01-700003\",\n    \"unit\": \"Docks\",\n    \"position\": \"Jetty Supervisor\",\n    \"contact_no\": \"71333333\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.json().status === 'success') { pm.collectionVariables.set('jetty_manager_to_approve_id', pm.response.json().data.id); }"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Setup - Register Pending Jetty Manager (for Reject)",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/registrations/jetty_manager",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "registrations",
+                    "jetty_manager"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user\": {\n    \"name\": \"Postman Reject-Me Jetty Manager\",\n    \"ic_number\": \"01-700004\",\n    \"unit\": \"Docks\",\n    \"position\": \"Jetty Supervisor\",\n    \"contact_no\": \"71444444\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.json().status === 'success') { pm.collectionVariables.set('jetty_manager_to_reject_id', pm.response.json().data.id); }"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List Jetty Manager Approvals",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/approvals/jetty_managers?page=1&limit=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "approvals",
+                    "jetty_managers?page=1&limit=10"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Show Jetty Manager Approval",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/approvals/jetty_managers/{{jetty_manager_to_approve_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "approvals",
+                    "jetty_managers",
+                    "{{jetty_manager_to_approve_id}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Approve Jetty Manager",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/approvals/jetty_managers/{{jetty_manager_to_approve_id}}/approve",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "approvals",
+                    "jetty_managers",
+                    "{{jetty_manager_to_approve_id}}",
+                    "approve"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Status is active', () => pm.expect(pm.response.json().data.status).to.eql('active'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Reject Jetty Manager",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/approvals/jetty_managers/{{jetty_manager_to_reject_id}}/reject",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "approvals",
+                    "jetty_managers",
+                    "{{jetty_manager_to_reject_id}}",
+                    "reject"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"approval_remark_id\": \"{{approval_remark_id}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Status is rejected', () => pm.expect(pm.response.json().data.status).to.eql('rejected'));"
+                    ]
+                  }
+                }
+              ]
             }
           ]
         }
@@ -5556,7 +6811,7 @@
                 }
               ]
             },
-            "description": "Creates multiple fish species in one request (matching the Add New Fish modal). Each row gets a sequential `reference_id`. All rows are inserted in a single transaction \u2014 if any row fails validation, none are saved. Send as `multipart/form-data` using `dictionaries[N][field]` keys."
+            "description": "Creates multiple fish species in one request (matching the Add New Fish modal). Each row gets a sequential `reference_id`. All rows are inserted in a single transaction — if any row fails validation, none are saved. Send as `multipart/form-data` using `dictionaries[N][field]` keys."
           },
           "event": [
             {
@@ -5797,7 +7052,7 @@
                 }
               ]
             },
-            "description": "Updates a single dictionary entry. Partial updates are supported \u2014 omit any field to leave it unchanged. `reference_id` is immutable and ignored even if sent. To replace the image, include the `image` file field."
+            "description": "Updates a single dictionary entry. Partial updates are supported — omit any field to leave it unchanged. `reference_id` is immutable and ignored even if sent. To replace the image, include the `image` file field."
           },
           "event": [
             {

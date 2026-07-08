@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_07_101027) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_08_074010) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -450,15 +450,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_07_101027) do
     t.string "status", default: "active", null: false
     t.string "unit"
     t.datetime "updated_at", null: false
-    t.string "username_directory"
+    t.string "username"
     t.index ["company_profile_id"], name: "index_users_on_company_profile_id"
     t.index ["discarded_at"], name: "index_users_on_discarded_at"
-    t.index ["email"], name: "index_users_on_email", unique: true
+    t.index ["email"], name: "index_users_on_email", unique: true, where: "((email)::text <> ''::text)"
     t.index ["employee_id"], name: "index_users_on_employee_id", unique: true
     t.index ["ic_number"], name: "index_users_on_ic_number", unique: true, where: "(ic_number IS NOT NULL)"
     t.index ["jti"], name: "index_users_on_jti", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
     t.index ["role_id"], name: "index_users_on_role_id"
+    t.index ["username"], name: "index_users_on_username", unique: true
     t.check_constraint "preferred_locale::text = ANY (ARRAY['en'::character varying::text, 'ms'::character varying::text])", name: "check_users_preferred_locale"
   end
 

@@ -337,7 +337,7 @@ Valid values for `registration_type`: `"Commercial"`, `"Small-Scale (Company)"`,
 | Officer approve/reject endpoint | ✅ Built — `POST /api/v1/approvals/fishermen/:id/approve`\|`reject` and `POST /api/v1/approvals/jetty_managers/:id/approve`\|`reject`. Moves a Fisherman or Jetty Manager from `pending` → `active` or `rejected`, sets `rejection_reason` on `rejected` |
 | Admin create CompanyProfile endpoint | ✅ Built — `POST /api/v1/company_profiles` (see "5. Officer Profiling" below). Officers pre-create `CompanyProfile` records (Owner and optionally Admin) before fishermen self-register |
 | Registration status check endpoint | ✅ Built — `GET /api/v1/registrations/status?ic_number=...` |
-| Login after registration | Fishermen with `pending`/`rejected` status cannot log in yet; the sessions endpoint should gate on `active` status (not implemented) |
+| Login after registration | ✅ Built — `POST /api/v1/auth/brunei_id` (see "6. Mock BruneiID Login" below). Gates on `active` status; `pending`/`rejected` get the same status payload as the registration-status check instead of a token |
 
 ---
 
@@ -401,3 +401,54 @@ If either row fails validation, the whole submission rolls back — no partial (
 `admin_profile` is `null` when no `admin` was submitted.
 
 Also supports standard `GET /api/v1/company_profiles` (list, searchable via `q[company_name_cont]`/`q[rocbn_no_cont]` — this is how the FE's "Select & Search Company" picks an existing company to reuse its details for a follow-up Admin entry), `GET /api/v1/company_profiles/:id`, `PATCH /api/v1/company_profiles/:id` (updates one row at a time), and `DELETE /api/v1/company_profiles/:id` (soft-delete).
+
+---
+
+## 6. Mock BruneiID Login
+
+Fishermen and Jetty Managers have no username/password login — after registration, subsequent "log in" is a BruneiID QR re-scan on the frontend. Since there's no real BruneiID integration yet, this endpoint is a **mock** stand-in: it trusts the FE-supplied `ic_number` as already BruneiID-verified, the same trust boundary registration itself already relies on (`brunei_id_verified_at` is set unconditionally at registration time, with no real verification call either). It is **public** (no `Authorization` header required).
+
+```
+POST /api/v1/auth/brunei_id
+```
+
+**Request body**
+
+```json
+{ "ic_number": "01-192839" }
+```
+
+**Found, `active` — 200 OK** (same shape as the officer `/api/v1/auth/sign_in` response)
+
+```json
+{
+  "status": "success",
+  "data": {
+    "access_token": "<jwt>",
+    "user": { "id": "uuid", "name": "...", "status": "active", "...": "..." }
+  }
+}
+```
+
+**Found, `pending` or `rejected` — 200 OK** (same shape as `GET /api/v1/registrations/status` — no `access_token`, so the FE reuses its existing pending/rejected status screens rather than a new error shape)
+
+```json
+{
+  "status": "success",
+  "data": { "id": "uuid", "name": "...", "status": "pending", "...": "..." }
+}
+```
+
+**Not found — 404 Not Found**
+
+```json
+{ "status": "fail", "message": "Resource not found." }
+```
+
+This is explicitly a mock — see `app/services/brunei_id/client.rb` for the swap-in point for a real BruneiID integration later (the `faraday`/`jwt` gems and `BRUNEIID_*` env vars are already reserved for it, unused today).
+
+For a step-by-step curl/Postman walkthrough of testing Fisherman/Jetty Manager login end-to-end (register → approve → mock login → authenticated request, plus pending/rejected/not-found), see [`testing-mock-brunei-id-login.md`](testing-mock-brunei-id-login.md).
+
+### DoFi Officer/Administrator login (for contrast)
+
+Officers log in separately via `POST /api/v1/auth/sign_in` with `{ "user": { "username": "...", "password": "..." } }` — a real username+password check against this app's own `encrypted_password` (not BruneiID, not real Active Directory/SSO — `username` is just an AD-style identifier the app owns and validates itself). This endpoint is unchanged in shape; only the login field switched from `email` to `username`.

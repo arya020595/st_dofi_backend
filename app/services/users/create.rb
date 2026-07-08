@@ -5,7 +5,10 @@ module Users
     def self.call(...) = new.call(...)
 
     def call(attributes)
-      user = User.new(attributes.except(:employee_id).merge(employee_id: next_employee_id))
+      password = SecureRandom.base64(24)
+      user = User.new(attributes.except(:employee_id, :password, :password_confirmation)
+                                 .merge(employee_id: next_employee_id, password: password,
+                                        password_confirmation: password))
       return Success(user) if user.save
 
       Failure(user)

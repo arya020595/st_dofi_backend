@@ -9,7 +9,7 @@ module Api
       end
 
       test "sign in with valid credentials returns a JWT and the user payload" do
-        post "/api/v1/auth/sign_in", params: { user: { email: @user.email, password: @password } }, as: :json
+        post "/api/v1/auth/sign_in", params: { user: { username: @user.username, password: @password } }, as: :json
 
         assert_response :ok
         assert_predicate response.headers["Authorization"], :present?
@@ -17,7 +17,7 @@ module Api
       end
 
       test "sign in response includes the access token alongside the Authorization header" do
-        post "/api/v1/auth/sign_in", params: { user: { email: @user.email, password: @password } }, as: :json
+        post "/api/v1/auth/sign_in", params: { user: { username: @user.username, password: @password } }, as: :json
 
         access_token = response.parsed_body.dig("data", "access_token")
 
@@ -26,7 +26,8 @@ module Api
       end
 
       test "sign in with invalid credentials is rejected" do
-        post "/api/v1/auth/sign_in", params: { user: { email: @user.email, password: "wrong-password" } }, as: :json
+        post "/api/v1/auth/sign_in", params: { user: { username: @user.username, password: "wrong-password" } },
+                                     as: :json
 
         assert_response :unauthorized
       end

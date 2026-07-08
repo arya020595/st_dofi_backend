@@ -36,4 +36,30 @@ class UserTest < ActiveSupport::TestCase
     assert_equal "Approved", build(:user, status: "active").approval_status_label
     assert_equal "Rejected", build(:user, status: "rejected").approval_status_label
   end
+
+  test "officer? is true only for the DoFi Officer role" do
+    officer_role = create(:role, reference_id: User::DOFI_OFFICER_ROLE_REFERENCE_ID)
+    jetty_manager_role = create(:role, reference_id: User::JETTY_MANAGER_ROLE_REFERENCE_ID)
+
+    assert_predicate build(:user, role: officer_role), :officer?
+    assert_not build(:user, role: jetty_manager_role).officer?
+    assert_not build(:user, role: nil).officer?
+  end
+
+  test "invalid without position, unit, or username for the DoFi Officer role" do
+    officer_role = create(:role, reference_id: User::DOFI_OFFICER_ROLE_REFERENCE_ID)
+    user = build(:user, role: officer_role, position: nil, unit: nil, username: nil)
+    user.valid?
+
+    assert_includes user.errors.attribute_names, :position
+    assert_includes user.errors.attribute_names, :unit
+    assert_includes user.errors.attribute_names, :username
+  end
+
+  test "email is never required, even for the DoFi Officer role" do
+    officer_role = create(:role, reference_id: User::DOFI_OFFICER_ROLE_REFERENCE_ID)
+    user = build(:user, role: officer_role, email: "", position: "Administrator", unit: "HQ")
+
+    assert_predicate user, :valid?
+  end
 end

@@ -25,6 +25,8 @@ Rails.application.routes.draw do
       resource :profile, only: [], controller: "profiles" do
         patch :locale
       end
+      post "auth/brunei_id", to: "brunei_id_sessions#create"
+
       resources :users, only: %i[index show create update destroy]
       resources :company_profiles, only: %i[index show create update destroy]
 
