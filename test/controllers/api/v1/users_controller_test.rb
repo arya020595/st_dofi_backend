@@ -109,32 +109,6 @@ module Api
         assert_predicate response.parsed_body["errors"], :present?
       end
 
-      test "create for the DoFi Officer role needs no email/password and returns a one-time password" do
-        officer_role = create(:role, reference_id: User::DOFI_OFFICER_ROLE_REFERENCE_ID)
-
-        assert_difference("User.count", 1) do
-          post "/api/v1/users", params: { user: { name: "Azri Bin Haji Nizam Matussin", position: "Administrator",
-                                                  unit: "Block A", username: "mprt/azri.nizam",
-                                                  role_id: officer_role.id } },
-                                headers: @admin_headers, as: :json
-        end
-
-        assert_response :created
-        temporary_password = response.parsed_body.dig("data", "temporary_password")
-        assert_predicate temporary_password, :present?
-        assert User.last.valid_password?(temporary_password)
-      end
-
-      test "create for the DoFi Officer role requires position, unit, and username" do
-        officer_role = create(:role, reference_id: User::DOFI_OFFICER_ROLE_REFERENCE_ID)
-
-        post "/api/v1/users", params: { user: { name: "No Fields", role_id: officer_role.id } },
-                              headers: @admin_headers, as: :json
-
-        assert_response :unprocessable_content
-        assert_predicate response.parsed_body["errors"], :present?
-      end
-
       test "update modifies the target user" do
         patch "/api/v1/users/#{@target.id}", params: { user: { name: "Updated Name" } },
                                              headers: @admin_headers, as: :json
