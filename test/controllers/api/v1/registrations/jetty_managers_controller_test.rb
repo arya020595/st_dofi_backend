@@ -30,6 +30,15 @@ module Api
           assert_predicate user, :brunei_id_verified_at?
         end
 
+        test "create sets status to pending, requiring officer approval" do
+          post "/api/v1/registrations/jetty_manager", params: { user: { name: "Amiirul Azri Mizamuddin",
+                                                                        ic_number: "01-1234567", unit: "Docks",
+                                                                        position: "Jetty Supervisor",
+                                                                        contact_no: "71111111" } }, as: :json
+
+          assert_equal "pending", User.last.status
+        end
+
         test "create is forbidden to neither require nor accept an Authorization header" do
           post "/api/v1/registrations/jetty_manager", params: { user: { name: "x", ic_number: "01-0000001",
                                                                         unit: "Docks", position: "Jetty Supervisor",

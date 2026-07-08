@@ -3,7 +3,7 @@ default_password = ENV.fetch("ADMIN_DEFAULT_PASSWORD", "ChangeMe123!")
 
 User.find_or_create_by!(email: "admin@dofi.gov.bn") do |user|
   user.name = "DoFi Administrator"
-  user.employee_id = "DOFI-001"
+  user.employee_id = "DOF-001"
   user.role = officer_role
   user.status = "active"
   user.preferred_locale = "en"

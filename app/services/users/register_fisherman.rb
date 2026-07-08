@@ -9,19 +9,20 @@ module Users
     def self.call(...) = new.call(...)
 
     def call(attributes)
-      user = User.new(attributes.merge(
-                        role: fisherman_role,
-                        company_profile: company_profile_for(attributes),
-                        password: SecureRandom.base64(24),
-                        status: "pending",
-                        brunei_id_verified_at: Time.current
-                      ))
+      user = User.new(build_attributes(attributes))
       return Success(user) if user.save
 
       Failure(user)
     end
 
     private
+
+    def build_attributes(attributes)
+      profile = company_profile_for(attributes)
+      attributes.merge(role: fisherman_role, company_profile: profile, password: SecureRandom.base64(24),
+                       status: "pending", brunei_id_verified_at: Time.current,
+                       **(profile ? { designation: profile.designation } : {}))
+    end
 
     def fisherman_role
       Role.find_by!(reference_id: User::FISHERMAN_ROLE_REFERENCE_ID)

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_06_30_064155) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_07_101027) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -42,6 +42,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_06_30_064155) do
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "approval_remarks", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "discarded_at"
+    t.string "name", null: false
+    t.string "reference_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["discarded_at"], name: "index_approval_remarks_on_discarded_at"
+    t.index ["name"], name: "index_approval_remarks_on_name", unique: true
+    t.index ["reference_id"], name: "index_approval_remarks_on_reference_id", unique: true
   end
 
   create_table "capture_report_expenses", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

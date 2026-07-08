@@ -52,12 +52,12 @@ module Api
       private
 
       def set_user
-        @user = User.kept.find(params.expect(:id))
+        @user = policy_scope(User).find(params.expect(:id))
       end
 
       def user_params
         params.expect(user: %i[name email password password_confirmation employee_id role_id
-                               status preferred_locale unit position])
+                               status preferred_locale unit position contact_no designation])
       end
     end
   end

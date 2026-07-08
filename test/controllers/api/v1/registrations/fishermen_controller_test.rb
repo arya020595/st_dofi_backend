@@ -37,6 +37,17 @@ module Api
           assert_equal @fisherman_role, user.role
         end
 
+        test "create derives designation from the matched company profile, ignoring the submitted value" do
+          create(:company_profile, ic_no: "01-192839", registration_type: "Commercial", designation: "Owner")
+
+          post "/api/v1/registrations/fisherman", params: { user: { name: "Muhammad Shahrizan Bin Haji Said",
+                                                                    ic_number: "01-192839",
+                                                                    registration_type: "Commercial",
+                                                                    designation: "Admin" } }, as: :json
+
+          assert_equal "Owner", User.last.designation
+        end
+
         test "create rejects a commercial registration with no matching company profile" do
           assert_no_difference("User.count") do
             post "/api/v1/registrations/fisherman", params: { user: { name: "No Match", ic_number: "01-000000",

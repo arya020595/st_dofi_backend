@@ -43,9 +43,13 @@ class User < ApplicationRecord
     end
   end
 
+  APPROVAL_STATUS_LABELS = { "pending" => "Pending", "active" => "Approved", "rejected" => "Rejected",
+                             "inactive" => "Approved", "suspended" => "Approved" }.freeze
+
   validates :name, presence: true
   validates :preferred_locale, inclusion: { in: VALID_LOCALES }
   validates :ic_number, uniqueness: true, allow_nil: true
+  validates :employee_id, uniqueness: true, allow_nil: true
   validates :ic_number, :unit, :position, :contact_no, presence: true, if: :jetty_manager?
   validates :ic_number, presence: true, if: :fisherman?
   validates :registration_type, inclusion: { in: VALID_REGISTRATION_TYPES }, if: :fisherman?
@@ -58,6 +62,7 @@ class User < ApplicationRecord
 
   def jetty_manager? = role&.reference_id == JETTY_MANAGER_ROLE_REFERENCE_ID
   def fisherman? = role&.reference_id == FISHERMAN_ROLE_REFERENCE_ID
+  def approval_status_label = APPROVAL_STATUS_LABELS.fetch(status, status.humanize)
 
   # BruneiID-registered users (see Users::RegisterJettyManager, Users::RegisterFisherman) authenticate via
   # BruneiID/QR re-verification, not email/password, so Devise's :validatable email checks don't apply to them.
