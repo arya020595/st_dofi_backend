@@ -139,6 +139,16 @@
       "key": "dofi_officer_role_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "reject_remark_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "owner_only_company_profile_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -3073,187 +3083,6 @@
       "description": "CRUD for DoFi officer users. Each user belongs to a Role (assigned via `role_id` on create/update, omitted defaults apply). `DELETE` soft-deletes via Discard rather than removing the row."
     },
     {
-      "name": "Z - Sign Out (run last)",
-      "description": "Kept as the final folder so it runs after Permissions/Roles/Users. Signing out revokes jwt_token (devise-jwt JTI revocation), so anything run after this needs a fresh Sign In. Re-run **Auth → Sign In** afterwards before using the collection again. Re-run **Auth → Sign In** afterwards before using the collection again.",
-      "item": [
-        {
-          "name": "Sign Out",
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/auth/sign_out",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "sign_out"
-              ]
-            },
-            "description": "Revokes the current JWT via devise-jwt's JTI denylist and clears the `jwt_token` collection variable. Any request run after this needs a fresh Sign In."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.collectionVariables.set('jwt_token', '');"
-                ]
-              }
-            }
-          ],
-          "response": [
-            {
-              "name": "Sign Out - Example",
-              "originalRequest": {
-                "method": "DELETE",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/api/v1/auth/sign_out",
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "auth",
-                    "sign_out"
-                  ]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "x-frame-options",
-                  "value": "SAMEORIGIN"
-                },
-                {
-                  "key": "x-xss-protection",
-                  "value": "0"
-                },
-                {
-                  "key": "x-content-type-options",
-                  "value": "nosniff"
-                },
-                {
-                  "key": "x-permitted-cross-domain-policies",
-                  "value": "none"
-                },
-                {
-                  "key": "referrer-policy",
-                  "value": "strict-origin-when-cross-origin"
-                },
-                {
-                  "key": "content-type",
-                  "value": "application/json; charset=utf-8"
-                },
-                {
-                  "key": "cache-control",
-                  "value": "max-age=0, private, must-revalidate"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"status\": \"success\",\n  \"message\": \"Signed out successfully.\"\n}"
-            }
-          ]
-        },
-        {
-          "name": "Me - After Sign Out (401, revoked token)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/auth/me",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "me"
-              ]
-            },
-            "description": "Reuses the just-revoked token to confirm sign out actually invalidates it server-side, rather than only forgetting it client-side."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
-                ]
-              }
-            }
-          ],
-          "response": [
-            {
-              "name": "Me - After Sign Out (401, revoked token) - Example",
-              "originalRequest": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/api/v1/auth/me",
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "auth",
-                    "me"
-                  ]
-                }
-              },
-              "status": "Unauthorized",
-              "code": 401,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "content-type",
-                  "value": "application/json; charset=utf-8"
-                },
-                {
-                  "key": "cache-control",
-                  "value": "no-cache"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"error\": \"You need to sign in or sign up before continuing.\"\n}"
-            }
-          ]
-        }
-      ]
-    },
-    {
       "name": "Profiling",
       "description": "Officer-facing CRUD for `CompanyProfile` (the \"Add Profiling\" screen). Officers pre-create a company's profile — Owner and optionally Admin — before a Commercial/Small-Scale (Company) fisherman can self-register and match against it by IC number (see Registrations → Fisherman - Company Profile Lookup / Register (Commercial)). Requires `profiling.*` permissions.\n\nThe example below deliberately uses the same `ic_no` (`01-192839`), `company_name` (`Azri Fish Sdn Bhd`), and `rocbn_no` (`RC20390923`) as the Registrations folder's Fisherman examples, so running this folder first makes those downstream requests resolve against real data instead of 404ing.",
       "item": [
@@ -3389,7 +3218,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('admin_profile is null', () => pm.expect(pm.response.json().data.admin_profile).to.be.null);"
+                  "pm.test('admin_profile is null', () => pm.expect(pm.response.json().data.admin_profile).to.be.null);",
+                  "if (pm.response.json().data.owner_profile) { pm.collectionVariables.set('owner_only_company_profile_id', pm.response.json().data.owner_profile.id); }"
                 ]
               }
             }
@@ -3506,7 +3336,7 @@
             "method": "DELETE",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{admin_company_profile_id}}",
+              "raw": "{{base_url}}/api/v1/company_profiles/{{owner_only_company_profile_id}}",
               "host": [
                 "{{base_url}}"
               ],
@@ -3514,10 +3344,10 @@
                 "api",
                 "v1",
                 "company_profiles",
-                "{{admin_company_profile_id}}"
+                "{{owner_only_company_profile_id}}"
               ]
             },
-            "description": "Deletes the Admin row only, demonstrating that Owner/Admin rows can be managed independently after creation. The Owner row (`company_profile_id`) is left in place so the Registrations folder's lookup/register examples below keep working."
+            "description": "Deletes the standalone Owner-only profile created above (not the Owner+Admin pair, which Registrations below still needs both rows of)."
           }
         }
       ]
@@ -3526,218 +3356,6 @@
       "name": "Registrations",
       "description": "Public self-registration endpoints for Jetty Managers and Fishermen. No `Authorization` header is required — all four endpoints are unauthenticated. The expected flow before hitting these endpoints is: (1) user scans a BruneiID QR code, (2) BruneiID callback returns `ic_number` + `name` to the FE, (3) FE calls `GET /registrations/status` to check whether an account already exists for that IC, then routes to the appropriate register form or redirect.",
       "item": [
-        {
-          "name": "Check Registration Status",
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/registrations/status?ic_number=01-1234567",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "registrations",
-                "status"
-              ],
-              "query": [
-                {
-                  "key": "ic_number",
-                  "value": "01-1234567"
-                }
-              ]
-            },
-            "description": "Checks whether a user account already exists for the given IC number. The FE calls this immediately after a successful BruneiID callback to decide which screen to show:\n\n| Response | `data.status` | FE action |\n|---|---|---|\n| 200 | `active` | Redirect to login |\n| 200 | `pending` | Show \"Registration Status: Pending\" screen |\n| 200 | `rejected` | Show \"Registration Status: Rejected\" screen (read `rejection_reason`) |\n| 404 | — | IC not found → show registration form |"
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Response has data.status', () => pm.expect(pm.response.json().data).to.have.property('status'));"
-                ]
-              }
-            }
-          ],
-          "response": [
-            {
-              "name": "Status - Active (Jetty Manager already registered)",
-              "originalRequest": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/api/v1/registrations/status?ic_number=01-1234567",
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "registrations",
-                    "status"
-                  ],
-                  "query": [
-                    {
-                      "key": "ic_number",
-                      "value": "01-1234567"
-                    }
-                  ]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "content-type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0001-0001-0001-000000000001\",\n    \"name\": \"Amiirul Azri Mizamuddin\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"active\",\n    \"preferred_locale\": \"en\",\n    \"unit\": \"Docks\",\n    \"position\": \"Jetty Supervisor\",\n    \"contact_no\": \"71111111\",\n    \"designation\": null,\n    \"registration_type\": null,\n    \"created_at\": \"2026-06-30T08:00:00.000Z\",\n    \"updated_at\": \"2026-06-30T08:00:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0001-0001-0001-0001-000000000002\",\n      \"name\": \"Jetty Manager\",\n      \"reference_id\": \"ROLE-002\",\n      \"description\": \"Port-level authority.\",\n      \"permissions\": []\n    },\n    \"company_profile\": null\n  }\n}"
-            },
-            {
-              "name": "Status - Pending (Fisherman awaiting approval)",
-              "originalRequest": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/api/v1/registrations/status?ic_number=01-192839",
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "registrations",
-                    "status"
-                  ],
-                  "query": [
-                    {
-                      "key": "ic_number",
-                      "value": "01-192839"
-                    }
-                  ]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "content-type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0002-0002-0002-000000000002\",\n    \"name\": \"Muhammad Shahrizan Bin Haji Said\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"pending\",\n    \"preferred_locale\": \"en\",\n    \"unit\": null,\n    \"position\": null,\n    \"contact_no\": null,\n    \"designation\": \"Owner\",\n    \"registration_type\": \"Commercial\",\n    \"created_at\": \"2026-06-30T09:00:00.000Z\",\n    \"updated_at\": \"2026-06-30T09:00:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0003-0003-0003-0003-000000000003\",\n      \"name\": \"Fisherman\",\n      \"reference_id\": \"ROLE-003\",\n      \"description\": \"Fisherman role.\",\n      \"permissions\": []\n    },\n    \"company_profile\": {\n      \"id\": \"cp000001-0001-0001-0001-000000000001\",\n      \"registration_type\": \"Commercial\",\n      \"company_name\": \"Azri Fish Sdn Bhd\",\n      \"rocbn_no\": \"RC20390923\",\n      \"full_name\": \"Muhammad Shahrizan Bin Haji Said\",\n      \"ic_no\": \"01-192839\"\n    }\n  }\n}"
-            },
-            {
-              "name": "Status - Rejected (Fisherman rejected by officer)",
-              "originalRequest": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/api/v1/registrations/status?ic_number=01-000099",
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "registrations",
-                    "status"
-                  ],
-                  "query": [
-                    {
-                      "key": "ic_number",
-                      "value": "01-000099"
-                    }
-                  ]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "content-type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0003-0003-0003-000000000003\",\n    \"name\": \"Ahmad Bin Abdullah\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"rejected\",\n    \"preferred_locale\": \"en\",\n    \"unit\": null,\n    \"position\": null,\n    \"contact_no\": null,\n    \"designation\": \"Owner\",\n    \"registration_type\": \"Small-Scale (Company)\",\n    \"created_at\": \"2026-06-30T07:00:00.000Z\",\n    \"updated_at\": \"2026-06-30T10:00:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0003-0003-0003-0003-000000000003\",\n      \"name\": \"Fisherman\",\n      \"reference_id\": \"ROLE-003\",\n      \"description\": \"Fisherman role.\",\n      \"permissions\": []\n    },\n    \"company_profile\": null\n  }\n}"
-            },
-            {
-              "name": "Status - Not Found (IC has no account)",
-              "originalRequest": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/api/v1/registrations/status?ic_number=00-000000",
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "registrations",
-                    "status"
-                  ],
-                  "query": [
-                    {
-                      "key": "ic_number",
-                      "value": "00-000000"
-                    }
-                  ]
-                }
-              },
-              "status": "Not Found",
-              "code": 404,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "content-type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"status\": \"fail\",\n  \"message\": \"Resource not found.\"\n}"
-            }
-          ]
-        },
         {
           "name": "Jetty Manager - Register",
           "request": {
@@ -3915,6 +3533,218 @@
               ],
               "cookie": [],
               "body": "{\n  \"status\": \"fail\",\n  \"errors\": [\n    \"IC number has already been taken\"\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Check Registration Status",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/registrations/status?ic_number=01-1234567",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "registrations",
+                "status"
+              ],
+              "query": [
+                {
+                  "key": "ic_number",
+                  "value": "01-1234567"
+                }
+              ]
+            },
+            "description": "Checks whether a user account already exists for the given IC number. The FE calls this immediately after a successful BruneiID callback to decide which screen to show:\n\n| Response | `data.status` | FE action |\n|---|---|---|\n| 200 | `active` | Redirect to login |\n| 200 | `pending` | Show \"Registration Status: Pending\" screen |\n| 200 | `rejected` | Show \"Registration Status: Rejected\" screen (read `rejection_reason`) |\n| 404 | — | IC not found → show registration form |"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status is pending (freshly registered, not yet approved)', () => pm.expect(pm.response.json().data.status).to.eql('pending'));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Status - Active (Jetty Manager already registered)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/registrations/status?ic_number=01-1234567",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "registrations",
+                    "status"
+                  ],
+                  "query": [
+                    {
+                      "key": "ic_number",
+                      "value": "01-1234567"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0001-0001-0001-000000000001\",\n    \"name\": \"Amiirul Azri Mizamuddin\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"active\",\n    \"preferred_locale\": \"en\",\n    \"unit\": \"Docks\",\n    \"position\": \"Jetty Supervisor\",\n    \"contact_no\": \"71111111\",\n    \"designation\": null,\n    \"registration_type\": null,\n    \"created_at\": \"2026-06-30T08:00:00.000Z\",\n    \"updated_at\": \"2026-06-30T08:00:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0001-0001-0001-0001-000000000002\",\n      \"name\": \"Jetty Manager\",\n      \"reference_id\": \"ROLE-002\",\n      \"description\": \"Port-level authority.\",\n      \"permissions\": []\n    },\n    \"company_profile\": null\n  }\n}"
+            },
+            {
+              "name": "Status - Pending (Fisherman awaiting approval)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/registrations/status?ic_number=01-192839",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "registrations",
+                    "status"
+                  ],
+                  "query": [
+                    {
+                      "key": "ic_number",
+                      "value": "01-192839"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0002-0002-0002-000000000002\",\n    \"name\": \"Muhammad Shahrizan Bin Haji Said\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"pending\",\n    \"preferred_locale\": \"en\",\n    \"unit\": null,\n    \"position\": null,\n    \"contact_no\": null,\n    \"designation\": \"Owner\",\n    \"registration_type\": \"Commercial\",\n    \"created_at\": \"2026-06-30T09:00:00.000Z\",\n    \"updated_at\": \"2026-06-30T09:00:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0003-0003-0003-0003-000000000003\",\n      \"name\": \"Fisherman\",\n      \"reference_id\": \"ROLE-003\",\n      \"description\": \"Fisherman role.\",\n      \"permissions\": []\n    },\n    \"company_profile\": {\n      \"id\": \"cp000001-0001-0001-0001-000000000001\",\n      \"registration_type\": \"Commercial\",\n      \"company_name\": \"Azri Fish Sdn Bhd\",\n      \"rocbn_no\": \"RC20390923\",\n      \"full_name\": \"Muhammad Shahrizan Bin Haji Said\",\n      \"ic_no\": \"01-192839\"\n    }\n  }\n}"
+            },
+            {
+              "name": "Status - Rejected (Fisherman rejected by officer)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/registrations/status?ic_number=01-000099",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "registrations",
+                    "status"
+                  ],
+                  "query": [
+                    {
+                      "key": "ic_number",
+                      "value": "01-000099"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0003-0003-0003-000000000003\",\n    \"name\": \"Ahmad Bin Abdullah\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"rejected\",\n    \"preferred_locale\": \"en\",\n    \"unit\": null,\n    \"position\": null,\n    \"contact_no\": null,\n    \"designation\": \"Owner\",\n    \"registration_type\": \"Small-Scale (Company)\",\n    \"created_at\": \"2026-06-30T07:00:00.000Z\",\n    \"updated_at\": \"2026-06-30T10:00:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0003-0003-0003-0003-000000000003\",\n      \"name\": \"Fisherman\",\n      \"reference_id\": \"ROLE-003\",\n      \"description\": \"Fisherman role.\",\n      \"permissions\": []\n    },\n    \"company_profile\": null\n  }\n}"
+            },
+            {
+              "name": "Status - Not Found (IC has no account)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/registrations/status?ic_number=00-000000",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "registrations",
+                    "status"
+                  ],
+                  "query": [
+                    {
+                      "key": "ic_number",
+                      "value": "00-000000"
+                    }
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"status\": \"fail\",\n  \"message\": \"Resource not found.\"\n}"
             }
           ]
         },
@@ -4220,7 +4050,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"user\": {\n    \"name\": \"Roslan Bin Mat\",\n    \"ic_number\": \"01-192839\",\n    \"registration_type\": \"Small-Scale (Company)\",\n    \"designation\": \"Admin\"\n  }\n}"
+              "raw": "{\n  \"user\": {\n    \"name\": \"Roslan Bin Mat\",\n    \"ic_number\": \"01-192840\",\n    \"registration_type\": \"Small-Scale (Company)\",\n    \"designation\": \"Admin\"\n  }\n}"
             },
             "description": "Same as the Commercial flow — the server looks up a CompanyProfile by `ic_number` and links the user to it. Returns 404 if no match is found."
           },
@@ -4610,6 +4440,54 @@
           "description": "Requires `fisherman_approvals.*`. Run the two \"Register Pending Fisherman\" setup requests first (each uses a fresh `ic_number` so they don't collide with the Registrations folder's own examples or each other).",
           "item": [
             {
+              "name": "Get an Approval Remark (setup)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks?page=1&limit=1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "approvals",
+                    "approval_remarks"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "1"
+                    }
+                  ]
+                },
+                "description": "Looks up a live (non-discarded) approval remark and saves it to `reject_remark_id`, used by Reject Fisherman/Reject Jetty Manager below. Deliberately a separate variable from `approval_remark_id` (set by the Approval Remarks folder above) — that folder discards its own demo remark as part of its CRUD walkthrough, so reusing that variable here would 422 with 'Approval remark id is invalid'."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "const remark = pm.response.json().data[0];",
+                      "if (remark) { pm.collectionVariables.set('reject_remark_id', remark.id); }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
               "name": "Setup - Register Pending Fisherman (for Approve)",
               "request": {
                 "auth": {
@@ -4856,7 +4734,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"approval_remark_id\": \"{{approval_remark_id}}\"\n}",
+                  "raw": "{\n  \"approval_remark_id\": \"{{reject_remark_id}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -5140,7 +5018,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"approval_remark_id\": \"{{approval_remark_id}}\"\n}",
+                  "raw": "{\n  \"approval_remark_id\": \"{{reject_remark_id}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -6663,8 +6541,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Has auto-generated reference_id', () => pm.expect(pm.response.json().data.reference_id).to.match(/^SP-\\d{4}$/));",
-                  "pm.collectionVariables.set('dictionary_id', pm.response.json().data.id);"
+                  "pm.test('Has auto-generated reference_id', () => pm.expect(pm.response.json().data[0].reference_id).to.match(/^SP-\\d{4}$/));",
+                  "pm.collectionVariables.set('dictionary_id', pm.response.json().data[0].id);"
                 ]
               }
             }
@@ -7200,6 +7078,187 @@
               ],
               "cookie": [],
               "body": "{\n  \"status\": \"success\",\n  \"message\": \"Dictionary entry removed.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Z - Sign Out (run last)",
+      "description": "Kept as the final folder so it runs after Permissions/Roles/Users. Signing out revokes jwt_token (devise-jwt JTI revocation), so anything run after this needs a fresh Sign In. Re-run **Auth → Sign In** afterwards before using the collection again. Re-run **Auth → Sign In** afterwards before using the collection again.",
+      "item": [
+        {
+          "name": "Sign Out",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/sign_out",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "sign_out"
+              ]
+            },
+            "description": "Revokes the current JWT via devise-jwt's JTI denylist and clears the `jwt_token` collection variable. Any request run after this needs a fresh Sign In."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('jwt_token', '');"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Sign Out - Example",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/auth/sign_out",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "sign_out"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "x-frame-options",
+                  "value": "SAMEORIGIN"
+                },
+                {
+                  "key": "x-xss-protection",
+                  "value": "0"
+                },
+                {
+                  "key": "x-content-type-options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "x-permitted-cross-domain-policies",
+                  "value": "none"
+                },
+                {
+                  "key": "referrer-policy",
+                  "value": "strict-origin-when-cross-origin"
+                },
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "cache-control",
+                  "value": "max-age=0, private, must-revalidate"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"status\": \"success\",\n  \"message\": \"Signed out successfully.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Me - After Sign Out (401, revoked token)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Reuses the just-revoked token to confirm sign out actually invalidates it server-side, rather than only forgetting it client-side."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Me - After Sign Out (401, revoked token) - Example",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/auth/me",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "me"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "cache-control",
+                  "value": "no-cache"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"You need to sign in or sign up before continuing.\"\n}"
             }
           ]
         }

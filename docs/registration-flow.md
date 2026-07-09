@@ -1,5 +1,7 @@
 # Registration Flow
 
+For the business-level picture (actors, roles, lifecycles, and the reasoning behind key decisions), see [`business-flow.md`](business-flow.md). This doc covers the endpoint request/response contracts.
+
 All registration endpoints are **public** (no `Authorization` header required). Authentication happens via BruneiID/QR scan on the frontend before the register form is shown — the backend receives the result of that verification, not a token.
 
 Passwords are never set by the user. A cryptographically random password is generated server-side on registration; the user always re-authenticates via BruneiID.
