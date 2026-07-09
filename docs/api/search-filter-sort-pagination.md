@@ -173,7 +173,7 @@ GET /api/v1/permissions?q[code_cont]=export
 
 Filterable/sortable fields: `id`, `port_name`, `latitude`, `longitude`, `created_at`, `updated_at`
 
-Default sort: `port_name asc`
+Default sort: `created_at desc`
 
 ### Zones — `GET /api/v1/master_data/zones`
 
@@ -185,19 +185,19 @@ Default sort: `name asc`
 
 Filterable/sortable fields: `id`, `local_name`, `name`, `gear_type`, `unit`, `size`, `fee`, `created_at`, `updated_at`
 
-Default sort: `name asc`
+Default sort: `created_at desc`
 
 ### Nationalities — `GET /api/v1/master_data/nationalities`
 
 Filterable/sortable fields: `id`, `name`, `code`, `created_at`, `updated_at`
 
-Default sort: `name asc`
+Default sort: `created_at desc`
 
 ### Positions — `GET /api/v1/master_data/positions`
 
 Filterable/sortable fields: `id`, `name`, `category`, `created_at`, `updated_at`
 
-Default sort: `name asc`
+Default sort: `created_at desc`
 
 Valid `category` values: `Fisherman`, `Jetty Manager`, `DoFi Officer`
 
@@ -205,7 +205,7 @@ Valid `category` values: `Fisherman`, `Jetty Manager`, `DoFi Officer`
 
 Filterable/sortable fields: `id`, `name`, `discarded_at`, `created_at`, `updated_at`
 
-Default sort: `name asc`
+Default sort: `created_at desc`
 
 Soft-deleted via Discard — `DELETE` sets `discarded_at` rather than removing the record.
 

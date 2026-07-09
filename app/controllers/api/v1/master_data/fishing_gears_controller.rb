@@ -8,7 +8,7 @@ module Api
 
         def index
           authorize FishingGear
-          result = apply_ransack_search(policy_scope(FishingGear), default_sort: "name asc")
+          result = apply_ransack_search(policy_scope(FishingGear), default_sort: "created_at desc")
           pagy, records = pagy(:offset, result)
           render json: { status: "success", data: FishingGearBlueprint.render_as_hash(records),
                          meta: pagination_meta(pagy) }

@@ -9,7 +9,7 @@ module Api
 
       def index
         authorize Dictionary
-        result = apply_ransack_search(policy_scope(Dictionary), default_sort: "local_name asc")
+        result = apply_ransack_search(policy_scope(Dictionary), default_sort: "created_at desc")
         pagy, records = pagy(:offset, result)
         render json: { status: "success", data: DictionaryBlueprint.render_as_hash(records),
                        meta: pagination_meta(pagy) }
