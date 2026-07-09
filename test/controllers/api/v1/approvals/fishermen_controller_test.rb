@@ -14,8 +14,8 @@ module Api
           end
           @admin_role = create(:role, permissions: admin_permissions)
           @no_access_role = create(:role)
-          @fisherman_role = create(:role, reference_id: "ROLE-003", name: "Fisherman")
-          @jetty_manager_role = create(:role, reference_id: "ROLE-002", name: "Jetty Manager")
+          @fisherman_role = create(:role, kind: Role::FISHERMAN, name: "Fisherman")
+          @jetty_manager_role = create(:role, kind: Role::JETTY_MANAGER, name: "Jetty Manager")
 
           @admin = create(:user, role: @admin_role, password: @password, password_confirmation: @password)
           @plain_user = create(:user, role: @no_access_role, password: @password, password_confirmation: @password)

@@ -146,7 +146,7 @@ GET /api/v1/users?q[status_eq]=active&q[name_or_email_cont]=tan&q[s]=name asc
 
 Filterable/sortable fields (`ransackable_attributes` on `Role`):
 
-`id`, `reference_id`, `name`, `description`, `created_at`, `updated_at`
+`id`, `kind`, `name`, `description`, `created_at`, `updated_at`
 
 Example — roles created in the last 30 days:
 
@@ -171,9 +171,9 @@ GET /api/v1/permissions?q[code_cont]=export
 
 ### Ports — `GET /api/v1/master_data/ports`
 
-Filterable/sortable fields: `id`, `reference_id`, `port_name`, `latitude`, `longitude`, `created_at`, `updated_at`
+Filterable/sortable fields: `id`, `port_name`, `latitude`, `longitude`, `created_at`, `updated_at`
 
-Default sort: `reference_id asc`
+Default sort: `port_name asc`
 
 ### Zones — `GET /api/v1/master_data/zones`
 
@@ -183,29 +183,29 @@ Default sort: `name asc`
 
 ### Fishing Gears — `GET /api/v1/master_data/fishing_gears`
 
-Filterable/sortable fields: `id`, `reference_id`, `local_name`, `name`, `gear_type`, `unit`, `size`, `fee`, `created_at`, `updated_at`
+Filterable/sortable fields: `id`, `local_name`, `name`, `gear_type`, `unit`, `size`, `fee`, `created_at`, `updated_at`
 
-Default sort: `reference_id asc`
+Default sort: `name asc`
 
 ### Nationalities — `GET /api/v1/master_data/nationalities`
 
-Filterable/sortable fields: `id`, `reference_id`, `name`, `code`, `created_at`, `updated_at`
+Filterable/sortable fields: `id`, `name`, `code`, `created_at`, `updated_at`
 
-Default sort: `reference_id asc`
+Default sort: `name asc`
 
 ### Positions — `GET /api/v1/master_data/positions`
 
-Filterable/sortable fields: `id`, `reference_id`, `name`, `category`, `created_at`, `updated_at`
+Filterable/sortable fields: `id`, `name`, `category`, `created_at`, `updated_at`
 
-Default sort: `reference_id asc`
+Default sort: `name asc`
 
 Valid `category` values: `Fisherman`, `Jetty Manager`, `DoFi Officer`
 
 ### Reasons — `GET /api/v1/master_data/reasons`
 
-Filterable/sortable fields: `id`, `reference_id`, `name`, `discarded_at`, `created_at`, `updated_at`
+Filterable/sortable fields: `id`, `name`, `discarded_at`, `created_at`, `updated_at`
 
-Default sort: `reference_id asc`
+Default sort: `name asc`
 
 Soft-deleted via Discard — `DELETE` sets `discarded_at` rather than removing the record.
 

@@ -5,7 +5,7 @@ module Api
     module Registrations
       class FishermenControllerTest < ActionDispatch::IntegrationTest
         setup do
-          @fisherman_role = create(:role, reference_id: "ROLE-003", name: "Fisherman")
+          @fisherman_role = create(:role, kind: Role::FISHERMAN, name: "Fisherman")
         end
 
         test "create registers a commercial fisherman linked to the matching company profile" do

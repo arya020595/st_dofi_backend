@@ -43,14 +43,14 @@ module Api
           assert_equal ["Findable remark"], response.parsed_body["data"].pluck("name")
         end
 
-        test "create persists a new remark with an auto-generated reference_id" do
+        test "create persists a new remark" do
           assert_difference("ApprovalRemark.count", 1) do
             post "/api/v1/approvals/approval_remarks", params: { approval_remark: { name: "New remark" } },
                                                        headers: @admin_headers, as: :json
           end
 
           assert_response :created
-          assert_match(/\AAR_\d{3}\z/, response.parsed_body.dig("data", "reference_id"))
+          assert_equal "New remark", response.parsed_body.dig("data", "name")
         end
 
         test "create without permission is forbidden" do

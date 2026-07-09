@@ -38,8 +38,8 @@ class UserTest < ActiveSupport::TestCase
   end
 
   test "officer? is true only for the DoFi Officer role" do
-    officer_role = create(:role, reference_id: User::DOFI_OFFICER_ROLE_REFERENCE_ID)
-    jetty_manager_role = create(:role, reference_id: User::JETTY_MANAGER_ROLE_REFERENCE_ID)
+    officer_role = create(:role, kind: Role::DOFI_OFFICER)
+    jetty_manager_role = create(:role, kind: Role::JETTY_MANAGER)
 
     assert_predicate build(:user, role: officer_role), :officer?
     assert_not build(:user, role: jetty_manager_role).officer?
@@ -47,7 +47,7 @@ class UserTest < ActiveSupport::TestCase
   end
 
   test "invalid without position, unit, or username for the DoFi Officer role" do
-    officer_role = create(:role, reference_id: User::DOFI_OFFICER_ROLE_REFERENCE_ID)
+    officer_role = create(:role, kind: Role::DOFI_OFFICER)
     user = build(:user, role: officer_role, position: nil, unit: nil, username: nil)
     user.valid?
 
@@ -57,7 +57,7 @@ class UserTest < ActiveSupport::TestCase
   end
 
   test "email is never required, even for the DoFi Officer role" do
-    officer_role = create(:role, reference_id: User::DOFI_OFFICER_ROLE_REFERENCE_ID)
+    officer_role = create(:role, kind: Role::DOFI_OFFICER)
     user = build(:user, role: officer_role, email: "", position: "Administrator", unit: "HQ")
 
     assert_predicate user, :valid?

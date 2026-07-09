@@ -1,6 +1,5 @@
 FactoryBot.define do
   factory :company_profile do
-    sequence(:reference_id) { |n| "REG-DOF-#{n}" }
     registration_type { "Commercial" }
     company_name { "Azri Fish Sdn Bhd" }
     company_address { "Spg 10, Pantai Serasa, Mukim Serasa" }

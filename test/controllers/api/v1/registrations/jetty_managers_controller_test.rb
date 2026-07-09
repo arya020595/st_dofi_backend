@@ -5,7 +5,7 @@ module Api
     module Registrations
       class JettyManagersControllerTest < ActionDispatch::IntegrationTest
         setup do
-          @jetty_manager_role = create(:role, reference_id: "ROLE-002", name: "Jetty Manager")
+          @jetty_manager_role = create(:role, kind: Role::JETTY_MANAGER, name: "Jetty Manager")
         end
 
         test "create registers a new jetty manager without authentication" do

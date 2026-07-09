@@ -13,7 +13,7 @@ module Api
         admin_role = create(:role, permissions: admin_permissions)
         admin = create(:user, role: admin_role, password: password, password_confirmation: password)
         @admin_headers = auth_headers_for(admin, password: password)
-        @officer_role = create(:role, reference_id: User::DOFI_OFFICER_ROLE_REFERENCE_ID)
+        @officer_role = create(:role, kind: Role::DOFI_OFFICER)
       end
 
       test "create for the DoFi Officer role needs no email/password" do

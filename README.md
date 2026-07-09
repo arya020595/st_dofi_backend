@@ -144,6 +144,18 @@ bin/rails db:reset                      # drop, recreate, migrate, and seed
 bin/rails generate migration AddFooToBars foo:string   # create a new migration in db/migrate
 ```
 
+### Resetting & reseeding the database
+
+`bin/rails db:reset` drops, recreates, migrates, and seeds in one step (Option B, or Option A once the caveat below is handled). If you only want to wipe and reload seed data without touching the schema, use `db:seed:replant` instead (see [Seeding](#seeding)).
+
+Under Docker (Option A), the `jobs` container (Solid Queue worker) keeps a connection open to the `*_queue` database, which makes `db:drop`/`db:reset` fail with `PG::ObjectInUse: database "..._queue" is being accessed by other users`. Stop it first, then restart it after reseeding:
+
+```bash
+docker compose stop jobs
+docker compose exec api bin/rails db:reset      # or: db:drop db:create db:migrate db:seed
+docker compose start jobs
+```
+
 ### Seeding
 
 ```bash

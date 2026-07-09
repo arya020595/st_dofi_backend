@@ -152,7 +152,7 @@ Returns **200 OK**, `data.status: "pending"`, **no** `access_token` — same sha
 `GET /api/v1/registrations/status`, so the FE can reuse its existing pending-status screen.
 
 **Rejected** — register, then reject instead of approve. Rejecting needs an `approval_remark_id`
-(a real row's `id`, not its `reference_id`) — look one up first:
+(a real row's `id`) — look one up first:
 
 ```bash
 REMARK_ID=$(curl -s "$BASE_URL/api/v1/approvals/approval_remarks" \

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_08_074010) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_09_064210) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -48,11 +48,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_074010) do
     t.datetime "created_at", null: false
     t.datetime "discarded_at"
     t.string "name", null: false
-    t.string "reference_id", null: false
     t.datetime "updated_at", null: false
     t.index ["discarded_at"], name: "index_approval_remarks_on_discarded_at"
     t.index ["name"], name: "index_approval_remarks_on_name", unique: true
-    t.index ["reference_id"], name: "index_approval_remarks_on_reference_id", unique: true
   end
 
   create_table "capture_report_expenses", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -74,7 +72,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_074010) do
     t.decimal "latitude", precision: 10, scale: 8
     t.decimal "longitude", precision: 11, scale: 8
     t.uuid "manifest_id", null: false
-    t.string "reference_id", null: false
     t.datetime "reviewed_at"
     t.uuid "reviewed_by_id"
     t.datetime "updated_at", null: false
@@ -82,7 +79,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_074010) do
     t.uuid "zone_id"
     t.index ["capture_report_status"], name: "index_capture_reports_on_capture_report_status"
     t.index ["manifest_id"], name: "index_capture_reports_on_manifest_id"
-    t.index ["reference_id"], name: "index_capture_reports_on_reference_id"
     t.index ["reviewed_by_id"], name: "index_capture_reports_on_reviewed_by_id"
     t.index ["zone_id"], name: "index_capture_reports_on_zone_id"
   end
@@ -192,7 +188,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_074010) do
     t.date "license_expiry_date"
     t.string "logo_url"
     t.string "mukim"
-    t.string "reference_id", null: false
     t.string "registration_type", null: false
     t.string "rocbn_no"
     t.datetime "updated_at", null: false
@@ -202,7 +197,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_074010) do
     t.index ["approved_by"], name: "index_company_profiles_on_approved_by"
     t.index ["discarded_at"], name: "index_company_profiles_on_discarded_at"
     t.index ["ic_no"], name: "index_company_profiles_on_ic_no"
-    t.index ["reference_id"], name: "index_company_profiles_on_reference_id", unique: true
     t.index ["rocbn_no"], name: "index_company_profiles_on_rocbn_no"
   end
 
@@ -226,12 +220,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_074010) do
     t.string "family_name"
     t.string "group_name"
     t.string "local_name", null: false
-    t.string "reference_id", null: false
     t.string "scientific_name"
     t.datetime "updated_at", null: false
     t.index ["local_name"], name: "idx_dictionaries_local_name_trgm", opclass: :gin_trgm_ops, using: :gin
     t.index ["local_name"], name: "index_dictionaries_on_local_name"
-    t.index ["reference_id"], name: "index_dictionaries_on_reference_id", unique: true
     t.index ["scientific_name"], name: "idx_dictionaries_scientific_name_trgm", opclass: :gin_trgm_ops, using: :gin
   end
 
@@ -271,13 +263,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_074010) do
     t.string "gear_type", null: false
     t.string "local_name"
     t.string "name", null: false
-    t.string "reference_id", null: false
     t.decimal "size", precision: 10, scale: 2
     t.string "unit"
     t.datetime "updated_at", null: false
     t.index ["gear_type"], name: "index_fishing_gears_on_gear_type"
     t.index ["name"], name: "index_fishing_gears_on_name"
-    t.index ["reference_id"], name: "index_fishing_gears_on_reference_id", unique: true
   end
 
   create_table "manifest_histories", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -310,10 +300,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_074010) do
     t.datetime "created_at", null: false
     t.datetime "discarded_at"
     t.string "name", null: false
-    t.string "reference_id", null: false
     t.datetime "updated_at", null: false
     t.index ["discarded_at"], name: "index_manifest_skip_reasons_on_discarded_at"
-    t.index ["reference_id"], name: "index_manifest_skip_reasons_on_reference_id", unique: true
   end
 
   create_table "manifests", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -369,11 +357,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_074010) do
     t.string "code"
     t.datetime "created_at", null: false
     t.string "name", null: false
-    t.string "reference_id"
     t.datetime "updated_at", null: false
     t.index ["code"], name: "index_nationalities_on_code"
     t.index ["name"], name: "index_nationalities_on_name", unique: true
-    t.index ["reference_id"], name: "index_nationalities_on_reference_id", unique: true
   end
 
   create_table "permission_roles", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -399,30 +385,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_074010) do
     t.decimal "latitude", precision: 10, scale: 8
     t.decimal "longitude", precision: 11, scale: 8
     t.string "port_name", null: false
-    t.string "reference_id", null: false
     t.datetime "updated_at", null: false
     t.index ["port_name"], name: "index_ports_on_port_name"
-    t.index ["reference_id"], name: "index_ports_on_reference_id", unique: true
   end
 
   create_table "positions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.string "category"
     t.datetime "created_at", null: false
     t.string "name", null: false
-    t.string "reference_id"
     t.datetime "updated_at", null: false
     t.index ["name"], name: "index_positions_on_name", unique: true
-    t.index ["reference_id"], name: "index_positions_on_reference_id", unique: true
   end
 
   create_table "roles", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.datetime "created_at", null: false
     t.text "description"
+    t.string "kind"
     t.string "name", null: false
-    t.string "reference_id", null: false
     t.datetime "updated_at", null: false
+    t.index ["kind"], name: "index_roles_on_kind", unique: true
     t.index ["name"], name: "index_roles_on_name", unique: true
-    t.index ["reference_id"], name: "index_roles_on_reference_id", unique: true
   end
 
   create_table "users", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

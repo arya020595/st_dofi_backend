@@ -9,11 +9,11 @@ get an account, who approves what, and why were the non-obvious decisions made t
 
 ## 1. The three actors
 
-| Actor | Role (`reference_id`) | How they get an account | How they log in |
+| Actor | Role (`kind`) | How they get an account | How they log in |
 |---|---|---|---|
-| **DoFi Officer / Administrator** | `ROLE-001` "DoFi Officer" | Created by another officer via **User Management → Add User** (internal, authenticated) | `username` + password (real credential check) |
-| **Jetty Manager** | `ROLE-002` "Jetty Manager" | Self-registers via the public registration form (BruneiID-verified) | BruneiID QR re-scan (mocked today) |
-| **Fisherman** | `ROLE-003` "Fisherman" | Self-registers via the public registration form (BruneiID-verified), one of 3 sub-types | BruneiID QR re-scan (mocked today) |
+| **DoFi Officer / Administrator** | `"DoFi Officer"` | Created by another officer via **User Management → Add User** (internal, authenticated) | `username` + password (real credential check) |
+| **Jetty Manager** | `"Jetty Manager"` | Self-registers via the public registration form (BruneiID-verified) | BruneiID QR re-scan (mocked today) |
+| **Fisherman** | `"Fisherman"` | Self-registers via the public registration form (BruneiID-verified), one of 3 sub-types | BruneiID QR re-scan (mocked today) |
 
 **The one thing that explains most of this system's design**: officers are an *internal, trusted*
 population managed by other officers, so they get a real credential (`username`/password) chosen by
@@ -37,7 +37,7 @@ Role (e.g. "DoFi Officer") ──has many──> Permission (e.g. "dofi_officer_
 - Every controller action calls `user.permission?(*codes)` (via a Pundit policy) — true if the
   user's role has *any* of the listed permission codes.
 - **"Administrator" is not a separate role.** All DoFi Officer/Administrator accounts share the
-  same `ROLE-001` role and the same permission set (today: full access). "Administrator" vs.
+  same DoFi Officer role and the same permission set (today: full access). "Administrator" vs.
   "DoFi Officer" is a **Position** (a master-data job title, see §9) purely for display — it does
   not change what the account can do. If a genuinely lower-privilege internal role is ever needed
   (e.g. a read-only officer), that's a *new* `Role` row with its own permission set, not a
@@ -45,6 +45,19 @@ Role (e.g. "DoFi Officer") ──has many──> Permission (e.g. "dofi_officer_
 - `Role`/`Permission`/`Users::Create` intentionally have no concept of "this role needs X field" —
   that logic lives on `User` itself (`officer?`/`jetty_manager?`/`fisherman?` predicates gate
   presence validations). Roles are just a name + a permission set; they don't carry business rules.
+- The three fixed system roles are identified by `Role#kind` (`Role::DOFI_OFFICER`/`JETTY_MANAGER`/
+  `FISHERMAN`), a nullable string column — nullable so a custom role created via the Roles API isn't
+  forced into one of these three buckets. **`kind` is never accepted by `RolesController#role_params`**
+  — it can only be set via `db/seeds/roles.rb` or the console. `User#officer?/jetty_manager?/
+  fisherman?`, the approval policies' scopes, and which role `Users::RegisterJettyManager`/
+  `RegisterFisherman` assign all key off `kind` — see §9 for why this is a dedicated column rather
+  than reusing a display code.
+- `Role::EXTERNAL_KINDS` (Jetty Manager, Fisherman) marks the two roles that only ever come from
+  self-registration. `Users::Create` (the admin "Add User" endpoint) rejects any `role_id` whose role
+  is `external?` — the admin portal can create DoFi Officers and any future custom (non-external)
+  internal role, but never a Jetty Manager/Fisherman account. This makes "created via admin portal" a
+  real guarantee rather than convention, and also means a user created this way can never disappear
+  from `UserPolicy::Scope`'s index (which excludes the same `EXTERNAL_KINDS`).
 
 ---
 
@@ -134,7 +147,7 @@ sequenceDiagram
 
     Officer->>API: registration_type, company details, owner{full_name, ic_no, ...}, admin{...}? (optional)
     API->>DB: One CompanyProfile row per person (Owner always; Admin only if submitted)
-    Note over DB: Both rows share one dofi_registration_no,\neach gets its own reference_id
+    Note over DB: Both rows share one dofi_registration_no
     DB-->>API: owner_profile, admin_profile (null if no admin submitted)
 
     Note over Officer: Later — the actual Owner (or Admin) self-registers
@@ -194,6 +207,20 @@ it.
 
 A few choices made along the way that aren't obvious just from reading the code:
 
+- **Roles are identified by `kind`, never by a display code.** Every master-data table (`Role`
+  included) used to have an auto-generated `reference_id` business code (`"ROLE-001"`, `"FG-001"`,
+  ...) purely for display. For `Role` specifically, that code was *also* reused as the hardcoded
+  string `User#officer?/jetty_manager?/fisherman?`, the approval policies, and the self-registration
+  services all compared against — and it was writable via `PATCH /api/v1/roles/:id`
+  (`RolesController#role_params` permitted it), so an officer renaming a role's `reference_id` would
+  have silently broken officer detection, approval routing, and the unit/position mandatory-field
+  validations everywhere, with no error at write time. `reference_id` was removed system-wide (all
+  10 tables that had it, not just `Role` — it was inert, cosmetic-only on the other 9) and replaced,
+  for `Role`, with the dedicated `kind` column described in §2, which the Roles API can never write
+  to. **Do not reintroduce a client-writable field as an internal type/role discriminator** — if new
+  business logic needs to key off "which role is this," it must go through `kind`
+  (`Role::DOFI_OFFICER`/`JETTY_MANAGER`/`FISHERMAN`/`EXTERNAL_KINDS`), not `name` or a new display
+  code (both remain officer-editable).
 - **Single role for every DoFi Officer/Administrator, "Administrator" is a Position label** — avoids
   a second permission tier that would need its own maintenance the moment the two ever needed to
   diverge; if they never diverge, a second role would only have been ceremony.

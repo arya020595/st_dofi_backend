@@ -56,7 +56,7 @@ module Api
       end
 
       def role_params
-        params.expect(role: %i[reference_id name description])
+        params.expect(role: %i[name description])
       end
     end
   end
