@@ -17,8 +17,8 @@ module Api
       end
 
       test "index excludes fisherman and jetty manager role users" do
-        fisherman_role = create(:role, reference_id: "ROLE-003", name: "Fisherman")
-        jetty_manager_role = create(:role, reference_id: "ROLE-002", name: "Jetty Manager")
+        fisherman_role = create(:role, kind: Role::FISHERMAN, name: "Fisherman")
+        jetty_manager_role = create(:role, kind: Role::JETTY_MANAGER, name: "Jetty Manager")
         fisherman = create(:user, role: fisherman_role, ic_number: "01-820001",
                                   registration_type: "Small - Scale (Full-Time)")
         jetty_manager = create(:user, role: jetty_manager_role, ic_number: "01-820002", unit: "Docks",
@@ -32,7 +32,7 @@ module Api
       end
 
       test "a fisherman id 404s against the show/update/destroy actions" do
-        fisherman_role = create(:role, reference_id: "ROLE-003", name: "Fisherman")
+        fisherman_role = create(:role, kind: Role::FISHERMAN, name: "Fisherman")
         fisherman = create(:user, role: fisherman_role, ic_number: "01-820003",
                                   registration_type: "Small - Scale (Full-Time)")
 

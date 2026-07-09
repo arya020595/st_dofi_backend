@@ -34,6 +34,11 @@ Controllers, models, and business logic each have one job. Don't let logic leak 
 - Security: run `bin/brakeman` and `bin/bundler-audit` for anything touching auth, params, or external calls (`bin/ci` runs both).
 - Tests: Minitest + FactoryBot + Faker, fixtures disabled (`fixture: false`) — use factories, not fixtures, for new tests. Tests run in parallel; keep them independent (no shared mutable state).
 - Bilingual fields (EN/MS) go through `Mobility`, not ad hoc `_en`/`_ms` columns.
+- Never reuse a client-writable display/business code (a `reference_id`-style column) as an internal
+  type/role discriminator for business logic. If a model needs a small, fixed set of system-recognized
+  kinds, add a dedicated column excluded from controller mass-assignment, nullable so it doesn't force
+  custom/future records into one of the fixed buckets, seeded via `db/seeds`. See `Role#kind` and
+  `docs/business-flow.md` §2/§9 for the worked example and the incident that motivated it.
 - Soft-deletable/audited models use `Discard`/`Audited` consistently with existing models rather than rolling a custom `deleted_at` flag.
 - Background work goes through Solid Queue (`ApplicationJob` subclasses), not inline blocking calls in requests.
 

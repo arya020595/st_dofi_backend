@@ -36,7 +36,7 @@ module Api
       end
 
       test "index filters by name via ransack" do
-        create(:role, reference_id: "ROLE-FILTER", name: "Filterable Role")
+        create(:role, name: "Filterable Role")
 
         get "/api/v1/roles", params: { q: { name_cont: "Filterable" } }, headers: @admin_headers
 
@@ -45,8 +45,8 @@ module Api
       end
 
       test "index sorts by name descending via ransack" do
-        create(:role, reference_id: "ROLE-A", name: "Aardvark Role")
-        create(:role, reference_id: "ROLE-Z", name: "Zebra Role")
+        create(:role, name: "Aardvark Role")
+        create(:role, name: "Zebra Role")
 
         get "/api/v1/roles", params: { q: { s: "name desc" } }, headers: @admin_headers
 
@@ -67,7 +67,7 @@ module Api
 
       test "create persists a role with permission assignment" do
         assert_difference("Role.count", 1) do
-          post "/api/v1/roles", params: { role: { reference_id: "ROLE-NEW", name: "New Role" },
+          post "/api/v1/roles", params: { role: { name: "New Role" },
                                           permission_codes: [@view_permission.code] },
                                 headers: @admin_headers, as: :json
         end
@@ -79,7 +79,7 @@ module Api
       end
 
       test "create without permission is forbidden" do
-        post "/api/v1/roles", params: { role: { reference_id: "ROLE-X", name: "Blocked Role" } },
+        post "/api/v1/roles", params: { role: { name: "Blocked Role" } },
                               headers: @plain_headers, as: :json
 
         assert_response :forbidden

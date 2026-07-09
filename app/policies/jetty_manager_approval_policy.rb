@@ -14,7 +14,7 @@ class JettyManagerApprovalPolicy < ApplicationPolicy
     private
 
     def jetty_manager_role
-      Role.find_by(reference_id: User::JETTY_MANAGER_ROLE_REFERENCE_ID)
+      Role.find_by(kind: Role::JETTY_MANAGER)
     end
   end
 end

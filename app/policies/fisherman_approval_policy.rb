@@ -14,7 +14,7 @@ class FishermanApprovalPolicy < ApplicationPolicy
     private
 
     def fisherman_role
-      Role.find_by(reference_id: User::FISHERMAN_ROLE_REFERENCE_ID)
+      Role.find_by(kind: Role::FISHERMAN)
     end
   end
 end

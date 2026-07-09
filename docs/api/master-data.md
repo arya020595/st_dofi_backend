@@ -8,16 +8,19 @@ Base path: `/api/v1/master_data`
 
 ## Resources overview
 
-| Resource | Base URL | Permission prefix | reference_id format |
-|---|---|---|---|
-| Port | `/api/v1/master_data/ports` | `ports` | `PT-NNN` (auto) |
-| Zone | `/api/v1/master_data/zones` | `zones` | — (name is identifier) |
-| Fishing Gear | `/api/v1/master_data/fishing_gears` | `fishing_gears` | `FG-NNN` (auto) |
-| Nationality | `/api/v1/master_data/nationalities` | `nationalities` | `NT-NNN` (auto) |
-| Position | `/api/v1/master_data/positions` | `positions` | `POS-NNN` (auto) |
-| Reason | `/api/v1/master_data/reasons` | `reasons` | `REA-NNN` (auto) |
+| Resource | Base URL | Permission prefix |
+|---|---|---|
+| Port | `/api/v1/master_data/ports` | `ports` |
+| Zone | `/api/v1/master_data/zones` | `zones` |
+| Fishing Gear | `/api/v1/master_data/fishing_gears` | `fishing_gears` |
+| Nationality | `/api/v1/master_data/nationalities` | `nationalities` |
+| Position | `/api/v1/master_data/positions` | `positions` |
+| Reason | `/api/v1/master_data/reasons` | `reasons` |
 
-`reference_id` fields are auto-generated on create — do not send them in request bodies.
+These resources previously exposed an auto-generated `reference_id` display code (`"PT-NNN"`,
+`"FG-NNN"`, ...); it was removed as inert legacy (see `docs/business-flow.md` §9). Identify/search
+records by `name` (or `port_name`/`local_name` where the resource has no generic `name` field —
+see each resource's Fields table below) instead.
 
 ---
 
@@ -40,7 +43,6 @@ All endpoints follow the standard envelope:
 | Field | Type | Notes |
 |---|---|---|
 | `id` | UUID | |
-| `reference_id` | string | Auto-generated `PT-NNN` |
 | `port_name` | string | Required |
 | `latitude` | decimal | Optional |
 | `longitude` | decimal | Optional |
@@ -107,7 +109,6 @@ DELETE /api/v1/master_data/ports/:id       # destroy
 | Field | Type | Notes |
 |---|---|---|
 | `id` | UUID | |
-| `reference_id` | string | Auto-generated `FG-NNN` |
 | `local_name` | string | Required — local/Malay name |
 | `name` | string | Required — English name |
 | `gear_type` | string | Required (e.g. "Net", "Line", "Trawl") |
@@ -141,7 +142,6 @@ DELETE /api/v1/master_data/ports/:id       # destroy
 | Field | Type | Notes |
 |---|---|---|
 | `id` | UUID | |
-| `reference_id` | string | Auto-generated `NT-NNN` |
 | `name` | string | Required, unique |
 | `code` | string | Optional — ISO 3166-1 alpha-2 (e.g. "BN", "MY") |
 | `created_at` | datetime | |
@@ -167,7 +167,6 @@ DELETE /api/v1/master_data/ports/:id       # destroy
 | Field | Type | Notes |
 |---|---|---|
 | `id` | UUID | |
-| `reference_id` | string | Auto-generated `POS-NNN` |
 | `name` | string | Required, unique |
 | `category` | string | Required — `Fisherman`, `Jetty Manager`, or `DoFi Officer` |
 | `created_at` | datetime | |
@@ -195,7 +194,6 @@ Used when a vessel returns early or skips capture reporting.
 | Field | Type | Notes |
 |---|---|---|
 | `id` | UUID | |
-| `reference_id` | string | Auto-generated `REA-NNN` |
 | `name` | string | Required |
 | `discarded_at` | datetime | Set on soft-delete; null = active |
 | `created_at` | datetime | |

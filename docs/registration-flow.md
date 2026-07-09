@@ -107,7 +107,7 @@ All five fields are required.
     "updated_at":        "...",
     "role": {
       "id":           "uuid",
-      "reference_id": "ROLE-002",
+      "kind":         "Jetty Manager",
       "name":         "Jetty Manager",
       "description":  "Port-level authority: ...",
       "permissions":  [ ... ]
@@ -130,7 +130,7 @@ All five fields are required.
 
 | Field | Value |
 |---|---|
-| `role` | `Role` where `reference_id = "ROLE-002"` (Jetty Manager) |
+| `role` | `Role` where `kind = "Jetty Manager"` |
 | `status` | `pending` (must be approved by an officer) |
 | `brunei_id_verified_at` | `Time.current` |
 | `password` | `SecureRandom.base64(24)` (never exposed) |
@@ -265,8 +265,8 @@ Valid values for `registration_type`: `"Commercial"`, `"Small-Scale (Company)"`,
       "ic_no":             "01-192839"
     },
     "role": {
-      "reference_id": "ROLE-003",
-      "name":         "Fisherman"
+      "kind": "Fisherman",
+      "name": "Fisherman"
     }
   }
 }
@@ -294,7 +294,7 @@ Valid values for `registration_type`: `"Commercial"`, `"Small-Scale (Company)"`,
 
 | Field | Value |
 |---|---|
-| `role` | `Role` where `reference_id = "ROLE-003"` (Fisherman) |
+| `role` | `Role` where `kind = "Fisherman"` |
 | `status` | `pending` (must be approved by an officer) |
 | `company_profile` | Matched `CompanyProfile` (by `ic_no`) for Commercial/Company types; `nil` for Full-Time |
 | `designation` | For Commercial/Company types, derived server-side from the matched `CompanyProfile`'s `designation` — any client-submitted value is ignored. Otherwise whatever the client submits (Full-Time has no designation requirement). |
@@ -378,11 +378,10 @@ POST /api/v1/company_profiles
 
 ### What the service does (`CompanyProfiles::Create`)
 
-Because a `CompanyProfile` row represents one person (see section 2's note on `CompanyProfile` shape), submitting both `owner` and `admin` creates **two rows** in a single transaction — one per person — sharing every company-level field plus a single auto-generated `dofi_registration_no`, but each with its own `reference_id`:
+Because a `CompanyProfile` row represents one person (see section 2's note on `CompanyProfile` shape), submitting both `owner` and `admin` creates **two rows** in a single transaction — one per person — sharing every company-level field plus a single auto-generated `dofi_registration_no`:
 
 | Field | Value |
 |---|---|
-| `reference_id` | Auto-generated, `REG-DOF-NNN` (sequential, one per row) |
 | `dofi_registration_no` | Auto-generated, `DoFi-YYYY-NNN` (sequential per year, **shared** by the Owner and Admin row from the same submission) |
 | `designation` | `"Owner"` / `"Admin"` per row |
 
@@ -394,8 +393,8 @@ If either row fails validation, the whole submission rolls back — no partial (
 {
   "status": "success",
   "data": {
-    "owner_profile": { "id": "uuid", "reference_id": "REG-DOF-042", "dofi_registration_no": "DoFi-2026-042", "designation": "Owner", "...": "..." },
-    "admin_profile": { "id": "uuid", "reference_id": "REG-DOF-043", "dofi_registration_no": "DoFi-2026-042", "designation": "Admin", "...": "..." }
+    "owner_profile": { "id": "uuid", "dofi_registration_no": "DoFi-2026-042", "designation": "Owner", "...": "..." },
+    "admin_profile": { "id": "uuid", "dofi_registration_no": "DoFi-2026-042", "designation": "Admin", "...": "..." }
   }
 }
 ```

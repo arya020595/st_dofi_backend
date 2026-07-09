@@ -12,9 +12,6 @@ class User < ApplicationRecord
 
   VALID_LOCALES = %w[en ms].freeze
   VALID_REGISTRATION_TYPES = ["Commercial", "Small-Scale (Company)", "Small - Scale (Full-Time)"].freeze
-  DOFI_OFFICER_ROLE_REFERENCE_ID = "ROLE-001".freeze
-  JETTY_MANAGER_ROLE_REFERENCE_ID = "ROLE-002".freeze
-  FISHERMAN_ROLE_REFERENCE_ID = "ROLE-003".freeze
   USERNAME_PREFIX = "MPRT".freeze
 
   aasm column: :status do
@@ -64,9 +61,9 @@ class User < ApplicationRecord
     role.permissions.exists?(code: codes)
   end
 
-  def jetty_manager? = role&.reference_id == JETTY_MANAGER_ROLE_REFERENCE_ID
-  def fisherman? = role&.reference_id == FISHERMAN_ROLE_REFERENCE_ID
-  def officer? = role&.reference_id == DOFI_OFFICER_ROLE_REFERENCE_ID
+  def jetty_manager? = role&.kind == Role::JETTY_MANAGER
+  def fisherman? = role&.kind == Role::FISHERMAN
+  def officer? = role&.kind == Role::DOFI_OFFICER
   def approval_status_label = APPROVAL_STATUS_LABELS.fetch(status, status.humanize)
 
   # No role in this system requires a real email: DoFi Officers authenticate by `username`,

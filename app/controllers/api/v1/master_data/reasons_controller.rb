@@ -8,7 +8,7 @@ module Api
 
         def index
           authorize ManifestSkipReason
-          result = apply_ransack_search(policy_scope(ManifestSkipReason), default_sort: "reference_id asc")
+          result = apply_ransack_search(policy_scope(ManifestSkipReason), default_sort: "created_at desc")
           pagy, records = pagy(:offset, result)
           render json: { status: "success", data: ManifestSkipReasonBlueprint.render_as_hash(records),
                          meta: pagination_meta(pagy) }

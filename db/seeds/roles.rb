@@ -1,10 +1,10 @@
 ROLE_DEFINITIONS = {
-  "ROLE-001" => {
+  Role::DOFI_OFFICER => {
     name: "DoFi Officer",
     description: "Full access: profiling approval, manifest approval, catch verification, user management.",
     permission_codes: :all
   },
-  "ROLE-002" => {
+  Role::JETTY_MANAGER => {
     name: "Jetty Manager",
     description: "Port-level authority: manifest port-in/out approval, fisherman approval.",
     permission_codes: %w[
@@ -14,7 +14,7 @@ ROLE_DEFINITIONS = {
       fisherman_approvals.view fisherman_approvals.list fisherman_approvals.approve fisherman_approvals.amendment
     ]
   },
-  "ROLE-003" => {
+  Role::FISHERMAN => {
     name: "Fisherman",
     description: "Own profile, manifest submission, catch report (via PWA); requires approval.",
     permission_codes: %w[
@@ -26,11 +26,15 @@ ROLE_DEFINITIONS = {
   }
 }.freeze
 
-ROLE_DEFINITIONS.each do |reference_id, attrs|
-  role = Role.find_or_create_by!(reference_id: reference_id) do |r|
-    r.name = attrs[:name]
+# Found by name (stable across this vocabulary change) rather than kind: a DB seeded before `kind`
+# existed has these 3 rows with kind still nil, so finding by kind would miss them and attempt to
+# create duplicates that collide with the existing name uniqueness constraint. Backfill kind after.
+ROLE_DEFINITIONS.each do |kind, attrs|
+  role = Role.find_or_create_by!(name: attrs[:name]) do |r|
+    r.kind = kind
     r.description = attrs[:description]
   end
+  role.update!(kind: kind) if role.kind != kind
 
   permissions = attrs[:permission_codes] == :all ? Permission.all : Permission.where(code: attrs[:permission_codes])
   role.permissions = permissions

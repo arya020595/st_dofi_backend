@@ -24,9 +24,7 @@ module CompanyProfiles
     private
 
     def create_profile!(person_attributes, designation:)
-      CompanyProfile.create!(@shared_attributes.merge(person_attributes).merge(
-                               reference_id: next_reference_id, designation: designation
-                             ))
+      CompanyProfile.create!(@shared_attributes.merge(person_attributes).merge(designation: designation))
     end
 
     def present_attributes?(sub_params)
@@ -38,12 +36,6 @@ module CompanyProfiles
       next_num = CompanyProfile.where("dofi_registration_no LIKE ?", "DoFi-#{year}-%")
                                .maximum("CAST(SUBSTRING(dofi_registration_no FROM 11) AS INTEGER)") || 0
       format("DoFi-%<year>d-%<num>03d", year: year, num: next_num + 1)
-    end
-
-    def next_reference_id
-      next_num = CompanyProfile.where("reference_id LIKE ?", "REG-DOF-%")
-                               .maximum("CAST(SUBSTRING(reference_id FROM 9) AS INTEGER)") || 0
-      format("REG-DOF-%03d", next_num + 1)
     end
   end
 end
