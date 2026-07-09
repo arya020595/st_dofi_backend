@@ -1,6 +1,8 @@
 POSITIONS = [
   { reference_id: "POS-001", name: "Crew", category: "Fisherman" },
-  { reference_id: "POS-002", name: "Captain", category: "Jetty Manager" }
+  { reference_id: "POS-002", name: "Captain", category: "Jetty Manager" },
+  { reference_id: "POS-003", name: "Administrator", category: "DoFi Officer" },
+  { reference_id: "POS-004", name: "DoFi Officer", category: "DoFi Officer" }
 ].freeze
 
 POSITIONS.each do |attrs|

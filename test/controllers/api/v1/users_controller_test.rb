@@ -79,6 +79,19 @@ module Api
         assert_response :created
       end
 
+      test "create assigns the admin-supplied role_id and auto-generates employee_id" do
+        post "/api/v1/users", params: { user: { name: "New Officer", email: "officer2@example.com",
+                                                password: @password, password_confirmation: @password,
+                                                role_id: @no_access_role.id, employee_id: "SNEAKY-001" } },
+                              headers: @admin_headers, as: :json
+
+        assert_response :created
+        user = User.last
+
+        assert_equal @no_access_role.id, user.role_id
+        assert_match(/\ADOF-\d{3}\z/, user.employee_id)
+      end
+
       test "create without permission is forbidden" do
         post "/api/v1/users", params: { user: { name: "x", email: "x@example.com", password: @password,
                                                 password_confirmation: @password } },

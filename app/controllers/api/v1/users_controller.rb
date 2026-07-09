@@ -22,7 +22,8 @@ module Api
 
         case Users::Create.call(user_params)
         in Success(user)
-          render json: { status: "success", data: UserBlueprint.render_as_hash(user) }, status: :created
+          data = UserBlueprint.render_as_hash(user).merge(temporary_password: user.password)
+          render json: { status: "success", data: data }, status: :created
         in Failure(user)
           render json: { status: "fail", errors: user.errors.full_messages }, status: :unprocessable_content
         end
@@ -52,12 +53,12 @@ module Api
       private
 
       def set_user
-        @user = User.kept.find(params.expect(:id))
+        @user = policy_scope(User).find(params.expect(:id))
       end
 
       def user_params
-        params.expect(user: %i[name email password password_confirmation employee_id role_id
-                               status preferred_locale unit position])
+        params.expect(user: %i[name email password password_confirmation employee_id role_id username
+                               status preferred_locale unit position contact_no designation])
       end
     end
   end

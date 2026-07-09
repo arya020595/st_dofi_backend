@@ -8,6 +8,7 @@ module Users
       user = User.new(attributes.merge(
                         role: jetty_manager_role,
                         password: SecureRandom.base64(24),
+                        status: "pending",
                         brunei_id_verified_at: Time.current
                       ))
       return Success(user) if user.save

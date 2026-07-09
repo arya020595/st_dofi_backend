@@ -13,6 +13,14 @@ module Api
           assert_equal company_profile.company_name, response.parsed_body.dig("data", "company_name")
         end
 
+        test "show includes designation so the FE can auto-select it on the registration form" do
+          create(:company_profile, ic_no: "01-192839", designation: "Admin")
+
+          get "/api/v1/registrations/fisherman/company_profile", params: { ic_no: "01-192839" }
+
+          assert_equal "Admin", response.parsed_body.dig("data", "designation")
+        end
+
         test "show returns not found when no company profile matches the ic_no" do
           get "/api/v1/registrations/fisherman/company_profile", params: { ic_no: "00-000000" }
 

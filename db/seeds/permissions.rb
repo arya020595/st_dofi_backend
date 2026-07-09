@@ -14,7 +14,8 @@ PERMISSION_GROUPS = {
   "dofi_officer_users" => %w[view list create update delete],
   "fisherman_approvals" => %w[view list approve amendment],
   "jetty_manager_approvals" => %w[view list approve amendment],
-  "skip_reasons" => %w[view list create update delete]
+  "skip_reasons" => %w[view list create update delete],
+  "approval_remarks" => %w[view list create update delete]
 }.freeze
 
 PERMISSION_GROUPS.each do |resource, actions|

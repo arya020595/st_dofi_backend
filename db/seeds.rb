@@ -12,6 +12,7 @@ SEED_FILES = %w[
   zones
   fishing_gears
   skip_reasons
+  approval_remarks
   dictionaries
 ].freeze
 

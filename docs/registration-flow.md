@@ -1,5 +1,7 @@
 # Registration Flow
 
+For the business-level picture (actors, roles, lifecycles, and the reasoning behind key decisions), see [`business-flow.md`](business-flow.md). This doc covers the endpoint request/response contracts.
+
 All registration endpoints are **public** (no `Authorization` header required). Authentication happens via BruneiID/QR scan on the frontend before the register form is shown — the backend receives the result of that verification, not a token.
 
 Passwords are never set by the user. A cryptographically random password is generated server-side on registration; the user always re-authenticates via BruneiID.
@@ -58,8 +60,8 @@ FE: User scans QR code
   → BruneiID callback returns ic_number + name (pre-filled on form)
   → User fills in Unit, Position, Contact No.
   → FE POST /api/v1/registrations/jetty_manager
-  → User created (status: active, role: Jetty Manager)
-  → FE receives user record + JWT → redirect to dashboard
+  → User created (status: pending, role: Jetty Manager)
+  → FE shows "Registration Status: Pending" screen
 ```
 
 ### Endpoint
@@ -94,7 +96,7 @@ All five fields are required.
     "name":              "Amiirul Azri Mizamuddin",
     "email":             null,
     "employee_id":       null,
-    "status":            "active",
+    "status":            "pending",
     "preferred_locale":  "en",
     "unit":              "Docks",
     "position":          "Jetty Supervisor",
@@ -129,7 +131,7 @@ All five fields are required.
 | Field | Value |
 |---|---|
 | `role` | `Role` where `reference_id = "ROLE-002"` (Jetty Manager) |
-| `status` | `active` (AASM default — no approval step needed) |
+| `status` | `pending` (must be approved by an officer) |
 | `brunei_id_verified_at` | `Time.current` |
 | `password` | `SecureRandom.base64(24)` (never exposed) |
 
@@ -158,7 +160,7 @@ FE: User scans QR code
     → FE GET /api/v1/registrations/fisherman/company_profile?ic_no=<ic_number>
       → Found: pre-fill Company Name, ROCBN No. on form (read-only)
       → Not Found: show dashes, block Proceed to Register button
-    → User selects Owner or Admin (designation)
+    → Designation (Owner/Admin) is pre-filled from the lookup — not a manual choice
     → FE POST /api/v1/registrations/fisherman
     → User created (status: pending, linked to CompanyProfile)
     → FE shows "Registration Status: Pending" screen
@@ -191,7 +193,8 @@ GET /api/v1/registrations/fisherman/company_profile?ic_no=01-192839
     "company_name":      "Azri Fish Sdn Bhd",
     "rocbn_no":          "RC20390923",
     "full_name":         "Muhammad Shahrizan Bin Haji Said",
-    "ic_no":             "01-192839"
+    "ic_no":             "01-192839",
+    "designation":       "Owner"
   }
 }
 ```
@@ -294,6 +297,7 @@ Valid values for `registration_type`: `"Commercial"`, `"Small-Scale (Company)"`,
 | `role` | `Role` where `reference_id = "ROLE-003"` (Fisherman) |
 | `status` | `pending` (must be approved by an officer) |
 | `company_profile` | Matched `CompanyProfile` (by `ic_no`) for Commercial/Company types; `nil` for Full-Time |
+| `designation` | For Commercial/Company types, derived server-side from the matched `CompanyProfile`'s `designation` — any client-submitted value is ignored. Otherwise whatever the client submits (Full-Time has no designation requirement). |
 | `brunei_id_verified_at` | `Time.current` |
 | `password` | `SecureRandom.base64(24)` (never exposed) |
 
@@ -326,15 +330,127 @@ Valid values for `registration_type`: `"Commercial"`, `"Small-Scale (Company)"`,
 | `suspend!` | active, inactive | suspended | Admin |
 | `reactivate!` | inactive, suspended | active | Admin |
 
-> Jetty Manager users are created directly as `active` — they skip the pending/approval step entirely.
-
 ---
 
 ## 4. What Is Not Built Yet
 
 | Feature | Notes |
 |---|---|
-| Officer approve/reject endpoint | Moves a fisherman from `pending` → `active` or `rejected`, sets `rejection_reason` on `rejected` |
-| Admin create CompanyProfile endpoint | Officers pre-create `CompanyProfile` records before fishermen can self-register; no controller exists yet |
+| Officer approve/reject endpoint | ✅ Built — `POST /api/v1/approvals/fishermen/:id/approve`\|`reject` and `POST /api/v1/approvals/jetty_managers/:id/approve`\|`reject`. Moves a Fisherman or Jetty Manager from `pending` → `active` or `rejected`, sets `rejection_reason` on `rejected` |
+| Admin create CompanyProfile endpoint | ✅ Built — `POST /api/v1/company_profiles` (see "5. Officer Profiling" below). Officers pre-create `CompanyProfile` records (Owner and optionally Admin) before fishermen self-register |
 | Registration status check endpoint | ✅ Built — `GET /api/v1/registrations/status?ic_number=...` |
-| Login after registration | Fishermen with `pending`/`rejected` status cannot log in yet; the sessions endpoint should gate on `active` status (not implemented) |
+| Login after registration | ✅ Built — `POST /api/v1/auth/brunei_id` (see "6. Mock BruneiID Login" below). Gates on `active` status; `pending`/`rejected` get the same status payload as the registration-status check instead of a token |
+
+---
+
+## 5. Officer Profiling (pre-creating a CompanyProfile)
+
+Unlike everything above, this endpoint is **authenticated** (`profiling.*` permission required — DoFi Officer has it via full access). It lets an officer pre-create the `CompanyProfile` record(s) a Commercial/Small-Scale (Company) fisherman will later match against by IC number during self-registration (section 2a).
+
+```
+POST /api/v1/company_profiles
+```
+
+**Request body**
+
+```json
+{
+  "company_profile": {
+    "registration_type":   "Small-Scale (Company)",
+    "company_name":        "Azri Fish Sdn Bhd",
+    "company_address":     "Spg 10, Pantai Serasa, Mukim Serasa",
+    "rocbn_no":            "RC20390923",
+    "contact_no":          "71111111",
+    "district":            "Brunei - Muara",
+    "mukim":               "Serasa",
+    "village":             "Kapok",
+    "fisherman_card_no":   "R-2026-012563",
+    "issue_date":          "2026-01-01",
+    "license_expiry_date": "2026-12-31",
+    "worker_quota":        34,
+    "owner": { "full_name": "Abdul Rahman Bin Matussin", "gender": "Male", "ic_no": "01-102934", "ic_colour": "Yellow" },
+    "admin": { "full_name": "Seruddin Bin Haji Abdullah", "gender": "Male", "ic_no": "01-129303", "ic_colour": "Yellow" }
+  }
+}
+```
+
+`owner` is required; `admin` is optional — omit it (or submit it empty) to profile only an Owner. All other fields are required except `rocbn_no`.
+
+### What the service does (`CompanyProfiles::Create`)
+
+Because a `CompanyProfile` row represents one person (see section 2's note on `CompanyProfile` shape), submitting both `owner` and `admin` creates **two rows** in a single transaction — one per person — sharing every company-level field plus a single auto-generated `dofi_registration_no`, but each with its own `reference_id`:
+
+| Field | Value |
+|---|---|
+| `reference_id` | Auto-generated, `REG-DOF-NNN` (sequential, one per row) |
+| `dofi_registration_no` | Auto-generated, `DoFi-YYYY-NNN` (sequential per year, **shared** by the Owner and Admin row from the same submission) |
+| `designation` | `"Owner"` / `"Admin"` per row |
+
+If either row fails validation, the whole submission rolls back — no partial (Owner-only-when-Admin-was-requested) row is left behind.
+
+**Success — 201 Created**
+
+```json
+{
+  "status": "success",
+  "data": {
+    "owner_profile": { "id": "uuid", "reference_id": "REG-DOF-042", "dofi_registration_no": "DoFi-2026-042", "designation": "Owner", "...": "..." },
+    "admin_profile": { "id": "uuid", "reference_id": "REG-DOF-043", "dofi_registration_no": "DoFi-2026-042", "designation": "Admin", "...": "..." }
+  }
+}
+```
+
+`admin_profile` is `null` when no `admin` was submitted.
+
+Also supports standard `GET /api/v1/company_profiles` (list, searchable via `q[company_name_cont]`/`q[rocbn_no_cont]` — this is how the FE's "Select & Search Company" picks an existing company to reuse its details for a follow-up Admin entry), `GET /api/v1/company_profiles/:id`, `PATCH /api/v1/company_profiles/:id` (updates one row at a time), and `DELETE /api/v1/company_profiles/:id` (soft-delete).
+
+---
+
+## 6. Mock BruneiID Login
+
+Fishermen and Jetty Managers have no username/password login — after registration, subsequent "log in" is a BruneiID QR re-scan on the frontend. Since there's no real BruneiID integration yet, this endpoint is a **mock** stand-in: it trusts the FE-supplied `ic_number` as already BruneiID-verified, the same trust boundary registration itself already relies on (`brunei_id_verified_at` is set unconditionally at registration time, with no real verification call either). It is **public** (no `Authorization` header required).
+
+```
+POST /api/v1/auth/brunei_id
+```
+
+**Request body**
+
+```json
+{ "ic_number": "01-192839" }
+```
+
+**Found, `active` — 200 OK** (same shape as the officer `/api/v1/auth/sign_in` response)
+
+```json
+{
+  "status": "success",
+  "data": {
+    "access_token": "<jwt>",
+    "user": { "id": "uuid", "name": "...", "status": "active", "...": "..." }
+  }
+}
+```
+
+**Found, `pending` or `rejected` — 200 OK** (same shape as `GET /api/v1/registrations/status` — no `access_token`, so the FE reuses its existing pending/rejected status screens rather than a new error shape)
+
+```json
+{
+  "status": "success",
+  "data": { "id": "uuid", "name": "...", "status": "pending", "...": "..." }
+}
+```
+
+**Not found — 404 Not Found**
+
+```json
+{ "status": "fail", "message": "Resource not found." }
+```
+
+This is explicitly a mock — see `app/services/brunei_id/client.rb` for the swap-in point for a real BruneiID integration later (the `faraday`/`jwt` gems and `BRUNEIID_*` env vars are already reserved for it, unused today).
+
+For a step-by-step curl/Postman walkthrough of testing Fisherman/Jetty Manager login end-to-end (register → approve → mock login → authenticated request, plus pending/rejected/not-found), see [`testing-mock-brunei-id-login.md`](testing-mock-brunei-id-login.md).
+
+### DoFi Officer/Administrator login (for contrast)
+
+Officers log in separately via `POST /api/v1/auth/sign_in` with `{ "user": { "username": "...", "password": "..." } }` — a real username+password check against this app's own `encrypted_password` (not BruneiID, not real Active Directory/SSO — `username` is just an AD-style identifier the app owns and validates itself). This endpoint is unchanged in shape; only the login field switched from `email` to `username`.

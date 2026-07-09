@@ -25,7 +25,10 @@ Rails.application.routes.draw do
       resource :profile, only: [], controller: "profiles" do
         patch :locale
       end
+      post "auth/brunei_id", to: "brunei_id_sessions#create"
+
       resources :users, only: %i[index show create update destroy]
+      resources :company_profiles, only: %i[index show create update destroy]
 
       namespace :registrations do
         resource :jetty_manager, only: %i[create], controller: "jetty_managers"
@@ -45,6 +48,24 @@ Rails.application.routes.draw do
         resources :nationalities, only: %i[index show create update destroy]
         resources :positions, only: %i[index show create update destroy]
         resources :reasons, only: %i[index show create update destroy]
+      end
+
+      namespace :approvals do
+        resources :fishermen, only: %i[index show] do
+          member do
+            post :approve
+            post :reject
+          end
+        end
+
+        resources :jetty_managers, only: %i[index show] do
+          member do
+            post :approve
+            post :reject
+          end
+        end
+
+        resources :approval_remarks, only: %i[index show create update destroy]
       end
     end
   end
