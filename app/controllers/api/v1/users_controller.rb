@@ -22,7 +22,8 @@ module Api
 
         case Users::Create.call(user_params)
         in Success(user)
-          data = UserBlueprint.render_as_hash(user).merge(temporary_password: user.password)
+          data = UserBlueprint.render_as_hash(user)
+          data = data.merge(temporary_password: user.password) if user_params[:password].blank?
           render json: { status: "success", data: data }, status: :created
         in Failure(user)
           render json: { status: "fail", errors: user.errors.full_messages }, status: :unprocessable_content
