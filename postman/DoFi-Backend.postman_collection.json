@@ -2612,7 +2612,7 @@
               "mode": "raw",
               "raw": "{\n  \"user\": {\n    \"name\": \"Postman Test Officer\",\n    \"position\": \"Administrator\",\n    \"unit\": \"Block A\",\n    \"username\": \"mprt/postman.officer\",\n    \"role_id\": \"{{dofi_officer_role_id}}\"\n  }\n}"
             },
-            "description": "Creates a DoFi officer user. Requires `dofi_officer_users.create`. No email or password is collected — the server auto-generates a password and returns it once as `data.temporary_password` (never shown again after this response); `position`/`unit`/`username` are required for this role. The response's `data.id` is auto-saved to the `user_id` collection variable for the requests below. Re-running this without changing `username` will 422 on a persistent environment (e.g. staging) since a prior run's user already exists — change the body or clean up the previous test user first."
+            "description": "Creates a DoFi officer user. Requires `dofi_officer_users.create`. `password`/`password_confirmation` are optional — omit them (as here) and the server auto-generates a password, returned once as `data.temporary_password` (never shown again after this response); `position`/`unit`/`username` are required for this role. See **Create User - With Admin-Supplied Password** below for supplying your own password instead. The response's `data.id` is auto-saved to the `user_id` collection variable for the requests below. Re-running this without changing `username` will 422 on a persistent environment (e.g. staging) since a prior run's user already exists — change the body or clean up the previous test user first."
           },
           "event": [
             {
@@ -2669,6 +2669,52 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 422', () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create User - With Admin-Supplied Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user\": {\n    \"name\": \"Postman Test Officer (Chosen Password)\",\n    \"position\": \"Administrator\",\n    \"unit\": \"Block A\",\n    \"username\": \"mprt/postman.officer.pwd\",\n    \"role_id\": \"{{dofi_officer_role_id}}\",\n    \"password\": \"AdminChosen1!\",\n    \"password_confirmation\": \"AdminChosen1!\"\n  }\n}"
+            },
+            "description": "Creates a DoFi officer user with an admin-chosen password instead of an auto-generated one. When `password`/`password_confirmation` are supplied, they're used as-is and `data.temporary_password` is omitted from the response (nothing was auto-generated to show). Uses a different `username` from the plain **Create User** request to avoid a uniqueness collision; re-running on a persistent environment (e.g. staging) will 422 unless the username is changed or the previous test user is removed. Does not overwrite the `user_id` collection variable used by the requests below."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('Does not return a temporary_password', () => pm.expect(body.data.temporary_password).to.be.undefined);"
                 ]
               }
             }
@@ -2884,6 +2930,51 @@
               "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"a208b10a-88ce-4891-8268-0b76a4b2fe05\",\n    \"created_at\": \"2026-06-22T07:21:20.624Z\",\n    \"email\": \"postman.test@dofi.gov.bn\",\n    \"employee_id\": \"DOFI-POSTMAN-1\",\n    \"name\": \"Postman Test Officer (Updated)\",\n    \"position\": null,\n    \"preferred_locale\": \"en\",\n    \"registration_type\": null,\n    \"role\": null,\n    \"status\": \"active\",\n    \"unit\": null,\n    \"updated_at\": \"2026-06-22T07:21:21.860Z\"\n  }\n}"
             }
           ]
+        },
+        {
+          "name": "Update User - Change Password",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "{{user_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user\": {\n    \"password\": \"NewChosenPass1!\",\n    \"password_confirmation\": \"NewChosenPass1!\"\n  }\n}"
+            },
+            "description": "Changes the password for the user created by the **Create User** request above. Requires `dofi_officer_users.update`. `password_confirmation` must match `password` or the request 422s with a confirmation-mismatch error; the new password isn't echoed back in the response."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": []
         },
         {
           "name": "Destroy User (soft-delete)",

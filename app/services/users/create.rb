@@ -5,10 +5,13 @@ module Users
     def self.call(...) = new.call(...)
 
     def call(attributes)
-      password = SecureRandom.base64(24)
+      client_password = attributes[:password].presence
+      password = client_password || SecureRandom.base64(24)
+      password_confirmation = client_password ? attributes[:password_confirmation] : password
+
       user = User.new(attributes.except(:employee_id, :password, :password_confirmation)
                                  .merge(employee_id: next_employee_id, password: password,
-                                        password_confirmation: password))
+                                        password_confirmation: password_confirmation))
       return external_role_failure(user) if user.role&.external?
       return Success(user) if user.save
 
