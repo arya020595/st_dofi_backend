@@ -121,7 +121,7 @@
       "type": "string"
     },
     {
-      "key": "admin_company_profile_id",
+      "key": "admin_contact_id",
       "value": "",
       "type": "string"
     },
@@ -147,6 +147,11 @@
     },
     {
       "key": "owner_only_company_profile_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "new_contact_id",
       "value": "",
       "type": "string"
     }
@@ -3175,7 +3180,7 @@
     },
     {
       "name": "Profiling",
-      "description": "Officer-facing CRUD for `CompanyProfile` (the \"Add Profiling\" screen). Officers pre-create a company's profile — Owner and optionally Admin — before a Commercial/Small-Scale (Company) fisherman can self-register and match against it by IC number (see Registrations → Fisherman - Company Profile Lookup / Register (Commercial)). Requires `profiling.*` permissions.\n\nThe example below deliberately uses the same `ic_no` (`01-192839`), `company_name` (`Azri Fish Sdn Bhd`), and `rocbn_no` (`RC20390923`) as the Registrations folder's Fisherman examples, so running this folder first makes those downstream requests resolve against real data instead of 404ing.",
+      "description": "Officer-facing CRUD for `CompanyProfile` (the \"Add Profiling\" screen). `CompanyProfile` is one row per **company**; person-level data (Owner/Admin) lives on separate `CompanyProfileContact` rows (`belongs_to :company_profile`). Officers pre-create a company's profile — an Owner contact (required) and optionally an Admin contact — before a Commercial/Small-Scale (Company) fisherman can self-register and match against it by IC number (see Registrations → Fisherman - Company Profile Lookup / Register (Commercial)). Requires `profiling.*` permissions.\n\nThe example below deliberately uses the same `ic_no` (`01-192839`), `company_name` (`Azri Fish Sdn Bhd`), and `rocbn_no` (`RC20390923`) as the Registrations folder's Fisherman examples, so running this folder first makes those downstream requests resolve against real data instead of 404ing.",
       "item": [
         {
           "name": "List Profiling",
@@ -3249,7 +3254,7 @@
                 }
               }
             },
-            "description": "Submitting both `owner` and `admin` creates two `CompanyProfile` rows in one transaction (rolled back together on failure) sharing all company-level fields plus a single auto-generated `dofi_registration_no`. `owner` is required, `admin` is optional. Requires `profiling.create`."
+            "description": "Submitting `owner` and `admin` creates **one** `CompanyProfile` row (the company) plus a required Owner `CompanyProfileContact` and an optional Admin `CompanyProfileContact`, all in one transaction (rolled back together on failure). `owner` is required, `admin` is optional. Requires `profiling.create`."
           },
           "event": [
             {
@@ -3258,9 +3263,13 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('Owner and Admin share dofi_registration_no', () => pm.expect(pm.response.json().data.owner_profile.dofi_registration_no).to.eql(pm.response.json().data.admin_profile.dofi_registration_no));",
-                  "if (pm.response.json().data.owner_profile) { pm.collectionVariables.set('company_profile_id', pm.response.json().data.owner_profile.id); }",
-                  "if (pm.response.json().data.admin_profile) { pm.collectionVariables.set('admin_company_profile_id', pm.response.json().data.admin_profile.id); }"
+                  "pm.test('Owner and Admin both belong to the created company_profile', () => {",
+                  "    const data = pm.response.json().data;",
+                  "    pm.expect(data.owner_profile.company_profile_id).to.eql(data.company_profile.id);",
+                  "    pm.expect(data.admin_profile.company_profile_id).to.eql(data.company_profile.id);",
+                  "});",
+                  "if (pm.response.json().data.company_profile) { pm.collectionVariables.set('company_profile_id', pm.response.json().data.company_profile.id); }",
+                  "if (pm.response.json().data.admin_profile) { pm.collectionVariables.set('admin_contact_id', pm.response.json().data.admin_profile.id); }"
                 ]
               }
             }
@@ -3300,7 +3309,7 @@
                 }
               }
             },
-            "description": "Owner-only submission (no `admin` key) — creates a single `CompanyProfile` row; `data.admin_profile` is `null`. Requires `profiling.create`."
+            "description": "Owner-only submission (no `admin` key) — creates one `CompanyProfile` row with a single Owner `CompanyProfileContact`; `data.admin_profile` is `null`. Requires `profiling.create`."
           },
           "event": [
             {
@@ -3310,7 +3319,7 @@
                 "exec": [
                   "pm.test('Status is 201', () => pm.response.to.have.status(201));",
                   "pm.test('admin_profile is null', () => pm.expect(pm.response.json().data.admin_profile).to.be.null);",
-                  "if (pm.response.json().data.owner_profile) { pm.collectionVariables.set('owner_only_company_profile_id', pm.response.json().data.owner_profile.id); }"
+                  "if (pm.response.json().data.company_profile) { pm.collectionVariables.set('owner_only_company_profile_id', pm.response.json().data.company_profile.id); }"
                 ]
               }
             }
@@ -3380,8 +3389,25 @@
                 "company_profiles",
                 "{{company_profile_id}}"
               ]
+            },
+            "description": "Returns one entry per company — `owner_profile`/`admin_profile` are nested from `CompanyProfile#owner_contact`/`#admin_contact`, so this is a single request rather than the two rows that used to show up in List Profiling before the Company/Contact split."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('owner_profile and admin_profile are both nested on the single company entry', () => {",
+                  "    const data = pm.response.json().data;",
+                  "    pm.expect(data.owner_profile).to.not.be.null;",
+                  "    pm.expect(data.admin_profile).to.not.be.null;",
+                  "});"
+                ]
+              }
             }
-          }
+          ]
         },
         {
           "name": "Update Profiling",
@@ -3418,8 +3444,201 @@
                 }
               }
             },
-            "description": "Updates one profiling row at a time (e.g. just the Owner's, without touching the linked Admin row)."
+            "description": "Company-level fields only — `owner`/`admin` are no longer accepted here (managed via the Contacts sub-resource below). Since company-level fields now live on exactly one row, there's no second (Admin) row that could ever go out of sync with this edit."
           }
+        },
+        {
+          "name": "Contacts",
+          "description": "`CompanyProfileContact` sub-resource — add, edit, or remove a single person on an existing company without touching the company row or any other contact. This is the real fix for \"add an Admin to a company profiled last week\": before this endpoint existed, the only way to do that was resubmitting Profiling → Create, which duplicated the Owner every time. Requires the same `profiling.*` permissions as the parent resource.\n\nRun after \"Create Profiling (Owner Only)\" above — these requests add a second person (Admin) to that Owner-only company, then edit and remove just that person.",
+          "item": [
+            {
+              "name": "Add Contact to Company",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/company_profiles/{{owner_only_company_profile_id}}/contacts",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "company_profiles",
+                    "{{owner_only_company_profile_id}}",
+                    "contacts"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"contact\": {\n    \"full_name\": \"Aminah Binti Yusof\",\n    \"gender\": \"Female\",\n    \"ic_no\": \"01-441123\",\n    \"ic_colour\": \"Green\",\n    \"designation\": \"Admin\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Adds an Admin to the Owner-only company created earlier, without resubmitting any company-level fields and without touching the existing Owner contact. Requires `profiling.create`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                      "pm.test('Contact is linked to the target company_profile', () => pm.expect(pm.response.json().data.company_profile_id).to.eql(pm.collectionVariables.get('owner_only_company_profile_id')));",
+                      "if (pm.response.json().data.id) { pm.collectionVariables.set('new_contact_id', pm.response.json().data.id); }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Add Contact - Validation Error (422)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/company_profiles/{{owner_only_company_profile_id}}/contacts",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "company_profiles",
+                    "{{owner_only_company_profile_id}}",
+                    "contacts"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"contact\": {\n    \"designation\": \"Admin\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Missing `full_name`, `ic_no`, `gender`, and `ic_colour` — no row is persisted."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 422', () => pm.response.to.have.status(422));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update Contact",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/company_profiles/{{owner_only_company_profile_id}}/contacts/{{new_contact_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "company_profiles",
+                    "{{owner_only_company_profile_id}}",
+                    "contacts",
+                    "{{new_contact_id}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"contact\": {\n    \"ic_colour\": \"Red\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Edits just this contact — the company row and any other contacts are untouched."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('ic_colour updated', () => pm.expect(pm.response.json().data.ic_colour).to.eql('Red'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Delete Contact (soft)",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/company_profiles/{{owner_only_company_profile_id}}/contacts/{{new_contact_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "company_profiles",
+                    "{{owner_only_company_profile_id}}",
+                    "contacts",
+                    "{{new_contact_id}}"
+                  ]
+                },
+                "description": "Removes just this Admin contact — the company profile (and its Owner contact) stay kept. Contrast with \"Delete Profiling (soft)\" below, which discards the whole company and everyone on it."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
         },
         {
           "name": "Delete Profiling (soft)",
@@ -3438,7 +3657,7 @@
                 "{{owner_only_company_profile_id}}"
               ]
             },
-            "description": "Deletes the standalone Owner-only profile created above (not the Owner+Admin pair, which Registrations below still needs both rows of)."
+            "description": "Soft-deletes the company **and** all of its kept `CompanyProfileContact` rows together in one transaction (`CompanyProfiles::Destroy`) — deletes the standalone Owner-only profile created above (not the Owner+Admin pair, which Registrations below still needs)."
           }
         }
       ]
@@ -3871,7 +4090,7 @@
                 }
               ]
             },
-            "description": "Looks up the CompanyProfile whose `ic_no` matches the fisherman's IC number. Used by the FE to pre-fill Company Name and ROCBN No. on the registration form (read-only fields).\n\nOnly applies to `registration_type` = `\"Commercial\"` or `\"Small-Scale (Company)\"`. For `\"Small - Scale (Full-Time)\"` no lookup is needed.\n\nReturns 404 if no active CompanyProfile matches — the FE should show dashes and disable the Register button in this case."
+            "description": "Looks up the `CompanyProfileContact` whose `ic_no` matches the fisherman's IC number (flattened with its parent company's fields in the response). Used by the FE to pre-fill Company Name and ROCBN No. on the registration form (read-only fields).\n\nOnly applies to `registration_type` = `\"Commercial\"` or `\"Small-Scale (Company)\"`. For `\"Small - Scale (Full-Time)\"` no lookup is needed.\n\nReturns 404 if no active contact matches — the FE should show dashes and disable the Register button in this case."
           },
           "event": [
             {
@@ -4063,7 +4282,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0002-0002-0002-000000000002\",\n    \"name\": \"Muhammad Shahrizan Bin Haji Said\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"pending\",\n    \"preferred_locale\": \"en\",\n    \"unit\": null,\n    \"position\": null,\n    \"contact_no\": null,\n    \"designation\": \"Owner\",\n    \"registration_type\": \"Commercial\",\n    \"created_at\": \"2026-06-30T09:00:00.000Z\",\n    \"updated_at\": \"2026-06-30T09:00:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0003-0003-0003-0003-000000000003\",\n      \"name\": \"Fisherman\",\n      \"kind\": \"Fisherman\",\n      \"description\": \"Fisherman role.\",\n      \"permissions\": []\n    },\n    \"company_profile\": {\n      \"id\": \"cp000001-0001-0001-0001-000000000001\",\n      \"registration_type\": \"Commercial\",\n      \"company_name\": \"Azri Fish Sdn Bhd\",\n      \"rocbn_no\": \"RC20390923\",\n      \"full_name\": \"Muhammad Shahrizan Bin Haji Said\",\n      \"ic_no\": \"01-192839\"\n    }\n  }\n}"
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0002-0002-0002-000000000002\",\n    \"name\": \"Muhammad Shahrizan Bin Haji Said\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"pending\",\n    \"preferred_locale\": \"en\",\n    \"unit\": null,\n    \"position\": null,\n    \"contact_no\": null,\n    \"designation\": \"Owner\",\n    \"registration_type\": \"Commercial\",\n    \"created_at\": \"2026-06-30T09:00:00.000Z\",\n    \"updated_at\": \"2026-06-30T09:00:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0003-0003-0003-0003-000000000003\",\n      \"name\": \"Fisherman\",\n      \"kind\": \"Fisherman\",\n      \"description\": \"Fisherman role.\",\n      \"permissions\": []\n    },\n    \"company_profile\": {\n      \"id\": \"cp000001-0001-0001-0001-000000000001\",\n      \"registration_type\": \"Commercial\",\n      \"company_name\": \"Azri Fish Sdn Bhd\",\n      \"rocbn_no\": \"RC20390923\"\n    },\n    \"company_profile_contact\": {\n      \"id\": \"cc000001-0001-0001-0001-000000000001\",\n      \"full_name\": \"Muhammad Shahrizan Bin Haji Said\",\n      \"ic_no\": \"01-192839\",\n      \"ic_colour\": \"Yellow\",\n      \"gender\": \"Male\",\n      \"designation\": \"Owner\",\n      \"company_profile_id\": \"cp000001-0001-0001-0001-000000000001\"\n    }\n  }\n}"
             },
             {
               "name": "Fisherman Register (Commercial) - 404 Company Profile Not Found",
@@ -4199,7 +4418,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0004-0004-0004-000000000004\",\n    \"name\": \"Roslan Bin Mat\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"pending\",\n    \"preferred_locale\": \"en\",\n    \"unit\": null,\n    \"position\": null,\n    \"contact_no\": null,\n    \"designation\": \"Admin\",\n    \"registration_type\": \"Small-Scale (Company)\",\n    \"created_at\": \"2026-06-30T09:30:00.000Z\",\n    \"updated_at\": \"2026-06-30T09:30:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0003-0003-0003-0003-000000000003\",\n      \"name\": \"Fisherman\",\n      \"kind\": \"Fisherman\",\n      \"description\": \"Fisherman role.\",\n      \"permissions\": []\n    },\n    \"company_profile\": {\n      \"id\": \"cp000001-0001-0001-0001-000000000001\",\n      \"registration_type\": \"Small-Scale (Company)\",\n      \"company_name\": \"Azri Fish Sdn Bhd\",\n      \"rocbn_no\": \"RC20390923\",\n      \"full_name\": \"Muhammad Shahrizan Bin Haji Said\",\n      \"ic_no\": \"01-192839\"\n    }\n  }\n}"
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0004-0004-0004-000000000004\",\n    \"name\": \"Roslan Bin Mat\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"pending\",\n    \"preferred_locale\": \"en\",\n    \"unit\": null,\n    \"position\": null,\n    \"contact_no\": null,\n    \"designation\": \"Admin\",\n    \"registration_type\": \"Small-Scale (Company)\",\n    \"created_at\": \"2026-06-30T09:30:00.000Z\",\n    \"updated_at\": \"2026-06-30T09:30:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0003-0003-0003-0003-000000000003\",\n      \"name\": \"Fisherman\",\n      \"kind\": \"Fisherman\",\n      \"description\": \"Fisherman role.\",\n      \"permissions\": []\n    },\n    \"company_profile\": {\n      \"id\": \"cp000001-0001-0001-0001-000000000001\",\n      \"registration_type\": \"Small-Scale (Company)\",\n      \"company_name\": \"Azri Fish Sdn Bhd\",\n      \"rocbn_no\": \"RC20390923\"\n    },\n    \"company_profile_contact\": {\n      \"id\": \"cc000001-0001-0001-0001-000000000001\",\n      \"full_name\": \"Muhammad Shahrizan Bin Haji Said\",\n      \"ic_no\": \"01-192839\",\n      \"ic_colour\": \"Yellow\",\n      \"gender\": \"Male\",\n      \"designation\": \"Admin\",\n      \"company_profile_id\": \"cp000001-0001-0001-0001-000000000001\"\n    }\n  }\n}"
             }
           ]
         },
@@ -4758,8 +4977,24 @@
                     "{{commercial_fisherman_id}}"
                   ]
                 },
-                "description": "`commercial_fisherman_id` is captured by Registrations → \"Fisherman - Register (Commercial)\". `data.owner_profile` and `data.admin_profile` should both be populated (via CompanyProfile#sibling) if the Profiling folder's \"Create Profiling (Owner + Admin)\" ran earlier in this run."
-              }
+                "description": "`commercial_fisherman_id` is captured by Registrations → \"Fisherman - Register (Commercial)\". `data.owner_profile` and `data.admin_profile` should both be populated (via `CompanyProfile#owner_contact`/`#admin_contact`) if the Profiling folder's \"Create Profiling (Owner + Admin)\" ran earlier in this run."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('owner_profile and admin_profile are both populated', () => {",
+                      "    const data = pm.response.json().data;",
+                      "    pm.expect(data.owner_profile).to.not.be.null;",
+                      "    pm.expect(data.admin_profile).to.not.be.null;",
+                      "});"
+                    ]
+                  }
+                }
+              ]
             },
             {
               "name": "Approve Fisherman",

@@ -1,32 +1,34 @@
 require "test_helper"
 
 class CompanyProfileTest < ActiveSupport::TestCase
-  test "invalid without the newly-required profiling fields" do
-    profile = build(:company_profile, gender: nil, ic_colour: nil, worker_quota: nil)
+  test "invalid without worker_quota" do
+    profile = build(:company_profile, worker_quota: nil)
     profile.valid?
 
-    assert_includes profile.errors.attribute_names, :gender
-    assert_includes profile.errors.attribute_names, :ic_colour
     assert_includes profile.errors.attribute_names, :worker_quota
   end
 
-  test "sibling finds the other profile sharing the same rocbn_no and company_name" do
-    owner = create(:company_profile, rocbn_no: "RC-PAIR", company_name: "Pair Co", designation: "Owner")
-    admin = create(:company_profile, rocbn_no: "RC-PAIR", company_name: "Pair Co", designation: "Admin")
+  test "owner_contact and admin_contact find the kept contact with the matching designation" do
+    company_profile = create(:company_profile)
+    owner = create(:company_profile_contact, company_profile: company_profile, designation: "Owner")
+    admin = create(:company_profile_contact, company_profile: company_profile, designation: "Admin")
 
-    assert_equal admin, owner.sibling
-    assert_equal owner, admin.sibling
+    assert_equal owner, company_profile.owner_contact
+    assert_equal admin, company_profile.admin_contact
   end
 
-  test "sibling is nil when rocbn_no is blank" do
-    profile = create(:company_profile, rocbn_no: nil)
+  test "owner_contact ignores discarded contacts" do
+    company_profile = create(:company_profile)
+    owner = create(:company_profile_contact, company_profile: company_profile, designation: "Owner")
+    owner.discard
 
-    assert_nil profile.sibling
+    assert_nil company_profile.owner_contact
   end
 
-  test "sibling is nil when no other profile shares the same rocbn_no" do
-    profile = create(:company_profile, rocbn_no: "RC-LONE")
+  test "admin_contact is nil when the company has no admin" do
+    company_profile = create(:company_profile)
+    create(:company_profile_contact, company_profile: company_profile, designation: "Owner")
 
-    assert_nil profile.sibling
+    assert_nil company_profile.admin_contact
   end
 end

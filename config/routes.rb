@@ -28,7 +28,9 @@ Rails.application.routes.draw do
       post "auth/brunei_id", to: "brunei_id_sessions#create"
 
       resources :users, only: %i[index show create update destroy]
-      resources :company_profiles, only: %i[index show create update destroy]
+      resources :company_profiles, only: %i[index show create update destroy] do
+        resources :contacts, only: %i[create update destroy], module: "company_profiles"
+      end
 
       namespace :registrations do
         resource :jetty_manager, only: %i[create], controller: "jetty_managers"

@@ -1,0 +1,2 @@
+class CompanyProfileContactPolicy < CompanyProfilePolicy
+end

@@ -5,11 +5,6 @@ class FishermanApprovalDetailBlueprint < Blueprinter::Base
 
   field(:approval_status, &:approval_status_label)
 
-  association :owner_profile, blueprint: CompanyProfileDetailBlueprint do |user|
-    [user.company_profile, user.company_profile&.sibling].compact.find { |profile| profile.designation == "Owner" }
-  end
-
-  association :admin_profile, blueprint: CompanyProfileDetailBlueprint do |user|
-    [user.company_profile, user.company_profile&.sibling].compact.find { |profile| profile.designation == "Admin" }
-  end
+  association(:owner_profile, blueprint: CompanyProfileContactBlueprint) { |user| user.company_profile&.owner_contact }
+  association(:admin_profile, blueprint: CompanyProfileContactBlueprint) { |user| user.company_profile&.admin_contact }
 end

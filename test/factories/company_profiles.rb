@@ -12,10 +12,5 @@ FactoryBot.define do
     issue_date { Date.new(2026, 1, 1) }
     license_expiry_date { Date.new(2026, 12, 31) }
     worker_quota { 34 }
-    full_name { "Muhammad Shahrizan Bin Haji Said" }
-    gender { "Male" }
-    ic_colour { "Yellow" }
-    designation { "Owner" }
-    sequence(:ic_no) { |n| format("01-%06d", n) }
   end
 end

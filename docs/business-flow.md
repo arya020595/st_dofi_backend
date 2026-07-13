@@ -146,26 +146,42 @@ sequenceDiagram
     participant DB
 
     Officer->>API: registration_type, company details, owner{full_name, ic_no, ...}, admin{...}? (optional)
-    API->>DB: One CompanyProfile row per person (Owner always; Admin only if submitted)
-    Note over DB: Both rows share one dofi_registration_no
-    DB-->>API: owner_profile, admin_profile (null if no admin submitted)
+    API->>DB: One CompanyProfile row (the company) + Owner CompanyProfileContact (always) + Admin (if submitted)
+    DB-->>API: company_profile, owner_profile, admin_profile (null if no admin submitted)
 
-    Note over Officer: Later — the actual Owner (or Admin) self-registers
+    Note over Officer: Later — an Admin is added to a company already profiled
+    Officer->>API: POST /api/v1/company_profiles/:company_profile_id/contacts {full_name, ic_no, ...}
+    API->>DB: New CompanyProfileContact row on the existing CompanyProfile
+    DB-->>API: contact
+
+    Note over Officer: Later still — the actual Owner (or Admin) self-registers
     participant Fisherman
     Fisherman->>API: POST /api/v1/registrations/fisherman {ic_number, registration_type: "Commercial", ...}
-    API->>DB: CompanyProfile.kept.find_by!(ic_no: ic_number)
-    DB-->>API: matched row → designation copied from it, company_profile_id linked
+    API->>DB: CompanyProfileContact.kept.find_by!(ic_no: ic_number)
+    DB-->>API: matched contact → designation copied from it, company_profile_id + company_profile_contact_id linked
 ```
 
-A `CompanyProfile` row represents **one person**, not one company — this is why submitting Owner+Admin
-in one call creates two rows sharing a `dofi_registration_no` rather than one row with two nested
-people. It also means "delete the company" isn't a single operation; each person's profile is deleted
-(soft) independently.
+`CompanyProfile` is one row per **company**; `CompanyProfileContact` is one row per **person**
+(`belongs_to :company_profile`, `designation` "Owner" or "Admin"). Company-level fields
+(company_name, address, ROCBN No., worker_quota, ...) live once, on the company row — editing them
+via `PATCH /api/v1/company_profiles/:id` can never desync an Owner/Admin pairing, because there's no
+pairing to maintain, just a normal `has_many :contacts`. "Delete the company"
+(`DELETE /api/v1/company_profiles/:id`) discards the company **and** all its kept contacts in one
+transaction (`CompanyProfiles::Destroy`); removing a single contact without touching the company is
+`DELETE /api/v1/company_profiles/:company_profile_id/contacts/:id`.
 
 The list endpoint (`GET /api/v1/company_profiles`, searchable by company name/ROCBN No.) exists
 specifically so the FE's "Select & Search Company" flow can find an existing company when profiling a
-second person (e.g. adding an Admin to a company profiled last week) instead of re-typing every
-company-level field.
+second person — that's now the real `POST .../contacts` call above, not a resubmission through
+`create` (which previously duplicated the Owner every time). `index` and `show` both render one entry
+per company, with `owner_profile`/`admin_profile` nested from `CompanyProfile#owner_contact`/
+`#admin_contact`.
+
+**Migration note**: this replaced an earlier design where `CompanyProfile` held both company- and
+person-level fields directly (one row per person, Owner+Admin linked only by matching `rocbn_no` +
+`company_name` text). That design allowed the pairing to silently desync on edit and had no real way
+to add a person to an existing company without duplicating the Owner — see the `BackfillCompanyProfileContacts`
+migration for how existing data was reconciled.
 
 ---
 

@@ -18,20 +18,21 @@ module Users
     private
 
     def build_attributes(attributes)
-      profile = company_profile_for(attributes)
-      attributes.merge(role: fisherman_role, company_profile: profile, password: SecureRandom.base64(24),
+      contact = contact_for(attributes)
+      attributes.merge(role: fisherman_role, company_profile: contact&.company_profile,
+                       company_profile_contact: contact, password: SecureRandom.base64(24),
                        status: "pending", brunei_id_verified_at: Time.current,
-                       **(profile ? { designation: profile.designation } : {}))
+                       **(contact ? { designation: contact.designation } : {}))
     end
 
     def fisherman_role
       Role.find_by!(kind: Role::FISHERMAN)
     end
 
-    def company_profile_for(attributes)
+    def contact_for(attributes)
       return nil unless COMPANY_REGISTRATION_TYPES.include?(attributes[:registration_type])
 
-      CompanyProfile.kept.find_by!(ic_no: attributes[:ic_number])
+      CompanyProfileContact.kept.find_by!(ic_no: attributes[:ic_number])
     end
   end
 end

@@ -7,6 +7,7 @@ class User < ApplicationRecord
 
   belongs_to :role, optional: true
   belongs_to :company_profile, optional: true
+  belongs_to :company_profile_contact, optional: true
 
   include AASM
 
