@@ -22,3 +22,23 @@ class Dictionary < ApplicationRecord
     errors.add(:image, "must be smaller than 5 MB") if image.byte_size > MAX_IMAGE_SIZE
   end
 end
+
+# == Schema Information
+#
+# Table name: dictionaries
+# Database name: primary
+#
+#  id              :uuid             not null, primary key
+#  family_name     :string
+#  group_name      :string
+#  local_name      :string           not null
+#  scientific_name :string
+#  created_at      :datetime         not null
+#  updated_at      :datetime         not null
+#
+# Indexes
+#
+#  idx_dictionaries_local_name_trgm       (local_name) USING gin
+#  idx_dictionaries_scientific_name_trgm  (scientific_name) USING gin
+#  index_dictionaries_on_local_name       (local_name)
+#
