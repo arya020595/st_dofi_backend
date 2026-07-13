@@ -81,6 +81,8 @@ group :development, :test do
 end
 
 group :development do
+  gem "annotaterb"
+  gem "bullet"
   gem "kamal", require: false
   gem "thruster", require: false
 end
