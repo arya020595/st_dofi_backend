@@ -54,8 +54,33 @@ module Api
         assert_equal ["Findable Fish Co"], response.parsed_body["data"].pluck("company_name")
       end
 
-      test "create with only an owner persists a single profile" do
-        assert_difference("CompanyProfile.count", 1) do
+      test "index returns one entry per company, nesting the admin profile under the owner" do
+        company_profile = create(:company_profile, company_name: "Two Person Co", rocbn_no: "RC-TWO-PERSON")
+        create(:company_profile_contact, company_profile: company_profile, designation: "Owner")
+        create(:company_profile_contact, company_profile: company_profile, designation: "Admin",
+                                         full_name: "Admin Person")
+
+        get "/api/v1/company_profiles", params: { q: { rocbn_no_eq: "RC-TWO-PERSON" } }, headers: @admin_headers
+
+        assert_response :ok
+        data = response.parsed_body["data"]
+
+        assert_equal [company_profile.id], data.pluck("id")
+        assert_equal "Admin Person", data.first.dig("admin_profile", "full_name")
+      end
+
+      test "index omits the admin profile when the company has no admin" do
+        company_profile = create(:company_profile, company_name: "Solo Co", rocbn_no: "RC-SOLO")
+        create(:company_profile_contact, company_profile: company_profile, designation: "Owner")
+
+        get "/api/v1/company_profiles", params: { q: { rocbn_no_eq: "RC-SOLO" } }, headers: @admin_headers
+
+        assert_response :ok
+        assert_nil response.parsed_body["data"].first["admin_profile"]
+      end
+
+      test "create with only an owner persists one company profile and one contact" do
+        assert_difference({ "CompanyProfile.count" => 1, "CompanyProfileContact.count" => 1 }) do
           post "/api/v1/company_profiles", params: valid_params, headers: @admin_headers, as: :json
         end
 
@@ -65,19 +90,18 @@ module Api
         assert_nil data["admin_profile"]
       end
 
-      test "create with both owner and admin persists two profiles sharing a dofi_registration_no" do
+      test "create with both owner and admin persists one company profile and two contacts" do
         params = valid_params(admin: { full_name: "Admin Person", gender: "Female", ic_no: "01-700011",
                                        ic_colour: "Green" })
 
-        assert_difference("CompanyProfile.count", 2) do
+        assert_difference({ "CompanyProfile.count" => 1, "CompanyProfileContact.count" => 2 }) do
           post "/api/v1/company_profiles", params: params, headers: @admin_headers, as: :json
         end
 
         data = response.parsed_body["data"]
 
         assert_equal "Admin Person", data.dig("admin_profile", "full_name")
-        assert_equal data.dig("owner_profile", "dofi_registration_no"),
-                     data.dig("admin_profile", "dofi_registration_no")
+        assert_equal data.dig("company_profile", "id"), data.dig("owner_profile", "company_profile_id")
       end
 
       test "create without permission is forbidden" do
@@ -87,7 +111,7 @@ module Api
       end
 
       test "create with a missing required field rolls back and returns errors" do
-        assert_no_difference("CompanyProfile.count") do
+        assert_no_difference(["CompanyProfile.count", "CompanyProfileContact.count"]) do
           post "/api/v1/company_profiles", params: valid_params(company_name: ""), headers: @admin_headers, as: :json
         end
 
@@ -103,11 +127,14 @@ module Api
         assert_equal 99, @target.reload.worker_quota
       end
 
-      test "destroy soft-deletes the target profile" do
+      test "destroy soft-deletes the target profile and its kept contacts" do
+        contact = create(:company_profile_contact, company_profile: @target, designation: "Owner")
+
         delete "/api/v1/company_profiles/#{@target.id}", headers: @admin_headers
 
         assert_response :ok
         assert_predicate @target.reload, :discarded?
+        assert_predicate contact.reload, :discarded?
       end
     end
   end

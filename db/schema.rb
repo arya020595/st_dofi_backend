@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_09_064210) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_12_100800) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -162,6 +162,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_09_064210) do
     t.index ["boat_number"], name: "index_companies_vessels_on_boat_number"
     t.index ["company_profile_id"], name: "index_companies_vessels_on_company_profile_id"
     t.index ["discarded_at"], name: "index_companies_vessels_on_discarded_at"
+  end
+
+  create_table "company_profile_contacts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "company_profile_id", null: false
+    t.datetime "created_at", null: false
+    t.string "designation"
+    t.datetime "discarded_at"
+    t.string "full_name"
+    t.string "gender"
+    t.string "ic_colour"
+    t.string "ic_no"
+    t.datetime "updated_at", null: false
+    t.index ["company_profile_id"], name: "index_company_profile_contacts_on_company_profile_id"
+    t.index ["discarded_at"], name: "index_company_profile_contacts_on_discarded_at"
+    t.index ["ic_no"], name: "index_company_profile_contacts_on_ic_no"
   end
 
   create_table "company_profiles", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -409,6 +424,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_09_064210) do
 
   create_table "users", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.datetime "brunei_id_verified_at"
+    t.uuid "company_profile_contact_id"
     t.uuid "company_profile_id"
     t.string "contact_no"
     t.datetime "created_at", null: false
@@ -433,6 +449,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_09_064210) do
     t.string "unit"
     t.datetime "updated_at", null: false
     t.string "username"
+    t.index ["company_profile_contact_id"], name: "index_users_on_company_profile_contact_id"
     t.index ["company_profile_id"], name: "index_users_on_company_profile_id"
     t.index ["discarded_at"], name: "index_users_on_discarded_at"
     t.index ["email"], name: "index_users_on_email", unique: true, where: "((email)::text <> ''::text)"
@@ -469,6 +486,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_09_064210) do
   add_foreign_key "companies_fishing_gears", "users", column: "approved_by_id"
   add_foreign_key "companies_vessels", "company_profiles"
   add_foreign_key "companies_vessels", "users", column: "approved_by_id"
+  add_foreign_key "company_profile_contacts", "company_profiles"
   add_foreign_key "company_profiles", "users", column: "approved_by"
   add_foreign_key "crew_manifests", "companies_crews"
   add_foreign_key "crew_manifests", "manifests"
@@ -489,6 +507,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_09_064210) do
   add_foreign_key "manifests", "zones"
   add_foreign_key "permission_roles", "permissions"
   add_foreign_key "permission_roles", "roles"
+  add_foreign_key "users", "company_profile_contacts"
   add_foreign_key "users", "company_profiles"
   add_foreign_key "users", "roles"
 end

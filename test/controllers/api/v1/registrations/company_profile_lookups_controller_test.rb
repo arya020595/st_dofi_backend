@@ -4,32 +4,32 @@ module Api
   module V1
     module Registrations
       class CompanyProfileLookupsControllerTest < ActionDispatch::IntegrationTest
-        test "show returns the matching company profile without authentication" do
-          company_profile = create(:company_profile, ic_no: "01-192839")
+        test "show returns the matching contact's company details without authentication" do
+          contact = create(:company_profile_contact, ic_no: "01-192839")
 
           get "/api/v1/registrations/fisherman/company_profile", params: { ic_no: "01-192839" }
 
           assert_response :ok
-          assert_equal company_profile.company_name, response.parsed_body.dig("data", "company_name")
+          assert_equal contact.company_profile.company_name, response.parsed_body.dig("data", "company_name")
         end
 
         test "show includes designation so the FE can auto-select it on the registration form" do
-          create(:company_profile, ic_no: "01-192839", designation: "Admin")
+          create(:company_profile_contact, ic_no: "01-192839", designation: "Admin")
 
           get "/api/v1/registrations/fisherman/company_profile", params: { ic_no: "01-192839" }
 
           assert_equal "Admin", response.parsed_body.dig("data", "designation")
         end
 
-        test "show returns not found when no company profile matches the ic_no" do
+        test "show returns not found when no contact matches the ic_no" do
           get "/api/v1/registrations/fisherman/company_profile", params: { ic_no: "00-000000" }
 
           assert_response :not_found
         end
 
-        test "show ignores discarded company profiles" do
-          company_profile = create(:company_profile, ic_no: "01-192839")
-          company_profile.discard!
+        test "show ignores discarded contacts" do
+          contact = create(:company_profile_contact, ic_no: "01-192839")
+          contact.discard!
 
           get "/api/v1/registrations/fisherman/company_profile", params: { ic_no: "01-192839" }
 

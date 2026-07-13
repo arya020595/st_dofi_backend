@@ -6,4 +6,5 @@ class UserBlueprint < Blueprinter::Base
 
   association :role, blueprint: RoleBlueprint
   association :company_profile, blueprint: CompanyProfileBlueprint
+  association :company_profile_contact, blueprint: CompanyProfileContactBlueprint
 end

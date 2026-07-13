@@ -50,20 +50,22 @@ module Api
         end
 
         test "show returns the merged owner and admin company profile" do
-          owner_profile = create(:company_profile, ic_no: "01-800003", rocbn_no: "RC-SHARED", designation: "Owner")
-          admin_profile = create(:company_profile, ic_no: "01-800004", rocbn_no: "RC-SHARED", designation: "Admin",
-                                                   company_name: owner_profile.company_name)
+          company_profile = create(:company_profile, rocbn_no: "RC-SHARED")
+          owner_contact = create(:company_profile_contact, company_profile: company_profile, ic_no: "01-800003",
+                                                           designation: "Owner")
+          admin_contact = create(:company_profile_contact, company_profile: company_profile, ic_no: "01-800004",
+                                                           designation: "Admin")
           commercial_fisherman = create(:user, role: @fisherman_role, status: "pending", ic_number: "01-800003",
                                                registration_type: "Commercial", designation: "Owner",
-                                               company_profile: owner_profile)
+                                               company_profile: company_profile, company_profile_contact: owner_contact)
 
           get "/api/v1/approvals/fishermen/#{commercial_fisherman.id}", headers: @admin_headers
 
           assert_response :ok
           data = response.parsed_body["data"]
 
-          assert_equal owner_profile.full_name, data.dig("owner_profile", "full_name")
-          assert_equal admin_profile.full_name, data.dig("admin_profile", "full_name")
+          assert_equal owner_contact.full_name, data.dig("owner_profile", "full_name")
+          assert_equal admin_contact.full_name, data.dig("admin_profile", "full_name")
         end
 
         test "approve transitions the fisherman from pending to active" do

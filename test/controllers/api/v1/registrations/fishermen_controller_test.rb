@@ -9,7 +9,9 @@ module Api
         end
 
         test "create registers a commercial fisherman linked to the matching company profile" do
-          company_profile = create(:company_profile, ic_no: "01-192839", registration_type: "Commercial")
+          contact = create(:company_profile_contact, ic_no: "01-192839",
+                                                     company_profile: create(:company_profile,
+                                                                             registration_type: "Commercial"))
 
           assert_difference("User.count", 1) do
             post "/api/v1/registrations/fisherman", params: { user: { name: "Muhammad Shahrizan Bin Haji Said",
@@ -21,11 +23,12 @@ module Api
           assert_response :created
           user = User.last
 
-          assert_equal company_profile, user.company_profile
+          assert_equal contact.company_profile, user.company_profile
         end
 
         test "create sets status to pending and assigns the fisherman role" do
-          create(:company_profile, ic_no: "01-192839", registration_type: "Commercial")
+          create(:company_profile_contact, ic_no: "01-192839",
+                                           company_profile: create(:company_profile, registration_type: "Commercial"))
 
           post "/api/v1/registrations/fisherman", params: { user: { name: "Muhammad Shahrizan Bin Haji Said",
                                                                     ic_number: "01-192839",
@@ -38,7 +41,8 @@ module Api
         end
 
         test "create derives designation from the matched company profile, ignoring the submitted value" do
-          create(:company_profile, ic_no: "01-192839", registration_type: "Commercial", designation: "Owner")
+          create(:company_profile_contact, ic_no: "01-192839", designation: "Owner",
+                                           company_profile: create(:company_profile, registration_type: "Commercial"))
 
           post "/api/v1/registrations/fisherman", params: { user: { name: "Muhammad Shahrizan Bin Haji Said",
                                                                     ic_number: "01-192839",

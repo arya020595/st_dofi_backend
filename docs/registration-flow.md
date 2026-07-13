@@ -143,8 +143,8 @@ Fisherman registration has two sub-flows driven by `registration_type`:
 
 | Registration Type | Company Profile required? | Fields |
 |---|---|---|
-| `"Commercial"` | Yes — IC must match a `CompanyProfile` | name, ic_number, registration_type, designation |
-| `"Small-Scale (Company)"` | Yes — IC must match a `CompanyProfile` | name, ic_number, registration_type, designation |
+| `"Commercial"` | Yes — IC must match a `CompanyProfileContact` | name, ic_number, registration_type, designation |
+| `"Small-Scale (Company)"` | Yes — IC must match a `CompanyProfileContact` | name, ic_number, registration_type, designation |
 | `"Small - Scale (Full-Time)"` | No | name, ic_number, registration_type |
 
 All fishermen are created with `status: pending` and require officer approval before they can log in.
@@ -208,7 +208,8 @@ GET /api/v1/registrations/fisherman/company_profile?ic_no=01-192839
 }
 ```
 
-Returns 404 also when the `CompanyProfile` exists but has been soft-deleted (`discarded_at` is set).
+Returns 404 also when the `CompanyProfileContact` exists but has been soft-deleted (`discarded_at` is
+set).
 
 ---
 
@@ -260,9 +261,16 @@ Valid values for `registration_type`: `"Commercial"`, `"Small-Scale (Company)"`,
       "id":                "uuid",
       "registration_type": "Commercial",
       "company_name":      "Azri Fish Sdn Bhd",
-      "rocbn_no":          "RC20390923",
-      "full_name":         "Muhammad Shahrizan Bin Haji Said",
-      "ic_no":             "01-192839"
+      "rocbn_no":          "RC20390923"
+    },
+    "company_profile_contact": {
+      "id":                 "uuid",
+      "full_name":          "Muhammad Shahrizan Bin Haji Said",
+      "ic_no":              "01-192839",
+      "ic_colour":          "Yellow",
+      "gender":             "Male",
+      "designation":        "Owner",
+      "company_profile_id": "uuid"
     },
     "role": {
       "kind": "Fisherman",
@@ -378,14 +386,18 @@ POST /api/v1/company_profiles
 
 ### What the service does (`CompanyProfiles::Create`)
 
-Because a `CompanyProfile` row represents one person (see section 2's note on `CompanyProfile` shape), submitting both `owner` and `admin` creates **two rows** in a single transaction — one per person — sharing every company-level field plus a single auto-generated `dofi_registration_no`:
+`CompanyProfile` is one row per **company**; the person-level fields (`full_name`, `ic_no`,
+`ic_colour`, `gender`, `designation`) live on a separate `CompanyProfileContact` row,
+`belongs_to :company_profile`. One `POST` creates **one `CompanyProfile`** plus a required Owner
+`CompanyProfileContact` and an optional Admin `CompanyProfileContact`, all in one transaction:
 
 | Field | Value |
 |---|---|
-| `dofi_registration_no` | Auto-generated, `DoFi-YYYY-NNN` (sequential per year, **shared** by the Owner and Admin row from the same submission) |
-| `designation` | `"Owner"` / `"Admin"` per row |
+| `dofi_registration_no` | Auto-generated on the `CompanyProfile`, `DoFi-YYYY-NNN` (sequential per year) |
+| `designation` | `"Owner"` / `"Admin"` per contact |
 
-If either row fails validation, the whole submission rolls back — no partial (Owner-only-when-Admin-was-requested) row is left behind.
+If any row fails validation, the whole submission rolls back — no partial (company created with no
+Owner, or Owner-only-when-Admin-was-requested) state is left behind.
 
 **Success — 201 Created**
 
@@ -393,15 +405,34 @@ If either row fails validation, the whole submission rolls back — no partial (
 {
   "status": "success",
   "data": {
-    "owner_profile": { "id": "uuid", "dofi_registration_no": "DoFi-2026-042", "designation": "Owner", "...": "..." },
-    "admin_profile": { "id": "uuid", "dofi_registration_no": "DoFi-2026-042", "designation": "Admin", "...": "..." }
+    "company_profile": { "id": "uuid", "dofi_registration_no": "DoFi-2026-042", "company_name": "...", "...": "..." },
+    "owner_profile": { "id": "uuid", "designation": "Owner", "company_profile_id": "uuid", "...": "..." },
+    "admin_profile": { "id": "uuid", "designation": "Admin", "company_profile_id": "uuid", "...": "..." }
   }
 }
 ```
 
 `admin_profile` is `null` when no `admin` was submitted.
 
-Also supports standard `GET /api/v1/company_profiles` (list, searchable via `q[company_name_cont]`/`q[rocbn_no_cont]` — this is how the FE's "Select & Search Company" picks an existing company to reuse its details for a follow-up Admin entry), `GET /api/v1/company_profiles/:id`, `PATCH /api/v1/company_profiles/:id` (updates one row at a time), and `DELETE /api/v1/company_profiles/:id` (soft-delete).
+Also supports standard `GET /api/v1/company_profiles` (list, searchable via `q[company_name_cont]`/`q[rocbn_no_cont]` — this is how the FE's "Select & Search Company" picks an existing company), `GET /api/v1/company_profiles/:id`, `PATCH /api/v1/company_profiles/:id` (company-level fields only — no `owner`/`admin`), and `DELETE /api/v1/company_profiles/:id` (soft-deletes the company **and** its contacts together).
+
+### Adding a contact to an existing company (`CompanyProfileContacts::Create`)
+
+To profile a second person against a company that already exists (e.g. adding an Admin to a company
+profiled last week), the FE's "Select & Search Company" step finds the existing `CompanyProfile`, then
+calls the nested contacts endpoint instead of resubmitting `create` — no company fields, no risk of
+duplicating the Owner:
+
+```
+POST /api/v1/company_profiles/:company_profile_id/contacts
+```
+
+```json
+{ "contact": { "full_name": "Seruddin Bin Haji Abdullah", "gender": "Male", "ic_no": "01-129303",
+               "ic_colour": "Yellow", "designation": "Admin" } }
+```
+
+Also supports `PATCH .../contacts/:id` and `DELETE .../contacts/:id` (removes just that person, leaving the company and any other contacts untouched).
 
 ---
 
