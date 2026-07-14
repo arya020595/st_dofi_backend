@@ -6,7 +6,7 @@ module Api
       def create
         case BruneiId::Client.call(ic_number: params.expect(:ic_number))
         in Success(verified_ic_number)
-          render_for(User.kept.find_by!(ic_number: verified_ic_number))
+          render_for(User.kept.find_by(ic_number: verified_ic_number))
         in Failure(_reason)
           render json: { status: "fail", message: "Identity verification failed." }, status: :unauthorized
         end
@@ -15,6 +15,7 @@ module Api
       private
 
       def render_for(user)
+        return render_account_not_found unless user
         return render_status_only(user) unless user.active?
 
         sign_in(:user, user, store: false)
@@ -25,6 +26,10 @@ module Api
 
       def render_status_only(user)
         render json: { status: "success", data: UserBlueprint.render_as_hash(user) }, status: :ok
+      end
+
+      def render_account_not_found
+        render json: { status: "fail", message: I18n.t("errors.account_not_found") }, status: :not_found
       end
     end
   end

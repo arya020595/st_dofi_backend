@@ -1,5 +1,11 @@
 ms:
   hello: "Hello world"
+  errors:
+    forbidden: "Anda tidak dibenarkan melakukan tindakan ini."
+    not_found: "Sumber tidak dijumpai."
+    storage_failed: "Muat naik imej gagal. Sila cuba lagi."
+    account_not_found: "Akaun tidak dijumpai."
+    company_contact_not_found: "Tiada kenalan syarikat sepadan dengan nombor IC ini."
   activerecord:
     errors:
       models:
