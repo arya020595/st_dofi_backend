@@ -29,6 +29,12 @@
 
 en:
   hello: "Hello world"
+  errors:
+    forbidden: "You are not authorized to perform this action."
+    not_found: "Resource not found."
+    storage_failed: "Image upload failed. Please try again."
+    account_not_found: "Account not found."
+    company_contact_not_found: "No company contact matches this IC number."
   activerecord:
     errors:
       models:

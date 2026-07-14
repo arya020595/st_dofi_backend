@@ -42,6 +42,7 @@ module Api
         post "/api/v1/auth/brunei_id", params: { ic_number: "00-000000" }
 
         assert_response :not_found
+        assert_equal "Account not found.", response.parsed_body["message"]
       end
 
       test "create does not require authentication" do

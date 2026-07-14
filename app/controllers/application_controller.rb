@@ -30,21 +30,28 @@ class ApplicationController < ActionController::API
     payload[:user_id] = current_user&.id
   end
 
+  def render_error(message, status)
+    render json: {
+      status: "fail",
+      message:
+    }, status:
+  end
+
   def render_forbidden
-    render json: { status: "fail", message: "You are not authorized to perform this action." }, status: :forbidden
+    render_error(I18n.t("errors.forbidden"), :forbidden)
   end
 
   def render_not_found
-    render json: { status: "fail", message: "Resource not found." }, status: :not_found
+    render_error(I18n.t("errors.not_found"), :not_found)
   end
 
   def render_bad_request(exception)
-    render json: { status: "fail", message: exception.message }, status: :bad_request
+    render_error(exception.message, :bad_request)
   end
 
   def render_storage_error(exception)
-    render json: { status: "fail", message: "Image upload failed: #{exception.message}" },
-           status: :unprocessable_content
+    Rails.logger.error(exception.full_message)
+    render_error(I18n.t("errors.storage_failed"), :unprocessable_content)
   end
 
   def pagination_meta(pagy)

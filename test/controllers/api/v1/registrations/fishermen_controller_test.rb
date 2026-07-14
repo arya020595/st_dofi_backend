@@ -60,6 +60,7 @@ module Api
           end
 
           assert_response :not_found
+          assert_equal "No company contact matches this IC number.", response.parsed_body["message"]
         end
 
         test "create registers a small-scale full-time fisherman without a company profile" do
