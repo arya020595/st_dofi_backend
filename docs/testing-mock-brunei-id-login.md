@@ -209,11 +209,15 @@ Returns **404 Not Found**, `{"status": "fail", "message": "Resource not found."}
 ## Testing via Postman instead
 
 `postman/DoFi-Backend.postman_collection.json`'s **Auth** folder has this entire Fisherman flow
-pre-built and runnable end-to-end: `Setup - Register a Fisherman (for BruneiID Login demo)` →
+pre-built and runnable end-to-end: `Setup - Profile Individual (for BruneiID Login demo)` →
+`Setup - Register a Fisherman (for BruneiID Login demo)` →
 `Setup - Approve the Fisherman (for BruneiID Login demo)` → `BruneiID Login - Active`, plus
-standalone `Setup - Register a Fisherman (Pending, ...)` → `BruneiID Login - Pending` and
-`BruneiID Login - Not Found (404)` requests. Run the **Auth** folder (or the whole collection) with
-the `DoFi Backend - Local` or `DoFi Backend - Staging` environment selected — no manual token
+standalone `Setup - Profile Individual (Pending, ...)` → `Setup - Register a Fisherman (Pending, ...)`
+→ `BruneiID Login - Pending` and `BruneiID Login - Not Found (404)` requests. The two `Setup -
+Profile Individual` requests pre-create the Small - Scale (Full-Time) `CompanyProfile` each demo
+fisherman registers against (§5/registration-flow.md) — they run using the officer's Bearer token
+set by **Sign In** earlier in the same folder. Run the **Auth** folder (or the whole collection)
+with the `DoFi Backend - Local` or `DoFi Backend - Staging` environment selected — no manual token
 copying needed, each request chains off the last via collection variables
 (`brunei_demo_fisherman_id`, `jwt_token`, etc.).
 

@@ -70,7 +70,7 @@ sequenceDiagram
     participant DB as User (role: DoFi Officer)
 
     Existing->>API: Add User — name, position, unit, username (no email, no password)
-    API->>DB: auto-generate employee_id (DOF-NNN) and a random password
+    API->>DB: auto-generate employee_id (opaque UUID, not a displayed business code) and a random password
     DB-->>API: saved, status: active
     API-->>Existing: 201 + temporary_password (shown once)
     Note over Existing: Shares the temporary_password with the new officer out-of-band
