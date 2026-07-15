@@ -12,6 +12,21 @@ FactoryBot.define do
     issue_date { Date.new(2026, 1, 1) }
     license_expiry_date { Date.new(2026, 12, 31) }
     worker_quota { 34 }
+
+    trait :individual do
+      registration_type { "Small - Scale (Full-Time)" }
+      company_name { nil }
+      company_address { nil }
+      rocbn_no { nil }
+      contact_no { nil }
+      district { nil }
+      mukim { nil }
+      village { nil }
+      fisherman_card_no { nil }
+      issue_date { nil }
+      license_expiry_date { nil }
+      worker_quota { nil }
+    end
   end
 end
 

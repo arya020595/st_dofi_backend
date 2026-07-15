@@ -123,21 +123,26 @@ Same `pending → active/rejected` shape as Jetty Manager, but registration bran
 |---|---|---|
 | `"Commercial"` | Yes — IC must match a pre-profiled company (§6) | Server-derived from the matched profile |
 | `"Small-Scale (Company)"` | Yes — same as above | Server-derived from the matched profile |
-| `"Small - Scale (Full-Time)"` | No | Whatever the client submits (no company relationship) |
+| `"Small - Scale (Full-Time)"` | Yes — IC must match a pre-profiled individual profile (§6), where the fisherman is their own Owner contact | Server-derived from the matched profile |
 
-**Why `designation` is server-derived, not client-submitted, for company-affiliated fishermen**: the
+**Why `designation` is server-derived, not client-submitted, for every registration type**: the
 officer already recorded, during Profiling (§6), which specific person is the Owner and which is the
-Admin of a given company. If the registering fisherman could just *claim* "Owner" on the register
-form, that claim would never be checked against what the officer actually profiled. Matching by
-`ic_number` against the pre-created `CompanyProfile` row and copying *that* row's `designation` closes
-this gap — the registrant can't self-declare a designation for a company they're affiliated with.
+Admin of a given company (or, for Small - Scale (Full-Time), that the fisherman is their own Owner).
+If the registering fisherman could just *claim* "Owner" on the register form, that claim would never
+be checked against what the officer actually profiled. Matching by `ic_number` against the
+pre-created `CompanyProfile`'s contact and copying *that* row's `designation` closes this gap — the
+registrant can't self-declare a designation.
 
 ---
 
-## 6. Officer Profiling — the prerequisite step for company-affiliated fishermen
+## 6. Officer Profiling — the prerequisite step for every fisherman
 
-Before a Commercial or Small-Scale (Company) fisherman can self-register, an officer must have
-already profiled their company:
+Before any fisherman — Commercial, Small-Scale (Company), or Small - Scale (Full-Time) — can
+self-register, an officer must have already profiled them. For the first two, that means their
+company; for Small - Scale (Full-Time), the fisherman is profiled as their own Owner contact on a
+`CompanyProfile` with `registration_type: "Small - Scale (Full-Time)"` and every company-shape
+field (company_name, worker_quota, ...) left blank — `CompanyProfile#individual?` makes those
+fields optional for that one registration_type, nothing else about the flow changes:
 
 ```mermaid
 sequenceDiagram

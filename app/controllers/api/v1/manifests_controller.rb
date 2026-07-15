@@ -72,7 +72,7 @@ module Api
       end
 
       def manifest_params
-        params.expect(manifest: [:companies_vessel_id, :companies_captain_id, :fisherman_category,
+        params.expect(manifest: [:companies_vessel_id, :companies_captain_id,
                                  :port_out_id, :port_out_datetime, :port_out_area,
                                  :port_in_id, :port_in_datetime, :port_in_area,
                                  :zone_id, :zone_area, :longitude, :latitude, :has_minor_fishermen,

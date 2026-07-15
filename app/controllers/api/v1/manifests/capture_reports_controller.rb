@@ -76,7 +76,10 @@ module Api
         end
 
         def capture_report_params
-          params.expect(capture_report: %i[zone_id zone_area longitude latitude])
+          # Every field here is optional on the model (offline-first: the client may create a bare
+          # shell record before zone/location is known, then fill it via update or nested resources),
+          # so unlike params.expect, an absent/empty capture_report hash must not raise.
+          params.fetch(:capture_report, {}).permit(:zone_id, :zone_area, :longitude, :latitude)
         end
       end
     end

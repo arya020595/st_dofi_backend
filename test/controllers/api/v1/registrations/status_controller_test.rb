@@ -19,6 +19,8 @@ module Api
 
         test "show exposes the user status so FE can branch on pending, rejected, or active" do
           create(:role, kind: Role::FISHERMAN, name: "Fisherman")
+          create(:company_profile_contact, ic_no: "01-999999", designation: "Owner",
+                                           company_profile: create(:company_profile, :individual))
           post "/api/v1/registrations/fisherman",
                params: { user: { name: "Solo", ic_number: "01-999999",
                                  registration_type: "Small - Scale (Full-Time)" } }, as: :json

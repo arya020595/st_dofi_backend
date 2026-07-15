@@ -2,6 +2,16 @@ module Manifests
   class Create
     include Dry::Monads[:result]
 
+    # Denormalized onto the manifest (drives the dual-path AASM guards) from the company_profile's
+    # own registration_type — never client-submitted, same reasoning as company_profile itself
+    # (see Users::RegisterFisherman). An unrecognized registration_type maps to nil, which
+    # Manifest's own `validates :fisherman_category, presence: true` already catches cleanly.
+    FISHERMAN_CATEGORY_BY_REGISTRATION_TYPE = {
+      "Commercial" => "commercial",
+      "Small-Scale (Company)" => "small_scale_company",
+      "Small - Scale (Full-Time)" => "small_scale_full_time"
+    }.freeze
+
     def self.call(...) = new.call(...)
 
     # company_profile is server-derived from the acting fisherman, never client-submitted — see
@@ -28,12 +38,13 @@ module Manifests
       Manifest.new(sanitized_attributes(attributes).merge(
                      manifest_number: next_manifest_number, created_by: actor, company_profile: company_profile,
                      company_name: company_profile.company_name,
+                     fisherman_category: FISHERMAN_CATEGORY_BY_REGISTRATION_TYPE[company_profile.registration_type],
                      **vessel_snapshot(vessel), **captain_snapshot(captain)
                    ))
     end
 
     def sanitized_attributes(attributes)
-      attributes.except(:crew_ids, :ad_hoc_crew, :companies_vessel_id, :companies_captain_id)
+      attributes.except(:crew_ids, :ad_hoc_crew, :companies_vessel_id, :companies_captain_id, :fisherman_category)
     end
 
     def find_captain(company_profile, companies_captain_id)

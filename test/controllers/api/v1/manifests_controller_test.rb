@@ -50,7 +50,7 @@ module Api
       end
 
       test "create builds a draft manifest snapshotting the approved vessel" do
-        params = { manifest: { companies_vessel_id: @vessel.id, fisherman_category: "commercial" } }
+        params = { manifest: { companies_vessel_id: @vessel.id } }
 
         assert_difference("Manifest.count", 1) do
           post "/api/v1/manifests", params: params, headers: @fisherman_headers, as: :json
@@ -61,9 +61,18 @@ module Api
         assert_equal ["draft", @vessel.vessel_name], [data["manifest_status"], data["vessel_boat_name"]]
       end
 
+      test "create derives fisherman_category from registration_type, ignoring any client value" do
+        params = { manifest: { companies_vessel_id: @vessel.id, fisherman_category: "small_scale_full_time" } }
+
+        post "/api/v1/manifests", params: params, headers: @fisherman_headers, as: :json
+
+        assert_response :created
+        assert_equal "commercial", response.parsed_body.dig("data", "fisherman_category")
+      end
+
       test "create denies a vessel that is not yet approved" do
         pending_vessel = create(:companies_vessel, company_profile: @company_profile)
-        params = { manifest: { companies_vessel_id: pending_vessel.id, fisherman_category: "commercial" } }
+        params = { manifest: { companies_vessel_id: pending_vessel.id } }
 
         assert_no_difference("Manifest.count") do
           post "/api/v1/manifests", params: params, headers: @fisherman_headers, as: :json
@@ -74,7 +83,7 @@ module Api
       test "create rejects a vessel that belongs to a different company" do
         other_company = create(:company_profile)
         foreign_vessel = create(:companies_vessel, :approved, company_profile: other_company)
-        params = { manifest: { companies_vessel_id: foreign_vessel.id, fisherman_category: "commercial" } }
+        params = { manifest: { companies_vessel_id: foreign_vessel.id } }
 
         post "/api/v1/manifests", params: params, headers: @fisherman_headers, as: :json
 

@@ -1,9 +1,10 @@
 module ManifestTransitions
   extend ActiveSupport::Concern
+  include Dry::Monads[:result]
 
   TRANSITION_ACTIONS = %i[submit_port_out approve_port_out request_amendment_port_out resubmit_port_out
-                           submit_port_in approve_port_in request_amendment_port_in resubmit_port_in
-                           skip_capture_report].freeze
+                          submit_port_in approve_port_in request_amendment_port_in resubmit_port_in
+                          skip_capture_report].freeze
 
   def submit_port_out
     authorize @manifest
