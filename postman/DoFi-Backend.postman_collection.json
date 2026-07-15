@@ -151,6 +151,11 @@
       "type": "string"
     },
     {
+      "key": "individual_company_profile_id",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "new_contact_id",
       "value": "",
       "type": "string"
@@ -560,6 +565,54 @@
           ]
         },
         {
+          "name": "Setup - Profile Individual (for BruneiID Login demo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Small - Scale (Full-Time)\",\n    \"owner\": {\n      \"full_name\": \"Postman BruneiID Demo (Active)\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-800201\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Every registration_type — including Small - Scale (Full-Time) — requires the IC to already be profiled before self-registration (see registration-flow.md §5). Uses the officer's Bearer token set by 'Sign In' above."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Setup - Register a Fisherman (for BruneiID Login demo)",
           "request": {
             "auth": {
@@ -682,6 +735,54 @@
                 "exec": [
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));",
                   "pm.test('Access token present', () => pm.expect(pm.response.json().data.access_token).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Profile Individual (Pending, for BruneiID Login demo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Small - Scale (Full-Time)\",\n    \"owner\": {\n      \"full_name\": \"Postman BruneiID Demo (Pending)\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-800202\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Every registration_type — including Small - Scale (Full-Time) — requires the IC to already be profiled before self-registration (see registration-flow.md §5). Uses the officer's Bearer token set by 'Sign In' above."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));"
                 ]
               }
             }
@@ -3180,7 +3281,7 @@
     },
     {
       "name": "Profiling",
-      "description": "Officer-facing CRUD for `CompanyProfile` (the \"Add Profiling\" screen). `CompanyProfile` is one row per **company**; person-level data (Owner/Admin) lives on separate `CompanyProfileContact` rows (`belongs_to :company_profile`). Officers pre-create a company's profile — an Owner contact (required) and optionally an Admin contact — before a Commercial/Small-Scale (Company) fisherman can self-register and match against it by IC number (see Registrations → Fisherman - Company Profile Lookup / Register (Commercial)). Requires `profiling.*` permissions.\n\nThe example below deliberately uses the same `ic_no` (`01-192839`), `company_name` (`Azri Fish Sdn Bhd`), and `rocbn_no` (`RC20390923`) as the Registrations folder's Fisherman examples, so running this folder first makes those downstream requests resolve against real data instead of 404ing.",
+      "description": "Officer-facing CRUD for `CompanyProfile` (the \"Add Profiling\" screen). `CompanyProfile` is one row per **company** (or, for Small - Scale (Full-Time), one row per **individual** fisherman — see CompanyProfile#individual?, which just makes company-shape fields optional for that registration_type); person-level data (Owner/Admin) lives on separate `CompanyProfileContact` rows (`belongs_to :company_profile`). Officers pre-create a profile — an Owner contact (required) and optionally an Admin contact — before a fisherman of *any* registration_type, including Full-Time, can self-register and match against it by IC number (see Registrations → Fisherman - Company Profile Lookup / Register). Requires `profiling.*` permissions.\n\nThe \"Owner + Admin\"/\"Owner Only\" examples below deliberately use the same `ic_no` (`01-192839`), `company_name` (`Azri Fish Sdn Bhd`), and `rocbn_no` (`RC20390923`) as the Registrations folder's Commercial Fisherman example, and \"Create Profiling (Individual - Small-Scale Full-Time)\" uses the same `ic_no` (`01-555555`) as the Registrations folder's Full-Time example, so running this folder first makes those downstream requests resolve against real data instead of 404ing.",
       "item": [
         {
           "name": "List Profiling",
@@ -3320,6 +3421,56 @@
                   "pm.test('Status is 201', () => pm.response.to.have.status(201));",
                   "pm.test('admin_profile is null', () => pm.expect(pm.response.json().data.admin_profile).to.be.null);",
                   "if (pm.response.json().data.company_profile) { pm.collectionVariables.set('owner_only_company_profile_id', pm.response.json().data.company_profile.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Profiling (Individual - Small-Scale Full-Time)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Small - Scale (Full-Time)\",\n    \"owner\": {\n      \"full_name\": \"Haji Sulaiman Bin Ahmad\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-555555\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Profiles a Small - Scale (Full-Time) fisherman as their own Owner CompanyProfileContact on an individual-shaped CompanyProfile — no company-shape fields (company_name, worker_quota, etc.) are submitted, since CompanyProfile#individual? makes them optional for this registration_type only.\n\nThis must run before 'Fisherman - Register (Small-Scale Full-Time)' in the Registrations folder (and before the BruneiID login demos in the Auth folder) — every registration_type, including Full-Time, requires the IC to already be profiled; there is no \"register first, profile later\" path for any type. Requires `profiling.create` (DoFi Officer has it via full access)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('registration_type is Small - Scale (Full-Time)', () => pm.expect(pm.response.json().data.company_profile.registration_type).to.eql('Small - Scale (Full-Time)'));",
+                  "if (pm.response.json().data.company_profile) { pm.collectionVariables.set('individual_company_profile_id', pm.response.json().data.company_profile.id); }"
                 ]
               }
             }
@@ -4455,7 +4606,7 @@
               "mode": "raw",
               "raw": "{\n  \"user\": {\n    \"name\": \"Haji Sulaiman Bin Ahmad\",\n    \"ic_number\": \"01-555555\",\n    \"registration_type\": \"Small - Scale (Full-Time)\"\n  }\n}"
             },
-            "description": "Registers an individual fisherman with no company affiliation. No CompanyProfile lookup is performed — `company_profile` will be `null` in the response. The `designation` field is not required for this registration type.\n\nNote the exact string: `\"Small - Scale (Full-Time)\"` (space before and after the hyphen)."
+            "description": "Registers the individual fisherman profiled in Profiling → 'Create Profiling (Individual - Small-Scale Full-Time)'. Every registration_type — including Full-Time — requires the IC to already match a CompanyProfileContact; the server looks it up and links company_profile/company_profile_contact automatically, deriving designation from the matched contact (here, \"Owner\", since the fisherman profiled themselves as their own Owner contact). If no profile has been created for this IC yet, this returns 404 — the same failure Commercial/Small-Scale (Company) already have when unmatched.\n\nNote the exact string: `\"Small - Scale (Full-Time)\"` (space before and after the hyphen)."
           },
           "event": [
             {
@@ -4465,7 +4616,8 @@
                 "exec": [
                   "pm.test('Status is 201', () => pm.response.to.have.status(201));",
                   "pm.test('User status is pending', () => pm.expect(pm.response.json().data.status).to.eql('pending'));",
-                  "pm.test('company_profile is null', () => pm.expect(pm.response.json().data.company_profile).to.be.null);"
+                  "pm.test('Has company_profile', () => pm.expect(pm.response.json().data.company_profile).to.not.be.null);",
+                  "pm.test('designation is Owner', () => pm.expect(pm.response.json().data.designation).to.eql('Owner'));"
                 ]
               }
             }
@@ -4512,7 +4664,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0005-0005-0005-000000000005\",\n    \"name\": \"Haji Sulaiman Bin Ahmad\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"pending\",\n    \"preferred_locale\": \"en\",\n    \"unit\": null,\n    \"position\": null,\n    \"contact_no\": null,\n    \"designation\": null,\n    \"registration_type\": \"Small - Scale (Full-Time)\",\n    \"created_at\": \"2026-06-30T10:00:00.000Z\",\n    \"updated_at\": \"2026-06-30T10:00:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0003-0003-0003-0003-000000000003\",\n      \"name\": \"Fisherman\",\n      \"kind\": \"Fisherman\",\n      \"description\": \"Fisherman role.\",\n      \"permissions\": []\n    },\n    \"company_profile\": null\n  }\n}"
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0005-0005-0005-000000000005\",\n    \"name\": \"Haji Sulaiman Bin Ahmad\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"pending\",\n    \"preferred_locale\": \"en\",\n    \"unit\": null,\n    \"position\": null,\n    \"contact_no\": null,\n    \"designation\": \"Owner\",\n    \"registration_type\": \"Small - Scale (Full-Time)\",\n    \"created_at\": \"2026-06-30T10:00:00.000Z\",\n    \"updated_at\": \"2026-06-30T10:00:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0003-0003-0003-0003-000000000003\",\n      \"name\": \"Fisherman\",\n      \"kind\": \"Fisherman\",\n      \"description\": \"Fisherman role.\",\n      \"permissions\": []\n    },\n    \"company_profile\": {\n      \"id\": \"c0mp0005-0005-0005-0005-000000000005\",\n      \"registration_type\": \"Small - Scale (Full-Time)\",\n      \"company_name\": null,\n      \"rocbn_no\": null\n    },\n    \"company_profile_contact\": {\n      \"id\": \"c0nt0005-0005-0005-0005-000000000005\",\n      \"full_name\": \"Haji Sulaiman Bin Ahmad\",\n      \"ic_no\": \"01-555555\",\n      \"ic_colour\": \"Yellow\",\n      \"gender\": \"Male\",\n      \"designation\": \"Owner\",\n      \"company_profile_id\": \"c0mp0005-0005-0005-0005-000000000005\"\n    }\n  }\n}"
             },
             {
               "name": "Fisherman Register - 422 Invalid Registration Type",

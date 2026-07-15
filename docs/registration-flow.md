@@ -412,7 +412,7 @@ POST /api/v1/company_profiles
 
 | Field | Value |
 |---|---|
-| `dofi_registration_no` | Auto-generated on the `CompanyProfile`, `DoFi-YYYY-NNN` (sequential per year) |
+| `dofi_registration_no` | Auto-generated on the `CompanyProfile` — a `SecureRandom.uuid`, not a human-readable sequence. It's an opaque internal identifier, not a displayed business code. |
 | `designation` | `"Owner"` / `"Admin"` per contact |
 
 If any row fails validation, the whole submission rolls back — no partial (company created with no
@@ -424,7 +424,7 @@ Owner, or Owner-only-when-Admin-was-requested) state is left behind.
 {
   "status": "success",
   "data": {
-    "company_profile": { "id": "uuid", "dofi_registration_no": "DoFi-2026-042", "company_name": "...", "...": "..." },
+    "company_profile": { "id": "uuid", "dofi_registration_no": "a1b2c3d4-...", "company_name": "...", "...": "..." },
     "owner_profile": { "id": "uuid", "designation": "Owner", "company_profile_id": "uuid", "...": "..." },
     "admin_profile": { "id": "uuid", "designation": "Admin", "company_profile_id": "uuid", "...": "..." }
   }
