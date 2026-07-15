@@ -14,6 +14,13 @@ SEED_FILES = %w[
   skip_reasons
   approval_remarks
   dictionaries
+  company_profiles
+  companies_vessels
+  companies_captains
+  companies_crews
+  companies_fishing_gears
+  profiled_users
+  manifests
 ].freeze
 
 SEED_FILES.each do |file|

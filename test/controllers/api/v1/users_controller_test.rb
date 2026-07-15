@@ -89,7 +89,7 @@ module Api
         user = User.last
 
         assert_equal @no_access_role.id, user.role_id
-        assert_match(/\ADOF-\d{3}\z/, user.employee_id)
+        assert_match(/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/, user.employee_id)
       end
 
       test "create without permission is forbidden" do

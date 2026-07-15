@@ -15,7 +15,18 @@ PERMISSION_GROUPS = {
   "fisherman_approvals" => %w[view list approve amendment],
   "jetty_manager_approvals" => %w[view list approve amendment],
   "skip_reasons" => %w[view list create update delete],
-  "approval_remarks" => %w[view list create update delete]
+  "approval_remarks" => %w[view list create update delete],
+  "companies_vessels" => %w[view list create update delete],
+  "companies_vessel_approvals" => %w[view list approve amendment],
+  "companies_crews" => %w[view list create update delete],
+  "companies_crew_approvals" => %w[view list approve amendment],
+  "companies_captains" => %w[view list create update delete],
+  "companies_captain_approvals" => %w[view list approve amendment],
+  "companies_fishing_gears" => %w[view list create update delete],
+  "companies_fishing_gear_approvals" => %w[view list approve amendment],
+  "capture_reports" => %w[view list create update],
+  "capture_report_verifications" => %w[view list verify amendment],
+  "manifest_minor_fishermen" => %w[view create delete]
 }.freeze
 
 PERMISSION_GROUPS.each do |resource, actions|

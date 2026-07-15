@@ -48,3 +48,17 @@ Layout/LineLength:
   Max: 120
   Exclude:
     - "config/initializers/devise.rb"
+
+# Integration tests assert against a sequential, dependent multi-step HTTP flow (e.g. register ->
+# approve -> login -> create vessel -> ... -> complete) where each step's assertions depend on the
+# side effects of every prior step in the same test — splitting them into one-assertion-per-test
+# would require re-running the whole prefix per assertion, not make the suite more focused. The
+# same reasoning extends to Metrics/ClassLength: a handful of these sequential tests in one file
+# naturally runs long, the same way Metrics/BlockLength is already excluded for all of test/**/*.
+Minitest/MultipleAssertions:
+  Exclude:
+    - "test/integration/**/*"
+
+Metrics/ClassLength:
+  Exclude:
+    - "test/integration/**/*"

@@ -10,7 +10,7 @@ module Users
       password_confirmation = client_password ? attributes[:password_confirmation] : password
 
       user = User.new(attributes.except(:employee_id, :password, :password_confirmation)
-                                 .merge(employee_id: next_employee_id, password: password,
+                                 .merge(employee_id: SecureRandom.uuid, password: password,
                                         password_confirmation: password_confirmation))
       return external_role_failure(user) if user.role&.external?
       return Success(user) if user.save
@@ -23,12 +23,6 @@ module Users
     def external_role_failure(user)
       user.errors.add(:role_id, "cannot be a self-registration-only role (Jetty Manager or Fisherman)")
       Failure(user)
-    end
-
-    def next_employee_id
-      next_num = User.where("employee_id LIKE ?", "DOF-%")
-                     .maximum("CAST(SUBSTRING(employee_id FROM 5) AS INTEGER)") || 0
-      format("DOF-%03d", next_num + 1)
     end
   end
 end

@@ -145,7 +145,13 @@ Fisherman registration has two sub-flows driven by `registration_type`:
 |---|---|---|
 | `"Commercial"` | Yes — IC must match a `CompanyProfileContact` | name, ic_number, registration_type, designation |
 | `"Small-Scale (Company)"` | Yes — IC must match a `CompanyProfileContact` | name, ic_number, registration_type, designation |
-| `"Small - Scale (Full-Time)"` | No | name, ic_number, registration_type |
+| `"Small - Scale (Full-Time)"` | Yes — IC must match a `CompanyProfileContact` on an individual-shaped `CompanyProfile` (see §5) | name, ic_number, registration_type |
+
+Every type is matched the same way — by `ic_number` against a `CompanyProfileContact` an officer
+pre-profiled. Full-Time has no separate "no company" path: it uses the same
+`POST /api/v1/company_profiles` flow, just profiled with only an Owner contact (the fisherman
+themselves) and none of the company-shape fields (`company_name`, `worker_quota`, ...), since
+`CompanyProfile#individual?` makes those optional for this registration_type.
 
 All fishermen are created with `status: pending` and require officer approval before they can log in.
 
@@ -156,21 +162,19 @@ FE: User scans QR code
   → BruneiID callback returns ic_number + name (pre-filled on form)
   → User selects Registration Type
 
-  [Commercial / Small-Scale (Company)]
+  [Commercial / Small-Scale (Company) / Small - Scale (Full-Time)]
     → FE GET /api/v1/registrations/fisherman/company_profile?ic_no=<ic_number>
-      → Found: pre-fill Company Name, ROCBN No. on form (read-only)
+      → Found: pre-fill Company Name, ROCBN No. on form (read-only; Full-Time has no
+        company_name to show, just confirms the IC is pre-profiled)
       → Not Found: show dashes, block Proceed to Register button
     → Designation (Owner/Admin) is pre-filled from the lookup — not a manual choice
     → FE POST /api/v1/registrations/fisherman
     → User created (status: pending, linked to CompanyProfile)
     → FE shows "Registration Status: Pending" screen
-
-  [Small - Scale (Full-Time)]
-    → No lookup needed
-    → FE POST /api/v1/registrations/fisherman
-    → User created (status: pending, no company link)
-    → FE shows "Registration Status: Pending" screen
 ```
+
+Every registration type requires the IC to already be profiled (§5) before this step — there is no
+"register first, get profiled later" path for any type, including Full-Time.
 
 ---
 
@@ -304,8 +308,8 @@ Valid values for `registration_type`: `"Commercial"`, `"Small-Scale (Company)"`,
 |---|---|
 | `role` | `Role` where `kind = "Fisherman"` |
 | `status` | `pending` (must be approved by an officer) |
-| `company_profile` | Matched `CompanyProfile` (by `ic_no`) for Commercial/Company types; `nil` for Full-Time |
-| `designation` | For Commercial/Company types, derived server-side from the matched `CompanyProfile`'s `designation` — any client-submitted value is ignored. Otherwise whatever the client submits (Full-Time has no designation requirement). |
+| `company_profile` | The matched `CompanyProfileContact`'s `company_profile` — required for every registration_type, including Full-Time |
+| `designation` | Derived server-side from the matched `CompanyProfileContact`'s `designation` — any client-submitted value is ignored, for every type |
 | `brunei_id_verified_at` | `Time.current` |
 | `password` | `SecureRandom.base64(24)` (never exposed) |
 
@@ -353,7 +357,22 @@ Valid values for `registration_type`: `"Commercial"`, `"Small-Scale (Company)"`,
 
 ## 5. Officer Profiling (pre-creating a CompanyProfile)
 
-Unlike everything above, this endpoint is **authenticated** (`profiling.*` permission required — DoFi Officer has it via full access). It lets an officer pre-create the `CompanyProfile` record(s) a Commercial/Small-Scale (Company) fisherman will later match against by IC number during self-registration (section 2a).
+Unlike everything above, this endpoint is **authenticated** (`profiling.*` permission required — DoFi Officer has it via full access, and Fisherman also has `profiling.create`/`profiling.update`). It lets an officer (or, once already registered/active, a fisherman for their own profile) pre-create the `CompanyProfile` record(s) a fisherman will later match against by IC number during self-registration (section 2a) — this applies to **every** registration type, including Small - Scale (Full-Time).
+
+For Small - Scale (Full-Time), profile only an Owner (the fisherman themselves) and omit every
+company-shape field — `CompanyProfile#individual?` (true when `registration_type` is Full-Time)
+makes `company_name`, `company_address`, `rocbn_no`, `contact_no`, `district`, `mukim`, `village`,
+`fisherman_card_no`, `issue_date`, `license_expiry_date`, and `worker_quota` all optional for that
+type only:
+
+```json
+{
+  "company_profile": {
+    "registration_type": "Small - Scale (Full-Time)",
+    "owner": { "full_name": "Solo Fisherman", "gender": "Male", "ic_no": "01-999001", "ic_colour": "Yellow" }
+  }
+}
+```
 
 ```
 POST /api/v1/company_profiles

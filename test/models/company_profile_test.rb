@@ -7,6 +7,21 @@ class CompanyProfileTest < ActiveSupport::TestCase
     assert_includes profile.errors.attribute_names, :worker_quota
   end
 
+  test "an individual profile does not require company-shape fields" do
+    profile = build(:company_profile, :individual, company_name: nil, company_address: nil, contact_no: nil,
+                                                   district: nil, mukim: nil, village: nil, fisherman_card_no: nil,
+                                                   issue_date: nil, license_expiry_date: nil, worker_quota: nil)
+
+    assert_predicate profile, :valid?
+  end
+
+  test "a non-individual profile is unaffected by the individual-only relaxation" do
+    profile = build(:company_profile, worker_quota: nil)
+
+    assert_not profile.individual?
+    assert_not profile.valid?
+  end
+
   test "owner_contact and admin_contact find the kept contact with the matching designation" do
     company_profile = create(:company_profile)
     owner = create(:company_profile_contact, company_profile: company_profile, designation: "Owner")

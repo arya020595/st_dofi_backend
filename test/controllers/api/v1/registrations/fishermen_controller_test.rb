@@ -63,7 +63,10 @@ module Api
           assert_equal "No company contact matches this IC number.", response.parsed_body["message"]
         end
 
-        test "create registers a small-scale full-time fisherman without a company profile" do
+        test "create registers a small-scale full-time fisherman linked to their pre-profiled individual profile" do
+          contact = create(:company_profile_contact, ic_no: "01-555555", designation: "Owner",
+                                                     company_profile: create(:company_profile, :individual))
+
           assert_difference("User.count", 1) do
             post "/api/v1/registrations/fisherman", params: { user: { name: "Solo Fisherman",
                                                                       ic_number: "01-555555",
@@ -72,7 +75,18 @@ module Api
           end
 
           assert_response :created
-          assert_nil User.last.company_profile
+          assert_equal contact.company_profile, User.last.company_profile
+        end
+
+        test "create rejects a small-scale full-time registration with no matching company profile" do
+          assert_no_difference("User.count") do
+            post "/api/v1/registrations/fisherman", params: { user: { name: "No Match", ic_number: "01-555999",
+                                                                      registration_type:
+                                                                         "Small - Scale (Full-Time)" } }, as: :json
+          end
+
+          assert_response :not_found
+          assert_equal "No company contact matches this IC number.", response.parsed_body["message"]
         end
 
         test "create with an invalid registration_type returns errors" do

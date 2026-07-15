@@ -48,7 +48,24 @@ environment.)
 
 ## Part A — Fisherman: full happy path (`active`)
 
-**1. Register.**
+**1. Profile, as the officer.** Every registration type — including Small - Scale (Full-Time) —
+must already be profiled before the fisherman can register (see `registration-flow.md` §5). For
+Full-Time, that means an individual-shaped `CompanyProfile` with just an Owner contact (the
+fisherman themselves) and no company-shape fields:
+
+```bash
+curl -s -X POST "$BASE_URL/api/v1/company_profiles" \
+  -H "Authorization: $OFFICER_TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "company_profile": {
+      "registration_type": "Small - Scale (Full-Time)",
+      "owner": { "full_name": "Test Fisherman (Active)", "gender": "Male",
+                 "ic_no": "01-800201", "ic_colour": "Yellow" }
+    }
+  }' | jq .
+```
+
+**2. Register.**
 
 ```bash
 curl -s -X POST "$BASE_URL/api/v1/registrations/fisherman" \
@@ -66,7 +83,7 @@ FISHERMAN_ID=$(jq -r '.data.id' /tmp/fisherman.json)
 
 Status is `pending` at this point — the fisherman cannot log in yet.
 
-**2. Approve, as the officer.**
+**3. Approve, as the officer.**
 
 ```bash
 curl -s -X POST "$BASE_URL/api/v1/approvals/fishermen/$FISHERMAN_ID/approve" \
@@ -136,9 +153,19 @@ curl -s -D - -X POST "$BASE_URL/api/v1/auth/brunei_id" \
 
 ## Testing the other outcomes
 
-**Pending** — register but skip the approve step, then hit the login endpoint anyway:
+**Pending** — profile, register, but skip the approve step, then hit the login endpoint anyway:
 
 ```bash
+curl -s -X POST "$BASE_URL/api/v1/company_profiles" \
+  -H "Authorization: $OFFICER_TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "company_profile": {
+      "registration_type": "Small - Scale (Full-Time)",
+      "owner": { "full_name": "Test Fisherman (Pending)", "gender": "Male",
+                 "ic_no": "01-800202", "ic_colour": "Yellow" }
+    }
+  }' | jq .
+
 curl -s -X POST "$BASE_URL/api/v1/registrations/fisherman" \
   -H "Content-Type: application/json" \
   -d '{"user": {"name": "Test Fisherman (Pending)", "ic_number": "01-800202",
