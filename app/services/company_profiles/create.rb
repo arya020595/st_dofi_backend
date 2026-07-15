@@ -20,7 +20,7 @@ module CompanyProfiles
 
     def build_result!(attributes)
       company_profile = CompanyProfile.create!(
-        attributes.except(:owner, :admin).merge(dofi_registration_no: next_dofi_registration_no)
+        attributes.except(:owner, :admin).merge(dofi_registration_no: SecureRandom.uuid)
       )
       owner = create_contact!(company_profile, attributes[:owner], designation: "Owner")
       admin = create_contact!(company_profile, attributes[:admin], designation: "Admin") if admin_submitted?(attributes)
@@ -34,13 +34,6 @@ module CompanyProfiles
 
     def admin_submitted?(attributes)
       attributes[:admin].present? && attributes[:admin].to_h.values.any?(&:present?)
-    end
-
-    def next_dofi_registration_no
-      year = Time.current.year
-      next_num = CompanyProfile.where("dofi_registration_no LIKE ?", "DoFi-#{year}-%")
-                               .maximum("CAST(SUBSTRING(dofi_registration_no FROM 11) AS INTEGER)") || 0
-      format("DoFi-%<year>d-%<num>03d", year: year, num: next_num + 1)
     end
   end
 end

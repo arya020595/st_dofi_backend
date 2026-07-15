@@ -76,8 +76,7 @@ module Manifests
     end
 
     def next_manifest_number
-      SequenceGenerator.next_value(model: Manifest, column: :manifest_number,
-                                   prefix: "DOF-#{Date.current.strftime('%Y%m%d')}-")
+      SequenceGenerator.next_value(key: :manifest_number, prefix: "DOF-#{Date.current.strftime('%Y%m%d')}-")
     end
   end
 end
