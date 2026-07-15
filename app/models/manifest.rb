@@ -1,0 +1,147 @@
+# rubocop:disable Metrics/ClassLength -- three related AASM state machines (port_out/port_in/manifest)
+# read most clearly kept together; splitting would scatter one cohesive state design across files
+# for a marginal line-count win.
+class Manifest < ApplicationRecord
+  include Discard::Model
+  include AASM
+  include HasManifestHistory
+
+  belongs_to :companies_vessel
+  belongs_to :companies_captain, optional: true
+  belongs_to :company_profile
+  belongs_to :port_out, class_name: "Port", optional: true
+  belongs_to :port_in, class_name: "Port", optional: true
+  belongs_to :zone, optional: true
+  belongs_to :skip_reason, class_name: "ManifestSkipReason", optional: true
+  belongs_to :created_by, class_name: "User", optional: true
+
+  has_many :crew_manifests, dependent: :destroy
+  has_many :manifest_minor_fishermen, dependent: :destroy
+  has_many :capture_reports, dependent: :destroy
+  has_many :manifest_histories, dependent: :destroy
+
+  COMMERCIAL = "commercial".freeze
+  SMALL_SCALE = %w[small_scale_company small_scale_full_time small_scale_part_time].freeze
+
+  validates :manifest_number, presence: true, uniqueness: true
+  validates :fisherman_category, presence: true
+
+  def self.ransackable_attributes(_auth_object = nil)
+    %w[id manifest_number fisherman_category manifest_status port_out_status port_in_status
+       vessel_boat_name vessel_boat_no company_name capture_report_skipped has_minor_fishermen
+       company_profile_id companies_vessel_id companies_captain_id discarded_at created_at updated_at]
+  end
+
+  def self.ransackable_associations(_auth_object = nil)
+    []
+  end
+
+  def commercial?  = fisherman_category == COMMERCIAL
+  def small_scale? = SMALL_SCALE.include?(fisherman_category)
+  def capture_report_ready? = capture_report_skipped? || capture_reports.exists?
+
+  # True while an amendment request is outstanding — the fisherman edits this same record (via
+  # Manifests::Update) then calls the matching resubmit event; there's no separate "amendment form."
+  def editable? = draft? || port_out_amendment_required? || port_in_amendment_required?
+
+  def manifest_id_for_history = id
+
+  # Row-level aggregate for the Manifest List "Catch Report" column: worst-status-wins across this
+  # manifest's capture_reports, mirroring CompanyProfile#owner_contact's simple has_many-aggregation
+  # pattern.
+  def capture_report_overview_status
+    return "skipped" if capture_report_skipped?
+    return "not_initiated" if capture_reports.none?
+    return "amendment_required" if capture_reports.any?(&:needs_amendment?)
+    return "verified" if capture_reports.all?(&:verified?)
+
+    "pending_verification"
+  end
+
+  aasm(:port_out, column: :port_out_status, namespace: :port_out) do
+    state :draft, initial: true
+    state :pending
+    state :amendment_required
+    state :approved
+    state :submitted
+
+    event :submit_port_out do
+      transitions from: :draft, to: :pending,   guard: :commercial?,  after: :begin_port_out_review!
+      transitions from: :draft, to: :submitted, guard: :small_scale?, after: :advance_to_sea!
+    end
+    event(:approve_port_out)           { transitions from: :pending, to: :approved, after: :advance_to_sea! }
+    event(:request_amendment_port_out) { transitions from: :pending, to: :amendment_required }
+    event(:resubmit_port_out)          { transitions from: :amendment_required, to: :pending }
+
+    after_all_transitions :record_port_out_history
+  end
+
+  aasm(:port_in, column: :port_in_status, namespace: :port_in) do
+    state :draft, initial: true
+    state :pending
+    state :amendment_required
+    state :approved
+    state :submitted
+
+    event :submit_port_in do
+      transitions from: :draft, to: :pending,   guard: %i[commercial? capture_report_ready?],
+                  after: :begin_port_in_review!
+      transitions from: :draft, to: :submitted, guard: %i[small_scale? capture_report_ready?],
+                  after: :complete_capture_report!
+    end
+    event(:approve_port_in)           { transitions from: :pending, to: :approved, after: :complete_capture_report! }
+    event(:request_amendment_port_in) { transitions from: :pending, to: :amendment_required }
+    event(:resubmit_port_in)          { transitions from: :amendment_required, to: :pending }
+
+    after_all_transitions :record_port_in_history
+  end
+
+  # State names deliberately avoid "port_out_pending"/"port_in_pending" — those exact strings
+  # collide with the auto-generated namespaced predicates from the :port_out/:port_in machines
+  # above (namespace "port_out" + state "pending" => method "port_out_pending?"), which would
+  # silently overwrite each other (confirmed via `Manifest.new.methods.grep(/port_out/)` emitting
+  # an AASM "overriding method" warning before this rename).
+  aasm(:manifest, column: :manifest_status) do
+    state :draft, initial: true
+    state :awaiting_port_out_approval
+    state :at_sea
+    state :awaiting_port_in_approval
+    state :capture_report_submitted
+    state :completed
+
+    event(:begin_port_out_review)   { transitions from: :draft, to: :awaiting_port_out_approval }
+    event(:advance_to_sea)          { transitions from: %i[draft awaiting_port_out_approval], to: :at_sea }
+    event(:begin_port_in_review)    { transitions from: :at_sea, to: :awaiting_port_in_approval }
+    # success: (not after:) — auto_complete_if_skipped! checks this same machine's current_state,
+    # which after: callbacks see pre-transition (state is written only once event.fire returns, see
+    # AASM::InstanceBase#aasm_fired). success: fires post-write via fire_transition_callbacks.
+    event(:complete_capture_report) do
+      transitions from: %i[at_sea awaiting_port_in_approval], to: :capture_report_submitted,
+                  success: :auto_complete_if_skipped!
+    end
+    event(:complete_manifest) { transitions from: :capture_report_submitted, to: :completed }
+
+    after_all_transitions :record_manifest_history
+  end
+
+  private
+
+  def record_port_out_history(actor: nil, remarks: nil, **)
+    record_history!("port_out_status", aasm_name: :port_out, actor: actor, remarks: remarks)
+  end
+
+  def record_port_in_history(actor: nil, remarks: nil, **)
+    record_history!("port_in_status", aasm_name: :port_in, actor: actor, remarks: remarks)
+  end
+
+  def record_manifest_history(actor: nil, remarks: nil, **)
+    record_history!("manifest_status", aasm_name: :manifest, actor: actor, remarks: remarks)
+  end
+
+  # Skipped-report manifests have no CaptureReport to verify — finalize immediately instead of
+  # waiting on a verify event that will never come.
+  def auto_complete_if_skipped!(actor: nil, **)
+    complete_manifest!(actor: actor) if capture_report_skipped? && may_complete_manifest?
+  end
+end
+# rubocop:enable Metrics/ClassLength

@@ -4,6 +4,11 @@ class CompanyProfile < ApplicationRecord
   belongs_to :approved_by_user, class_name: "User", foreign_key: "approved_by", inverse_of: false, optional: true
   has_many :users, dependent: :nullify
   has_many :contacts, class_name: "CompanyProfileContact", dependent: :restrict_with_error
+  has_many :companies_vessels, dependent: :restrict_with_error
+  has_many :companies_crews, dependent: :restrict_with_error
+  has_many :companies_captains, dependent: :restrict_with_error
+  has_many :companies_fishing_gears, dependent: :restrict_with_error
+  has_many :manifests, dependent: :restrict_with_error
 
   validates :registration_type, :company_name, :company_address, :contact_no, :district, :mukim, :village,
             :fisherman_card_no, :issue_date, :license_expiry_date, :worker_quota, presence: true

@@ -19,9 +19,19 @@ ROLE_DEFINITIONS = {
     description: "Own profile, manifest submission, catch report (via PWA); requires approval.",
     permission_codes: %w[
       dashboard.view
-      manifest_list.view manifest_list.list
+      manifest_list.view manifest_list.list manifest_list.delete
       manifest_form.view manifest_form.create
       profiling.view profiling.create profiling.update
+      companies_vessels.view companies_vessels.list companies_vessels.create
+      companies_vessels.update companies_vessels.delete
+      companies_crews.view companies_crews.list companies_crews.create
+      companies_crews.update companies_crews.delete
+      companies_captains.view companies_captains.list companies_captains.create
+      companies_captains.update companies_captains.delete
+      companies_fishing_gears.view companies_fishing_gears.list companies_fishing_gears.create
+      companies_fishing_gears.update companies_fishing_gears.delete
+      capture_reports.view capture_reports.list capture_reports.create capture_reports.update
+      manifest_minor_fishermen.view manifest_minor_fishermen.create manifest_minor_fishermen.delete
     ]
   }
 }.freeze
