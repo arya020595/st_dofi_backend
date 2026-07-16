@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "DoFi Backend API",
-    "description": "# DoFi Backend API — Auth, Users, Roles, Permissions, Registrations & Master Data\n\nCovers JWT authentication (sign in/me/sign out), DoFi officer user management, role management with permission assignment, the permissions catalog, and public self-registration endpoints for Jetty Managers and Fishermen.\n\n## Environments\n\nSelect one of these Postman environments before running anything — they provide `base_url` and the seeded admin credentials:\n\n| Environment | base_url | Notes |\n|---|---|---|\n| **DoFi Backend - Local** | `http://localhost:3000` | Local Docker dev stack (`docker compose up`). Safe to use freely. |\n| **DoFi Backend - Staging** | `http://46.202.163.155:3012` | Shared staging server, no TLS yet. Shared with other testers — be considerate with writes/deletes. |\n\n## Authentication flow\n\n1. Run **Auth → Sign In**. On success the response includes the JWT both as `data.access_token` in the JSON body and in the `Authorization` response header (`Bearer <token>`) — pick whichever your client finds easier. A test script automatically saves it into the `jwt_token` collection variable.\n2. Every other request in this collection uses collection-level Bearer auth (`{{jwt_token}}`) — no need to copy/paste tokens manually between requests.\n3. Run **Z - Sign Out (run last) → Sign Out** when you're done. This revokes the JWT (devise-jwt JTI denylist) and clears `jwt_token`. Anything run after Sign Out needs a fresh Sign In first.\n\n## Roles & permissions model\n\nEach `User` belongs to one `Role` (e.g. the seeded `DoFi Officer`), and each `Role` has many `Permission`s identified by a `code` (e.g. `roles.create`, `dofi_officer_users.update`). Endpoints are authorized via Pundit policies that check the signed-in user's role permissions:\n\n- **Roles**: `roles.list`/`roles.view`, `roles.create`, `roles.update`, `roles.delete`\n- **Users**: `dofi_officer_users.list`/`.view`, `.create`, `.update`, `.delete`\n- **Permissions**: read-only catalog, available to any authenticated user\n\nA failing permission check returns `401` (no/invalid session) or `403` (authenticated but not allowed), depending on the failure mode.\n\n## List endpoints: filter, sort & pagination\n\n`GET` index endpoints (`/api/v1/permissions`, `/api/v1/roles`, `/api/v1/users`) accept Ransack query params for filtering/sorting and Pagy params for pagination:\n\n- **Filter**: `q[<attribute>_<predicate>]=<value>`, e.g. `q[name_cont]=officer`, `q[status_eq]=active`.\n- **Sort**: `q[s]=<attribute> <asc|desc>`, or repeat `q[s][]=...` for multiple sort keys.\n- **Paginate**: `page` and `limit` query params (roles/users only — the permissions catalog is not paginated).\n- Non-whitelisted attributes (e.g. `encrypted_password`) are silently ignored rather than erroring or leaking data through the search index.\n\nFull contract: `docs/api/search-filter-sort-pagination.md` in the backend repo.\n\n## Soft delete\n\n`DELETE /api/v1/users/:id` soft-deletes via the `Discard` gem — the record is excluded from default scopes (so a subsequent `GET` returns `404`) but stays in the database for audit purposes.\n",
+    "description": "# DoFi Backend API\n\nCovers JWT authentication (sign in/me/sign out), DoFi officer user management, role management with permission assignment, the permissions catalog, public self-registration for Jetty Managers and Fishermen, officer Profiling (pre-registering a Company Profile a fisherman later matches by IC number), FINS Approval (the Fisherman/Jetty Manager registration review queues), the full Manifest module (Vessel self-service + approval, the port-out/capture-report/port-in lifecycle, Capture Reports and their nested resources), master reference data, and the fish species Dictionary.\n\n## Environments\n\nSelect one of these Postman environments before running anything — they provide `base_url` and the seeded admin credentials:\n\n| Environment | base_url | Notes |\n|---|---|---|\n| **DoFi Backend - Local** | `http://localhost:3000` | Local Docker dev stack (`docker compose up`). Safe to use freely. |\n| **DoFi Backend - Staging** | `http://46.202.163.155:3012` | Shared staging server, no TLS yet. Shared with other testers — be considerate with writes/deletes. |\n\n## Authentication flow\n\n1. Run **Auth → Sign In**. On success the response includes the JWT both as `data.access_token` in the JSON body and in the `Authorization` response header (`Bearer <token>`) — pick whichever your client finds easier. A test script automatically saves it into the `jwt_token` collection variable.\n2. Every other request in this collection uses collection-level Bearer auth (`{{jwt_token}}`) by default — no need to copy/paste tokens manually between requests. The **Manifest** folder is the one exception; see its own section below.\n3. Run **Z - Sign Out (run last) → Sign Out** when you're done. This revokes the JWT (devise-jwt JTI denylist) and clears `jwt_token`. Anything run after Sign Out needs a fresh Sign In first.\n\n## Roles & permissions model\n\nEach `User` belongs to one `Role` (e.g. the seeded `DoFi Officer`), and each `Role` has many `Permission`s identified by a `code` (e.g. `roles.create`, `dofi_officer_users.update`). Endpoints are authorized via Pundit policies that check the signed-in user's role permissions:\n\n- **Roles**: `roles.list`/`roles.view`, `roles.create`, `roles.update`, `roles.delete`\n- **Users**: `dofi_officer_users.list`/`.view`, `.create`, `.update`, `.delete`\n- **Permissions**: read-only catalog, available to any authenticated user\n\nA failing permission check returns `401` (no/invalid session) or `403` (authenticated but not allowed), depending on the failure mode.\n\n## Manifest module: two extra tokens, per-request auth\n\nThe **Manifest** folder is the one place in this collection that needs more than one authenticated identity in the same run: officer Profiling/approval steps use the collection default (`{{jwt_token}}`), but vessel/manifest creation and lifecycle submission (`submit_port_out`, `submit_port_in`, ...) must run as the fisherman — `Manifests::Create` derives `company_profile` from `current_user`, so an officer token can't be used for those calls. Requests that need the fisherman's identity override `request.auth` (Bearer, one of `{{manifest_fisherman_jwt_token}}` / `{{manifest_commercial_fisherman_jwt_token}}` / `{{manifest_skip_demo_jwt_token}}`) instead of inheriting the collection default — look for a request-level Authorization tab that differs from its folder/collection parent if you're browsing in the Postman UI. The folder demonstrates both `fisherman_category` guard paths side by side (Small-Scale (Full-Time) skips Jetty/officer approval at port-out/port-in; Commercial requires it, including a full request-amendment → resubmit → approve cycle), plus the Skip Capture Report path and the draft-only delete guard. Like the rest of this collection's demo flows, it uses hardcoded IC numbers/boat numbers — re-running the whole folder a second time against a database that already has a prior run's data will 422 on \"IC number has already been taken\" partway through (same caveat as **Users → Create User**).\n\n## List endpoints: filter, sort & pagination\n\n`GET` index endpoints (`/api/v1/permissions`, `/api/v1/roles`, `/api/v1/users`) accept Ransack query params for filtering/sorting and Pagy params for pagination:\n\n- **Filter**: `q[<attribute>_<predicate>]=<value>`, e.g. `q[name_cont]=officer`, `q[status_eq]=active`.\n- **Sort**: `q[s]=<attribute> <asc|desc>`, or repeat `q[s][]=...` for multiple sort keys.\n- **Paginate**: `page` and `limit` query params (roles/users only — the permissions catalog is not paginated).\n- Non-whitelisted attributes (e.g. `encrypted_password`) are silently ignored rather than erroring or leaking data through the search index.\n\nFull contract: `docs/api/search-filter-sort-pagination.md` in the backend repo.\n\n## Soft delete\n\n`DELETE /api/v1/users/:id` soft-deletes via the `Discard` gem — the record is excluded from default scopes (so a subsequent `GET` returns `404`) but stays in the database for audit purposes.\n",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -157,6 +157,106 @@
     },
     {
       "key": "new_contact_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "manifest_company_profile_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "manifest_fisherman_user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "manifest_fisherman_jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "manifest_vessel_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "manifest_dictionary_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "manifest_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "manifest_minor_fisherman_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "manifest_capture_report_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "manifest_commercial_company_profile_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "manifest_commercial_fisherman_user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "manifest_commercial_fisherman_jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "manifest_commercial_vessel_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "manifest_commercial_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "manifest_skip_demo_company_profile_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "manifest_skip_demo_fisherman_user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "manifest_skip_demo_jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "manifest_skip_demo_vessel_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "manifest_skip_demo_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "manifest_skip_reason_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "manifest_throwaway_id",
       "value": "",
       "type": "string"
     }
@@ -5516,6 +5616,2562 @@
                   }
                 }
               ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Manifest",
+      "description": "The full Manifest module: Vessel self-service + officer approval, Manifest CRUD, the port-out/capture-report/port-in lifecycle (AASM state machines on `Manifest` — see app/models/manifest.rb), and Capture Report + its nested resources (Fish Capture Detail, Expense, Fishing Gear Detail). Demonstrates both dual-path behaviors: Small-Scale (Full-Time) skips Jetty/officer approval at port-out/port-in entirely, while Commercial requires it (including a full request-amendment/resubmit cycle) — the same `fisherman_category` guard on both AASM machines. Also demonstrates the Skip Capture Report path (auto-completes the manifest with no report to verify) and the draft-only delete guard.\n\nRequires Auth → Sign In to have run first (officer token). This folder manages two additional fisherman-scoped tokens of its own (`manifest_fisherman_jwt_token`/`manifest_commercial_fisherman_jwt_token`/`manifest_skip_demo_jwt_token`) via explicit per-request Bearer auth, since manifest/vessel creation must run as the fisherman (`current_user.company_profile`), not the officer. Like the rest of this collection's demo flows, it uses hardcoded IC numbers/boat numbers — re-running this folder a second time against a database that already has a prior run's data will 422 on \"IC number has already been taken\" partway through.",
+      "item": [
+        {
+          "name": "Setup - Profile Small-Scale Fisherman",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Small - Scale (Full-Time)\",\n    \"owner\": {\n      \"full_name\": \"Manifest Demo Fisherman\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-710001\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Officer pre-profiles the solo fisherman used throughout this folder's Small-Scale (Full-Time) demo, exactly like the Profiling folder — see registration-flow.md §5."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_company_profile_id', pm.response.json().data.company_profile.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Register Small-Scale Fisherman",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/registrations/fisherman",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "registrations",
+                "fisherman"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user\": {\n    \"name\": \"Manifest Demo Fisherman\",\n    \"ic_number\": \"01-710001\",\n    \"registration_type\": \"Small - Scale (Full-Time)\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_fisherman_user_id', pm.response.json().data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Approve Small-Scale Fisherman",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/fishermen/{{manifest_fisherman_user_id}}/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "fishermen",
+                "{{manifest_fisherman_user_id}}",
+                "approve"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Small-Scale Fisherman BruneiID Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/brunei_id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "brunei_id"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ic_number\": \"01-710001\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Saves the fisherman's own token separately from the officer's `jwt_token` — this folder needs both at once (officer for profiling/approvals, fisherman for manifest/vessel self-service), so requests below explicitly select which one to use."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const authHeader = pm.response.headers.get('Authorization');",
+                  "if (authHeader) { pm.collectionVariables.set('manifest_fisherman_jwt_token', authHeader.replace(/^Bearer\\s+/i, '')); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Create Vessel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{manifest_company_profile_id}}/vessels",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{manifest_company_profile_id}}",
+                "vessels"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vessel\": {\n    \"vessel_name\": \"Demo Sampan\",\n    \"boat_number\": \"BN-DEMO-001\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Vessel/captain/crew/fishing-gear creation is self-service (Fisherman role has `companies_vessels.create`) — the fisherman creates it under their own company_profile_id, then an officer approves it below before it can be used on a manifest (Manifests::Create only accepts an approved vessel)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_vessel_id', pm.response.json().data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Approve Vessel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/vessels/{{manifest_vessel_id}}/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "vessels",
+                "{{manifest_vessel_id}}",
+                "approve"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('approval_status is approved', () => pm.expect(pm.response.json().data.approval_status).to.eql('approved'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - List Dictionaries (grab a fish species)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dictionaries?limit=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dictionaries?limit=1"
+              ]
+            },
+            "description": "Fish species catalog — FishCaptureDetail#dictionary_id is a required reference into this table (`belongs_to :dictionary`, not optional), so a real id is needed below rather than free text."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('manifest_dictionary_id', pm.response.json().data[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Manifest (Small-Scale Full-Time)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"manifest\": {\n    \"companies_vessel_id\": \"{{manifest_vessel_id}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "`company_profile` is derived server-side from `current_user.company_profile` — never client-submitted (see docs/business-flow.md). `fisherman_category` is likewise derived from the company profile's `registration_type` (Manifests::Create::FISHERMAN_CATEGORY_BY_REGISTRATION_TYPE), driving which guard the port-out/port-in AASM transitions take below — Small-Scale (Full-Time) skips Jetty/officer approval entirely; see the Commercial section further down for the contrasting path."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('fisherman_category is small_scale_full_time', () => pm.expect(pm.response.json().data.fisherman_category).to.eql('small_scale_full_time'));",
+                  "pm.test('manifest_status is draft', () => pm.expect(pm.response.json().data.manifest_status).to.eql('draft'));",
+                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_id', pm.response.json().data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Minor Fisherman",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/minor_fishermen",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_id}}",
+                "minor_fishermen"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"minor_fisherman\": {\n    \"full_name\": \"Junior Fisherman\",\n    \"date_of_birth\": \"2012-05-01\",\n    \"gender\": \"Male\",\n    \"relationship_with_owner\": \"Son\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Only addable while the manifest is `draft` or an amendment is outstanding (Manifest#editable?) — must run before Submit Port Out below."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_minor_fisherman_id', pm.response.json().data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Minor Fishermen",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/minor_fishermen",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_id}}",
+                "minor_fishermen"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Minor Fisherman",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/minor_fishermen/{{manifest_minor_fisherman_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_id}}",
+                "minor_fishermen",
+                "{{manifest_minor_fisherman_id}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Manifests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests"
+              ]
+            },
+            "description": "Officer/jetty manager see every manifest; a fisherman is scoped to their own company's manifests only (ManifestPolicy::Scope)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Show Manifest",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_id}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tab Counts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/tab_counts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "tab_counts"
+              ]
+            },
+            "description": "Powers the Manifest List's 3 tab badges — Port-Out / Capture Report & Port-In / Complete — grouped from the finer-grained manifest_status enum (Manifests::TabCounts), scoped the same way as List Manifests."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('has all 3 tab keys', () => { const d = pm.response.json().data; pm.expect(d).to.have.all.keys('port_out', 'capture_report_and_port_in', 'complete'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Manifest",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"manifest\": {\n    \"zone_area\": \"Zone 2 Keatas\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Requires `manifest_list.update` — DoFi Officer has it via full access; the Fisherman role's seeded permissions do not currently include it (only `manifest_form.create`), so this uses the collection's default (officer) auth rather than the fisherman token used elsewhere in this folder."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit Port Out (Small-Scale — skips Jetty approval)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/submit_port_out",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_id}}",
+                "submit_port_out"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Small-Scale (Full-Time)/(Company) jump straight from `draft` to `submitted`/`at_sea` — no Jetty Manager/officer review step. Contrast with 'Submit Port Out (Commercial)' below, which stops at `pending`/`awaiting_port_out_approval` instead."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('port_out_status is submitted', () => pm.expect(pm.response.json().data.port_out_status).to.eql('submitted'));",
+                  "pm.test('manifest_status is at_sea', () => pm.expect(pm.response.json().data.manifest_status).to.eql('at_sea'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Capture Report",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/capture_reports",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_id}}",
+                "capture_reports"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"capture_report\": {\n    \"zone_area\": \"Zone 2 Keatas\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Every field is optional at creation (offline-first: the client may create a bare shell before zone/location is known, then fill it via update or the nested resources below) — `zone_area` here is just for a more realistic example."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_capture_report_id', pm.response.json().data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Fish Capture Detail",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/fish_capture_details",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_id}}",
+                "capture_reports",
+                "{{manifest_capture_report_id}}",
+                "fish_capture_details"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fish_capture_detail\": {\n    \"dictionary_id\": \"{{manifest_dictionary_id}}\",\n    \"price_per_kg\": 8.5,\n    \"amount_captured_kg\": 12.5\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "`local_name`/`scientific_name` are auto-snapshotted from the referenced Dictionary row, and `overall_total = price_per_kg * amount_captured_kg` is computed server-side."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('overall_total is computed', () => pm.expect(pm.response.json().data.overall_total).to.eql('106.25'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Capture Report Expense",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/expense",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_id}}",
+                "capture_reports",
+                "{{manifest_capture_report_id}}",
+                "expense"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expense\": {\n    \"fuel_litres\": 20,\n    \"fuel_bnd\": 15.0,\n    \"ice_litres\": 5,\n    \"ice_bnd\": 3.0,\n    \"ration_bnd\": 10.0\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Singular nested resource (1:1 with the capture report) — `create` and `update` both upsert (`find_or_create_by(capture_report:)` then update), so the client doesn't need to track whether the row already exists. Returns 200, not 201, since the controller doesn't set an explicit created status for either verb."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Fishing Gear Detail",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/fishing_gear_details",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_id}}",
+                "capture_reports",
+                "{{manifest_capture_report_id}}",
+                "fishing_gear_details"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fishing_gear_detail\": {\n    \"quantity\": 3\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "`companies_fishing_gear_id` is optional (`belongs_to ..., optional: true`) — omitted here for simplicity. Pass a `CompaniesFishingGear` id (from `POST /api/v1/company_profiles/:id/fishing_gears`, an Approvable sub-resource like Vessel) to auto-snapshot its `name`/`gear_type`/`specification` instead."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bulk Sync Fish Capture Details",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/fish_capture_details/bulk_sync",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_id}}",
+                "capture_reports",
+                "{{manifest_capture_report_id}}",
+                "fish_capture_details",
+                "bulk_sync"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"captures\": [\n    {\n      \"id\": \"9c1c6f2a-9b1a-4c1a-8f1a-000000000001\",\n      \"dictionary_id\": \"{{manifest_dictionary_id}}\",\n      \"price_per_kg\": 9.0,\n      \"amount_captured_kg\": 5.0\n    },\n    {\n      \"id\": \"9c1c6f2a-9b1a-4c1a-8f1a-000000000002\",\n      \"dictionary_id\": \"{{manifest_dictionary_id}}\",\n      \"price_per_kg\": 7.5,\n      \"amount_captured_kg\": 3.0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Offline-queue flush: each row carries a client-generated UUID; re-syncing the same id is idempotent (find-or-create by that id), and a row whose id already belongs to a *different* capture report fails just that row rather than the whole batch. Replace the two placeholder UUIDs above with real client-generated ones in practice."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('both rows succeeded', () => { const d = pm.response.json().data; pm.expect(d).to.have.lengthOf(2); d.forEach(r => pm.expect(r.status).to.eql('success')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit Port In (Small-Scale — skips Jetty approval)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/submit_port_in",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_id}}",
+                "submit_port_in"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Guarded by `capture_report_ready?` (a capture report exists, or the manifest was skipped — see the Skip Capture Report demo below) as well as the same small_scale?/commercial? split as port-out."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('port_in_status is submitted', () => pm.expect(pm.response.json().data.port_in_status).to.eql('submitted'));",
+                  "pm.test('manifest_status is capture_report_submitted', () => pm.expect(pm.response.json().data.manifest_status).to.eql('capture_report_submitted'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Capture Report",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/verify",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_id}}",
+                "capture_reports",
+                "{{manifest_capture_report_id}}",
+                "verify"
+              ]
+            },
+            "description": "Officer-only (`capture_report_verifications.verify`). The manifest auto-completes once every one of its capture reports is verified — there's only one here, so this single verify call finalizes the whole manifest."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('capture_report_status is verified', () => pm.expect(pm.response.json().data.capture_report_status).to.eql('verified'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Show Manifest - Completed",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_id}}"
+              ]
+            },
+            "description": "Confirms the auto-complete cascade from Verify Capture Report above landed the whole manifest, not just the capture report."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('manifest_status is completed', () => pm.expect(pm.response.json().data.manifest_status).to.eql('completed'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Offline Bundle",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/offline_bundle",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_id}}",
+                "offline_bundle"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Reference data a fisherman needs cached client-side before losing signal at sea, bundled with the manifest's own detail in one response (business-flow.md Flow 4)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('has all bundle keys', () => { const d = pm.response.json().data; pm.expect(d).to.have.all.keys('manifest', 'zones', 'fishing_gears', 'company_fishing_gears', 'dictionaries', 'skip_reasons'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Profile Commercial Company",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Commercial\",\n    \"company_name\": \"Manifest Demo Fisheries Sdn Bhd\",\n    \"company_address\": \"Spg 1, Kampong Serasa, Mukim Serasa\",\n    \"rocbn_no\": \"RC-MFDEMO-001\",\n    \"contact_no\": \"71234567\",\n    \"district\": \"Brunei - Muara\",\n    \"mukim\": \"Mukim Serasa\",\n    \"village\": \"Kampong Serasa\",\n    \"fisherman_card_no\": \"R-MFDEMO-001\",\n    \"issue_date\": \"2026-01-01\",\n    \"license_expiry_date\": \"2027-01-01\",\n    \"worker_quota\": 5,\n    \"owner\": {\n      \"full_name\": \"Commercial Demo Fisherman\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-710002\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Same officer-profiling flow as the Profiling folder — see that folder's 'Create Profiling (Owner + Admin)'/'(Owner Only)' examples for the full field reference."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_commercial_company_profile_id', pm.response.json().data.company_profile.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Register Commercial Fisherman",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/registrations/fisherman",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "registrations",
+                "fisherman"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user\": {\n    \"name\": \"Commercial Demo Fisherman\",\n    \"ic_number\": \"01-710002\",\n    \"registration_type\": \"Commercial\",\n    \"designation\": \"Owner\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_commercial_fisherman_user_id', pm.response.json().data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Approve Commercial Fisherman",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/fishermen/{{manifest_commercial_fisherman_user_id}}/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "fishermen",
+                "{{manifest_commercial_fisherman_user_id}}",
+                "approve"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Commercial Fisherman BruneiID Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/brunei_id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "brunei_id"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ic_number\": \"01-710002\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const authHeader = pm.response.headers.get('Authorization');",
+                  "if (authHeader) { pm.collectionVariables.set('manifest_commercial_fisherman_jwt_token', authHeader.replace(/^Bearer\\s+/i, '')); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Create Vessel (Commercial)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{manifest_commercial_company_profile_id}}/vessels",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{manifest_commercial_company_profile_id}}",
+                "vessels"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_commercial_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vessel\": {\n    \"vessel_name\": \"Demo Trawler\",\n    \"boat_number\": \"BN-DEMO-002\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_commercial_vessel_id', pm.response.json().data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Approve Vessel (Commercial)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/vessels/{{manifest_commercial_vessel_id}}/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "vessels",
+                "{{manifest_commercial_vessel_id}}",
+                "approve"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Manifest (Commercial)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_commercial_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"manifest\": {\n    \"companies_vessel_id\": \"{{manifest_commercial_vessel_id}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('fisherman_category is commercial', () => pm.expect(pm.response.json().data.fisherman_category).to.eql('commercial'));",
+                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_commercial_id', pm.response.json().data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit Port Out (Commercial — requires approval)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_commercial_id}}/submit_port_out",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_commercial_id}}",
+                "submit_port_out"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_commercial_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Contrast with Small-Scale's auto-skip above: Commercial stops at `pending`/`awaiting_port_out_approval` and waits for a Jetty Manager or officer."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('port_out_status is pending', () => pm.expect(pm.response.json().data.port_out_status).to.eql('pending'));",
+                  "pm.test('manifest_status is awaiting_port_out_approval', () => pm.expect(pm.response.json().data.manifest_status).to.eql('awaiting_port_out_approval'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Request Amendment (Port Out, Commercial)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_commercial_id}}/request_amendment_port_out",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_commercial_id}}",
+                "request_amendment_port_out"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"remarks\": \"Vessel license number does not match on file — please re-verify.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Officer/Jetty Manager sends the submission back for correction instead of approving. The fisherman edits the same manifest record (Manifests::Update, gated on Manifest#editable?) then calls Resubmit below — there's no separate amendment form."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('port_out_status is amendment_required', () => pm.expect(pm.response.json().data.port_out_status).to.eql('amendment_required'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resubmit (Port Out, Commercial)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_commercial_id}}/resubmit_port_out",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_commercial_id}}",
+                "resubmit_port_out"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_commercial_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('port_out_status is pending again', () => pm.expect(pm.response.json().data.port_out_status).to.eql('pending'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve Port Out (Commercial)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_commercial_id}}/approve_port_out",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_commercial_id}}",
+                "approve_port_out"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('port_out_status is approved', () => pm.expect(pm.response.json().data.port_out_status).to.eql('approved'));",
+                  "pm.test('manifest_status is at_sea', () => pm.expect(pm.response.json().data.manifest_status).to.eql('at_sea'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Profile Skip-Demo Fisherman",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Small - Scale (Full-Time)\",\n    \"owner\": {\n      \"full_name\": \"Skip Demo Fisherman\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-710003\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_skip_demo_company_profile_id', pm.response.json().data.company_profile.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Register Skip-Demo Fisherman",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/registrations/fisherman",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "registrations",
+                "fisherman"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user\": {\n    \"name\": \"Skip Demo Fisherman\",\n    \"ic_number\": \"01-710003\",\n    \"registration_type\": \"Small - Scale (Full-Time)\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_skip_demo_fisherman_user_id', pm.response.json().data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Approve Skip-Demo Fisherman",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/fishermen/{{manifest_skip_demo_fisherman_user_id}}/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "fishermen",
+                "{{manifest_skip_demo_fisherman_user_id}}",
+                "approve"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Skip-Demo Fisherman BruneiID Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/brunei_id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "brunei_id"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ic_number\": \"01-710003\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const authHeader = pm.response.headers.get('Authorization');",
+                  "if (authHeader) { pm.collectionVariables.set('manifest_skip_demo_jwt_token', authHeader.replace(/^Bearer\\s+/i, '')); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Create Vessel (Skip Demo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{manifest_skip_demo_company_profile_id}}/vessels",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{manifest_skip_demo_company_profile_id}}",
+                "vessels"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_skip_demo_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vessel\": {\n    \"vessel_name\": \"Skip Demo Boat\",\n    \"boat_number\": \"BN-DEMO-003\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_skip_demo_vessel_id', pm.response.json().data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Approve Vessel (Skip Demo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/vessels/{{manifest_skip_demo_vessel_id}}/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "vessels",
+                "{{manifest_skip_demo_vessel_id}}",
+                "approve"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Create Manifest (Skip Demo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_skip_demo_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"manifest\": {\n    \"companies_vessel_id\": \"{{manifest_skip_demo_vessel_id}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_skip_demo_id', pm.response.json().data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit Port Out (Skip Demo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_skip_demo_id}}/submit_port_out",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_skip_demo_id}}",
+                "submit_port_out"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_skip_demo_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - List Skip Reasons",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/master_data/reasons?limit=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "master_data",
+                "reasons?limit=1"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('manifest_skip_reason_id', pm.response.json().data[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Skip Capture Report",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_skip_demo_id}}/skip_capture_report",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_skip_demo_id}}",
+                "skip_capture_report"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_skip_demo_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"manifest\": {\n    \"skip_reason_id\": \"{{manifest_skip_reason_id}}\",\n    \"skip_reason_remarks\": \"Engine trouble, returned to port early.\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Sets the skip flag/reason on the manifest — it does not itself transition manifest_status. That flag then satisfies the capture_report_ready? guard on Submit Port In below, which auto-completes the manifest since there's no capture report left to verify."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('capture_report_skipped is true', () => pm.expect(pm.response.json().data.capture_report_skipped).to.be.true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit Port In (Skip Demo — auto-completes)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_skip_demo_id}}/submit_port_in",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_skip_demo_id}}",
+                "submit_port_in"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_skip_demo_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "No capture report was ever created on this manifest, but capture_report_skipped already satisfies capture_report_ready? — this jumps straight to `completed` in one call, no separate Verify step needed."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('manifest_status is completed', () => pm.expect(pm.response.json().data.manifest_status).to.eql('completed'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Create Throwaway Draft Manifest",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_skip_demo_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"manifest\": {\n    \"companies_vessel_id\": \"{{manifest_skip_demo_vessel_id}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_throwaway_id', pm.response.json().data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Manifest (draft — success)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_throwaway_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_throwaway_id}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_skip_demo_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Manifest - Already Submitted (422)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_id}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Reuses the Small-Scale demo manifest from earlier in this folder, now `completed` — only `draft` manifests can be deleted."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('error message', () => pm.expect(pm.response.json().errors).to.include('Only draft manifests can be deleted'));"
+                ]
+              }
             }
           ]
         }
