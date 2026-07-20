@@ -1,0 +1,31 @@
+# Line-ending normalization. This file is the source of truth for line endings in this repo and
+# overrides each developer's own Git config (notably Windows' common global core.autocrlf=true
+# default), so every checkout gets LF regardless of OS or local Git settings.
+#
+# This matters most for bin/*: the dev Docker workflow bind-mounts the repo and execs bin/*
+# scripts directly, so a CRLF shebang breaks with "env: 'ruby\r': No such file or directory".
+#
+# Only affects checkouts from this point forward. Anyone with an existing local clone needs a
+# one-time `git add --renormalize .` (or a fresh clone) to fix their working tree — see README.md
+# "Cross-platform line endings".
+
+* text=auto eol=lf
+
+# Explicit, even though `text=auto` above already covers these: bin/* has no file extension, and
+# these are exactly the files that break the container shebang if CRLF slips through.
+/bin/* text eol=lf
+*.sh text eol=lf
+
+# Rails encrypted credentials: a single line with no meaningful newlines. Never normalize it —
+# corruption here means the file can no longer be decrypted.
+*.enc binary
+
+# Binary assets — none tracked today, but pinned so anyone who adds one doesn't need to remember.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary

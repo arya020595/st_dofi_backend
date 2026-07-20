@@ -61,8 +61,12 @@ USER 1000:1000
 COPY --chown=rails:rails --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
 COPY --chown=rails:rails --from=build /rails /rails
 
-# Entrypoint prepares the database.
-ENTRYPOINT ["/rails/bin/docker-entrypoint"]
+# Entrypoint prepares the database, and fails fast with a clear fix if bin/* has CRLF line
+# endings — this should never happen from a normal CI build, but docker-compose.production.local
+# .yml can build this image directly from a developer's local checkout, exposed to the same
+# host-checkout risk as Dockerfile.dev. Written as a literal ENTRYPOINT string (not a bin/ script)
+# so the check itself can't be corrupted.
+ENTRYPOINT ["/bin/bash", "-ec", "grep -qrU $'\\r' bin/ 2>/dev/null && { echo \"ERROR: CRLF line endings in bin/*. This should never happen in a built image -- rebuild from a clean checkout (git add --renormalize . on the host, or re-clone).\" >&2; exit 1; }; exec /rails/bin/docker-entrypoint \"$@\"", "bash"]
 
 EXPOSE 3000
 CMD ["./bin/rails", "server", "-b", "0.0.0.0", "-p", "3000"]

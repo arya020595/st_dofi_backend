@@ -27,6 +27,13 @@ RUN bundle install
 
 COPY . .
 
+# Fail fast with a clear fix if bin/* has CRLF line endings. bin/ is bind-mounted from the host,
+# so a Windows checkout done before .gitattributes was added (or under core.autocrlf=true) can
+# carry CRLF here, breaking the #!/usr/bin/env shebang every bin/* script uses. This check is a
+# literal ENTRYPOINT string (not a bin/ script) so it still runs correctly even if bin/ itself is
+# fully CRLF-corrupted — Docker parses Dockerfiles CRLF-safely, so this string is never at risk.
+ENTRYPOINT ["/bin/bash", "-ec", "grep -qrU $'\\r' bin/ 2>/dev/null && { echo \"ERROR: CRLF line endings in bin/*. Fix on your HOST machine: git add --renormalize . (or re-clone). See README: Cross-platform line endings.\" >&2; exit 1; }; exec /rails/bin/docker-entrypoint \"$@\"", "bash"]
+
 EXPOSE 3000
 
 CMD ["./bin/rails", "server", "-b", "0.0.0.0", "-p", "3000"]

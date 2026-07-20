@@ -12,6 +12,20 @@ API-only Rails backend for the FINS Capture Fisheries module: vessels, crews, ma
 - Pagy + Ransack for pagination/search, Audited + Discard for audit trail/soft delete
 - MinIO (S3-compatible) for file storage, Sentry + Lograge for monitoring/logging
 
+## Cross-platform line endings
+
+This repo's `.gitattributes` and `.editorconfig`/`.vscode` settings are the source of truth for
+line endings — they force LF on `bin/*` and other text files on checkout, regardless of your OS
+or Git config (notably Windows' common `core.autocrlf=true` default). This matters because the
+dev Docker workflow bind-mounts the repo and execs `bin/*` scripts directly — a CRLF shebang
+breaks with `env: 'ruby\r': No such file or directory`.
+
+- New clones just work — nothing to configure, no `dos2unix`, no VS Code settings to change.
+- An existing local clone that predates `.gitattributes` needs a one-time
+  `git add --renormalize .` (or a fresh clone) to fix already-checked-out files.
+- If you forget and run `docker compose up` anyway, the container fails fast on start with the
+  exact fix to run, instead of the opaque shebang error above.
+
 ## Option A: Run with Docker (recommended)
 
 Requires Docker and Docker Compose. No local Ruby/PostgreSQL installation needed.
@@ -28,10 +42,10 @@ Requires Docker and Docker Compose. No local Ruby/PostgreSQL installation needed
    docker compose up --build
    ```
 
-3. In another terminal, prepare the database (first run only):
+3. The `api` container runs `bin/rails db:prepare` automatically on every start, so the database
+   is ready as soon as `docker compose up` finishes. Seed reference data once:
 
    ```bash
-   docker compose exec api bin/rails db:prepare
    docker compose exec api bin/rails db:seed
    ```
 
