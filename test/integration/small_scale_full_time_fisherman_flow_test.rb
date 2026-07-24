@@ -79,8 +79,8 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
 
     # 7. Fisherman creates a manifest referencing the approved vessel. fisherman_category is
     # derived server-side from the company profile's registration_type, not client-submitted.
-    post "/api/v1/manifests", params: { manifest: { companies_vessel_id: vessel_id } },
-                              headers: fisherman_headers, as: :json
+    post "/api/v1/fisherman/manifests", params: { manifest: { companies_vessel_id: vessel_id } },
+                                        headers: fisherman_headers, as: :json
 
     assert_response :created
     manifest_data = response.parsed_body["data"]
@@ -89,7 +89,7 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
     assert_equal "small_scale_full_time", manifest_data["fisherman_category"]
 
     # 8. Port-out: small-scale skips Jetty approval entirely, advancing straight to sea.
-    post "/api/v1/manifests/#{manifest_id}/submit_port_out", headers: fisherman_headers
+    post "/api/v1/fisherman/manifests/#{manifest_id}/submit_port_out", headers: fisherman_headers
 
     assert_response :ok
     data = response.parsed_body["data"]
@@ -104,7 +104,7 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
     capture_report_id = response.parsed_body.dig("data", "id")
 
     # 10. Port-in: small-scale again skips Jetty approval, advancing straight to capture-report-submitted.
-    post "/api/v1/manifests/#{manifest_id}/submit_port_in", headers: fisherman_headers
+    post "/api/v1/fisherman/manifests/#{manifest_id}/submit_port_in", headers: fisherman_headers
 
     assert_response :ok
     data = response.parsed_body["data"]
@@ -137,8 +137,8 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
                               password_confirmation: @password)
     fisherman_headers = auth_headers_for(fisherman, password: @password)
 
-    post "/api/v1/manifests", params: { manifest: { companies_vessel_id: vessel.id } },
-                              headers: fisherman_headers, as: :json
+    post "/api/v1/fisherman/manifests", params: { manifest: { companies_vessel_id: vessel.id } },
+                                        headers: fisherman_headers, as: :json
 
     assert_response :created
     manifest_data = response.parsed_body["data"]
@@ -146,14 +146,14 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
     assert_equal "commercial", manifest_data["fisherman_category"]
     manifest_id = manifest_data["id"]
 
-    post "/api/v1/manifests/#{manifest_id}/submit_port_out", headers: fisherman_headers
+    post "/api/v1/fisherman/manifests/#{manifest_id}/submit_port_out", headers: fisherman_headers
 
     assert_response :ok
     data = response.parsed_body["data"]
     # Commercial waits for Jetty approval — it must NOT jump straight to at_sea like small-scale does.
     assert_equal %w[pending awaiting_port_out_approval], [data["port_out_status"], data["manifest_status"]]
 
-    post "/api/v1/manifests/#{manifest_id}/approve_port_out", headers: jetty_headers
+    post "/api/v1/approvals/manifests/#{manifest_id}/approve_port_out", headers: jetty_headers
 
     assert_response :ok
     data = response.parsed_body["data"]

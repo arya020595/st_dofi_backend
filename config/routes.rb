@@ -47,22 +47,28 @@ Rails.application.routes.draw do
       resources :permissions, only: %i[index]
       resources :dictionaries, only: %i[index show create update destroy]
 
-      resources :manifests do
-        collection do
-          get :tab_counts
+      namespace :fisherman do
+        resources :manifests, only: %i[index show create destroy] do
+          collection do
+            get :tab_counts
+          end
+          member do
+            post :submit_port_out
+            post :resubmit_port_out
+            post :submit_port_in
+            post :resubmit_port_in
+            post :skip_capture_report
+            get :offline_bundle
+          end
         end
-        member do
-          post :submit_port_out
-          post :approve_port_out
-          post :request_amendment_port_out
-          post :resubmit_port_out
-          post :submit_port_in
-          post :approve_port_in
-          post :request_amendment_port_in
-          post :resubmit_port_in
-          post :skip_capture_report
-          get :offline_bundle
-        end
+      end
+
+      # Nested manifest sub-resources are deliberately unprefixed (neither fisherman/ nor
+      # approvals/) — capture_reports#verify/#request_amendment are officer actions invoked on a
+      # resource the fisherman created, so nesting them under either audience's namespace would be
+      # misleading. They're already authorized per-record by their own policies regardless of which
+      # namespace listed/created the parent manifest.
+      resources :manifests, only: [] do
         resources :minor_fishermen, module: "manifests"
         resources :capture_reports, module: "manifests" do
           member do
@@ -129,6 +135,18 @@ Rails.application.routes.draw do
           member do
             post :approve
             post :request_amendment
+          end
+        end
+
+        resources :manifests, only: %i[index show update] do
+          collection do
+            get :tab_counts
+          end
+          member do
+            post :approve_port_out
+            post :request_amendment_port_out
+            post :approve_port_in
+            post :request_amendment_port_in
           end
         end
       end

@@ -62,3 +62,6 @@ Minitest/MultipleAssertions:
 Metrics/ClassLength:
   Exclude:
     - "test/integration/**/*"
+    # One controller, many independent actions (index/show/create/destroy/5 lifecycle transitions/
+    # tab_counts/offline_bundle) — naturally many small, focused test blocks in one file.
+    - "test/controllers/api/v1/fisherman/manifests_controller_test.rb"

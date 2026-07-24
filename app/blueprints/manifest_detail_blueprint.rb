@@ -12,6 +12,6 @@ class ManifestDetailBlueprint < Blueprinter::Base
 
   association :crew_manifests, blueprint: CrewManifestBlueprint
   association :manifest_minor_fishermen, blueprint: ManifestMinorFishermanBlueprint
-  association :capture_reports, blueprint: CaptureReportBlueprint
+  association :capture_reports, blueprint: CaptureReportDetailBlueprint
   association :manifest_histories, blueprint: ManifestHistoryBlueprint
 end
