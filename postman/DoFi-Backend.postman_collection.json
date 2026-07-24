@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "DoFi Backend API",
-    "description": "# DoFi Backend API\n\nCovers JWT authentication (sign in/me/sign out), DoFi officer user management, role management with permission assignment, the permissions catalog, public self-registration for Jetty Managers and Fishermen, officer Profiling (pre-registering a Company Profile a fisherman later matches by IC number), FINS Approval (the Fisherman/Jetty Manager registration review queues), the full Manifest module (Vessel self-service + approval, the port-out/capture-report/port-in lifecycle, Capture Reports and their nested resources), master reference data, and the fish species Dictionary.\n\n## Environments\n\nSelect one of these Postman environments before running anything — they provide `base_url` and the seeded admin credentials:\n\n| Environment | base_url | Notes |\n|---|---|---|\n| **DoFi Backend - Local** | `http://localhost:3000` | Local Docker dev stack (`docker compose up`). Safe to use freely. |\n| **DoFi Backend - Staging** | `http://46.202.163.155:3012` | Shared staging server, no TLS yet. Shared with other testers — be considerate with writes/deletes. |\n\n## Authentication flow\n\n1. Run **Auth → Sign In**. On success the response includes the JWT both as `data.access_token` in the JSON body and in the `Authorization` response header (`Bearer <token>`) — pick whichever your client finds easier. A test script automatically saves it into the `jwt_token` collection variable.\n2. Every other request in this collection uses collection-level Bearer auth (`{{jwt_token}}`) by default — no need to copy/paste tokens manually between requests. The **Manifest** folder is the one exception; see its own section below.\n3. Run **Z - Sign Out (run last) → Sign Out** when you're done. This revokes the JWT (devise-jwt JTI denylist) and clears `jwt_token`. Anything run after Sign Out needs a fresh Sign In first.\n\n## Roles & permissions model\n\nEach `User` belongs to one `Role` (e.g. the seeded `DoFi Officer`), and each `Role` has many `Permission`s identified by a `code` (e.g. `roles.create`, `dofi_officer_users.update`). Endpoints are authorized via Pundit policies that check the signed-in user's role permissions:\n\n- **Roles**: `roles.list`/`roles.view`, `roles.create`, `roles.update`, `roles.delete`\n- **Users**: `dofi_officer_users.list`/`.view`, `.create`, `.update`, `.delete`\n- **Permissions**: read-only catalog, available to any authenticated user\n\nA failing permission check returns `401` (no/invalid session) or `403` (authenticated but not allowed), depending on the failure mode.\n\n## Manifest module: two extra tokens, per-request auth\n\nThe **Manifest** folder is the one place in this collection that needs more than one authenticated identity in the same run: officer Profiling/approval steps use the collection default (`{{jwt_token}}`), but vessel/manifest creation and lifecycle submission (`submit_port_out`, `submit_port_in`, ...) must run as the fisherman — `Manifests::Create` derives `company_profile` from `current_user`, so an officer token can't be used for those calls. Requests that need the fisherman's identity override `request.auth` (Bearer, one of `{{manifest_fisherman_jwt_token}}` / `{{manifest_commercial_fisherman_jwt_token}}` / `{{manifest_skip_demo_jwt_token}}`) instead of inheriting the collection default — look for a request-level Authorization tab that differs from its folder/collection parent if you're browsing in the Postman UI. The folder demonstrates both `fisherman_category` guard paths side by side (Small-Scale (Full-Time) skips Jetty/officer approval at port-out/port-in; Commercial requires it, including a full request-amendment → resubmit → approve cycle), plus the Skip Capture Report path and the draft-only delete guard. Like the rest of this collection's demo flows, it uses hardcoded IC numbers/boat numbers — re-running the whole folder a second time against a database that already has a prior run's data will 422 on \"IC number has already been taken\" partway through (same caveat as **Users → Create User**).\n\n## List endpoints: filter, sort & pagination\n\n`GET` index endpoints (`/api/v1/permissions`, `/api/v1/roles`, `/api/v1/users`) accept Ransack query params for filtering/sorting and Pagy params for pagination:\n\n- **Filter**: `q[<attribute>_<predicate>]=<value>`, e.g. `q[name_cont]=officer`, `q[status_eq]=active`.\n- **Sort**: `q[s]=<attribute> <asc|desc>`, or repeat `q[s][]=...` for multiple sort keys.\n- **Paginate**: `page` and `limit` query params (roles/users only — the permissions catalog is not paginated).\n- Non-whitelisted attributes (e.g. `encrypted_password`) are silently ignored rather than erroring or leaking data through the search index.\n\nFull contract: `docs/api/search-filter-sort-pagination.md` in the backend repo.\n\n## Soft delete\n\n`DELETE /api/v1/users/:id` soft-deletes via the `Discard` gem — the record is excluded from default scopes (so a subsequent `GET` returns `404`) but stays in the database for audit purposes.\n\n## Manifest module: fisherman vs Web Admin paths\n\nManifest List/Show/Update/Tab Counts are split by audience: fisherman-facing endpoints live under `/api/v1/fisherman/manifests` (list/show/create/destroy/tab_counts + the port-out/port-in submit-resubmit-skip lifecycle, scoped to the signed-in fisherman's own company), while officer/jetty-manager-facing endpoints live under `/api/v1/approvals/manifests` (list/show/update/tab_counts + the approve/request-amendment lifecycle, seeing every company). Nested resources (`capture_reports`, `expense`, `fish_capture_details`, `fishing_gear_details`, `minor_fishermen`) stay unprefixed at `/api/v1/manifests/:manifest_id/...` since both audiences reach them (e.g. the officer's `verify`/`request_amendment` on a capture report) and per-record authorization already scopes access correctly regardless of path.\n",
+    "description": "# DoFi Backend API\n\nCovers JWT authentication (sign in/me/sign out), DoFi officer user management, role management with permission assignment, the permissions catalog, public self-registration for Jetty Managers and Fishermen, officer Profiling (pre-registering a Company Profile a fisherman later matches by IC number), FINS Approval (the Fisherman/Jetty Manager registration review queues), the full Manifest module (Vessel self-service + approval, the port-out/capture-report/port-in lifecycle, Capture Reports and their nested resources), master reference data, and the fish species Dictionary.\n\n## Environments\n\nSelect one of these Postman environments before running anything — they provide `base_url` and the seeded admin credentials:\n\n| Environment | base_url | Notes |\n|---|---|---|\n| **DoFi Backend - Local** | `http://localhost:3000` | Local Docker dev stack (`docker compose up`). Safe to use freely. |\n| **DoFi Backend - Staging** | `http://46.202.163.155:3012` | Shared staging server, no TLS yet. Shared with other testers — be considerate with writes/deletes. |\n\n## Authentication flow\n\n1. Run **Auth → Sign In**. On success the response includes the JWT both as `data.access_token` in the JSON body and in the `Authorization` response header (`Bearer <token>`) — pick whichever your client finds easier. A test script automatically saves it into the `jwt_token` collection variable.\n2. Every other request in this collection uses collection-level Bearer auth (`{{jwt_token}}`) by default — no need to copy/paste tokens manually between requests. The **Manifest** folder is the one exception; see its own section below.\n3. Run **Z - Sign Out (run last) → Sign Out** when you're done. This revokes the JWT (devise-jwt JTI denylist) and clears `jwt_token`. Anything run after Sign Out needs a fresh Sign In first.\n\n## Roles & permissions model\n\nEach `User` belongs to one `Role` (e.g. the seeded `DoFi Officer`), and each `Role` has many `Permission`s identified by a `code` (e.g. `roles.create`, `dofi_officer_users.update`). Endpoints are authorized via Pundit policies that check the signed-in user's role permissions:\n\n- **Roles**: `roles.list`/`roles.view`, `roles.create`, `roles.update`, `roles.delete`\n- **Users**: `dofi_officer_users.list`/`.view`, `.create`, `.update`, `.delete`\n- **Permissions**: read-only catalog, available to any authenticated user\n\nA failing permission check returns `401` (no/invalid session) or `403` (authenticated but not allowed), depending on the failure mode.\n\n## Manifest module: two extra tokens, per-request auth\n\nThe **Manifest** folder is the one place in this collection that needs more than one authenticated identity in the same run: officer Profiling/approval steps use the collection default (`{{jwt_token}}`), but vessel/manifest creation and lifecycle submission (`submit_port_out`, `submit_port_in`, ...) must run as the fisherman — `Manifests::Create` derives `company_profile` from `current_user`, so an officer token can't be used for those calls. Requests that need the fisherman's identity override `request.auth` (Bearer, one of `{{manifest_fisherman_jwt_token}}` / `{{manifest_commercial_fisherman_jwt_token}}` / `{{manifest_skip_demo_jwt_token}}`) instead of inheriting the collection default — look for a request-level Authorization tab that differs from its folder/collection parent if you're browsing in the Postman UI. The folder demonstrates both `fisherman_category` guard paths side by side (Small-Scale (Full-Time) skips Jetty/officer approval at port-out/port-in; Commercial requires it, including a full request-amendment → resubmit → approve cycle), plus the Skip Capture Report path and the draft-only delete guard. Like the rest of this collection's demo flows, it uses hardcoded IC numbers/boat numbers — re-running the whole folder a second time against a database that already has a prior run's data will 422 on \"IC number has already been taken\" partway through (same caveat as **Users → Create User**).\n\n## List endpoints: filter, sort & pagination\n\n`GET` index endpoints (`/api/v1/permissions`, `/api/v1/roles`, `/api/v1/users`) accept Ransack query params for filtering/sorting and Pagy params for pagination:\n\n- **Filter**: `q[<attribute>_<predicate>]=<value>`, e.g. `q[name_cont]=officer`, `q[status_eq]=active`.\n- **Sort**: `q[s]=<attribute> <asc|desc>`, or repeat `q[s][]=...` for multiple sort keys.\n- **Paginate**: `page` and `limit` query params (roles/users only — the permissions catalog is not paginated).\n- Non-whitelisted attributes (e.g. `encrypted_password`) are silently ignored rather than erroring or leaking data through the search index.\n\nFull contract: `docs/api/search-filter-sort-pagination.md` in the backend repo.\n\n## Soft delete\n\n`DELETE /api/v1/users/:id` soft-deletes via the `Discard` gem — the record is excluded from default scopes (so a subsequent `GET` returns `404`) but stays in the database for audit purposes.\n\n## Manifest module: fisherman vs Web Admin paths\n\nBetween FINS Approval and Manifest sits a `Vessels` folder: it logs each demo fisherman in via BruneiID and creates/approves their vessel, kept separate from Manifest (per-folder scoping) but unable to live inside Auth or Profiling because it depends on FINS Approval having already approved the fisherman.\n\nManifest itself is split into `Manifest - Fisherman` and `Manifest - Web Admin`. The Web Admin folder can't just reuse the Fisherman folder's manifests for its Update/amendment-cycle demos (they're no longer in an editable/pending state by the time Web Admin runs), so it creates two small throwaway manifests of its own — the same self-contained-folder pattern as Auth and Vessels.\n\nManifest List/Show/Update/Tab Counts are split by audience: fisherman-facing endpoints live under `/api/v1/fisherman/manifests` (list/show/create/destroy/tab_counts + the port-out/port-in submit-resubmit-skip lifecycle, scoped to the signed-in fisherman's own company), while officer/jetty-manager-facing endpoints live under `/api/v1/approvals/manifests` (list/show/update/tab_counts + the approve/request-amendment lifecycle, seeing every company). Nested resources (`capture_reports`, `expense`, `fish_capture_details`, `fishing_gear_details`, `minor_fishermen`) stay unprefixed at `/api/v1/manifests/:manifest_id/...` since both audiences reach them (e.g. the officer's `verify`/`request_amendment` on a capture report) and per-record authorization already scopes access correctly regardless of path.\n",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -257,6 +257,16 @@
     },
     {
       "key": "manifest_throwaway_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "manifest_throwaway_update_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "manifest_commercial_amendment_demo_id",
       "value": "",
       "type": "string"
     }
@@ -1418,7 +1428,8 @@
             }
           ]
         }
-      ]
+      ],
+      "description": "Self-service profile actions for the signed-in user. Currently just locale (`en`/`ms`, backed by Mobility)."
     },
     {
       "name": "Permissions",
@@ -4042,7 +4053,8 @@
                   "language": "json"
                 }
               }
-            }
+            },
+            "description": "Same shape as \"Create Profiling (Individual - Small-Scale Full-Time)\" above — feeds the Skip-Demo scenario in Vessels/Manifest below."
           },
           "event": [
             {
@@ -4994,7 +5006,8 @@
                   "language": "json"
                 }
               }
-            }
+            },
+            "description": "Same shape as \"Fisherman - Register (Small-Scale Full-Time)\" above — feeds the Small-Scale scenario in Vessels/Manifest below."
           },
           "event": [
             {
@@ -5046,7 +5059,8 @@
                   "language": "json"
                 }
               }
-            }
+            },
+            "description": "Same shape as \"Fisherman - Register (Commercial)\" above — feeds the Commercial scenario in Vessels/Manifest below."
           },
           "event": [
             {
@@ -5098,7 +5112,8 @@
                   "language": "json"
                 }
               }
-            }
+            },
+            "description": "Same shape as \"Fisherman - Register (Commercial)\" above — feeds the Skip-Demo scenario in Vessels/Manifest below."
           },
           "event": [
             {
@@ -5139,7 +5154,8 @@
                     "approvals",
                     "approval_remarks?page=1&limit=10"
                   ]
-                }
+                },
+                "description": "Requires `approval_remarks.list`."
               }
             },
             {
@@ -5158,7 +5174,8 @@
                     "approvals",
                     "approval_remarks?q[name_cont]=mismatch&q[s]=created_at desc&page=1&limit=10"
                   ]
-                }
+                },
+                "description": "Filter by `name_cont`, sorted by `created_at`."
               }
             },
             {
@@ -5186,7 +5203,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Creates a remark with `name` (required). Requires `approval_remarks.create`. Used to populate the `remarks`/`approval_remark_id` fields on Reject Fisherman/Jetty Manager and Request Amendment elsewhere in this collection."
               },
               "event": [
                 {
@@ -5225,7 +5243,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Blank `name` fails the presence validation."
               }
             },
             {
@@ -5245,7 +5264,8 @@
                     "approval_remarks",
                     "{{approval_remark_id}}"
                   ]
-                }
+                },
+                "description": "Requires `approval_remarks.view`."
               }
             },
             {
@@ -5274,7 +5294,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Requires `approval_remarks.update`."
               }
             },
             {
@@ -5294,7 +5315,8 @@
                     "approval_remarks",
                     "{{approval_remark_id}}"
                   ]
-                }
+                },
+                "description": "Soft-deletes via Discard. Requires `approval_remarks.delete`."
               }
             }
           ]
@@ -5440,7 +5462,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Same shape as \"Setup - Register Pending Fisherman (for Approve)\" above — a second throwaway pending fisherman so Reject below doesn't collide with the one Approve already consumed."
               },
               "event": [
                 {
@@ -5470,7 +5493,8 @@
                     "approvals",
                     "fishermen?page=1&limit=10"
                   ]
-                }
+                },
+                "description": "Requires `fisherman_approvals.list`. Officer/jetty manager see every company's pending fishermen."
               }
             },
             {
@@ -5510,7 +5534,8 @@
                     "fishermen",
                     "{{fisherman_to_approve_id}}"
                   ]
-                }
+                },
+                "description": "Requires `fisherman_approvals.view`."
               }
             },
             {
@@ -5715,7 +5740,8 @@
                     "{{manifest_fisherman_user_id}}",
                     "approve"
                   ]
-                }
+                },
+                "description": "Requires `fisherman_approvals.approve`. Transitions `pending` → `active`, unblocking BruneiID login for the Small-Scale scenario in Vessels below."
               },
               "event": [
                 {
@@ -5756,7 +5782,8 @@
                     "{{manifest_commercial_fisherman_user_id}}",
                     "approve"
                   ]
-                }
+                },
+                "description": "Requires `fisherman_approvals.approve`. Transitions `pending` → `active`, unblocking BruneiID login for the Commercial scenario in Vessels below."
               },
               "event": [
                 {
@@ -5797,7 +5824,8 @@
                     "{{manifest_skip_demo_fisherman_user_id}}",
                     "approve"
                   ]
-                }
+                },
+                "description": "Requires `fisherman_approvals.approve`. Transitions `pending` → `active`, unblocking BruneiID login for the Skip-Demo scenario in Vessels below."
               },
               "event": [
                 {
@@ -5854,7 +5882,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Throwaway pending Jetty Manager registration, self-contained the same way \"Setup - Register Pending Fisherman (for Approve)\" is above."
               },
               "event": [
                 {
@@ -5905,7 +5934,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "A second throwaway pending Jetty Manager so Reject below doesn't collide with the one Approve already consumed."
               },
               "event": [
                 {
@@ -5935,7 +5965,8 @@
                     "approvals",
                     "jetty_managers?page=1&limit=10"
                   ]
-                }
+                },
+                "description": "Requires `jetty_manager_approvals.list`."
               }
             },
             {
@@ -5955,7 +5986,8 @@
                     "jetty_managers",
                     "{{jetty_manager_to_approve_id}}"
                   ]
-                }
+                },
+                "description": "Requires `jetty_manager_approvals.view`."
               }
             },
             {
@@ -5976,7 +6008,8 @@
                     "{{jetty_manager_to_approve_id}}",
                     "approve"
                   ]
-                }
+                },
+                "description": "Requires `jetty_manager_approvals.approve`. Transitions `pending` → `active`, the same `Users::ApproveRegistration` service Approve Fisherman uses."
               },
               "event": [
                 {
@@ -6027,7 +6060,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Requires `jetty_manager_approvals.approve` (reject uses the same permission code as approve, like Reject Fisherman). Transitions `pending` → `rejected` and copies the remark's `name` into `rejection_reason`."
               },
               "event": [
                 {
@@ -6191,7 +6225,8 @@
                 "{{manifest_vessel_id}}",
                 "approve"
               ]
-            }
+            },
+            "description": "Requires `companies_vessel_approvals.approve`. Unblocks Create Manifest (Small-Scale Full-Time) below."
           },
           "event": [
             {
@@ -6305,7 +6340,8 @@
                   "language": "json"
                 }
               }
-            }
+            },
+            "description": "Same shape as \"Create Vessel (Small-Scale Full-Time)\" above, for the Commercial scenario."
           },
           "event": [
             {
@@ -6347,7 +6383,8 @@
                 "{{manifest_commercial_vessel_id}}",
                 "approve"
               ]
-            }
+            },
+            "description": "Requires `companies_vessel_approvals.approve`. Unblocks Create Manifest (Commercial) below."
           },
           "event": [
             {
@@ -6460,7 +6497,8 @@
                   "language": "json"
                 }
               }
-            }
+            },
+            "description": "Same shape as \"Create Vessel (Small-Scale Full-Time)\" above, for the Skip-Demo scenario."
           },
           "event": [
             {
@@ -6502,7 +6540,8 @@
                 "{{manifest_skip_demo_vessel_id}}",
                 "approve"
               ]
-            }
+            },
+            "description": "Requires `companies_vessel_approvals.approve`. Unblocks Setup - Create Manifest (Skip Demo) below."
           },
           "event": [
             {
@@ -6516,11 +6555,12 @@
             }
           ]
         }
-      ]
+      ],
+      "description": "Log in as the fisherman (BruneiID) and create/approve their vessel, for each of the three Manifest demo scenarios below. Lives in its own folder rather than inside Auth/Profiling/Manifest because of run-order: `Create Vessel` needs the fisherman's JWT (set by Login), which only works once FINS Approval has approved them — so this folder must sit after FINS Approval and before Manifest, the same ordering constraint that makes Auth's and FINS Approval → Fisherman Approvals' own embedded setup steps self-contained rather than split across folders."
     },
     {
-      "name": "Manifest",
-      "description": "The full Manifest module: Vessel self-service + officer approval, Manifest CRUD, the port-out/capture-report/port-in lifecycle (AASM state machines on `Manifest` — see app/models/manifest.rb), and Capture Report + its nested resources (Fish Capture Detail, Expense, Fishing Gear Detail). Demonstrates both dual-path behaviors: Small-Scale (Full-Time) skips Jetty/officer approval at port-out/port-in entirely, while Commercial requires it (including a full request-amendment/resubmit cycle) — the same `fisherman_category` guard on both AASM machines. Also demonstrates the Skip Capture Report path (auto-completes the manifest with no report to verify) and the draft-only delete guard.\n\nRequires Auth → Sign In to have run first (officer token). This folder manages two additional fisherman-scoped tokens of its own (`manifest_fisherman_jwt_token`/`manifest_commercial_fisherman_jwt_token`/`manifest_skip_demo_jwt_token`) via explicit per-request Bearer auth, since manifest/vessel creation must run as the fisherman (`current_user.company_profile`), not the officer. Like the rest of this collection's demo flows, it uses hardcoded IC numbers/boat numbers — re-running this folder a second time against a database that already has a prior run's data will 422 on \"IC number has already been taken\" partway through.",
+      "name": "Manifest - Fisherman",
+      "description": "Fisherman-facing manifest lifecycle: create, list/show/tab-counts (own company only), the port-out/port-in submit/resubmit/skip flow, minor fishermen, capture reports and their nested fish-capture/expense/fishing-gear details, offline bundle, and draft delete. See \"Manifest - Web Admin\" for the officer/jetty-manager side (approve/request-amendment/verify/update).",
       "item": [
         {
           "name": "Create Manifest (Small-Scale Full-Time)",
@@ -6681,7 +6721,8 @@
                   "type": "string"
                 }
               ]
-            }
+            },
+            "description": "Requires `manifest_minor_fishermen.view`. Scoped to this manifest only."
           },
           "event": [
             {
@@ -6732,7 +6773,8 @@
                   "type": "string"
                 }
               ]
-            }
+            },
+            "description": "Requires `manifest_minor_fishermen.delete`. Only allowed while the manifest is `editable?` (draft or amendment-required)."
           },
           "event": [
             {
@@ -6747,7 +6789,7 @@
           ]
         },
         {
-          "name": "List Manifests (Fisherman)",
+          "name": "List Manifests",
           "request": {
             "method": "GET",
             "header": [
@@ -6797,7 +6839,7 @@
           ]
         },
         {
-          "name": "Show Manifest (Fisherman)",
+          "name": "Show Manifest",
           "request": {
             "method": "GET",
             "header": [
@@ -6848,7 +6890,7 @@
           ]
         },
         {
-          "name": "Tab Counts (Fisherman)",
+          "name": "Tab Counts",
           "request": {
             "method": "GET",
             "header": [
@@ -6883,180 +6925,8 @@
                   "type": "string"
                 }
               ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "List Manifests (Web Admin)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/approvals/manifests",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "approvals",
-                "manifests"
-              ]
             },
-            "description": "Officer/jetty manager see every manifest; a fisherman is scoped to their own company's manifests only (ManifestPolicy::Scope).\n\nResponse now includes `is_draft` (true only while `manifest_status == \"draft\"`)."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Show Manifest (Web Admin)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/approvals/manifests/{{manifest_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "approvals",
-                "manifests",
-                "{{manifest_id}}"
-              ]
-            },
-            "description": "Response now includes `is_draft` (true only while `manifest_status == \"draft\"`). `capture_reports` entries also include their nested `capture_report_expense`, `fish_capture_details`, and `fishing_gear_details` (previously omitted from this endpoint)."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Tab Counts (Web Admin)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/approvals/manifests/tab_counts",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "approvals",
-                "manifests",
-                "tab_counts"
-              ]
-            },
-            "description": "Powers the Manifest List's 3 tab badges — Port-Out / Capture Report & Port-In / Complete — grouped from the finer-grained manifest_status enum (Manifests::TabCounts), scoped the same way as List Manifests."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test('has all 3 tab keys', () => { const d = pm.response.json().data; pm.expect(d).to.have.all.keys('port_out', 'capture_report_and_port_in', 'complete'); });"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Update Manifest (Web Admin)",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/approvals/manifests/{{manifest_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "approvals",
-                "manifests",
-                "{{manifest_id}}"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"manifest\": {\n    \"zone_area\": \"Zone 2 Keatas\"\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "description": "Requires `manifest_list.update` — DoFi Officer has it via full access; the Fisherman role's seeded permissions do not currently include it (only `manifest_form.create`), so this uses the collection's default (officer) auth rather than the fisherman token used elsewhere in this folder."
+            "description": "Same shape as \"Tab Counts (Web Admin)\" below, scoped to the signed-in fisherman's own company via `ManifestPolicy::Scope`."
           },
           "event": [
             {
@@ -7491,91 +7361,6 @@
           ]
         },
         {
-          "name": "Verify Capture Report",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/verify",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "manifests",
-                "{{manifest_id}}",
-                "capture_reports",
-                "{{manifest_capture_report_id}}",
-                "verify"
-              ]
-            },
-            "description": "Officer-only (`capture_report_verifications.verify`). The manifest auto-completes once every one of its capture reports is verified — there's only one here, so this single verify call finalizes the whole manifest."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test('capture_report_status is verified', () => pm.expect(pm.response.json().data.capture_report_status).to.eql('verified'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Show Manifest - Completed (Web Admin)",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/approvals/manifests/{{manifest_id}}",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "approvals",
-                "manifests",
-                "{{manifest_id}}"
-              ]
-            },
-            "description": "Confirms the auto-complete cascade from Verify Capture Report above landed the whole manifest, not just the capture report.\n\nResponse now includes `is_draft` (true only while `manifest_status == \"draft\"`). `capture_reports` entries also include their nested `capture_report_expense`, `fish_capture_details`, and `fishing_gear_details` (previously omitted from this endpoint)."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('manifest_status is completed', () => pm.expect(pm.response.json().data.manifest_status).to.eql('completed'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
           "name": "Offline Bundle",
           "request": {
             "method": "GET",
@@ -7744,153 +7529,6 @@
           ]
         },
         {
-          "name": "Request Amendment (Port Out, Commercial)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/approvals/manifests/{{manifest_commercial_id}}/request_amendment_port_out",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "approvals",
-                "manifests",
-                "{{manifest_commercial_id}}",
-                "request_amendment_port_out"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"remarks\": \"Vessel license number does not match on file — please re-verify.\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "description": "Officer/Jetty Manager sends the submission back for correction instead of approving. The fisherman edits the same manifest record (Manifests::Update, gated on Manifest#editable?) then calls Resubmit below — there's no separate amendment form."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test('port_out_status is amendment_required', () => pm.expect(pm.response.json().data.port_out_status).to.eql('amendment_required'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Resubmit (Port Out, Commercial)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/fisherman/manifests/{{manifest_commercial_id}}/resubmit_port_out",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "fisherman",
-                "manifests",
-                "{{manifest_commercial_id}}",
-                "resubmit_port_out"
-              ]
-            },
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{manifest_commercial_fisherman_jwt_token}}",
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test('port_out_status is pending again', () => pm.expect(pm.response.json().data.port_out_status).to.eql('pending'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Approve Port Out (Commercial)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/approvals/manifests/{{manifest_commercial_id}}/approve_port_out",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "approvals",
-                "manifests",
-                "{{manifest_commercial_id}}",
-                "approve_port_out"
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test('port_out_status is approved', () => pm.expect(pm.response.json().data.port_out_status).to.eql('approved'));",
-                  "pm.test('manifest_status is at_sea', () => pm.expect(pm.response.json().data.manifest_status).to.eql('at_sea'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
           "name": "Setup - Create Manifest (Skip Demo)",
           "request": {
             "method": "POST",
@@ -7987,7 +7625,8 @@
                   "type": "string"
                 }
               ]
-            }
+            },
+            "description": "Same shape as \"Submit Port Out (Small-Scale — skips Jetty approval)\" above."
           },
           "event": [
             {
@@ -8160,7 +7799,8 @@
                   "language": "json"
                 }
               }
-            }
+            },
+            "description": "A manifest that's never submitted, purely to demonstrate the draft-delete guard below."
           },
           "event": [
             {
@@ -8211,7 +7851,8 @@
                   "type": "string"
                 }
               ]
-            }
+            },
+            "description": "Only `draft` manifests can be deleted (`Manifest#draft?`) — soft-deletes via Discard."
           },
           "event": [
             {
@@ -8280,6 +7921,594 @@
       ]
     },
     {
+      "name": "Manifest - Web Admin",
+      "description": "Officer/jetty-manager-facing manifest actions: list/show/tab-counts (every company), update, capture report verification, and the port-out approve/request-amendment/resubmit cycle. Two of these entries create their own throwaway manifest (a second draft for Update, a second Commercial manifest for the amendment cycle) rather than reusing the ones from \"Manifest - Fisherman\" above, because by the time this folder runs those are no longer in the right state (draft / not-yet-submitted) to demonstrate on — the same self-contained-folder pattern used by Auth and Vessels.",
+      "item": [
+        {
+          "name": "List Manifests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/manifests",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "manifests"
+              ]
+            },
+            "description": "Officer/jetty manager see every manifest; a fisherman is scoped to their own company's manifests only (ManifestPolicy::Scope).\n\nResponse now includes `is_draft` (true only while `manifest_status == \"draft\"`)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Show Manifest",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/manifests/{{manifest_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "manifests",
+                "{{manifest_id}}"
+              ]
+            },
+            "description": "Response now includes `is_draft` (true only while `manifest_status == \"draft\"`). `capture_reports` entries also include their nested `capture_report_expense`, `fish_capture_details`, and `fishing_gear_details` (previously omitted from this endpoint)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tab Counts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/manifests/tab_counts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "manifests",
+                "tab_counts"
+              ]
+            },
+            "description": "Powers the Manifest List's 3 tab badges — Port-Out / Capture Report & Port-In / Complete — grouped from the finer-grained manifest_status enum (Manifests::TabCounts), scoped the same way as List Manifests."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('has all 3 tab keys', () => { const d = pm.response.json().data; pm.expect(d).to.have.all.keys('port_out', 'capture_report_and_port_in', 'complete'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Create Throwaway Draft Manifest (for Update Demo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/fisherman/manifests",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "fisherman",
+                "manifests"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"manifest\": {\n    \"companies_vessel_id\": \"{{manifest_vessel_id}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "A second draft manifest, separate from the Small-Scale scenario's main one above (which is no longer a draft by the time this Web Admin folder runs) — exists purely so Update below has something editable to demonstrate on."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_throwaway_update_id', pm.response.json().data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Manifest",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/manifests/{{manifest_throwaway_update_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "manifests",
+                "{{manifest_throwaway_update_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"manifest\": {\n    \"zone_area\": \"Zone 2 Keatas\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Requires `manifest_list.update` — DoFi Officer has it via full access; the Fisherman role's seeded permissions do not currently include it (only `manifest_form.create`), so this uses the collection's default (officer) auth. Targets the throwaway draft manifest created just above, since the main Small-Scale manifest is no longer editable by the time this folder runs."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Capture Report",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/verify",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "manifests",
+                "{{manifest_id}}",
+                "capture_reports",
+                "{{manifest_capture_report_id}}",
+                "verify"
+              ]
+            },
+            "description": "Officer-only (`capture_report_verifications.verify`). The manifest auto-completes once every one of its capture reports is verified — there's only one here, so this single verify call finalizes the whole manifest."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('capture_report_status is verified', () => pm.expect(pm.response.json().data.capture_report_status).to.eql('verified'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Show Manifest - Completed",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/manifests/{{manifest_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "manifests",
+                "{{manifest_id}}"
+              ]
+            },
+            "description": "Confirms the auto-complete cascade from Verify Capture Report above landed the whole manifest, not just the capture report.\n\nResponse now includes `is_draft` (true only while `manifest_status == \"draft\"`). `capture_reports` entries also include their nested `capture_report_expense`, `fish_capture_details`, and `fishing_gear_details` (previously omitted from this endpoint)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('manifest_status is completed', () => pm.expect(pm.response.json().data.manifest_status).to.eql('completed'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Create Manifest (for Amendment Demo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/fisherman/manifests",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "fisherman",
+                "manifests"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_commercial_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"manifest\": {\n    \"companies_vessel_id\": \"{{manifest_commercial_vessel_id}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "A second Commercial manifest, separate from the main one above (which stops at `awaiting_port_out_approval` in the Fisherman folder and is never approved there) — exists purely to demonstrate the full request-amendment → resubmit → approve cycle below, self-contained in this folder."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('fisherman_category is commercial', () => pm.expect(pm.response.json().data.fisherman_category).to.eql('commercial'));",
+                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_commercial_amendment_demo_id', pm.response.json().data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup - Submit Port Out (for Amendment Demo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/fisherman/manifests/{{manifest_commercial_amendment_demo_id}}/submit_port_out",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "fisherman",
+                "manifests",
+                "{{manifest_commercial_amendment_demo_id}}",
+                "submit_port_out"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_commercial_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Same shape as \"Submit Port Out (Commercial — requires approval)\" in the Fisherman folder, on the throwaway manifest created just above."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('port_out_status is pending', () => pm.expect(pm.response.json().data.port_out_status).to.eql('pending'));",
+                  "pm.test('manifest_status is awaiting_port_out_approval', () => pm.expect(pm.response.json().data.manifest_status).to.eql('awaiting_port_out_approval'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Request Amendment (Port Out, Commercial)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/manifests/{{manifest_commercial_amendment_demo_id}}/request_amendment_port_out",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "manifests",
+                "{{manifest_commercial_amendment_demo_id}}",
+                "request_amendment_port_out"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"remarks\": \"Vessel license number does not match on file — please re-verify.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Officer/Jetty Manager sends the submission back for correction instead of approving. The fisherman edits the same manifest record (Manifests::Update, gated on Manifest#editable?) then calls Resubmit below — there's no separate amendment form."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('port_out_status is amendment_required', () => pm.expect(pm.response.json().data.port_out_status).to.eql('amendment_required'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resubmit (Port Out, Commercial)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/fisherman/manifests/{{manifest_commercial_amendment_demo_id}}/resubmit_port_out",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "fisherman",
+                "manifests",
+                "{{manifest_commercial_amendment_demo_id}}",
+                "resubmit_port_out"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_commercial_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Requires `manifest_form.create`. Transitions `amendment_required` → `pending` after the fisherman has fixed the flagged issue."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('port_out_status is pending again', () => pm.expect(pm.response.json().data.port_out_status).to.eql('pending'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve Port Out (Commercial)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/manifests/{{manifest_commercial_amendment_demo_id}}/approve_port_out",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "manifests",
+                "{{manifest_commercial_amendment_demo_id}}",
+                "approve_port_out"
+              ]
+            },
+            "description": "Requires `manifest_approvals.approve`. Transitions `port_out_status` `pending` → `approved` and `manifest_status` → `at_sea`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('port_out_status is approved', () => pm.expect(pm.response.json().data.port_out_status).to.eql('approved'));",
+                  "pm.test('manifest_status is at_sea', () => pm.expect(pm.response.json().data.manifest_status).to.eql('at_sea'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Master Data",
       "item": [
         {
@@ -8301,7 +8530,8 @@
                     "master_data",
                     "ports?page=1&limit=10"
                   ]
-                }
+                },
+                "description": "Requires `ports.list`."
               }
             },
             {
@@ -8320,7 +8550,8 @@
                     "master_data",
                     "ports?q[port_name_cont]=Serasa&q[s]=created_at desc&page=1&limit=10"
                   ]
-                }
+                },
+                "description": "Filter by `port_name_cont`, sorted."
               }
             },
             {
@@ -8348,7 +8579,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Creates a port with `port_name` (required); `latitude`/`longitude` optional. Requires `ports.create`."
               },
               "event": [
                 {
@@ -8388,7 +8620,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Blank `port_name` fails the presence validation."
               }
             },
             {
@@ -8408,7 +8641,8 @@
                     "ports",
                     "{{port_id}}"
                   ]
-                }
+                },
+                "description": "Requires `ports.view`."
               }
             },
             {
@@ -8437,7 +8671,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Requires `ports.update`."
               }
             },
             {
@@ -8457,10 +8692,12 @@
                     "ports",
                     "{{port_id}}"
                   ]
-                }
+                },
+                "description": "Hard-deletes — `Port` isn't `Discard`-backed. Requires `ports.delete`."
               }
             }
-          ]
+          ],
+          "description": "Fishing ports, referenced by a manifest's `port_out`/`port_in`."
         },
         {
           "name": "Master Data - Zone",
@@ -8481,7 +8718,8 @@
                     "master_data",
                     "zones?page=1&limit=10"
                   ]
-                }
+                },
+                "description": "Requires `zones.list`."
               }
             },
             {
@@ -8500,7 +8738,8 @@
                     "master_data",
                     "zones?q[name_cont]=Zone&q[s]=name asc&page=1&limit=10"
                   ]
-                }
+                },
+                "description": "Filter by `name_cont`, sorted."
               }
             },
             {
@@ -8528,7 +8767,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Creates a zone with `name`, `start_range`, `end_range` (all required). Requires `zones.create`."
               },
               "event": [
                 {
@@ -8568,7 +8808,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Blank `name` fails the presence validation."
               }
             },
             {
@@ -8588,7 +8829,8 @@
                     "zones",
                     "{{zone_id}}"
                   ]
-                }
+                },
+                "description": "Requires `zones.view`."
               }
             },
             {
@@ -8617,7 +8859,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Requires `zones.update`."
               }
             },
             {
@@ -8637,10 +8880,12 @@
                     "zones",
                     "{{zone_id}}"
                   ]
-                }
+                },
+                "description": "Hard-deletes — `Zone` isn't `Discard`-backed. Requires `zones.delete`."
               }
             }
-          ]
+          ],
+          "description": "Fishing zones, referenced by a manifest/capture report's `zone_id`/`zone_area`."
         },
         {
           "name": "Master Data - Fishing Gear",
@@ -8661,7 +8906,8 @@
                     "master_data",
                     "fishing_gears?page=1&limit=10"
                   ]
-                }
+                },
+                "description": "Requires `fishing_gears.list`."
               }
             },
             {
@@ -8680,7 +8926,8 @@
                     "master_data",
                     "fishing_gears?q[name_cont]=Net&q[s]=created_at desc&page=1&limit=10"
                   ]
-                }
+                },
+                "description": "Filter by `name_cont`, sorted."
               }
             },
             {
@@ -8708,7 +8955,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Creates a fishing gear with `local_name`, `name`, `gear_type`, `fee` (fee must be ≥ 0). Requires `fishing_gears.create`."
               },
               "event": [
                 {
@@ -8748,7 +8996,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Blank `name` fails the presence validation."
               }
             },
             {
@@ -8768,7 +9017,8 @@
                     "fishing_gears",
                     "{{fishing_gear_id}}"
                   ]
-                }
+                },
+                "description": "Requires `fishing_gears.view`."
               }
             },
             {
@@ -8797,7 +9047,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Requires `fishing_gears.update`."
               }
             },
             {
@@ -8817,10 +9068,12 @@
                     "fishing_gears",
                     "{{fishing_gear_id}}"
                   ]
-                }
+                },
+                "description": "Hard-deletes — `FishingGear` isn't `Discard`-backed. Requires `fishing_gears.delete`."
               }
             }
-          ]
+          ],
+          "description": "Catalog of fishing gear types with a standard `fee` — referenced when a company registers its own gear (Profiling → `company_profiles/:id/fishing_gears`) and by a capture report's fishing gear details."
         },
         {
           "name": "Master Data - Nationality",
@@ -8841,7 +9094,8 @@
                     "master_data",
                     "nationalities?page=1&limit=10"
                   ]
-                }
+                },
+                "description": "Requires `nationalities.list`."
               }
             },
             {
@@ -8860,7 +9114,8 @@
                     "master_data",
                     "nationalities?q[name_cont]=ian&q[s]=created_at desc&page=1&limit=10"
                   ]
-                }
+                },
+                "description": "Filter by `name_cont`, sorted."
               }
             },
             {
@@ -8888,7 +9143,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Creates a nationality with a unique `name`; `code` optional. Requires `nationalities.create`."
               },
               "event": [
                 {
@@ -8928,7 +9184,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Blank `name` fails the presence validation."
               }
             },
             {
@@ -8948,7 +9205,8 @@
                     "nationalities",
                     "{{nationality_id}}"
                   ]
-                }
+                },
+                "description": "Requires `nationalities.view`."
               }
             },
             {
@@ -8977,7 +9235,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Requires `nationalities.update`."
               }
             },
             {
@@ -8997,10 +9256,12 @@
                     "nationalities",
                     "{{nationality_id}}"
                   ]
-                }
+                },
+                "description": "Hard-deletes — `Nationality` isn't `Discard`-backed. Requires `nationalities.delete`."
               }
             }
-          ]
+          ],
+          "description": "Nationality reference list used on crew/captain records."
         },
         {
           "name": "Master Data - Position",
@@ -9021,7 +9282,8 @@
                     "master_data",
                     "positions?page=1&limit=10"
                   ]
-                }
+                },
+                "description": "Requires `positions.list`."
               }
             },
             {
@@ -9040,7 +9302,8 @@
                     "master_data",
                     "positions?q[category_eq]=Fisherman&q[s]=created_at desc&page=1&limit=10"
                   ]
-                }
+                },
+                "description": "Filter by `category_eq`, sorted."
               }
             },
             {
@@ -9068,7 +9331,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Creates a position with a unique `name` and `category` (one of `Fisherman`/`Jetty Manager`/`DoFi Officer`). Requires `positions.create`."
               },
               "event": [
                 {
@@ -9108,7 +9372,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "`category: \"InvalidCategory\"` fails the inclusion validation (must be one of the three seeded categories)."
               }
             },
             {
@@ -9128,7 +9393,8 @@
                     "positions",
                     "{{position_id}}"
                   ]
-                }
+                },
+                "description": "Requires `positions.view`."
               }
             },
             {
@@ -9157,7 +9423,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Requires `positions.update`."
               }
             },
             {
@@ -9177,10 +9444,12 @@
                     "positions",
                     "{{position_id}}"
                   ]
-                }
+                },
+                "description": "Hard-deletes — `Position` isn't `Discard`-backed. Requires `positions.delete`."
               }
             }
-          ]
+          ],
+          "description": "Position/job-title reference list, scoped by `category` (Fisherman/Jetty Manager/DoFi Officer)."
         },
         {
           "name": "Master Data - Reason",
@@ -9201,7 +9470,8 @@
                     "master_data",
                     "reasons?page=1&limit=10"
                   ]
-                }
+                },
+                "description": "Requires `skip_reasons.list`."
               }
             },
             {
@@ -9220,7 +9490,8 @@
                     "master_data",
                     "reasons?q[name_cont]=weather&q[s]=created_at desc&page=1&limit=10"
                   ]
-                }
+                },
+                "description": "Filter by `name_cont`, sorted."
               }
             },
             {
@@ -9248,7 +9519,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Creates a reason with `name` (required). Requires `skip_reasons.create`."
               },
               "event": [
                 {
@@ -9288,7 +9560,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Blank `name` fails the presence validation."
               }
             },
             {
@@ -9308,7 +9581,8 @@
                     "reasons",
                     "{{reason_id}}"
                   ]
-                }
+                },
+                "description": "Requires `skip_reasons.view`."
               }
             },
             {
@@ -9337,7 +9611,8 @@
                       "language": "json"
                     }
                   }
-                }
+                },
+                "description": "Requires `skip_reasons.update`."
               }
             },
             {
@@ -9357,7 +9632,8 @@
                     "reasons",
                     "{{reason_id}}"
                   ]
-                }
+                },
+                "description": "Soft-deletes via Discard. Requires `skip_reasons.delete`."
               }
             },
             {
@@ -9385,7 +9661,8 @@
                     "master_data",
                     "reasons?limit=1"
                   ]
-                }
+                },
+                "description": "Same shape as \"List Reasons\" above — grabs a reason id for the Skip Capture Report demo in Manifest below."
               },
               "event": [
                 {
@@ -9400,9 +9677,11 @@
                 }
               ]
             }
-          ]
+          ],
+          "description": "Predefined reasons a fisherman can cite when skipping a capture report (e.g. engine failure) — see `Manifest#skip_capture_report`. The only Master Data entity that's `Discard`-backed (soft-delete)."
         }
-      ]
+      ],
+      "description": "Reference data used across manifests and company profiling: ports, zones, fishing gears, nationalities, positions, and capture-report skip reasons. All six are simple admin-managed CRUD tables."
     },
     {
       "name": "Dictionary",
