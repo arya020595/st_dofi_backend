@@ -35,7 +35,7 @@ module Api
                                          contact_no: "71111111", ic_number: "01-800101",
                                          password: @password, password_confirmation: @password)
           @officer = create(:user, role: @officer_role, position: "Administrator", unit: "HQ", username: "officer1",
-                                    ic_number: "01-800102", password: @password, password_confirmation: @password)
+                                   ic_number: "01-800102", password: @password, password_confirmation: @password)
           @plain_user = create(:user, role: @no_access_role, password: @password, password_confirmation: @password)
 
           @vessel = create(:companies_vessel, :approved, company_profile: @company_profile)

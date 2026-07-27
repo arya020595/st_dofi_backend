@@ -61,6 +61,7 @@ Rails.application.routes.draw do
             get :offline_bundle
           end
         end
+        resources :ports, only: %i[index]
       end
 
       # Nested manifest sub-resources are deliberately unprefixed (neither fisherman/ nor
