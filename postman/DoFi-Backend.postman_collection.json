@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "DoFi Backend API",
-    "description": "# DoFi Backend API\n\nCovers JWT authentication (sign in/me/sign out), DoFi officer user management, role management with permission assignment, the permissions catalog, public self-registration for Jetty Managers and Fishermen, officer Profiling (pre-registering a Company Profile a fisherman later matches by IC number), FINS Approval (the Fisherman/Jetty Manager registration review queues), the full Manifest module (Vessel self-service + approval, the port-out/capture-report/port-in lifecycle, Capture Reports and their nested resources), master reference data, and the fish species Dictionary.\n\n## Environments\n\nSelect one of these Postman environments before running anything — they provide `base_url` and the seeded admin credentials:\n\n| Environment | base_url | Notes |\n|---|---|---|\n| **DoFi Backend - Local** | `http://localhost:3000` | Local Docker dev stack (`docker compose up`). Safe to use freely. |\n| **DoFi Backend - Staging** | `http://46.202.163.155:3012` | Shared staging server, no TLS yet. Shared with other testers — be considerate with writes/deletes. |\n\n## Authentication flow\n\n1. Run **Auth → Sign In**. On success the response includes the JWT both as `data.access_token` in the JSON body and in the `Authorization` response header (`Bearer <token>`) — pick whichever your client finds easier. A test script automatically saves it into the `jwt_token` collection variable.\n2. Every other request in this collection uses collection-level Bearer auth (`{{jwt_token}}`) by default — no need to copy/paste tokens manually between requests. The **Manifest** folder is the one exception; see its own section below.\n3. Run **Z - Sign Out (run last) → Sign Out** when you're done. This revokes the JWT (devise-jwt JTI denylist) and clears `jwt_token`. Anything run after Sign Out needs a fresh Sign In first.\n\n## Roles & permissions model\n\nEach `User` belongs to one `Role` (e.g. the seeded `DoFi Officer`), and each `Role` has many `Permission`s identified by a `code` (e.g. `roles.create`, `dofi_officer_users.update`). Endpoints are authorized via Pundit policies that check the signed-in user's role permissions:\n\n- **Roles**: `roles.list`/`roles.view`, `roles.create`, `roles.update`, `roles.delete`\n- **Users**: `dofi_officer_users.list`/`.view`, `.create`, `.update`, `.delete`\n- **Permissions**: read-only catalog, available to any authenticated user\n\nA failing permission check returns `401` (no/invalid session) or `403` (authenticated but not allowed), depending on the failure mode.\n\n## Manifest module: two extra tokens, per-request auth\n\nThe **Manifest** folder is the one place in this collection that needs more than one authenticated identity in the same run: officer Profiling/approval steps use the collection default (`{{jwt_token}}`), but vessel/manifest creation and lifecycle submission (`submit_port_out`, `submit_port_in`, ...) must run as the fisherman — `Manifests::Create` derives `company_profile` from `current_user`, so an officer token can't be used for those calls. Requests that need the fisherman's identity override `request.auth` (Bearer, one of `{{manifest_fisherman_jwt_token}}` / `{{manifest_commercial_fisherman_jwt_token}}` / `{{manifest_skip_demo_jwt_token}}`) instead of inheriting the collection default — look for a request-level Authorization tab that differs from its folder/collection parent if you're browsing in the Postman UI. The folder demonstrates both `fisherman_category` guard paths side by side (Small-Scale (Full-Time) skips Jetty/officer approval at port-out/port-in; Commercial requires it, including a full request-amendment → resubmit → approve cycle), plus the Skip Capture Report path and the draft-only delete guard. Like the rest of this collection's demo flows, it uses hardcoded IC numbers/boat numbers — re-running the whole folder a second time against a database that already has a prior run's data will 422 on \"IC number has already been taken\" partway through (same caveat as **Users → Create User**).\n\n## List endpoints: filter, sort & pagination\n\n`GET` index endpoints (`/api/v1/permissions`, `/api/v1/roles`, `/api/v1/users`) accept Ransack query params for filtering/sorting and Pagy params for pagination:\n\n- **Filter**: `q[<attribute>_<predicate>]=<value>`, e.g. `q[name_cont]=officer`, `q[status_eq]=active`.\n- **Sort**: `q[s]=<attribute> <asc|desc>`, or repeat `q[s][]=...` for multiple sort keys.\n- **Paginate**: `page` and `limit` query params (roles/users only — the permissions catalog is not paginated).\n- Non-whitelisted attributes (e.g. `encrypted_password`) are silently ignored rather than erroring or leaking data through the search index.\n\nFull contract: `docs/api/search-filter-sort-pagination.md` in the backend repo.\n\n## Soft delete\n\n`DELETE /api/v1/users/:id` soft-deletes via the `Discard` gem — the record is excluded from default scopes (so a subsequent `GET` returns `404`) but stays in the database for audit purposes.\n\n## Manifest module: fisherman vs Web Admin paths\n\nBetween FINS Approval and Manifest sits a `Vessels` folder: it logs each demo fisherman in via BruneiID and creates/approves their vessel, kept separate from Manifest (per-folder scoping) but unable to live inside Auth or Profiling because it depends on FINS Approval having already approved the fisherman.\n\nManifest itself is split into `Manifest - Fisherman` and `Manifest - Web Admin`. The Web Admin folder can't just reuse the Fisherman folder's manifests for its Update/amendment-cycle demos (they're no longer in an editable/pending state by the time Web Admin runs), so it creates two small throwaway manifests of its own — the same self-contained-folder pattern as Auth and Vessels.\n\nManifest List/Show/Update/Tab Counts are split by audience: fisherman-facing endpoints live under `/api/v1/fisherman/manifests` (list/show/create/destroy/tab_counts + the port-out/port-in submit-resubmit-skip lifecycle, scoped to the signed-in fisherman's own company), while officer/jetty-manager-facing endpoints live under `/api/v1/approvals/manifests` (list/show/update/tab_counts + the approve/request-amendment lifecycle, seeing every company). Nested resources (`capture_reports`, `expense`, `fish_capture_details`, `fishing_gear_details`, `minor_fishermen`) stay unprefixed at `/api/v1/manifests/:manifest_id/...` since both audiences reach them (e.g. the officer's `verify`/`request_amendment` on a capture report) and per-record authorization already scopes access correctly regardless of path.\n",
+    "description": "# DoFi Backend API\n\nCovers JWT authentication (sign in/me/sign out), DoFi officer user management, role management with permission assignment, the permissions catalog, public self-registration for Jetty Managers and Fishermen, officer Profiling (pre-registering a Company Profile a fisherman later matches by IC number), FINS Approval (the Fisherman/Jetty Manager registration review queues), the full Manifest module (Vessel self-service + approval, the port-out/capture-report/port-in lifecycle, Capture Reports and their nested resources), master reference data, and the fish species Dictionary.\n\n## Environments\n\nSelect one of these Postman environments before running anything — they provide `base_url` and the seeded admin credentials:\n\n| Environment | base_url | Notes |\n|---|---|---|\n| **DoFi Backend - Local** | `http://localhost:3000` | Local Docker dev stack (`docker compose up`). Safe to use freely. |\n| **DoFi Backend - Staging** | `http://46.202.163.155:3012` | Shared staging server, no TLS yet. Shared with other testers — be considerate with writes/deletes. |\n\n## Authentication flow\n\n1. Run **Auth → Sign In**. On success the response includes the JWT both as `data.access_token` in the JSON body and in the `Authorization` response header (`Bearer <token>`) — pick whichever your client finds easier. A test script automatically saves it into the `jwt_token` **environment** variable (Local and Staging each keep their own value, so switching environments never sends a token signed for the other one).\n2. Every other request in this collection uses collection-level Bearer auth (`{{jwt_token}}`) by default — no need to copy/paste tokens manually between requests. The **Manifest** folder is the one exception; see its own section below.\n3. Run **Z - Sign Out (run last) → Sign Out** when you're done. This revokes the JWT (devise-jwt JTI denylist) and clears `jwt_token`. Anything run after Sign Out needs a fresh Sign In first.\n\n## Roles & permissions model\n\nEach `User` belongs to one `Role` (e.g. the seeded `DoFi Officer`), and each `Role` has many `Permission`s identified by a `code` (e.g. `roles.create`, `dofi_officer_users.update`). Endpoints are authorized via Pundit policies that check the signed-in user's role permissions:\n\n- **Roles**: `roles.list`/`roles.view`, `roles.create`, `roles.update`, `roles.delete`\n- **Users**: `dofi_officer_users.list`/`.view`, `.create`, `.update`, `.delete`\n- **Permissions**: read-only catalog, available to any authenticated user\n\nA failing permission check returns `401` (no/invalid session) or `403` (authenticated but not allowed), depending on the failure mode.\n\n## Manifest module: two extra tokens, per-request auth\n\nThe **Manifest** folder is the one place in this collection that needs more than one authenticated identity in the same run: officer Profiling/approval steps use the collection default (`{{jwt_token}}`), but vessel/manifest creation and lifecycle submission (`submit_port_out`, `submit_port_in`, ...) must run as the fisherman — `Manifests::Create` derives `company_profile` from `current_user`, so an officer token can't be used for those calls. Requests that need the fisherman's identity override `request.auth` (Bearer, one of `{{manifest_fisherman_jwt_token}}` / `{{manifest_commercial_fisherman_jwt_token}}` / `{{manifest_skip_demo_jwt_token}}`, all environment variables like `jwt_token`) instead of inheriting the collection default — look for a request-level Authorization tab that differs from its folder/collection parent if you're browsing in the Postman UI. The folder demonstrates both `fisherman_category` guard paths side by side (Small-Scale (Full-Time) skips Jetty/officer approval at port-out/port-in; Commercial requires it, including a full request-amendment → resubmit → approve cycle), plus the Skip Capture Report path and the draft-only delete guard. Like the rest of this collection's demo flows, it uses hardcoded IC numbers/boat numbers — re-running the whole folder a second time against a database that already has a prior run's data will 422 on \"IC number has already been taken\" partway through (same caveat as **Users → Create User**).\n\n## List endpoints: filter, sort & pagination\n\n`GET` index endpoints (`/api/v1/permissions`, `/api/v1/roles`, `/api/v1/users`) accept Ransack query params for filtering/sorting and Pagy params for pagination:\n\n- **Filter**: `q[<attribute>_<predicate>]=<value>`, e.g. `q[name_cont]=officer`, `q[status_eq]=active`.\n- **Sort**: `q[s]=<attribute> <asc|desc>`, or repeat `q[s][]=...` for multiple sort keys.\n- **Paginate**: `page` and `limit` query params (roles/users only — the permissions catalog is not paginated).\n- Non-whitelisted attributes (e.g. `encrypted_password`) are silently ignored rather than erroring or leaking data through the search index.\n\nFull contract: `docs/api/search-filter-sort-pagination.md` in the backend repo.\n\n## Soft delete\n\n`DELETE /api/v1/users/:id` soft-deletes via the `Discard` gem — the record is excluded from default scopes (so a subsequent `GET` returns `404`) but stays in the database for audit purposes.\n\n## Manifest module: fisherman vs Web Admin paths\n\nBetween FINS Approval and Manifest sits a `Vessels` folder: it logs each demo fisherman in via BruneiID and creates/approves their vessel, kept separate from Manifest (per-folder scoping) but unable to live inside Auth or Profiling because it depends on FINS Approval having already approved the fisherman.\n\nManifest itself is split into `Manifest - Fisherman` and `Manifest - Web Admin`. The Web Admin folder can't just reuse the Fisherman folder's manifests for its Update/amendment-cycle demos (they're no longer in an editable/pending state by the time Web Admin runs), so it creates two small throwaway manifests of its own — the same self-contained-folder pattern as Auth and Vessels.\n\nManifest List/Show/Update/Tab Counts are split by audience: fisherman-facing endpoints live under `/api/v1/fisherman/manifests` (list/show/create/destroy/tab_counts + the port-out/port-in submit-resubmit-skip lifecycle, scoped to the signed-in fisherman's own company), while officer/jetty-manager-facing endpoints live under `/api/v1/approvals/manifests` (list/show/update/tab_counts + the approve/request-amendment lifecycle, seeing every company). Nested resources (`capture_reports`, `expense`, `fish_capture_details`, `fishing_gear_details`, `minor_fishermen`) stay unprefixed at `/api/v1/manifests/:manifest_id/...` since both audiences reach them (e.g. the officer's `verify`/`request_amendment` on a capture report) and per-record authorization already scopes access correctly regardless of path.\n",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -28,11 +28,6 @@
     {
       "key": "admin_password",
       "value": "ChangeMe123!",
-      "type": "string"
-    },
-    {
-      "key": "jwt_token",
-      "value": "",
       "type": "string"
     },
     {
@@ -131,11 +126,6 @@
       "type": "string"
     },
     {
-      "key": "brunei_demo_fisherman_id",
-      "value": "",
-      "type": "string"
-    },
-    {
       "key": "dofi_officer_role_id",
       "value": "",
       "type": "string"
@@ -167,11 +157,6 @@
     },
     {
       "key": "manifest_fisherman_user_id",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "manifest_fisherman_jwt_token",
       "value": "",
       "type": "string"
     },
@@ -211,11 +196,6 @@
       "type": "string"
     },
     {
-      "key": "manifest_commercial_fisherman_jwt_token",
-      "value": "",
-      "type": "string"
-    },
-    {
       "key": "manifest_commercial_vessel_id",
       "value": "",
       "type": "string"
@@ -232,11 +212,6 @@
     },
     {
       "key": "manifest_skip_demo_fisherman_user_id",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "manifest_skip_demo_jwt_token",
       "value": "",
       "type": "string"
     },
@@ -308,7 +283,7 @@
               "mode": "raw",
               "raw": "{\n  \"user\": {\n    \"username\": \"{{admin_username}}\",\n    \"password\": \"{{admin_password}}\"\n  }\n}"
             },
-            "description": "Authenticates with username/password and returns the JWT both as `data.access_token` in the JSON body and in the `Authorization` response header (`Bearer <token>`), plus the signed-in user's payload (including their role and full permission list). This request's test script auto-saves the token to the `jwt_token` collection variable, so every other request in the collection picks it up automatically. Browser JS clients should prefer `data.access_token` over the header unless the server's CORS config exposes `Authorization` (`Access-Control-Expose-Headers`)."
+            "description": "Authenticates with username/password and returns the JWT both as `data.access_token` in the JSON body and in the `Authorization` response header (`Bearer <token>`), plus the signed-in user's payload (including their role and full permission list). This request's test script auto-saves the token to the `jwt_token` environment variable, so every other request in the collection picks it up automatically. Browser JS clients should prefer `data.access_token` over the header unless the server's CORS config exposes `Authorization` (`Access-Control-Expose-Headers`)."
           },
           "event": [
             {
@@ -321,7 +296,7 @@
                   "pm.test('Authorization header present', () => pm.expect(authHeader).to.not.be.null);",
                   "if (authHeader) {",
                   "  const token = authHeader.replace(/^Bearer\\s+/i, '');",
-                  "  pm.collectionVariables.set('jwt_token', token);",
+                  "  pm.environment.set('jwt_token', token);",
                   "}"
                 ]
               }
@@ -675,129 +650,6 @@
           ]
         },
         {
-          "name": "Setup - Profile Individual (for BruneiID Login demo)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "company_profiles"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Small - Scale (Full-Time)\",\n    \"owner\": {\n      \"full_name\": \"Postman BruneiID Demo (Active)\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-800201\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "description": "Every registration_type — including Small - Scale (Full-Time) — requires the IC to already be profiled before self-registration (see registration-flow.md §5). Uses the officer's Bearer token set by 'Sign In' above."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 201', () => pm.response.to.have.status(201));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Setup - Register a Fisherman (for BruneiID Login demo)",
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/registrations/fisherman",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "registrations",
-                "fisherman"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"user\": {\n    \"name\": \"Postman BruneiID Demo (Active)\",\n    \"ic_number\": \"01-800201\",\n    \"registration_type\": \"Small - Scale (Full-Time)\"\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "description": "The Auth folder runs before Registrations/FINS Approval in this collection, so the BruneiID Login demos below register their own fishermen rather than assuming one already exists."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const res = pm.response.json();",
-                  "if (res.status === 'success') { pm.collectionVariables.set('brunei_demo_fisherman_id', res.data.id); }"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Setup - Approve the Fisherman (for BruneiID Login demo)",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/v1/approvals/fishermen/{{brunei_demo_fisherman_id}}/approve",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "approvals",
-                "fishermen",
-                "{{brunei_demo_fisherman_id}}",
-                "approve"
-              ]
-            },
-            "description": "Uses the jwt_token already set by Auth → Sign In above. Requires fisherman_approvals.approve (DoFi Officer has it via full access)."
-          }
-        },
-        {
           "name": "BruneiID Login - Active",
           "request": {
             "auth": {
@@ -828,14 +680,14 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"ic_number\": \"01-800201\"\n}",
+              "raw": "{\n  \"ic_number\": \"00123456\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
             },
-            "description": "Mock stand-in for the real BruneiID QR re-scan login used by Fishermen/Jetty Managers (no username/password for them, only registration). Trusts the given `ic_number` as already BruneiID-verified — same trust boundary registration itself relies on. Once the matched user is `active` (see the two Setup requests above), returns the same `access_token`/`Authorization` header shape as the officer `POST /api/v1/auth/sign_in`."
+            "description": "Mock stand-in for the real BruneiID QR re-scan login used by Fishermen/Jetty Managers (no username/password for them, only registration). Trusts the given `ic_number` as already BruneiID-verified — same trust boundary registration itself relies on. Uses a pre-seeded, already-`active` fisherman (`db/seeds/profiled_users.rb` — Haji Ahmad bin Salleh) so this succeeds standalone against any seeded environment with no setup requests needed. Returns the same `access_token`/`Authorization` header shape as the officer `POST /api/v1/auth/sign_in`. This request's test script auto-saves the token to the `fisherman_jwt_token` environment variable — a standalone, always-available fisherman identity for ad-hoc testing, separate from the Manifest folder's own scripted-demo tokens (`manifest_fisherman_jwt_token` / `manifest_commercial_fisherman_jwt_token` / `manifest_skip_demo_jwt_token`)."
           },
           "event": [
             {
@@ -844,7 +696,9 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Access token present', () => pm.expect(pm.response.json().data.access_token).to.be.a('string'));"
+                  "pm.test('Access token present', () => pm.expect(pm.response.json().data.access_token).to.be.a('string'));",
+                  "const authHeader = pm.response.headers.get('Authorization');",
+                  "if (authHeader) { pm.environment.set('fisherman_jwt_token', authHeader.replace(/^Bearer\\s+/i, '')); }"
                 ]
               }
             }
@@ -6131,7 +5985,7 @@
                 "exec": [
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));",
                   "const authHeader = pm.response.headers.get('Authorization');",
-                  "if (authHeader) { pm.collectionVariables.set('manifest_fisherman_jwt_token', authHeader.replace(/^Bearer\\s+/i, '')); }"
+                  "if (authHeader) { pm.environment.set('manifest_fisherman_jwt_token', authHeader.replace(/^Bearer\\s+/i, '')); }"
                 ]
               }
             }
@@ -6289,7 +6143,7 @@
                 "exec": [
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));",
                   "const authHeader = pm.response.headers.get('Authorization');",
-                  "if (authHeader) { pm.collectionVariables.set('manifest_commercial_fisherman_jwt_token', authHeader.replace(/^Bearer\\s+/i, '')); }"
+                  "if (authHeader) { pm.environment.set('manifest_commercial_fisherman_jwt_token', authHeader.replace(/^Bearer\\s+/i, '')); }"
                 ]
               }
             }
@@ -6446,7 +6300,7 @@
                 "exec": [
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));",
                   "const authHeader = pm.response.headers.get('Authorization');",
-                  "if (authHeader) { pm.collectionVariables.set('manifest_skip_demo_jwt_token', authHeader.replace(/^Bearer\\s+/i, '')); }"
+                  "if (authHeader) { pm.environment.set('manifest_skip_demo_jwt_token', authHeader.replace(/^Bearer\\s+/i, '')); }"
                 ]
               }
             }
@@ -6623,6 +6477,36 @@
               }
             }
           ]
+        },
+        {
+          "name": "List Ports (Fisherman)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/fisherman/ports?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "fisherman",
+                "ports?page=1&limit=10"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Fisherman-facing port picker for manifest port-out/port-in (`GET /api/v1/fisherman/ports`). Requires `ports.list`. Read-only — no show/create/update/delete; those stay under `Master Data - Port` for officers. Defaults to `port_name asc` (a selection dropdown), unlike the admin list's `created_at desc`."
+          }
         },
         {
           "name": "Create Minor Fisherman",
@@ -10702,7 +10586,7 @@
                 "sign_out"
               ]
             },
-            "description": "Revokes the current JWT via devise-jwt's JTI denylist and clears the `jwt_token` collection variable. Any request run after this needs a fresh Sign In."
+            "description": "Revokes the current JWT via devise-jwt's JTI denylist and clears the `jwt_token` environment variable. Any request run after this needs a fresh Sign In."
           },
           "event": [
             {
@@ -10711,7 +10595,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.collectionVariables.set('jwt_token', '');"
+                  "pm.environment.set('jwt_token', '');"
                 ]
               }
             }
