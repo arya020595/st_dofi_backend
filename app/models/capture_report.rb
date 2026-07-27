@@ -7,7 +7,6 @@ class CaptureReport < ApplicationRecord
   belongs_to :reviewed_by, class_name: "User", optional: true
 
   has_many :fish_capture_details, dependent: :destroy
-  has_one :capture_report_expense, dependent: :destroy
   has_many :fishing_gear_details, dependent: :destroy
 
   def self.ransackable_attributes(_auth_object = nil)

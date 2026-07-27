@@ -6607,7 +6607,7 @@
                 }
               }
             },
-            "description": "Fisherman-only endpoint (`POST /api/v1/fisherman/manifests`). This demo sends only the required `companies_vessel_id`, but the full accepted `manifest` payload is:\n\n| Field | Type | Notes |\n|---|---|---|\n| `companies_vessel_id` | uuid, required | Must belong to an **approved** vessel owned by the fisherman's company. |\n| `companies_captain_id` | uuid, optional | Must belong to an **approved** captain owned by the same company. |\n| `port_out_id` / `port_out_datetime` / `port_out_area` | optional | Port Out Detail — can be filled at creation or later via Update. |\n| `port_in_id` / `port_in_datetime` / `port_in_area` | optional | Port In Detail — same as above, usually filled once at sea/returning. |\n| `zone_id` / `zone_area` / `longitude` / `latitude` | optional | Fishing zone / location detail. |\n| `has_minor_fishermen` | boolean, optional | Flags that minor fishermen will be added via the nested Minor Fishermen endpoints. |\n| `crew_ids` | array of uuid, optional | Existing `CompaniesCrew` records to snapshot onto this manifest. |\n| `ad_hoc_crew` | array of objects, optional | One-off crew not in the company roster: `crew_name`, `ic_number`, `passport_number`, `position`, `nationality`, `date_of_birth`. |\n\n**Expenses are not part of this payload.** `CaptureReportExpense` only exists once a `CaptureReport` does (i.e. after port-out, while the vessel is at sea) — see \"Create Capture Report Expense\" further down this folder, which posts to `.../capture_reports/:capture_report_id/expense`.\n\nThe manifest starts in the `draft` status (`is_draft: true` in the response) and stays editable/deletable until `submit_port_out` is called.\n\nUses the vessel already created/approved for this scenario in the \"Vessels\" folder above."
+            "description": "Fisherman-only endpoint (`POST /api/v1/fisherman/manifests`). This demo sends only the required `companies_vessel_id`, but the full accepted `manifest` payload is:\n\n| Field | Type | Notes |\n|---|---|---|\n| `companies_vessel_id` | uuid, required | Must belong to an **approved** vessel owned by the fisherman's company. |\n| `companies_captain_id` | uuid, optional | Must belong to an **approved** captain owned by the same company. |\n| `port_out_id` / `port_out_datetime` / `port_out_area` | optional | Port Out Detail — can be filled at creation or later via Update. |\n| `port_in_id` / `port_in_datetime` / `port_in_area` | optional | Port In Detail — same as above, usually filled once at sea/returning. |\n| `zone_id` / `zone_area` / `longitude` / `latitude` | optional | Fishing zone / location detail. |\n| `has_minor_fishermen` | boolean, optional | Flags that minor fishermen will be added via the nested Minor Fishermen endpoints. |\n| `crew_ids` | array of uuid, optional | Existing `CompaniesCrew` records to snapshot onto this manifest. |\n| `ad_hoc_crew` | array of objects, optional | One-off crew not in the company roster: `crew_name`, `ic_number`, `passport_number`, `position`, `nationality`, `date_of_birth`. |\n\n**Expenses are not part of this payload.** They're set via a separate call once the manifest exists (1:1 with the manifest itself, not tied to a Capture Report) — see \"Create Manifest Expense\" further down this folder, which posts to `.../manifests/:manifest_id/expense`.\n\nThe manifest starts in the `draft` status (`is_draft: true` in the response) and stays editable/deletable until `submit_port_out` is called.\n\nUses the vessel already created/approved for this scenario in the \"Vessels\" folder above."
           },
           "event": [
             {
@@ -6875,7 +6875,7 @@
                 }
               ]
             },
-            "description": "Fisherman-facing detail view of their own manifest. Includes `is_draft` and nested `capture_reports[].capture_report_expense`/`fish_capture_details`/`fishing_gear_details`."
+            "description": "Fisherman-facing detail view of their own manifest. Includes `is_draft`, `manifest_expense`, and nested `capture_reports[].fish_capture_details`/`fishing_gear_details`."
           },
           "event": [
             {
@@ -7119,7 +7119,7 @@
           ]
         },
         {
-          "name": "Create Capture Report Expense",
+          "name": "Create Manifest Expense",
           "request": {
             "method": "POST",
             "header": [
@@ -7133,7 +7133,7 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/expense",
+              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/expense",
               "host": [
                 "{{base_url}}"
               ],
@@ -7142,8 +7142,6 @@
                 "v1",
                 "manifests",
                 "{{manifest_id}}",
-                "capture_reports",
-                "{{manifest_capture_report_id}}",
                 "expense"
               ]
             },
@@ -7166,7 +7164,7 @@
                 }
               }
             },
-            "description": "Singular nested resource (1:1 with the capture report) — `create` and `update` both upsert (`find_or_create_by(capture_report:)` then update), so the client doesn't need to track whether the row already exists. Returns 200, not 201, since the controller doesn't set an explicit created status for either verb."
+            "description": "Singular nested resource (1:1 with the manifest) — `create` and `update` both upsert (`manifest.manifest_expense || manifest.build_manifest_expense` then update), so the client doesn't need to track whether the row already exists. Returns 200, not 201, since the controller doesn't set an explicit created status for either verb. Expenses belong to the manifest itself (fuel/ice/rations entered once at Port-Out time), not to a Capture Report — they don't depend on one existing."
           },
           "event": [
             {
@@ -7991,7 +7989,7 @@
                 "{{manifest_id}}"
               ]
             },
-            "description": "Response now includes `is_draft` (true only while `manifest_status == \"draft\"`). `capture_reports` entries also include their nested `capture_report_expense`, `fish_capture_details`, and `fishing_gear_details` (previously omitted from this endpoint)."
+            "description": "Response now includes `is_draft` (true only while `manifest_status == \"draft\"`) and `manifest_expense`. `capture_reports` entries also include their nested `fish_capture_details` and `fishing_gear_details` (previously omitted from this endpoint)."
           },
           "event": [
             {
@@ -8228,7 +8226,7 @@
                 "{{manifest_id}}"
               ]
             },
-            "description": "Confirms the auto-complete cascade from Verify Capture Report above landed the whole manifest, not just the capture report.\n\nResponse now includes `is_draft` (true only while `manifest_status == \"draft\"`). `capture_reports` entries also include their nested `capture_report_expense`, `fish_capture_details`, and `fishing_gear_details` (previously omitted from this endpoint)."
+            "description": "Confirms the auto-complete cascade from Verify Capture Report above landed the whole manifest, not just the capture report.\n\nResponse now includes `is_draft` (true only while `manifest_status == \"draft\"`) and `manifest_expense`. `capture_reports` entries also include their nested `fish_capture_details` and `fishing_gear_details` (previously omitted from this endpoint)."
           },
           "event": [
             {
