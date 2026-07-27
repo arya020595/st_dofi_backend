@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_15_050010) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_27_035745) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -51,18 +51,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_15_050010) do
     t.datetime "updated_at", null: false
     t.index ["discarded_at"], name: "index_approval_remarks_on_discarded_at"
     t.index ["name"], name: "index_approval_remarks_on_name", unique: true
-  end
-
-  create_table "capture_report_expenses", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.uuid "capture_report_id", null: false
-    t.datetime "created_at", null: false
-    t.decimal "fuel_bnd", precision: 10, scale: 2
-    t.decimal "fuel_litres", precision: 10, scale: 2
-    t.decimal "ice_bnd", precision: 10, scale: 2
-    t.decimal "ice_litres", precision: 10, scale: 2
-    t.decimal "ration_bnd", precision: 10, scale: 2
-    t.datetime "updated_at", null: false
-    t.index ["capture_report_id"], name: "index_capture_report_expenses_on_capture_report_id", unique: true
   end
 
   create_table "capture_reports", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -285,6 +273,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_15_050010) do
     t.index ["name"], name: "index_fishing_gears_on_name"
   end
 
+  create_table "manifest_expenses", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.decimal "fuel_bnd", precision: 10, scale: 2
+    t.decimal "fuel_litres", precision: 10, scale: 2
+    t.decimal "ice_bnd", precision: 10, scale: 2
+    t.decimal "ice_litres", precision: 10, scale: 2
+    t.uuid "manifest_id", null: false
+    t.decimal "ration_bnd", precision: 10, scale: 2
+    t.datetime "updated_at", null: false
+    t.index ["manifest_id"], name: "index_manifest_expenses_on_manifest_id", unique: true
+  end
+
   create_table "manifest_histories", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.string "action", null: false
     t.uuid "changed_by_id"
@@ -481,7 +481,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_15_050010) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
-  add_foreign_key "capture_report_expenses", "capture_reports"
   add_foreign_key "capture_reports", "manifests"
   add_foreign_key "capture_reports", "users", column: "reviewed_by_id"
   add_foreign_key "capture_reports", "zones"
@@ -502,6 +501,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_15_050010) do
   add_foreign_key "fish_capture_details", "dictionaries"
   add_foreign_key "fishing_gear_details", "capture_reports"
   add_foreign_key "fishing_gear_details", "companies_fishing_gears"
+  add_foreign_key "manifest_expenses", "manifests"
   add_foreign_key "manifest_histories", "manifests"
   add_foreign_key "manifest_histories", "users", column: "changed_by_id"
   add_foreign_key "manifest_minor_fishermen", "manifests"

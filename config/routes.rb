@@ -70,13 +70,13 @@ Rails.application.routes.draw do
       # namespace listed/created the parent manifest.
       resources :manifests, only: [] do
         resources :minor_fishermen, module: "manifests"
+        resource :expense, only: %i[show create update], module: "manifests"
         resources :capture_reports, module: "manifests" do
           member do
             post :verify
             post :request_amendment
             post :resubmit
           end
-          resource :expense, only: %i[show create update], module: "capture_reports"
           resources :fish_capture_details, module: "capture_reports" do
             collection { post :bulk_sync }
           end

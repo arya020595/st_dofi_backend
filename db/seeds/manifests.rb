@@ -75,8 +75,8 @@ end
 if manifest1.capture_reports.none?
   report1 = manifest1.capture_reports.create!(zone: offshore_zone, zone_area: offshore_zone.name,
                                               latitude: 5.03, longitude: 115.06)
-  report1.create_capture_report_expense!(fuel_litres: 180, fuel_bnd: 320.50, ice_litres: 60, ice_bnd: 45.00,
-                                         ration_bnd: 90.00)
+  manifest1.create_manifest_expense!(fuel_litres: 180, fuel_bnd: 320.50, ice_litres: 60, ice_bnd: 45.00,
+                                     ration_bnd: 90.00)
 
   tenggiri = Dictionary.find_by!(local_name: "Ikan Tenggiri")
   report1.fish_capture_details.create!(dictionary: tenggiri, local_name: tenggiri.local_name,
@@ -262,8 +262,8 @@ end
 if manifest6.capture_reports.none?
   report6 = manifest6.capture_reports.create!(zone: offshore_zone, zone_area: offshore_zone.name,
                                               latitude: 5.10, longitude: 115.10)
-  report6.create_capture_report_expense!(fuel_litres: 150, fuel_bnd: 270.00, ice_litres: 50, ice_bnd: 38.00,
-                                         ration_bnd: 75.00)
+  manifest6.create_manifest_expense!(fuel_litres: 150, fuel_bnd: 270.00, ice_litres: 50, ice_bnd: 38.00,
+                                     ration_bnd: 75.00)
 
   selar = Dictionary.find_by!(local_name: "Ikan Selar")
   report6.fish_capture_details.create!(dictionary: selar, local_name: selar.local_name,

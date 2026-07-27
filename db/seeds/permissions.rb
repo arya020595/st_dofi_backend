@@ -26,7 +26,8 @@ PERMISSION_GROUPS = {
   "companies_fishing_gear_approvals" => %w[view list approve amendment],
   "capture_reports" => %w[view list create update],
   "capture_report_verifications" => %w[view list verify amendment],
-  "manifest_minor_fishermen" => %w[view create delete]
+  "manifest_minor_fishermen" => %w[view create delete],
+  "manifest_expenses" => %w[view create update]
 }.freeze
 
 PERMISSION_GROUPS.each do |resource, actions|
