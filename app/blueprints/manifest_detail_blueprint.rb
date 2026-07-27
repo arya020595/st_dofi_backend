@@ -9,6 +9,7 @@ class ManifestDetailBlueprint < Blueprinter::Base
          :zone_id, :skip_reason_id, :discarded_at, :created_at, :updated_at
 
   field(:capture_report_overview_status, &:capture_report_overview_status)
+  field(:is_draft, &:draft?)
 
   association :crew_manifests, blueprint: CrewManifestBlueprint
   association :manifest_minor_fishermen, blueprint: ManifestMinorFishermanBlueprint
