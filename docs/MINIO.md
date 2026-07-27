@@ -23,10 +23,41 @@ CLI and the S3 API, never the Console.
 MinIO always runs **on the same server as `api`/`jobs`**, never the database server:
 object-store I/O is a worse neighbor for Postgres's WAL than for the CPU/memory-bound app
 containers, and the database server stays the most locked-down box (Postgres only) since this is
-government infrastructure. MinIO's port is **never published to the public internet** — only
-`api`/`jobs` reach it over the internal Docker network. If a frontend needs to load image URLs
-directly in a browser, front MinIO with the same reverse proxy that terminates TLS for the API,
-rather than exposing MinIO's port directly.
+government infrastructure. MinIO's port is bound to the host's **loopback only**
+(`127.0.0.1:9002:9000` in the compose files) — never `0.0.0.0`, so it's still unreachable from the
+public internet directly. `api`/`jobs` reach it over the internal Docker network (`minio:9000`);
+a reverse proxy running on that same host reaches it via `127.0.0.1:9002` and is the only thing
+that makes it reachable from outside the box at all.
+
+**Which reverse proxy?** Whatever already terminates traffic for that server. On the ST Advisory
+staging box this is the host's existing nginx install (the same one fronting other apps'
+domains — see `/etc/nginx/sites-available/`), with a new vhost added for MinIO (see the tutorial:
+`docs/MINIO-PUBLIC-PROXY-SETUP.md`). A government production server without an existing nginx
+could instead run a small nginx **container** on the same Docker network as `minio`, proxying to
+`minio:9000` directly by Docker DNS name instead of the loopback port — either shape works, as long
+as the two rules below hold.
+
+**Two different endpoints, two different jobs.** `config/storage.yml` defines both:
+- `minio:` (`MINIO_ENDPOINT`, e.g. `http://minio:9000`) — the internal Docker address. Used for
+  every actual upload/download the app performs. Never reachable by a browser.
+- `minio_public:` (`MINIO_PUBLIC_ENDPOINT`) — the reverse proxy's public address, used **only** to
+  sign the presigned URLs handed to clients (see `DictionaryBlueprint.public_url_for` and §4
+  below). Presigning is a local SigV4 computation, not a network call (see §3's retrieval flow),
+  so this endpoint only needs to be reachable by the *browser* — the app itself never connects to
+  it. If `MINIO_PUBLIC_ENDPOINT` is unset, it falls back to `MINIO_ENDPOINT`, which is why this
+  silently "worked" before: the URL was locally valid, just unreachable from outside Docker.
+- The proxy must forward `Host` via **`$http_host`, not `$host`** (nginx's names — the same idea
+  applies to any proxy). nginx's `$host` silently strips the port, and MinIO's SigV4 verification
+  checks the request's actual `Host` header byte-for-byte against what was signed
+  (`X-Amz-SignedHeaders=host` in the query string, host *and* port). Getting this wrong doesn't
+  error at proxy-config time — every request just 403s with `SignatureDoesNotMatch`, including
+  requests using a URL that *was* signed for the right host. **This is the default other vhosts on
+  this server already use** (`proxy_set_header Host $host;` in `api.idssurvey.com`, for example) —
+  copying that pattern for MinIO reproduces the bug. Confirmed by hand: signing a URL for the
+  proxy's address and fetching it through a proxy using `$host` still 403s, because the Host MinIO
+  actually receives (port-stripped) doesn't match the signature; switching to `$http_host` fixes
+  it immediately. See `docs/MINIO-PUBLIC-PROXY-SETUP.md` and the postmortem in
+  `docs/POSTMORTEM-2026-07-27-minio-presigned-url.md` for the full incident this was found in.
 
 ### Staging (single server)
 
@@ -36,14 +67,16 @@ graph TB
         API[api container<br/>Rails]
         JOBS[jobs container<br/>Solid Queue]
         DB[("db container<br/>Postgres")]
-        MINIO[("minio container<br/>S3-compatible storage")]
-        API -->|reads / writes blobs| MINIO
-        JOBS -->|reads / writes blobs| MINIO
+        MINIO[("minio container<br/>bound to 127.0.0.1:9002 only")]
+        PROXY[Host nginx<br/>existing install, new vhost]
+        API -->|reads / writes blobs<br/>MINIO_ENDPOINT=http://minio:9000| MINIO
+        JOBS -->|reads / writes blobs<br/>MINIO_ENDPOINT=http://minio:9000| MINIO
+        PROXY -->|proxy_pass 127.0.0.1:9002<br/>Host: $http_host| MINIO
         API --> DB
         JOBS --> DB
     end
     FE[Frontend] -->|HTTPS, reverse proxy| API
-    FE -.->|image URLs, reverse proxy| MINIO
+    FE -.->|image URLs<br/>MINIO_PUBLIC_ENDPOINT| PROXY
 ```
 
 ### Production (3 dedicated government servers)
@@ -53,9 +86,11 @@ graph TB
     subgraph Backend["Backend server"]
         API2[api container]
         JOBS2[jobs container]
-        MINIO2[("minio container")]
+        MINIO2[("minio container<br/>bound to 127.0.0.1:9002 only")]
+        PROXY2[Reverse proxy<br/>host nginx, or an nginx<br/>container on minio's network]
         API2 --> MINIO2
         JOBS2 --> MINIO2
+        PROXY2 -->|Host: $http_host| MINIO2
     end
     subgraph DBServer["Database server (separate, dedicated)"]
         DB2[("Postgres")]
@@ -66,7 +101,7 @@ graph TB
     API2 -->|"DATABASE_HOST, private network + TLS"| DB2
     JOBS2 -->|"DATABASE_HOST, private network + TLS"| DB2
     FE2 -->|HTTPS| API2
-    FE2 -.->|image URLs, reverse proxy| MINIO2
+    FE2 -.->|image URLs<br/>MINIO_PUBLIC_ENDPOINT| PROXY2
 ```
 
 ### Where each environment stands today
@@ -185,7 +220,17 @@ To add file storage to another model, following the existing pattern:
    to whatever rescues the failure path (see `app/controllers/application_controller.rb`'s
    `rescue_from` for the global fallback).
 5. In a Blueprint, expose the URL the same way `dictionary_blueprint.rb` does — guard
-   `.attached?` first, and rescue `ActiveStorage::Error, Aws::Errors::ServiceError` around `.url`.
+   `.attached?` first, and rescue `ActiveStorage::Error, Aws::Errors::ServiceError` around the URL
+   call. **Don't call `.url` directly** — it signs against the blob's own `service_name`
+   (`minio`), the internal-only endpoint. Copy `DictionaryBlueprint.public_url_for`, which signs
+   against `minio_public` instead so the URL is actually reachable by a browser (see §2):
+   ```ruby
+   def self.public_url_for(blob)
+     service = blob.service_name == "minio" ? ActiveStorage::Blob.services.fetch(:minio_public) : blob.service
+     service.url(blob.key, expires_in: 5.minutes, disposition: "inline", filename: blob.filename,
+                            content_type: blob.content_type)
+   end
+   ```
 
 No new bucket is needed for a second model — they'd share the same `MINIO_BUCKET` per
 environment unless there's a reason to isolate them (e.g. different retention/access policy).
@@ -197,7 +242,8 @@ All documented in `.env.example`; real values go in each server's own `.env` (ne
 | Variable | Used by | Notes |
 |---|---|---|
 | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` | The `minio` container itself | Admin credentials. Never reused as the app's own credentials. |
-| `MINIO_ENDPOINT` | Rails (`config/storage.yml`) | Internal Docker network address, e.g. `http://minio:9000`. |
+| `MINIO_ENDPOINT` | Rails (`config/storage.yml`'s `minio:`) | Internal Docker network address, e.g. `http://minio:9000`. Used for real uploads/downloads — never reachable by a browser. |
+| `MINIO_PUBLIC_ENDPOINT` | Rails (`config/storage.yml`'s `minio_public:`) | The reverse proxy's public address, e.g. `http://<server-ip>:9010`. Used only to sign presigned URLs — see §2 and `docs/MINIO-PUBLIC-PROXY-SETUP.md`. Falls back to `MINIO_ENDPOINT` if unset. |
 | `MINIO_ACCESS_KEY_ID` / `MINIO_SECRET_ACCESS_KEY` | Rails, and `mc-init` | A **scoped** application key, not the root user — see setup below. |
 | `MINIO_REGION` | Rails | Arbitrary (MinIO ignores the value), defaults to `us-east-1`. Must be non-blank or the AWS SDK raises `MissingRegionError` at boot. |
 | `MINIO_BUCKET` | Rails, and `mc-init` | One bucket per environment, e.g. `dofi-staging` / `dofi-production` (hyphens, not underscores — S3 bucket names must be DNS-compliant). |
@@ -252,6 +298,13 @@ openssl rand -hex 20    # -> MINIO_SECRET_ACCESS_KEY
 Set `MINIO_ENDPOINT=http://minio:9000` and a `MINIO_BUCKET` (e.g. `dofi-staging` /
 `dofi-production`) in that server's `.env`. Store the generated values in a password manager —
 they become live credentials the moment they're deployed.
+
+Also set up a reverse proxy in front of MinIO's loopback port and set
+`MINIO_PUBLIC_ENDPOINT=http://<server-ip-or-domain>:<proxy-port>` so presigned image URLs are
+reachable from a browser — see §2 and the step-by-step tutorial in
+`docs/MINIO-PUBLIC-PROXY-SETUP.md`. If this server sits behind a firewall/security group, open
+that proxy port. Without this, `.url` still returns a validly-signed URL, but it points at the
+internal `minio:9000` address a browser can't reach — see the troubleshooting table in §9.
 
 Then just push to the branch that deploys that environment (`develop` → staging, `main` →
 production). The CD workflow builds the image, then on the server: pulls, runs `mc-init`, runs
@@ -312,6 +365,18 @@ docker compose down -v   # ALSO deletes the named volumes, including dofi_*_mini
                           # intentionally, e.g. tearing down a throwaway local test.
 ```
 
+### Reverse proxy operations (host nginx, staging)
+
+The public-facing proxy in front of MinIO is outside Docker entirely — it's a vhost on the host's
+existing nginx install, not a compose service. See `docs/MINIO-PUBLIC-PROXY-SETUP.md` for the full
+setup; day-2 commands (need `sudo`):
+
+```bash
+sudo nginx -t                                          # validate config before reloading
+sudo systemctl reload nginx                            # apply changes (no downtime for other vhosts)
+sudo tail -f /var/log/nginx/access.log /var/log/nginx/error.log
+```
+
 ### Inspecting bucket contents
 
 ```bash
@@ -368,6 +433,9 @@ leaving a reference to it after the gem is gone crashes the app at boot.
 | `Aws::Errors::MissingRegionError` at boot | `MINIO_REGION` blank | Set it (defaults to `us-east-1` via `ENV.fetch` — this usually means the fetch default was removed) |
 | Upload succeeds but presigned URL 403s | Bucket policy / access key not scoped to that bucket | Re-run `docker compose run --rm mc-init` (idempotent) and check its output for errors |
 | `Seahorse::Client::NetworkingError` on every upload | MinIO container down or unreachable from `api`/`jobs` | `docker compose ps` — confirm `minio` is healthy and on the same network |
+| `image_url` in an API response is `http://minio:9000/...` and the browser shows `DNS_PROBE_FINISHED_NXDOMAIN` | `MINIO_PUBLIC_ENDPOINT` is unset (falls back to the internal `MINIO_ENDPOINT`), or no reverse proxy is fronting MinIO's loopback port yet | Set up the proxy (`docs/MINIO-PUBLIC-PROXY-SETUP.md`), set `MINIO_PUBLIC_ENDPOINT` to its public address, restart `api`/`jobs` — see §2 |
+| Presigned URL 403s (`SignatureDoesNotMatch`), even for a URL that *was* signed against `MINIO_PUBLIC_ENDPOINT` | The proxy's `Host` header directive strips the port — e.g. nginx's `proxy_set_header Host $host;` (this server's *default* convention for other vhosts, see `api.idssurvey.com`) instead of `$http_host;` | Use `$http_host`, not `$host` — confirmed by hand, `$host` 403s every request through the proxy regardless of which endpoint signed it. See `docs/POSTMORTEM-2026-07-27-minio-presigned-url.md` |
+| Everything above is configured correctly but the fix still isn't live | `docker cp`'d code into a running container for a quick test, then the container was recreated (next deploy/`docker compose pull`) | `docker cp` changes are wiped on container recreate — they're not the real fix, only a way to validate one before shipping. Ship the code change through the normal path: commit, push, let CI/CD build a new image |
 | Image uploads silently land in the wrong bucket between environments | `.env` on that server has the wrong `MINIO_BUCKET` | Each server's `.env` sets its own bucket name — the same `minio` service block in `config/storage.yml` is shared across environments |
 | `force_path_style` errors / bucket-in-hostname URLs | Missing `force_path_style: true` | Already set in `config/storage.yml` — don't remove it, MinIO doesn't support virtual-hosted-style addressing |
 | Deploy fails at the `mc-init` step | MinIO container unhealthy, or root credentials in `.env` don't match what the `minio` container was actually started with | Check `docker compose logs minio`; if root credentials changed after the volume already has data, MinIO keeps the *original* credentials — update `.env` back to match, or wipe the volume (destructive) to reset |
@@ -375,8 +443,12 @@ leaving a reference to it after the gem is gone crashes the app at boot.
 
 ## 10. Security notes
 
-- MinIO's port is never published to a public interface in any compose file — only reachable
-  from `api`/`jobs` over the internal Docker network, or via a reverse proxy you control.
+- MinIO's port is never published to a public interface in any compose file — it's bound to
+  `127.0.0.1` only, so the sole path in from outside the server is the reverse proxy (host nginx
+  on staging today; see `docs/MINIO-PUBLIC-PROXY-SETUP.md`). That proxy is currently plain HTTP
+  with no auth beyond MinIO's own SigV4 signature check — anyone who can reach its port can
+  attempt requests against MinIO (they'll still need a valid signature to get anything back). Put
+  it behind TLS/a firewall allowlist if that's not acceptable for a given server.
 - The app only ever uses a **scoped** access key (`MINIO_ACCESS_KEY_ID`/`SECRET_ACCESS_KEY`),
   never the root user (`MINIO_ROOT_USER`/`PASSWORD`) — limits blast radius if the app's
   credentials ever leak.
