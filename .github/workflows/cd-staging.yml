@@ -116,14 +116,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Copy docker-compose.staging.yml to server
+      - name: Copy docker-compose.staging.yml and docker/mc-init.sh to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.STAGING_SSH_HOST }}
           username: ${{ secrets.STAGING_SSH_USER }}
           port: ${{ secrets.STAGING_SSH_PORT }}
           key: ${{ secrets.STAGING_SSH_KEY }}
-          source: docker-compose.staging.yml
+          source: docker-compose.staging.yml,docker/mc-init.sh
           target: /home/stadmin/st_dofi_backend_staging
 
       - name: Deploy on server
@@ -134,6 +134,7 @@ jobs:
           port: ${{ secrets.STAGING_SSH_PORT }}
           key: ${{ secrets.STAGING_SSH_KEY }}
           script: |
+            set -e
             cd /home/stadmin/st_dofi_backend_staging
             mv -f docker-compose.staging.yml docker-compose.yml
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin

@@ -117,14 +117,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Copy docker-compose.production.yml to server
+      - name: Copy docker-compose.production.yml and docker/mc-init.sh to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.PRODUCTION_SSH_HOST }}
           username: ${{ secrets.PRODUCTION_SSH_USER }}
           port: ${{ secrets.PRODUCTION_SSH_PORT }}
           key: ${{ secrets.PRODUCTION_SSH_KEY }}
-          source: docker-compose.production.yml
+          source: docker-compose.production.yml,docker/mc-init.sh
           target: /home/stadmin/st_dofi_backend_production
 
       - name: Deploy on server
@@ -135,6 +135,7 @@ jobs:
           port: ${{ secrets.PRODUCTION_SSH_PORT }}
           key: ${{ secrets.PRODUCTION_SSH_KEY }}
           script: |
+            set -e
             cd /home/stadmin/st_dofi_backend_production
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker compose -f docker-compose.production.yml pull

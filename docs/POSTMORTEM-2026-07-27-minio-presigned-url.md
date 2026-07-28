@@ -4,6 +4,16 @@
 data. Code fix is currently live on staging only as a manual patch to the running container (see
 Action Items) — it still needs to ship through the normal build/deploy pipeline to be durable.
 
+> **Update (2026-07-28):** Action item #1 shipped — the fix landed through the normal pipeline
+> (commit `3e2e95b`, present at the start of the next working session). The architecture has since
+> gone further still: `Dictionary` now lives on a separate **public** bucket
+> (`minio_assets`/`minio_assets_public`) and no longer uses the presigned path this incident is
+> about at all — see `docs/MINIO.md` §2. The `minio_public` signing endpoint this incident
+> introduced didn't go away; it's now the private-bucket half of that two-bucket split, still
+> exercised through `docs/MINIO-PUBLIC-PROXY-SETUP.md`'s same reverse proxy. Read the rest of this
+> doc as a historical record of the incident, not as current architecture — the timeline and root
+> cause below are unchanged and still accurate for what happened on 2026-07-27.
+
 ## Summary
 
 Every `Dictionary` API response's `image_url` pointed at `http://minio:9000/...` — MinIO's
@@ -130,16 +140,14 @@ error, only opaque `403 SignatureDoesNotMatch` responses at request time.
 
 ## Action items
 
-1. **Ship the code fix through the normal pipeline** (commit `config/storage.yml`,
-   `app/blueprints/dictionary_blueprint.rb`, `.env.example`, `docker-compose.staging.yml`,
-   `docker-compose.production.yml`, `docs/MINIO.md`, and these two docs; push to whatever branch
-   triggers the staging build; let CI/CD build and deploy a real image). Until this happens, the
-   fix only survives as long as nobody recreates the `api`/`jobs` containers.
+1. ~~**Ship the code fix through the normal pipeline**~~ — **done** (see 2026-07-28 update above;
+   commit `3e2e95b`).
 2. Repeat the same `MINIO_PUBLIC_ENDPOINT` + reverse-proxy setup for **production**
    (`docker-compose.production.yml` already has the loopback-port change; the reverse proxy step
    itself was not done there — production is a separate dedicated government server, and it's
    unknown whether it has host nginx or needs the Docker-sidecar alternative from
-   `docs/MINIO-PUBLIC-PROXY-SETUP.md`).
+   `docs/MINIO-PUBLIC-PROXY-SETUP.md`). **As of 2026-07-28, this now also gates the public assets
+   bucket**, not just the private one — both share the same `MINIO_PUBLIC_ENDPOINT`.
 3. Consider a scoped `NOPASSWD` sudo rule (or a narrower deploy account) for routine nginx
    config/reload operations on the staging box, so future changes don't require sharing the
    `stadmin` password.

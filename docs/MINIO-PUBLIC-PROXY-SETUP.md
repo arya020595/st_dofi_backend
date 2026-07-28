@@ -1,9 +1,14 @@
 # Tutorial: Setting Up MinIO's Public-Facing Proxy (Correctly)
 
-Step-by-step, verified-by-hand setup for making presigned MinIO image URLs reachable from a
-browser, without ever exposing MinIO's own port to the internet. Read `docs/MINIO.md` §2 first for
-the *why*; this doc is only the *how*. See `docs/POSTMORTEM-2026-07-27-minio-presigned-url.md` for
-the incident that made this necessary and the mistakes made (and fixed) while building it.
+Step-by-step, verified-by-hand setup for making MinIO URLs reachable from a browser, without ever
+exposing MinIO's own port to the internet. This one proxy serves **both** buckets described in
+`docs/MINIO.md` §2 — the private bucket's *presigned* URLs and the public assets bucket's plain
+*unsigned* URLs both resolve through the same `MINIO_PUBLIC_ENDPOINT`, since the reverse proxy
+just forwards to `minio:9000` regardless of which bucket/key is being requested. Read
+`docs/MINIO.md` §2 first for the *why*; this doc is only the *how*. See
+`docs/POSTMORTEM-2026-07-27-minio-presigned-url.md` for the incident that made this necessary and
+the mistakes made (and fixed) while building it — that incident predates the public/private bucket
+split, so its worked example (`Dictionary`, presigned) is now out of date; see the note below.
 
 ## What you're building
 
@@ -135,7 +140,9 @@ Notes:
    ```bash
    docker compose restart api jobs
    ```
-3. Verify end-to-end against real data (replace the UUID/key with a real `Dictionary` record):
+3. Verify end-to-end against real data. `Dictionary` is on the **public** bucket today, so its
+   `image_url` is already a plain, permanent URL through this same proxy — no signature to expire,
+   nothing else to configure:
    ```bash
    docker exec <api-container> bin/rails runner '
      d = Dictionary.find("<uuid>")
@@ -143,7 +150,10 @@ Notes:
    '
    ```
    Then `curl` that exact URL from *outside* the server (not from the server itself) and confirm
-   `HTTP 200` with the image bytes.
+   `HTTP 200` with the image bytes. To verify the **private** bucket's presigned path specifically
+   (relevant once a model actually uses it — see `docs/MINIO.md` §2), hit
+   `GET /api/v1/attachments/<signed_id>` instead and confirm the `302 Location` header resolves the
+   same way from outside the server.
 
 ## Verification checklist
 

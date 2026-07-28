@@ -21,6 +21,13 @@ Rails.application.configure do
   # Store uploaded files on MinIO (S3-compatible; see config/storage.yml for options).
   config.active_storage.service = :minio
 
+  # Public-read bucket for content where a leaked URL isn't a concern (see docs/MINIO.md §2 and
+  # config/storage.yml's minio_assets/minio_assets_public blocks) — a separate MinIO bucket with
+  # separate scoped credentials from the private `minio:` service above, not just a different
+  # prefix in the same bucket. Models opt in via `has_one_attached ..., service:
+  # Rails.application.config.x.active_storage_public_service`.
+  config.x.active_storage_public_service = :minio_assets
+
   # Both staging and production run behind a reverse proxy (nginx/Caddy) that terminates SSL —
   # bare dedicated servers have no managed load balancer to do this implicitly.
   config.assume_ssl = true

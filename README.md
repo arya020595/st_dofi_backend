@@ -88,7 +88,7 @@ Production runs on 3 separate government-provided servers instead of one shared 
 
 The backend server's `.env` must point `DATABASE_HOST`/`DATABASE_PORT` at the separate database server (see `.env.example`), and `CORS_ORIGINS` at the frontend server's real origin. The database server itself just needs PostgreSQL 16 running, with `pg_hba.conf` restricted to the backend server's IP and TLS required — it is not managed by this repo's CI/CD.
 
-File storage on both staging and production is self-hosted MinIO rather than Cloudinary — see `config/storage.yml` and the `MINIO_*` keys in `.env.example`. Cloudinary is kept temporarily as a legacy service so existing attachments keep resolving during the cutover; run `bin/rails dictionaries:migrate_images_to_minio` (add `DRY_RUN=1` to preview) to copy existing `Dictionary` images onto MinIO before removing the `cloudinary` gem and its config.
+File storage on both staging and production is self-hosted MinIO rather than Cloudinary, split across **two buckets with different access models** — a private bucket (no anonymous access, downloads via presigned URL) and a public-read bucket (anonymous `GetObject` only, e.g. `Dictionary` images) — see `docs/MINIO.md` §2 for the full rationale and `config/storage.yml`/the `MINIO_*` keys in `.env.example` for the config. Cloudinary is kept temporarily as a legacy service so existing attachments keep resolving during the cutover; run `bin/rails dictionaries:migrate_images_to_minio` (add `DRY_RUN=1` to preview) to copy existing `Dictionary` images onto MinIO before removing the `cloudinary` gem and its config.
 
 ## Option B: Run manually with Rails
 
@@ -224,6 +224,6 @@ See [CLAUDE.md](CLAUDE.md) for the architectural and coding conventions (SOLID p
 ## Infrastructure documentation
 
 - [MinIO guide](docs/MINIO.md) — architecture and flow diagrams, how it's used and implemented, setup/start/stop for local, staging, and production, and the Cloudinary migration/cutover checklist.
-- [MinIO public proxy setup tutorial](docs/MINIO-PUBLIC-PROXY-SETUP.md) — step-by-step guide for making presigned image URLs reachable from a browser (host nginx or Docker-only options), including the `$host` vs `$http_host` pitfall.
+- [MinIO public proxy setup tutorial](docs/MINIO-PUBLIC-PROXY-SETUP.md) — step-by-step guide for making MinIO URLs (both the private bucket's presigned and the public bucket's plain) reachable from a browser (host nginx or Docker-only options), including the `$host` vs `$http_host` pitfall.
 - [MinIO presigned URL postmortem (2026-07-27)](docs/POSTMORTEM-2026-07-27-minio-presigned-url.md) — incident writeup for `image_url` pointing at MinIO's internal Docker address instead of a public one.
 - [CI/CD setup guide](docs/CI-CD-SETUP.md) — how the GitHub Actions workflows and Docker Compose deploy files fit together.
