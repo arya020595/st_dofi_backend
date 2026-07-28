@@ -66,19 +66,39 @@ as the two rules below hold.
 two separate *buckets*, each with its own scoped credentials and its own MinIO access policy —
 this is a second axis, not the same thing:
 
-| | Private bucket (`MINIO_BUCKET`) | Public assets bucket (`MINIO_ASSETS_BUCKET`) |
+| | Private bucket (`MINIO_BUCKET`) | Public bucket (`MINIO_ASSETS_BUCKET`) |
 |---|---|---|
+| Bucket name convention | `dofi-<env>-private`, e.g. `dofi-staging-private` | `dofi-<env>-public`, e.g. `dofi-staging-public` |
 | `config/storage.yml` services | `minio:` / `minio_public:` | `minio_assets:` / `minio_assets_public:` |
 | Anonymous access | None — MinIO rejects any unsigned request | `s3:GetObject` only (granted by `mc-init`); `ListBucket` stays denied, so the bucket can't be enumerated even though individual objects are world-readable |
 | How the app serves a URL | `Attachments::PublicUrl` presigns a short-lived GET, returned only via `302` from `Api::V1::AttachmentsController` — never embedded in JSON (see §3's Retrieval flow) | `Attachments::AssetUrl` returns the object's plain, unsigned, non-expiring URL directly in JSON — no redirect, no signature, Rails is never touched on download |
 | Credentials | `MINIO_ACCESS_KEY_ID`/`SECRET_ACCESS_KEY`, policy `dofi-private-readwrite` (scoped to this bucket's ARN only) | `MINIO_ASSETS_ACCESS_KEY_ID`/`SECRET_ACCESS_KEY`, policy `dofi-assets-readwrite` (scoped to this bucket's ARN only) |
 | Use for | Content where a leaked URL matters: identity documents, licences, anything Pundit should gate on every access | Content where it doesn't: `Dictionary` images (fish-species reference photos) today |
 
+> **Naming note.** The bucket-tier env vars (`MINIO_BUCKET`/`MINIO_ASSETS_BUCKET`) stay prefixed
+> `MINIO_ASSETS_*`, not `MINIO_PUBLIC_*`, deliberately — `MINIO_PUBLIC_ENDPOINT` (§ above) already
+> names a different concept (the reverse-proxy address, shared by *both* buckets' browser-facing
+> URLs), so reusing "public" for the bucket-tier vars too would make two unrelated things share a
+> name. The actual **bucket names** (the string values, e.g. `dofi-staging-public`) do use
+> `private`/`public` — that's just data, not a code identifier, so there's no collision risk there.
+
 Both app credentials are deliberately scoped to **one bucket each** via a custom policy JSON (see
 `docker/mc-init.sh`) rather than MinIO's builtin `readwrite` canned policy, whose default resource
 is `arn:aws:s3:::*` — every bucket in the deployment. A credential leak on one tier must not hand
 out access to the other; that's the entire point of the split, and it only holds if the policies
-are actually scoped, not just the buckets.
+are actually scoped, not just the buckets. `mc-init` also **detaches** the old `readwrite` canned
+policy from each app credential on every run — found on staging (2026-07-28) that a credential
+provisioned before this two-bucket split had *both* the new scoped policy and the old broad one
+attached at once (`attach` only adds, it never removes), which silently kept full cross-bucket
+access alive. `detach` errors harmlessly if the old policy was never attached.
+
+Each scoped policy grants object-level actions (`GetObject`/`PutObject`/`DeleteObject`/...) **and**
+`s3:ListBucket` on the bucket itself (not just `.../*`) — the latter is easy to think unnecessary
+for an app that never calls `ListObjects` directly, but Active Storage's own `Blob#delete` calls
+`service.delete_prefixed("variants/#{key}/")` for any image blob being purged, which needs it.
+Missing it doesn't break uploads or reads — only deletes, and only for images — which is exactly
+why it went unnoticed until a real purge was tested against real MinIO on staging (2026-07-28); see
+`docs/MINIO-TWO-BUCKET-SETUP.md` §3.5.1 for the test that catches this.
 
 A model picks its tier via `has_one_attached ..., service: Rails.application.config.x.active_storage_public_service`
 for the public tier (see `app/models/dictionary.rb`), or no `service:` override at all for the
@@ -221,7 +241,7 @@ sequenceDiagram
 
     C->>Ctrl: GET /dictionaries/:id
     Ctrl->>BP: render(dictionary)
-    BP-->>Ctrl: { image_url: "https://.../dofi-assets/<key>" } (no signature, no expiry)
+    BP-->>Ctrl: { image_url: "https://.../dofi-staging-public/<key>" } (no signature, no expiry)
     Ctrl-->>C: 200 OK
     C->>MinIO: GET image_url (browser — direct, or via reverse proxy/CDN later)
     MinIO-->>C: image bytes (anonymous GetObject — bucket policy allows it, ListBucket stays denied)
@@ -270,7 +290,7 @@ which also logs every grant and denial — see §10).
 **Step 0 — decide the tier before writing any code.** Would it matter if the URL leaked — to
 someone without an account, in a browser history, in a proxy log, screenshotted? If yes (identity
 documents, licences, anything personal), it belongs on the **private** bucket. If no (already
-public-facing images, reference data), it belongs on the **public assets** bucket. See §2's table.
+public-facing images, reference data), it belongs on the **public** bucket. See §2's table.
 Getting this wrong in the public direction is a real information leak, not just a style nit — the
 public bucket has no authorization check at all by design (§3).
 
@@ -352,8 +372,8 @@ All documented in `.env.example`; real values go in each server's own `.env` (ne
 | `MINIO_PUBLIC_ENDPOINT` | Rails (`config/storage.yml`'s `minio_public:`) | The reverse proxy's public address, e.g. `http://<server-ip>:9010`. Used only to sign presigned URLs — see §2 and `docs/MINIO-PUBLIC-PROXY-SETUP.md`. Falls back to `MINIO_ENDPOINT` if unset. |
 | `MINIO_ACCESS_KEY_ID` / `MINIO_SECRET_ACCESS_KEY` | Rails, and `mc-init` | **Private** bucket's scoped application key, not the root user — see setup below. Policy `dofi-private-readwrite`, scoped to `MINIO_BUCKET` only (§2). |
 | `MINIO_REGION` | Rails | Arbitrary (MinIO ignores the value), defaults to `us-east-1`. Must be non-blank or the AWS SDK raises `MissingRegionError` at boot. Shared by both buckets. |
-| `MINIO_BUCKET` | Rails, and `mc-init` | The **private** bucket, one per environment, e.g. `dofi-staging` / `dofi-production` (hyphens, not underscores — S3 bucket names must be DNS-compliant). No anonymous access. |
-| `MINIO_ASSETS_BUCKET` | Rails, and `mc-init` | The **public assets** bucket, e.g. `dofi-staging-assets` / `dofi-production-assets`. Anonymous `GetObject` only (§2) — never reuse `MINIO_BUCKET` here, that would make the private bucket's contents world-readable. |
+| `MINIO_BUCKET` | Rails, and `mc-init` | The **private** bucket, one per environment, e.g. `dofi-staging-private` / `dofi-production-private` (hyphens, not underscores — S3 bucket names must be DNS-compliant). No anonymous access. |
+| `MINIO_ASSETS_BUCKET` | Rails, and `mc-init` | The **public** bucket, e.g. `dofi-staging-public` / `dofi-production-public`. Anonymous `GetObject` only (§2) — never reuse `MINIO_BUCKET` here, that would make the private bucket's contents world-readable. |
 | `MINIO_ASSETS_ACCESS_KEY_ID` / `MINIO_ASSETS_SECRET_ACCESS_KEY` | Rails, and `mc-init` | **Public assets** bucket's scoped application key — a *different* key pair from `MINIO_ACCESS_KEY_ID` above, not a reused one. Policy `dofi-assets-readwrite`, scoped to `MINIO_ASSETS_BUCKET` only. |
 
 ## 6. Setup, per environment
@@ -391,7 +411,7 @@ The `minio` and `mc-init` services are already defined in `docker-compose.stagin
 `docker-compose.production.yml`. `mc-init` runs `docker/mc-init.sh` (mounted in, not baked into
 the image — see the CD workflows' scp step), which provisions **both** buckets, each with its own
 scoped application user and a *custom, bucket-scoped* policy (not MinIO's builtin `readwrite`,
-which defaults to every bucket — see §2), plus the anonymous read-only policy on the assets bucket
+which defaults to every bucket — see §2), plus the anonymous read-only policy on the public bucket
 — idempotently, safe to re-run — and is wired into both CD workflows (`docker compose run --rm
 mc-init`, right after `pull` and before `db:prepare`). **There is no manual `mc` command to run on
 a normal deploy.**
@@ -408,8 +428,9 @@ openssl rand -hex 10    # -> MINIO_ASSETS_ACCESS_KEY_ID
 openssl rand -hex 20    # -> MINIO_ASSETS_SECRET_ACCESS_KEY
 ```
 
-Set `MINIO_ENDPOINT=http://minio:9000`, `MINIO_BUCKET` (e.g. `dofi-staging` / `dofi-production`),
-and `MINIO_ASSETS_BUCKET` (e.g. `dofi-staging-assets` / `dofi-production-assets`) in that server's
+Set `MINIO_ENDPOINT=http://minio:9000`, `MINIO_BUCKET` (e.g. `dofi-staging-private` /
+`dofi-production-private`), and `MINIO_ASSETS_BUCKET` (e.g. `dofi-staging-public` /
+`dofi-production-public`) in that server's
 `.env`. Store the generated values in a password manager — they become live credentials the moment
 they're deployed. Use two *different* key pairs for `MINIO_ACCESS_KEY_ID` and
 `MINIO_ASSETS_ACCESS_KEY_ID` — reusing one defeats the credential separation described in §2.
@@ -440,7 +461,7 @@ sequenceDiagram
     GH->>Server: scp docker-compose.*.yml + docker/mc-init.sh
     GH->>Server: ssh — docker compose pull
     GH->>Server: ssh — docker compose run --rm mc-init
-    Note over Server: idempotent: creates 2 buckets, 2 scoped users, 2 policies,<br/>+ anonymous read-only on the assets bucket
+    Note over Server: idempotent: creates 2 buckets, 2 scoped users, 2 policies,<br/>+ anonymous read-only on the public bucket
     GH->>Server: ssh — docker compose run --rm api bin/rails db:prepare
     GH->>Server: ssh — docker compose up -d
     Server-->>GH: containers healthy
@@ -511,7 +532,7 @@ directly with `mc admin user add` / `mc admin user remove`. Restart `api`/`jobs`
 pick up the new `.env` values.
 
 - Private bucket: `MINIO_ACCESS_KEY_ID` / `MINIO_SECRET_ACCESS_KEY`.
-- Public assets bucket: `MINIO_ASSETS_ACCESS_KEY_ID` / `MINIO_ASSETS_SECRET_ACCESS_KEY`.
+- Public bucket: `MINIO_ASSETS_ACCESS_KEY_ID` / `MINIO_ASSETS_SECRET_ACCESS_KEY`.
 
 ## 8. Migrating existing images from Cloudinary
 
@@ -560,10 +581,13 @@ leaving a reference to it after the gem is gone crashes the app at boot.
 | Everything above is configured correctly but the fix still isn't live | `docker cp`'d code into a running container for a quick test, then the container was recreated (next deploy/`docker compose pull`) | `docker cp` changes are wiped on container recreate — they're not the real fix, only a way to validate one before shipping. Ship the code change through the normal path: commit, push, let CI/CD build a new image |
 | Image uploads silently land in the wrong bucket between environments | `.env` on that server has the wrong `MINIO_BUCKET`/`MINIO_ASSETS_BUCKET` | Each server's `.env` sets its own bucket names — the same service blocks in `config/storage.yml` are shared across environments |
 | A model's file uploads, but the association can't find it (`record.field.attached?` false, or a second attach seems to "lose" the first) | `service_name:` passed to `create_and_upload!` doesn't match the `service:` on `has_one_attached` (§4 step 3) — the blob lands on one bucket, the association looks on the other | Make sure both reference the same value (`Rails.application.config.x.active_storage_public_service` for the public tier, no override for private) |
-| Public asset URL 403s even though the bucket is supposed to be public-read | `mc-init` didn't run since the assets bucket was created (anonymous policy is applied by `mc-init`, not bucket creation) | Re-run `docker compose run --rm mc-init` and check its output; verify with `mc anonymous get local/<MINIO_ASSETS_BUCKET>` |
+| Public bucket URL 403s even though the bucket is supposed to be public-read | `mc-init` didn't run since the public bucket was created (anonymous policy is applied by `mc-init`, not bucket creation) | Re-run `docker compose run --rm mc-init` and check its output; verify with `mc anonymous get local/<MINIO_ASSETS_BUCKET>` |
 | `force_path_style` errors / bucket-in-hostname URLs | Missing `force_path_style: true` | Already set in `config/storage.yml` — don't remove it, MinIO doesn't support virtual-hosted-style addressing |
 | Deploy fails at the `mc-init` step | MinIO container unhealthy, or root credentials in `.env` don't match what the `minio` container was actually started with | Check `docker compose logs minio`; if root credentials changed after the volume already has data, MinIO keeps the *original* credentials — update `.env` back to match, or wipe the volume (destructive) to reset |
 | Images disappear after a deploy | Someone ran `docker compose down -v` | The `-v` flag deletes the data volume — see Day-2 operations above. Restore from backup if you have one; MinIO itself has no undo. |
+| Upload/read work fine, but destroying a record (or `PurgeUnattachedBlobsJob`) raises `Aws::S3::Errors::AccessDenied`, and only for **image** attachments | The app credential's scoped policy is missing `s3:ListBucket` on the bucket itself — needed by `Blob#delete`'s variant cleanup (`delete_prefixed`), which only runs for images. Found on staging 2026-07-28. | `mc-init` (post-fix) grants this automatically; re-run `docker compose run --rm mc-init` to pick it up on an already-provisioned bucket (`mc admin policy create` updates the policy in place) |
+| An `.env`/.env` change (e.g. renaming `MINIO_BUCKET`) doesn't seem to take effect even after `docker compose up -d` | `env_file:` values are read at container **creation**, not on every `up`/`restart` — an already-running container keeps its old env until recreated | `docker compose up -d --force-recreate api jobs`; confirm with `docker compose exec api env \| grep MINIO_` |
+| A credential can read/write correctly but you're not sure if it's over-privileged | It may still carry the old builtin `readwrite` canned policy from before this two-bucket split (`attach` never removes an old policy) | `mc admin policy entities local --user <access key>` should show **exactly one** policy; `mc-init` (post-fix) detaches `readwrite` automatically, or run `mc admin policy detach local readwrite --user <access key>` by hand |
 
 ## 10. Security notes
 
@@ -575,12 +599,12 @@ leaving a reference to it after the gem is gone crashes the app at boot.
   it behind TLS/a firewall allowlist if that's not acceptable for a given server.
 - The app only ever uses **scoped** access keys, never the root user (`MINIO_ROOT_USER`/
   `PASSWORD`) — limits blast radius if the app's credentials ever leak.
-- The private and public-assets buckets use **separate** scoped credentials, each restricted by a
+- The private and public buckets use **separate** scoped credentials, each restricted by a
   custom policy to that one bucket's ARN (§2) — not MinIO's builtin `readwrite` canned policy,
   which defaults to every bucket in the deployment. A leaked `MINIO_ASSETS_*` credential (the
   lower-stakes one — it only ever had public-read content behind it anyway) can't be used against
   the private bucket, and vice versa.
-- The public assets bucket grants anonymous `GetObject` only — `ListBucket` stays denied, so its
+- The public bucket grants anonymous `GetObject` only — `ListBucket` stays denied, so its
   contents can't be enumerated even though any individual known key is world-readable. This is set
   by `docker/mc-init.sh` via a custom JSON policy, not a MinIO canned alias, specifically so the
   scope is exact and auditable rather than inherited from whatever a canned policy happens to mean
