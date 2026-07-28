@@ -224,6 +224,8 @@ See [CLAUDE.md](CLAUDE.md) for the architectural and coding conventions (SOLID p
 ## Infrastructure documentation
 
 - [MinIO guide](docs/MINIO.md) — architecture and flow diagrams, how it's used and implemented, setup/start/stop for local, staging, and production, and the Cloudinary migration/cutover checklist.
+- [MinIO two-bucket migration runbook](docs/MINIO-TWO-BUCKET-SETUP.md) — what changed moving to the public/private bucket split, and step-by-step instructions to test it locally against real MinIO and roll it out to staging/production.
+- [MinIO staging test report (2026-07-28)](docs/MINIO-STAGING-TEST-REPORT-2026-07-28.md) — real test results against the staging server, two bugs found and fixed (stale container env, missing `s3:ListBucket` breaking image deletes), and a self-test guide for staging/production.
 - [MinIO public proxy setup tutorial](docs/MINIO-PUBLIC-PROXY-SETUP.md) — step-by-step guide for making MinIO URLs (both the private bucket's presigned and the public bucket's plain) reachable from a browser (host nginx or Docker-only options), including the `$host` vs `$http_host` pitfall.
 - [MinIO presigned URL postmortem (2026-07-27)](docs/POSTMORTEM-2026-07-27-minio-presigned-url.md) — incident writeup for `image_url` pointing at MinIO's internal Docker address instead of a public one.
 - [CI/CD setup guide](docs/CI-CD-SETUP.md) — how the GitHub Actions workflows and Docker Compose deploy files fit together.
