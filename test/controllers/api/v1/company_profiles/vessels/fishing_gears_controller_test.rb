@@ -40,7 +40,7 @@ module Api
 
           test "create links the vessel to a master fishing gear, pending approval" do
             params = { fishing_gear: { fishing_gear_id: @fishing_gear.id, local_name: "Pukat Tarik", quantity: 3,
-                                        usage_value: 50 } }
+                                       usage_value: 50 } }
 
             assert_difference("CompaniesFishingGear.count", 1) do
               post "/api/v1/company_profiles/#{@company_profile.id}/vessels/#{@vessel.id}/fishing_gears",
