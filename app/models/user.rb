@@ -12,7 +12,8 @@ class User < ApplicationRecord
   include AASM
 
   VALID_LOCALES = %w[en ms].freeze
-  VALID_REGISTRATION_TYPES = ["Commercial", "Small-Scale (Company)", "Small - Scale (Full-Time)"].freeze
+  VALID_REGISTRATION_TYPES = ["Commercial", "Small-Scale (Company)", "Small - Scale (Full-Time)",
+                              "Small - Scale (Part-Time)"].freeze
   USERNAME_PREFIX = "MPRT".freeze
 
   aasm column: :status do

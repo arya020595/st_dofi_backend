@@ -116,6 +116,16 @@
       "type": "string"
     },
     {
+      "key": "companies_vessel_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "companies_fishing_gear_id",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "admin_contact_id",
       "value": "",
       "type": "string"
@@ -3442,6 +3452,55 @@
           ]
         },
         {
+          "name": "Create Profiling (Individual - Small-Scale Part-Time)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Small - Scale (Part-Time)\",\n    \"owner\": {\n      \"full_name\": \"Osman Bin Haji Rosli\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-566666\",\n      \"ic_colour\": \"Green\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Profiles a Small - Scale (Part-Time) fisherman as their own Owner CompanyProfileContact on an individual-shaped CompanyProfile — no company-shape fields (company_name, worker_quota, etc.) are submitted, since CompanyProfile#individual? makes them optional for this registration_type too (same relaxation as Full-Time).\n\nThis must run before 'Fisherman - Register (Small-Scale Part-Time)' in the Registrations folder — every registration_type, including Part-Time, requires the IC to already be profiled; there is no \"register first, profile later\" path for any type. Requires `profiling.create` (DoFi Officer has it via full access)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('registration_type is Small - Scale (Part-Time)', () => pm.expect(pm.response.json().data.company_profile.registration_type).to.eql('Small - Scale (Part-Time)'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Create Profiling - Validation Error (422)",
           "request": {
             "method": "POST",
@@ -3926,6 +3985,616 @@
       ]
     },
     {
+      "name": "Companies - Vessels",
+      "description": "Officer/company-scoped CRUD for `CompaniesVessel`, nested under a `CompanyProfile` (`/api/v1/company_profiles/:company_profile_id/vessels`). A Fisherman can also self-serve these same endpoints for their own `company_profile_id` (see the \"Vessels\" folder further down, which uses the fisherman's own JWT) — Pundit scopes non-officers to `company_profile_id: user.company_profile_id`. Every vessel starts `approval_status: pending` (see Approvals - Vessels below), and any edit here automatically moves an `approved`/`amendment_required` vessel back to `pending` via `Approvable#revert_to_pending_for_edit!`, so an officer/fisherman editing already-reviewed data doesn't leave a stale approval on record. Requires `companies_vessels.*`.\n\nFor Small-Scale (Company/Full-Time/Part-Time) registration types, the fisherman-facing FE labels this resource \"Boat\" instead of \"Vessel\" and shows a reduced field set: `is_powered` (Powered/Non-Powered — gates whether `engine_count`/`horse_power` are shown, `length` always shows), `charter_type` (Own/Charter), and `boat_type` (Permanent/Temporary — gates whether `license_reg_date`/`license_expiry_date` are shown). Commercial keeps the full field set (`category`, `gross_tonnage`, `year_built`, `draft`, `material`); the backend accepts every field for every registration_type regardless of which fields that type's form actually shows.\n\nRun \"Create Profiling (Owner + Admin)\" in the Profiling folder first so `company_profile_id` is set.",
+      "item": [
+        {
+          "name": "List Vessels",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "vessels?page=1&limit=10"
+              ]
+            },
+            "description": "Requires `companies_vessels.view` or `companies_vessels.list`."
+          }
+        },
+        {
+          "name": "List Vessels - Filtered by status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels?q[approval_status_eq]=pending&q[s]=created_at desc&page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "vessels?q[approval_status_eq]=pending&q[s]=created_at desc&page=1&limit=10"
+              ]
+            },
+            "description": "Filterable ransackable attributes: vessel_name, boat_number, capacity, license_reg_date, license_expiry_date, status (active/non_active), category (mother_boat/support_vessel), registration_no, max_crew, gross_tonnage, length, horse_power, year_built, draft, material, is_powered, charter_type (own/charter), boat_type (permanent/temporary), engine_count, approval_status, company_profile_id, zone_id."
+          }
+        },
+        {
+          "name": "Create Vessel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "vessels"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vessel\": {\n    \"vessel_name\": \"Sinar Bahari 1\",\n    \"boat_number\": \"BSB-1001\",\n    \"status\": \"active\",\n    \"category\": \"mother_boat\",\n    \"registration_no\": \"REG-BSB-1001\",\n    \"max_crew\": 25,\n    \"license_reg_date\": \"2026-01-01\",\n    \"license_expiry_date\": \"2027-01-01\",\n    \"gross_tonnage\": 12.5,\n    \"length\": 15,\n    \"horse_power\": 200,\n    \"engine_count\": 2,\n    \"year_built\": 2020,\n    \"draft\": 2.5,\n    \"material\": \"steel\",\n    \"is_powered\": true,\n    \"charter_type\": \"own\",\n    \"boat_type\": \"permanent\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "vessel_name and boat_number are the only required fields — everything else (status defaults to active, boat_type defaults to permanent, is_powered defaults to true, category/zone_id/registration_no/max_crew/dates/gross_tonnage/length/horse_power/engine_count/year_built/draft/material/charter_type are optional) is optional. status must be active or non_active; category must be mother_boat or support_vessel if present; material must be steel, carbon_fiber, or wood if present; charter_type must be own or charter if present; boat_type must be permanent or temporary. is_powered/charter_type/boat_type/engine_count drive the fisherman-facing \"Add New Boat\" form for Small-Scale (Company/Full-Time/Part-Time) registration types — Registration/Expiration Date only apply when boat_type is temporary, and engine_count/horse_power only apply when is_powered is true (Length always applies). Always created approval_status: pending, regardless of who creates it. Requires companies_vessels.create."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('approval_status is pending', () => pm.expect(pm.response.json().data.approval_status).to.eql('pending'));",
+                  "if (pm.response.json().data) { pm.collectionVariables.set('companies_vessel_id', pm.response.json().data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Vessel - Validation Error (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "vessels"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vessel\": {\n    \"vessel_name\": \"\",\n    \"boat_number\": \"\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Blank vessel_name/boat_number fail the presence validation."
+          }
+        },
+        {
+          "name": "Show Vessel",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "vessels",
+                "{{companies_vessel_id}}"
+              ]
+            },
+            "description": "image_urls is a computed array of URLs for any images attached via \"Upload Vessel Images\" below (empty array if none). Requires companies_vessels.view."
+          }
+        },
+        {
+          "name": "Update Vessel",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "vessels",
+                "{{companies_vessel_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vessel\": {\n    \"max_crew\": 30\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Accepts the same fields as Create. If the vessel is currently approved or amendment_required, this automatically reverts it to pending (clearing amendment_remarks/approved_by/approved_at) so the officer re-reviews the new data — see Approvable#revert_to_pending_for_edit!. Run \"Approve Vessel\" below first, then this request, to see approval_status flip back to pending in the response. Requires companies_vessels.update."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload Vessel Images",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/images",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "vessels",
+                "{{companies_vessel_id}}",
+                "images"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "images[]",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "description": "Multipart upload — attach one or more files under the repeated images[] field. Each file must be JPEG or PNG and under 2MB (CompaniesVessel::IMAGE_ALLOWED_TYPES/IMAGE_MAX_SIZE), or the request fails with a 422 listing which constraint was violated. Uploaded images are appended to the vessel's existing images (not replaced). Requires companies_vessels.update."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Vessel (soft)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "vessels",
+                "{{companies_vessel_id}}"
+              ]
+            },
+            "description": "Soft-deletes via Discard. Fails if the vessel still has companies_fishing_gears attached (dependent: :restrict_with_error) — delete those first via Companies - Fishing Gears below. Requires companies_vessels.delete."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Companies - Fishing Gears",
+      "description": "CRUD for CompaniesFishingGear, nested under a specific vessel (/api/v1/company_profiles/:company_profile_id/vessels/:vessel_id/fishing_gears) — a gear entry belongs to one vessel, not the company as a whole. fishing_gear_id must reference an existing Master Data - Fishing Gear row (see that folder to list/create one); local_name is the company's own name for it (e.g. \"Pukat Tunda\" for a master \"Trawler\"), and usage_value is the length (in meters) or count being declared for this gear on this vessel — distinct from quantity, which is the number of physical units the company owns overall. Same pending-on-edit behavior as vessels (Approvable#revert_to_pending_for_edit!). Requires companies_fishing_gears.*.\n\nRun \"Create Vessel\" above first so companies_vessel_id is set.",
+      "item": [
+        {
+          "name": "List Fishing Gears (for Vessel)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "vessels",
+                "{{companies_vessel_id}}",
+                "fishing_gears?page=1&limit=10"
+              ]
+            },
+            "description": "Requires companies_fishing_gears.view or companies_fishing_gears.list."
+          }
+        },
+        {
+          "name": "Create Fishing Gear (for Vessel)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "vessels",
+                "{{companies_vessel_id}}",
+                "fishing_gears"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fishing_gear\": {\n    \"fishing_gear_id\": \"{{fishing_gear_id}}\",\n    \"local_name\": \"Pukat Tunda\",\n    \"quantity\": 2,\n    \"usage_value\": 50\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "fishing_gear_id is required and must reference an existing Master Data - Fishing Gear row — run \"Create Fishing Gear\" in Master Data - Fishing Gear first (or \"List Fishing Gears\" there and copy an existing id) so {{fishing_gear_id}} is set. Always created approval_status: pending. Requires companies_fishing_gears.create."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('approval_status is pending', () => pm.expect(pm.response.json().data.approval_status).to.eql('pending'));",
+                  "if (pm.response.json().data) { pm.collectionVariables.set('companies_fishing_gear_id', pm.response.json().data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Show Fishing Gear (for Vessel)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears/{{companies_fishing_gear_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "vessels",
+                "{{companies_vessel_id}}",
+                "fishing_gears",
+                "{{companies_fishing_gear_id}}"
+              ]
+            },
+            "description": "Requires companies_fishing_gears.view."
+          }
+        },
+        {
+          "name": "Update Fishing Gear (for Vessel)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears/{{companies_fishing_gear_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "vessels",
+                "{{companies_vessel_id}}",
+                "fishing_gears",
+                "{{companies_fishing_gear_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fishing_gear\": {\n    \"quantity\": 3,\n    \"usage_value\": 60\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Same pending-on-edit behavior as Update Vessel — reverts approved/amendment_required back to pending. Requires companies_fishing_gears.update."
+          }
+        },
+        {
+          "name": "Delete Fishing Gear (for Vessel, soft)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears/{{companies_fishing_gear_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "vessels",
+                "{{companies_vessel_id}}",
+                "fishing_gears",
+                "{{companies_fishing_gear_id}}"
+              ]
+            },
+            "description": "Soft-deletes via Discard. Requires companies_fishing_gears.delete."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Approvals - Vessels",
+      "description": "Officer review queue for CompaniesVessel, scoped by CompaniesVesselApprovalPolicy (officers see every company's vessels; non-officers only their own). This is the general-purpose approve/amendment flow — the \"Vessels\" folder further down only calls approve inline as setup for the Manifest demo scenarios. Requires companies_vessel_approvals.*.\n\nRun \"Create Vessel\" in Companies - Vessels first so companies_vessel_id is set.",
+      "item": [
+        {
+          "name": "List Vessel Approvals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/vessels?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "vessels?page=1&limit=10"
+              ]
+            },
+            "description": "Requires companies_vessel_approvals.list."
+          }
+        },
+        {
+          "name": "List Vessel Approvals - Filtered by status and company",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/vessels?q[approval_status_eq]=pending&q[company_profile_id_eq]={{company_profile_id}}&q[s]=created_at desc&page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "vessels?q[approval_status_eq]=pending&q[company_profile_id_eq]={{company_profile_id}}&q[s]=created_at desc&page=1&limit=10"
+              ]
+            },
+            "description": "This is how the admin \"Approve Profile\" list derives which companies have at least one pending vessel — list pending vessels, then dedupe by company_profile_id."
+          }
+        },
+        {
+          "name": "Show Vessel Approval",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/vessels/{{companies_vessel_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "vessels",
+                "{{companies_vessel_id}}"
+              ]
+            },
+            "description": "Requires companies_vessel_approvals.view."
+          }
+        },
+        {
+          "name": "Approve Vessel",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/vessels/{{companies_vessel_id}}/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "vessels",
+                "{{companies_vessel_id}}",
+                "approve"
+              ]
+            },
+            "description": "Requires companies_vessel_approvals.approve. Transitions pending to approved, stamping approved_by/approved_at. Only valid from pending — fails if already approved or amendment_required (Update Vessel first, which reverts it to pending, or use Request Amendment below)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('approval_status is approved', () => pm.expect(pm.response.json().data.approval_status).to.eql('approved'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Request Amendment (Vessel)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/vessels/{{companies_vessel_id}}/request_amendment",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "vessels",
+                "{{companies_vessel_id}}",
+                "request_amendment"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"remarks\": \"Boat number does not match ROCBN records\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "remarks is required free text (not an approval_remark_id reference, unlike Reject Fisherman/Jetty Manager). Transitions pending to amendment_required, storing remarks on amendment_remarks and clearing approved_by/approved_at. Only valid from pending — run \"Update Vessel\" first if the vessel is currently approved (that reverts it to pending). Requires companies_vessel_approvals.amendment.\n\nThe fisherman then edits the vessel (Companies - Vessels, Update Vessel), which automatically clears amendment_remarks and reverts to pending for re-review — there is no separate \"resubmit\" endpoint to call."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('approval_status is amendment_required', () => pm.expect(pm.response.json().data.approval_status).to.eql('amendment_required'));",
+                  "pm.test('amendment_remarks matches submitted remarks', () => pm.expect(pm.response.json().data.amendment_remarks).to.eql('Boat number does not match ROCBN records'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Registrations",
       "description": "Public self-registration endpoints for Jetty Managers and Fishermen. No `Authorization` header is required — all four endpoints are unauthenticated. The expected flow before hitting these endpoints is: (1) user scans a BruneiID QR code, (2) BruneiID callback returns `ic_number` + `name` to the FE, (3) FE calls `GET /registrations/status` to check whether an account already exists for that IC, then routes to the appropriate register form or redirect.",
       "item": [
@@ -4353,7 +5022,7 @@
                 }
               ]
             },
-            "description": "Looks up the `CompanyProfileContact` whose `ic_no` matches the fisherman's IC number (flattened with its parent company's fields in the response). Used by the FE to pre-fill Company Name and ROCBN No. on the registration form (read-only fields).\n\nOnly applies to `registration_type` = `\"Commercial\"` or `\"Small-Scale (Company)\"`. For `\"Small - Scale (Full-Time)\"` no lookup is needed.\n\nReturns 404 if no active contact matches — the FE should show dashes and disable the Register button in this case."
+            "description": "Looks up the `CompanyProfileContact` whose `ic_no` matches the fisherman's IC number (flattened with its parent company's fields in the response). Used by the FE to pre-fill Company Name and ROCBN No. on the registration form (read-only fields).\n\nOnly applies to `registration_type` = `\"Commercial\"` or `\"Small-Scale (Company)\"`. For `\"Small - Scale (Full-Time)\"` or `\"Small - Scale (Part-Time)\"` no lookup is needed.\n\nReturns 404 if no active contact matches — the FE should show dashes and disable the Register button in this case."
           },
           "event": [
             {
@@ -4487,7 +5156,7 @@
               "mode": "raw",
               "raw": "{\n  \"user\": {\n    \"name\": \"Muhammad Shahrizan Bin Haji Said\",\n    \"ic_number\": \"01-192839\",\n    \"registration_type\": \"Commercial\",\n    \"designation\": \"Owner\"\n  }\n}"
             },
-            "description": "Registers a fisherman with `registration_type = \"Commercial\"`. The server looks up a `CompanyProfile` whose `ic_no` matches `ic_number` — if none is found, the request returns 404 (the IC lookup step above should have caught this first).\n\nThe account is created with `status: pending` and linked to the matched CompanyProfile. An officer must approve before the user can log in.\n\nValid `registration_type` values: `\"Commercial\"`, `\"Small-Scale (Company)\"`, `\"Small - Scale (Full-Time)\"`.\n\n`designation` (Owner or Admin) is only shown on the form for Commercial and Small-Scale (Company) types."
+            "description": "Registers a fisherman with `registration_type = \"Commercial\"`. The server looks up a `CompanyProfile` whose `ic_no` matches `ic_number` — if none is found, the request returns 404 (the IC lookup step above should have caught this first).\n\nThe account is created with `status: pending` and linked to the matched CompanyProfile. An officer must approve before the user can log in.\n\nValid `registration_type` values: `\"Commercial\"`, `\"Small-Scale (Company)\"`, `\"Small - Scale (Full-Time)\"`, `\"Small - Scale (Part-Time)\"`.\n\n`designation` (Owner or Admin) is only shown on the form for Commercial and Small-Scale (Company) types."
           },
           "event": [
             {
@@ -4820,6 +5489,56 @@
               ],
               "cookie": [],
               "body": "{\n  \"status\": \"fail\",\n  \"errors\": [\n    \"Registration type is not included in the list\"\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Fisherman - Register (Small-Scale Part-Time)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/registrations/fisherman",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "registrations",
+                "fisherman"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user\": {\n    \"name\": \"Osman Bin Haji Rosli\",\n    \"ic_number\": \"01-566666\",\n    \"registration_type\": \"Small - Scale (Part-Time)\"\n  }\n}"
+            },
+            "description": "Registers the individual fisherman profiled in Profiling → 'Create Profiling (Individual - Small-Scale Part-Time)'. Every registration_type — including Part-Time — requires the IC to already match a CompanyProfileContact; the server looks it up and links company_profile/company_profile_contact automatically, deriving designation from the matched contact (here, \"Owner\", since the fisherman profiled themselves as their own Owner contact). If no profile has been created for this IC yet, this returns 404 — the same failure Commercial/Small-Scale (Company)/Full-Time already have when unmatched.\n\nNote the exact string: `\"Small - Scale (Part-Time)\"` (space before and after the hyphen, matching Full-Time's convention). On the manifest side this maps to `fisherman_category: \"small_scale_part_time\"`, grouped under `Manifest.small_scale?` alongside Company/Full-Time (same no-Jetty-approval workflow)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('User status is pending', () => pm.expect(pm.response.json().data.status).to.eql('pending'));",
+                  "pm.test('Has company_profile', () => pm.expect(pm.response.json().data.company_profile).to.not.be.null);",
+                  "pm.test('designation is Owner', () => pm.expect(pm.response.json().data.designation).to.eql('Owner'));"
+                ]
+              }
             }
           ]
         },
@@ -6030,7 +6749,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"vessel\": {\n    \"vessel_name\": \"Demo Sampan\",\n    \"boat_number\": \"BN-DEMO-001\"\n  }\n}",
+              "raw": "{\n  \"vessel\": {\n    \"vessel_name\": \"Demo Sampan\",\n    \"boat_number\": \"BN-DEMO-001\",\n    \"status\": \"active\",\n    \"category\": \"support_vessel\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -6188,7 +6907,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"vessel\": {\n    \"vessel_name\": \"Demo Trawler\",\n    \"boat_number\": \"BN-DEMO-002\"\n  }\n}",
+              "raw": "{\n  \"vessel\": {\n    \"vessel_name\": \"Demo Trawler\",\n    \"boat_number\": \"BN-DEMO-002\",\n    \"status\": \"active\",\n    \"category\": \"mother_boat\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -6345,7 +7064,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"vessel\": {\n    \"vessel_name\": \"Skip Demo Boat\",\n    \"boat_number\": \"BN-DEMO-003\"\n  }\n}",
+              "raw": "{\n  \"vessel\": {\n    \"vessel_name\": \"Skip Demo Boat\",\n    \"boat_number\": \"BN-DEMO-003\",\n    \"status\": \"active\",\n    \"category\": \"support_vessel\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -6410,7 +7129,7 @@
           ]
         }
       ],
-      "description": "Log in as the fisherman (BruneiID) and create/approve their vessel, for each of the three Manifest demo scenarios below. Lives in its own folder rather than inside Auth/Profiling/Manifest because of run-order: `Create Vessel` needs the fisherman's JWT (set by Login), which only works once FINS Approval has approved them — so this folder must sit after FINS Approval and before Manifest, the same ordering constraint that makes Auth's and FINS Approval → Fisherman Approvals' own embedded setup steps self-contained rather than split across folders."
+      "description": "Log in as the fisherman (BruneiID) and create/approve their vessel, for each of the three Manifest demo scenarios below. Lives in its own folder rather than inside Auth/Profiling/Manifest because of run-order: `Create Vessel` needs the fisherman's JWT (set by Login), which only works once FINS Approval has approved them — so this folder must sit after FINS Approval and before Manifest, the same ordering constraint that makes Auth's and FINS Approval → Fisherman Approvals' own embedded setup steps self-contained rather than split across folders.\n\nThis folder deliberately keeps its `Create Vessel` bodies minimal — see \"Companies - Vessels\" (full CRUD + all fields + image upload), \"Companies - Fishing Gears\" (vessel-scoped gear CRUD), and \"Approvals - Vessels\" (list/show/approve/request_amendment) for the general-purpose showcase of those endpoints."
     },
     {
       "name": "Manifest - Fisherman",

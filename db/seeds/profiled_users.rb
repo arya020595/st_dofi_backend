@@ -9,7 +9,8 @@ FISHERMAN_USERS = [
   { name: "Haji Ahmad bin Salleh", ic_number: "00123456", registration_type: "Commercial" },
   { name: "Siti Aminah binti Yusof", ic_number: "00234567", registration_type: "Commercial" },
   { name: "Awang Zulkifli bin Hashim", ic_number: "00345678", registration_type: "Small-Scale (Company)" },
-  { name: "Dayang Norhayati binti Tuah", ic_number: "00456789", registration_type: "Small - Scale (Full-Time)" }
+  { name: "Dayang Norhayati binti Tuah", ic_number: "00456789", registration_type: "Small - Scale (Full-Time)" },
+  { name: "Osman bin Haji Rosli", ic_number: "00567892", registration_type: "Small - Scale (Part-Time)" }
 ].freeze
 
 FISHERMAN_USERS.each do |attrs|

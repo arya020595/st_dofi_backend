@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_28_044630) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_28_064052) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -117,6 +117,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_28_044630) do
     t.string "approval_status", default: "pending", null: false
     t.datetime "approved_at"
     t.uuid "approved_by_id"
+    t.uuid "companies_vessel_id"
     t.uuid "company_profile_id", null: false
     t.datetime "created_at", null: false
     t.datetime "discarded_at"
@@ -124,8 +125,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_28_044630) do
     t.string "local_name"
     t.integer "quantity"
     t.datetime "updated_at", null: false
+    t.decimal "usage_value", precision: 10, scale: 2
     t.index ["approval_status"], name: "index_companies_fishing_gears_on_approval_status"
     t.index ["approved_by_id"], name: "index_companies_fishing_gears_on_approved_by_id"
+    t.index ["companies_vessel_id"], name: "index_companies_fishing_gears_on_companies_vessel_id"
     t.index ["company_profile_id"], name: "index_companies_fishing_gears_on_company_profile_id"
     t.index ["discarded_at"], name: "index_companies_fishing_gears_on_discarded_at"
     t.index ["fishing_gear_id"], name: "index_companies_fishing_gears_on_fishing_gear_id"
@@ -137,19 +140,37 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_28_044630) do
     t.datetime "approved_at"
     t.uuid "approved_by_id"
     t.string "boat_number", null: false
+    t.string "boat_type", default: "permanent", null: false
     t.integer "capacity"
+    t.string "category"
+    t.string "charter_type"
     t.uuid "company_profile_id", null: false
     t.datetime "created_at", null: false
     t.datetime "discarded_at"
+    t.decimal "draft", precision: 10, scale: 2
+    t.integer "engine_count"
+    t.decimal "gross_tonnage", precision: 10, scale: 2
+    t.decimal "horse_power", precision: 10, scale: 2
+    t.boolean "is_powered", default: true, null: false
+    t.decimal "length", precision: 10, scale: 2
     t.date "license_expiry_date"
     t.date "license_reg_date"
+    t.string "material"
+    t.integer "max_crew"
+    t.string "registration_no"
+    t.string "status", default: "active", null: false
     t.datetime "updated_at", null: false
     t.string "vessel_name", null: false
+    t.integer "year_built"
+    t.uuid "zone_id"
     t.index ["approval_status"], name: "index_companies_vessels_on_approval_status"
     t.index ["approved_by_id"], name: "index_companies_vessels_on_approved_by_id"
     t.index ["boat_number"], name: "index_companies_vessels_on_boat_number"
     t.index ["company_profile_id"], name: "index_companies_vessels_on_company_profile_id"
     t.index ["discarded_at"], name: "index_companies_vessels_on_discarded_at"
+    t.index ["registration_no"], name: "index_companies_vessels_on_registration_no"
+    t.index ["status"], name: "index_companies_vessels_on_status"
+    t.index ["zone_id"], name: "index_companies_vessels_on_zone_id"
   end
 
   create_table "company_profile_contacts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -488,11 +509,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_28_044630) do
   add_foreign_key "companies_captains", "users", column: "approved_by_id"
   add_foreign_key "companies_crews", "company_profiles"
   add_foreign_key "companies_crews", "users", column: "approved_by_id"
+  add_foreign_key "companies_fishing_gears", "companies_vessels"
   add_foreign_key "companies_fishing_gears", "company_profiles"
   add_foreign_key "companies_fishing_gears", "fishing_gears"
   add_foreign_key "companies_fishing_gears", "users", column: "approved_by_id"
   add_foreign_key "companies_vessels", "company_profiles"
   add_foreign_key "companies_vessels", "users", column: "approved_by_id"
+  add_foreign_key "companies_vessels", "zones"
   add_foreign_key "company_profile_contacts", "company_profiles"
   add_foreign_key "company_profiles", "users", column: "approved_by"
   add_foreign_key "crew_manifests", "companies_crews"

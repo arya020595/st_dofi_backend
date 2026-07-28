@@ -5,7 +5,7 @@ module Api
         include RansackSearchable
 
         before_action :set_company_profile
-        before_action :set_vessel, only: %i[show update destroy]
+        before_action :set_vessel, only: %i[show update destroy images]
 
         def index
           authorize CompaniesVessel
@@ -53,6 +53,17 @@ module Api
           end
         end
 
+        def images
+          authorize @vessel, :update?
+
+          case CompaniesVessels::AttachImages.call(@vessel, image_params)
+          in Success(vessel)
+            render json: { status: "success", data: CompaniesVesselBlueprint.render_as_hash(vessel) }
+          in Failure(vessel)
+            render json: { status: "fail", errors: vessel.errors.full_messages }, status: :unprocessable_content
+          end
+        end
+
         private
 
         def set_company_profile
@@ -64,7 +75,14 @@ module Api
         end
 
         def vessel_params
-          params.expect(vessel: %i[vessel_name boat_number capacity license_reg_date license_expiry_date])
+          params.expect(vessel: %i[vessel_name boat_number capacity license_reg_date license_expiry_date
+                                   status category zone_id registration_no max_crew gross_tonnage
+                                   length horse_power year_built draft material
+                                   is_powered charter_type boat_type engine_count])
+        end
+
+        def image_params
+          params.expect(images: [])
         end
       end
     end

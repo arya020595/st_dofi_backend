@@ -37,4 +37,31 @@ class CompaniesVesselTest < ActiveSupport::TestCase
     assert_equal "pending", vessel.approval_status
     assert_nil vessel.amendment_remarks
   end
+
+  test "defaults to powered and permanent when not specified" do
+    vessel = create(:companies_vessel)
+
+    assert vessel.is_powered
+    assert_equal "permanent", vessel.boat_type
+  end
+
+  test "is invalid with a boat_type outside the allowed list" do
+    vessel = build(:companies_vessel, boat_type: "seasonal")
+
+    assert_not vessel.valid?
+    assert_includes vessel.errors.attribute_names, :boat_type
+  end
+
+  test "is invalid with a charter_type outside the allowed list" do
+    vessel = build(:companies_vessel, charter_type: "leased")
+
+    assert_not vessel.valid?
+    assert_includes vessel.errors.attribute_names, :charter_type
+  end
+
+  test "allows charter_type to be nil" do
+    vessel = build(:companies_vessel, charter_type: nil)
+
+    assert_predicate vessel, :valid?
+  end
 end

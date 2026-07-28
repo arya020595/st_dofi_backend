@@ -120,6 +120,51 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
     assert_equal "completed", Manifest.find(manifest_id).manifest_status
   end
 
+  test "a small-scale part-time fisherman maps to the small_scale_part_time category" do
+    ic_number = "01-999002"
+
+    post "/api/v1/company_profiles",
+         params: { company_profile: { registration_type: "Small - Scale (Part-Time)",
+                                      owner: { full_name: "Part Time Fisherman", gender: "Male",
+                                               ic_no: ic_number, ic_colour: "Yellow" } } },
+         headers: @officer_headers, as: :json
+
+    assert_response :created
+
+    post "/api/v1/registrations/fisherman",
+         params: { user: { name: "Part Time Fisherman", ic_number: ic_number,
+                           registration_type: "Small - Scale (Part-Time)" } }, as: :json
+
+    assert_response :created
+    fisherman = User.find(response.parsed_body.dig("data", "id"))
+
+    post "/api/v1/approvals/fishermen/#{fisherman.id}/approve", headers: @officer_headers
+
+    assert_response :ok
+
+    post "/api/v1/auth/brunei_id", params: { ic_number: ic_number }, as: :json
+
+    assert_response :ok
+    fisherman_headers = { "Authorization" => response.headers["Authorization"] }
+
+    post "/api/v1/company_profiles/#{fisherman.company_profile_id}/vessels",
+         params: { vessel: { vessel_name: "Part Time Boat", boat_number: "BN 5678" } },
+         headers: fisherman_headers, as: :json
+
+    assert_response :created
+    vessel_id = response.parsed_body.dig("data", "id")
+
+    post "/api/v1/approvals/vessels/#{vessel_id}/approve", headers: @officer_headers
+
+    assert_response :ok
+
+    post "/api/v1/fisherman/manifests", params: { manifest: { companies_vessel_id: vessel_id } },
+                                        headers: fisherman_headers, as: :json
+
+    assert_response :created
+    assert_equal "small_scale_part_time", response.parsed_body.dig("data", "fisherman_category")
+  end
+
   test "a commercial fisherman still goes through Jetty Port-Out/Port-In approval, unaffected by small-scale" do
     jetty_permissions = %w[manifest_list.view manifest_list.list manifest_approvals.view manifest_approvals.list
                            manifest_approvals.approve].map do |code|

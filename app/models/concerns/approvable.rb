@@ -20,9 +20,17 @@ module Approvable
       end
 
       event :resubmit do
-        transitions from: :amendment_required, to: :pending, after: :clear_amendment
+        transitions from: %i[amendment_required approved], to: :pending, after: :clear_amendment
       end
     end
+  end
+
+  # Called after an owner edits an approvable record's own data (not the approval action itself) —
+  # moves it back to pending so the officer reviews the new values, rather than leaving stale
+  # approved/amendment_required data on record that no longer reflects what was submitted. A no-op
+  # when already pending, so Update services can call this unconditionally after every edit.
+  def revert_to_pending_for_edit!
+    resubmit! if may_resubmit?
   end
 
   private
@@ -36,6 +44,6 @@ module Approvable
   end
 
   def clear_amendment(**)
-    update!(amendment_remarks: nil)
+    update!(approved_by_id: nil, approved_at: nil, amendment_remarks: nil)
   end
 end

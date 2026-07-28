@@ -24,6 +24,8 @@ ROLE_DEFINITIONS = {
       manifest_expenses.view manifest_expenses.create manifest_expenses.update
       ports.list
       profiling.view profiling.create profiling.update
+      zones.view zones.list
+      fishing_gears.view fishing_gears.list
       companies_vessels.view companies_vessels.list companies_vessels.create
       companies_vessels.update companies_vessels.delete
       companies_crews.view companies_crews.list companies_crews.create

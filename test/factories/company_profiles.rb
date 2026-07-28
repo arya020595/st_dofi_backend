@@ -27,6 +27,11 @@ FactoryBot.define do
       license_expiry_date { nil }
       worker_quota { nil }
     end
+
+    trait :part_time do
+      individual
+      registration_type { "Small - Scale (Part-Time)" }
+    end
   end
 end
 
