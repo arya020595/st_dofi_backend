@@ -27,6 +27,54 @@ minio:
   bucket: <%= ENV.fetch("MINIO_BUCKET", "") %>
   force_path_style: true
 
+# Same bucket/credentials as `minio:` above, used only to *sign* the presigned URLs handed to
+# clients (see Dictionary::PublicImageUrl) — never to actually move bytes. Presigning is a local
+# SigV4 computation, not a network call, so this endpoint only needs to be reachable by the
+# browser (via a reverse proxy to the internal minio:9000), not by this app. Falls back to
+# MINIO_ENDPOINT when unset, so environments without a public reverse proxy yet (e.g. local
+# testing of the prod image) keep working exactly as before.
+minio_public:
+  service: S3
+  endpoint: <%= ENV.fetch("MINIO_PUBLIC_ENDPOINT") { ENV.fetch("MINIO_ENDPOINT", "") } %>
+  access_key_id: <%= ENV.fetch("MINIO_ACCESS_KEY_ID", "") %>
+  secret_access_key: <%= ENV.fetch("MINIO_SECRET_ACCESS_KEY", "") %>
+  region: <%= ENV.fetch("MINIO_REGION", "us-east-1") %>
+  bucket: <%= ENV.fetch("MINIO_BUCKET", "") %>
+  force_path_style: true
+
+# --- Public assets bucket (separate bucket, separate credentials, separate MinIO policy from
+# `minio:`/`minio_public:` above — see docs/MINIO.md §2 "Public vs private buckets") ---
+#
+# `minio:`/`minio_public:` are one PRIVATE bucket, accessed by presigned URL only, referenced in
+# JSON only as our own /api/v1/attachments/:signed_id redirect (Api::V1::AttachmentsController).
+# `minio_assets:`/`minio_assets_public:` are a second, PUBLIC-READ bucket for content where a
+# leaked URL is not a concern (see Rails.application.config.x.active_storage_public_service) —
+# blueprints return the plain object URL directly, no signature, no redirect, no expiry.
+# Anonymous GetObject (never ListBucket) is granted on this bucket only, by mc-init; the private
+# bucket stays fully private. Credentials are scoped per-bucket (MINIO_ASSETS_ACCESS_KEY_ID is a
+# different key than MINIO_ACCESS_KEY_ID) so a credential leak on one tier can't reach the other.
+minio_assets:
+  service: S3
+  endpoint: <%= ENV.fetch("MINIO_ENDPOINT", "") %>
+  access_key_id: <%= ENV.fetch("MINIO_ASSETS_ACCESS_KEY_ID", "") %>
+  secret_access_key: <%= ENV.fetch("MINIO_ASSETS_SECRET_ACCESS_KEY", "") %>
+  region: <%= ENV.fetch("MINIO_REGION", "us-east-1") %>
+  bucket: <%= ENV.fetch("MINIO_ASSETS_BUCKET", "") %>
+  force_path_style: true
+
+# Browser-reachable endpoint for the same public bucket, `public: true` so Active Storage returns
+# a plain unsigned object URL from `.url` instead of computing a presigned one (there's nothing to
+# sign — the bucket already grants anonymous GetObject). Mirrors the internal/public split above.
+minio_assets_public:
+  service: S3
+  endpoint: <%= ENV.fetch("MINIO_PUBLIC_ENDPOINT") { ENV.fetch("MINIO_ENDPOINT", "") } %>
+  access_key_id: <%= ENV.fetch("MINIO_ASSETS_ACCESS_KEY_ID", "") %>
+  secret_access_key: <%= ENV.fetch("MINIO_ASSETS_SECRET_ACCESS_KEY", "") %>
+  region: <%= ENV.fetch("MINIO_REGION", "us-east-1") %>
+  bucket: <%= ENV.fetch("MINIO_ASSETS_BUCKET", "") %>
+  force_path_style: true
+  public: true
+
 # Remember not to checkin your GCS keyfile to a repository
 # google:
 #   service: GCS

@@ -26,6 +26,8 @@ module Dictionaries
       Failure(e.record)
     end
 
+    # Uploads eagerly, before any Dictionary row is persisted — otherwise the row commits first
+    # and a storage failure afterward leaves an orphaned, image-less record behind.
     def build_all(entries)
       entries.map do |attrs|
         image = attrs.delete(:image)
@@ -35,13 +37,10 @@ module Dictionaries
       end
     end
 
-    # Uploads eagerly (rather than relying on ActiveStorage's default after_commit upload) so a
-    # storage failure surfaces before any Dictionary row is persisted — otherwise the row commits
-    # first and an upload failure afterward leaves an orphaned, image-less record behind.
+    # service_name must match Dictionary's has_one_attached :image service — Attachments::
+    # UploadFromParam otherwise has no way to know which of the two buckets this belongs on.
     def uploaded_blob_for(image)
-      io = image.respond_to?(:open) ? image.open : image
-      ActiveStorage::Blob.create_and_upload!(io: io, filename: image.original_filename,
-                                             content_type: image.content_type)
+      Attachments::UploadFromParam.call(image, service_name: Rails.application.config.x.active_storage_public_service)
     end
   end
 end
