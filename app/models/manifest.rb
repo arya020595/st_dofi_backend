@@ -19,6 +19,7 @@ class Manifest < ApplicationRecord
   has_many :manifest_minor_fishermen, dependent: :destroy
   has_many :capture_reports, dependent: :destroy
   has_many :manifest_histories, dependent: :destroy
+  has_one :manifest_expense, dependent: :destroy
 
   COMMERCIAL = "commercial".freeze
   SMALL_SCALE = %w[small_scale_company small_scale_full_time small_scale_part_time].freeze

@@ -49,6 +49,11 @@ Rails.application.routes.draw do
       resources :permissions, only: %i[index]
       resources :dictionaries, only: %i[index show create update destroy]
 
+      # Generic Active Storage redirect endpoint (see docs/MINIO.md §3-4): authorizes against the
+      # attachment's owning record, then 302s to a freshly-signed MinIO URL. Works for any
+      # attachable model with a Pundit policy — not Dictionary-specific.
+      get "attachments/:signed_id", to: "attachments#show", as: :attachment
+
       namespace :fisherman do
         resources :manifests, only: %i[index show create destroy] do
           collection do
@@ -63,6 +68,7 @@ Rails.application.routes.draw do
             get :offline_bundle
           end
         end
+        resources :ports, only: %i[index]
       end
 
       # Nested manifest sub-resources are deliberately unprefixed (neither fisherman/ nor
@@ -72,13 +78,13 @@ Rails.application.routes.draw do
       # namespace listed/created the parent manifest.
       resources :manifests, only: [] do
         resources :minor_fishermen, module: "manifests"
+        resource :expense, only: %i[show create update], module: "manifests"
         resources :capture_reports, module: "manifests" do
           member do
             post :verify
             post :request_amendment
             post :resubmit
           end
-          resource :expense, only: %i[show create update], module: "capture_reports"
           resources :fish_capture_details, module: "capture_reports" do
             collection { post :bulk_sync }
           end

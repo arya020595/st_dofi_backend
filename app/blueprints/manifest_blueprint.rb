@@ -6,4 +6,5 @@ class ManifestBlueprint < Blueprinter::Base
          :port_out_datetime, :port_in_datetime, :discarded_at, :created_at, :updated_at
 
   field(:capture_report_overview_status, &:capture_report_overview_status)
+  field(:is_draft, &:draft?)
 end

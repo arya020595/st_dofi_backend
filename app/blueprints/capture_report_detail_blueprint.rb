@@ -5,6 +5,5 @@ class CaptureReportDetailBlueprint < Blueprinter::Base
          :capture_report_remarks, :reviewed_by_id, :reviewed_at, :created_at, :updated_at
 
   association :fish_capture_details, blueprint: FishCaptureDetailBlueprint
-  association :capture_report_expense, blueprint: CaptureReportExpenseBlueprint
   association :fishing_gear_details, blueprint: FishingGearDetailBlueprint
 end

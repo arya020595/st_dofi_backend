@@ -21,6 +21,8 @@ ROLE_DEFINITIONS = {
       dashboard.view
       manifest_list.view manifest_list.list manifest_list.delete
       manifest_form.view manifest_form.create
+      manifest_expenses.view manifest_expenses.create manifest_expenses.update
+      ports.list
       profiling.view profiling.create profiling.update
       zones.view zones.list
       fishing_gears.view fishing_gears.list

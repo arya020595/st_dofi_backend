@@ -2,6 +2,10 @@ class ApplicationController < ActionController::API
   include Pundit::Authorization
   include Pagy::Method
   include Dry::Monads[:result]
+  # Sets ActiveStorage::Current.url_options from the current request — required by the Disk
+  # service (test/development) whenever a blueprint calls blob.service.url directly; a no-op for
+  # the S3 service (MinIO in staging/production), which never touches Rails' router.
+  include ActiveStorage::SetCurrent
 
   before_action :authenticate_user!
   before_action :set_locale
