@@ -1,13 +1,14 @@
 class CompanyProfile < ApplicationRecord
   include Discard::Model
 
-  # A Small-Scale (Full-Time) profile is still officer-profiled via POST /api/v1/company_profiles
-  # like any other type (see Users::RegisterFisherman) — it just represents one person rather than
-  # a company, so it's profiled with only an Owner CompanyProfileContact (the fisherman themselves)
-  # and no company-shape fields. Company-shape fields (company_name, worker_quota, district,
-  # fisherman_card_no, ...) stay optional for this type rather than validating for data that path
-  # doesn't collect — see CLAUDE.md "don't validate for scenarios that can't happen."
-  INDIVIDUAL_REGISTRATION_TYPES = ["Small - Scale (Full-Time)"].freeze
+  # Small-Scale (Full-Time) and (Part-Time) profiles are still officer-profiled via
+  # POST /api/v1/company_profiles like any other type (see Users::RegisterFisherman) — they just
+  # represent one person rather than a company, so they're profiled with only an Owner
+  # CompanyProfileContact (the fisherman themselves) and no company-shape fields. Company-shape
+  # fields (company_name, worker_quota, district, fisherman_card_no, ...) stay optional for these
+  # types rather than validating for data that path doesn't collect — see CLAUDE.md "don't
+  # validate for scenarios that can't happen."
+  INDIVIDUAL_REGISTRATION_TYPES = ["Small - Scale (Full-Time)", "Small - Scale (Part-Time)"].freeze
 
   belongs_to :approved_by_user, class_name: "User", foreign_key: "approved_by", inverse_of: false, optional: true
   has_many :users, dependent: :nullify

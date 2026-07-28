@@ -9,7 +9,8 @@ module Manifests
     FISHERMAN_CATEGORY_BY_REGISTRATION_TYPE = {
       "Commercial" => "commercial",
       "Small-Scale (Company)" => "small_scale_company",
-      "Small - Scale (Full-Time)" => "small_scale_full_time"
+      "Small - Scale (Full-Time)" => "small_scale_full_time",
+      "Small - Scale (Part-Time)" => "small_scale_part_time"
     }.freeze
 
     def self.call(...) = new.call(...)

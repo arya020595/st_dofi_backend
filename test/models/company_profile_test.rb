@@ -22,6 +22,13 @@ class CompanyProfileTest < ActiveSupport::TestCase
     assert_not profile.valid?
   end
 
+  test "a part-time profile is also treated as individual, same as full-time" do
+    profile = build(:company_profile, :part_time)
+
+    assert_predicate profile, :individual?
+    assert_predicate profile, :valid?
+  end
+
   test "owner_contact and admin_contact find the kept contact with the matching designation" do
     company_profile = create(:company_profile)
     owner = create(:company_profile_contact, company_profile: company_profile, designation: "Owner")

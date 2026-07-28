@@ -5,6 +5,7 @@ class ApplicationController < ActionController::API
 
   before_action :authenticate_user!
   before_action :set_locale
+  before_action :set_active_storage_url_options
 
   rescue_from Pundit::NotAuthorizedError, with: :render_forbidden
   rescue_from ActiveRecord::RecordNotFound, with: :render_not_found
@@ -22,6 +23,17 @@ class ApplicationController < ActionController::API
 
   def request_locale
     request.headers["Accept-Language"]
+  end
+
+  # Only the local Disk service (used in development/test) needs this — it serves files through a
+  # Rails route, so generating a URL requires a host. This is an ActionController::API app, which
+  # (unlike ActionController::Base) never auto-populates ActiveStorage::Current.url_options from the
+  # request the way a view render would, so blueprints calling image.url would otherwise raise
+  # outside this before_action. MinIO/S3/Cloudinary generate their own absolute URLs and ignore this.
+  def set_active_storage_url_options
+    return unless Rails.application.config.respond_to?(:active_storage_url_host)
+
+    ActiveStorage::Current.url_options = { host: Rails.application.config.active_storage_url_host }
   end
 
   def append_info_to_payload(payload)

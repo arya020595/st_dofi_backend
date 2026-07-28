@@ -30,10 +30,12 @@ Rails.application.routes.draw do
       resources :users, only: %i[index show create update destroy]
       resources :company_profiles, only: %i[index show create update destroy] do
         resources :contacts, only: %i[create update destroy], module: "company_profiles"
-        resources :vessels, module: "company_profiles"
+        resources :vessels, module: "company_profiles" do
+          member { post :images }
+          resources :fishing_gears, module: "vessels"
+        end
         resources :crews, module: "company_profiles"
         resources :captains, module: "company_profiles"
-        resources :fishing_gears, module: "company_profiles"
       end
 
       namespace :registrations do

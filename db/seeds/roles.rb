@@ -22,6 +22,8 @@ ROLE_DEFINITIONS = {
       manifest_list.view manifest_list.list manifest_list.delete
       manifest_form.view manifest_form.create
       profiling.view profiling.create profiling.update
+      zones.view zones.list
+      fishing_gears.view fishing_gears.list
       companies_vessels.view companies_vessels.list companies_vessels.create
       companies_vessels.update companies_vessels.delete
       companies_crews.view companies_crews.list companies_crews.create

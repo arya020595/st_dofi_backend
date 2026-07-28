@@ -5,9 +5,10 @@ module CompaniesCaptains
     def self.call(...) = new.call(...)
 
     def call(captain, attributes)
-      return Success(captain) if captain.update(attributes)
+      return Failure(captain) unless captain.update(attributes)
 
-      Failure(captain)
+      captain.revert_to_pending_for_edit!
+      Success(captain)
     end
   end
 end

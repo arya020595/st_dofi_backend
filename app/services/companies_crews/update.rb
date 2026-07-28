@@ -5,9 +5,10 @@ module CompaniesCrews
     def self.call(...) = new.call(...)
 
     def call(crew, attributes)
-      return Success(crew) if crew.update(attributes)
+      return Failure(crew) unless crew.update(attributes)
 
-      Failure(crew)
+      crew.revert_to_pending_for_edit!
+      Success(crew)
     end
   end
 end

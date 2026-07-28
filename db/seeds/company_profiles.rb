@@ -37,6 +37,10 @@ company_profiles = [
   {
     registration_type: "Small - Scale (Full-Time)",
     owner: { full_name: "Dayang Norhayati binti Tuah", gender: "Female", ic_no: "00456789", ic_colour: "Green" }
+  },
+  {
+    registration_type: "Small - Scale (Part-Time)",
+    owner: { full_name: "Osman bin Haji Rosli", gender: "Male", ic_no: "00567892", ic_colour: "Green" }
   }
 ]
 

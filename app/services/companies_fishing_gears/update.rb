@@ -5,9 +5,10 @@ module CompaniesFishingGears
     def self.call(...) = new.call(...)
 
     def call(gear, attributes)
-      return Success(gear) if gear.update(attributes)
+      return Failure(gear) unless gear.update(attributes)
 
-      Failure(gear)
+      gear.revert_to_pending_for_edit!
+      Success(gear)
     end
   end
 end

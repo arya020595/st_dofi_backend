@@ -29,7 +29,8 @@ no_fish_caught = ManifestSkipReason.find_by!(name: "No Fish Caught")
 FISHERMAN_CATEGORY_BY_REGISTRATION_TYPE = {
   "Commercial" => "commercial",
   "Small-Scale (Company)" => "small_scale_company",
-  "Small - Scale (Full-Time)" => "small_scale_full_time"
+  "Small - Scale (Full-Time)" => "small_scale_full_time",
+  "Small - Scale (Part-Time)" => "small_scale_part_time"
 }.freeze
 
 # --- Manifest 1: Commercial, full lifecycle through to completed -----------------------------------
