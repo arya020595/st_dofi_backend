@@ -110,4 +110,12 @@ class ManifestTest < ActiveSupport::TestCase
 
     assert_predicate manifest, :editable?
   end
+
+  test "support vessel must be approved, from the same company, and distinct from the primary vessel" do
+    manifest = create(:manifest)
+    manifest.assign_attributes(has_support_vessel: true, support_vessel: manifest.companies_vessel)
+
+    assert_not manifest.valid?
+    assert_includes manifest.errors[:support_vessel_id], "must differ from the primary vessel"
+  end
 end

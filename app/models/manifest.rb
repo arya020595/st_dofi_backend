@@ -8,6 +8,7 @@ class Manifest < ApplicationRecord
 
   belongs_to :companies_vessel
   belongs_to :companies_captain, optional: true
+  belongs_to :support_vessel, class_name: "CompaniesVessel", optional: true
   belongs_to :company_profile
   belongs_to :port_out, class_name: "Port", optional: true
   belongs_to :port_in, class_name: "Port", optional: true
@@ -26,6 +27,7 @@ class Manifest < ApplicationRecord
 
   validates :manifest_number, presence: true, uniqueness: true
   validates :fisherman_category, presence: true
+  validate :support_vessel_is_valid
 
   def self.ransackable_attributes(_auth_object = nil)
     %w[id manifest_number fisherman_category manifest_status port_out_status port_in_status
@@ -126,6 +128,34 @@ class Manifest < ApplicationRecord
   end
 
   private
+
+  def support_vessel_is_valid
+    validate_support_vessel_presence
+    validate_support_vessel_record if support_vessel.present?
+  end
+
+  def validate_support_vessel_presence
+    return if has_support_vessel? == support_vessel_id.present?
+
+    message = if has_support_vessel?
+                "must be provided when a support vessel is used"
+              else
+                "must be blank when no support vessel is used"
+              end
+    errors.add(:support_vessel_id, message)
+  end
+
+  def validate_support_vessel_record
+    errors.add(:support_vessel_id, "must differ from the primary vessel") if support_vessel_id == companies_vessel_id
+    validate_support_vessel_company
+    errors.add(:support_vessel_id, "must be approved") unless support_vessel.approved?
+  end
+
+  def validate_support_vessel_company
+    return if support_vessel.company_profile_id == company_profile_id
+
+    errors.add(:support_vessel_id, "must belong to the same company")
+  end
 
   def record_port_out_history(actor: nil, remarks: nil, **)
     record_history!("port_out_status", aasm_name: :port_out, actor: actor, remarks: remarks)

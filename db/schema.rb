@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_28_064052) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_28_100002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -341,6 +341,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_28_064052) do
   end
 
   create_table "manifests", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.boolean "ais_tracking", default: false, null: false
     t.string "captain_ic_number"
     t.string "captain_name"
     t.boolean "capture_report_skipped", default: false, null: false
@@ -353,6 +354,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_28_064052) do
     t.datetime "discarded_at"
     t.string "fisherman_category", null: false
     t.boolean "has_minor_fishermen", default: false, null: false
+    t.boolean "has_support_vessel", default: false, null: false
     t.decimal "latitude", precision: 10, scale: 8
     t.decimal "longitude", precision: 11, scale: 8
     t.string "manifest_number", null: false
@@ -367,6 +369,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_28_064052) do
     t.string "port_out_status", default: "draft", null: false
     t.uuid "skip_reason_id"
     t.text "skip_reason_remarks"
+    t.uuid "support_vessel_id"
     t.datetime "updated_at", null: false
     t.string "vessel_boat_name"
     t.string "vessel_boat_no"
@@ -386,6 +389,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_28_064052) do
     t.index ["port_out_id"], name: "index_manifests_on_port_out_id"
     t.index ["port_out_status"], name: "index_manifests_on_port_out_status"
     t.index ["skip_reason_id"], name: "index_manifests_on_skip_reason_id"
+    t.index ["support_vessel_id"], name: "index_manifests_on_support_vessel_id"
     t.index ["zone_id"], name: "index_manifests_on_zone_id"
   end
 
@@ -530,6 +534,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_28_064052) do
   add_foreign_key "manifest_minor_fishermen", "manifests"
   add_foreign_key "manifests", "companies_captains"
   add_foreign_key "manifests", "companies_vessels"
+  add_foreign_key "manifests", "companies_vessels", column: "support_vessel_id"
   add_foreign_key "manifests", "company_profiles"
   add_foreign_key "manifests", "manifest_skip_reasons", column: "skip_reason_id"
   add_foreign_key "manifests", "ports", column: "port_in_id"

@@ -9,12 +9,17 @@ module Manifests
         manifest: ManifestDetailBlueprint.render_as_hash(manifest),
         zones: ZoneBlueprint.render_as_hash(Zone.all),
         fishing_gears: FishingGearBlueprint.render_as_hash(FishingGear.all),
-        company_fishing_gears: CompaniesFishingGearBlueprint.render_as_hash(
-          manifest.company_profile.companies_fishing_gears.kept.approved
-        ),
+        company_fishing_gears: CompaniesFishingGearBlueprint.render_as_hash(company_fishing_gears(manifest)),
         dictionaries: DictionaryBlueprint.render_as_hash(Dictionary.all),
         skip_reasons: ManifestSkipReasonBlueprint.render_as_hash(ManifestSkipReason.kept)
       }
+    end
+
+    private
+
+    def company_fishing_gears(manifest)
+      manifest.company_profile.companies_fishing_gears.kept.approved
+              .where(companies_vessel_id: manifest.companies_vessel_id)
     end
   end
 end

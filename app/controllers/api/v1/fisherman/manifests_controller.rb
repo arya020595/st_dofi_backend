@@ -6,7 +6,7 @@ module Api
         include FishermanManifestTransitions
 
         before_action :set_manifest,
-                      only: [:show, :destroy, :offline_bundle, *FishermanManifestTransitions::TRANSITION_ACTIONS]
+                      only: [:show, :update, :destroy, :offline_bundle, *FishermanManifestTransitions::TRANSITION_ACTIONS]
 
         def index
           authorize Manifest
@@ -44,6 +44,17 @@ module Api
           end
         end
 
+        def update
+          authorize @manifest, :fisherman_update?
+
+          case ::Manifests::Update.call(@manifest, manifest_params, company_profile: current_user.company_profile)
+          in Success(manifest)
+            render json: { status: "success", data: ManifestDetailBlueprint.render_as_hash(manifest) }
+          in Failure(manifest)
+            render json: { status: "fail", errors: manifest.errors.full_messages }, status: :unprocessable_content
+          end
+        end
+
         def destroy
           authorize @manifest
 
@@ -66,6 +77,7 @@ module Api
                                    :port_out_id, :port_out_datetime, :port_out_area,
                                    :port_in_id, :port_in_datetime, :port_in_area,
                                    :zone_id, :zone_area, :longitude, :latitude, :has_minor_fishermen,
+                                   :ais_tracking, :has_support_vessel, :support_vessel_id,
                                    { crew_ids: [],
                                      ad_hoc_crew: [%i[crew_name ic_number passport_number
                                                       position nationality date_of_birth]] }])

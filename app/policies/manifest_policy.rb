@@ -8,6 +8,7 @@ class ManifestPolicy < ApplicationPolicy
   def show?   = user.permission?("#{LIST}.view", "#{FORM}.view", "#{APPROVALS}.view")
   def create? = user.permission?("#{FORM}.create")
   def update? = user.permission?("#{LIST}.update")
+  def fisherman_update? = user.permission?("#{FORM}.create")
   def destroy? = user.permission?("#{LIST}.delete")
 
   def submit_port_out? = user.permission?("#{FORM}.create")

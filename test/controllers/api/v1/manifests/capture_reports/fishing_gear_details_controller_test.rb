@@ -16,7 +16,9 @@ module Api
             @user = create(:user, role: @role, company_profile: @manifest.company_profile,
                                   password: @password, password_confirmation: @password)
             @report = create(:capture_report, manifest: @manifest)
-            @company_gear = create(:companies_fishing_gear, :approved, company_profile: @manifest.company_profile)
+            @company_gear = create(:companies_fishing_gear, :approved,
+                                   company_profile: @manifest.company_profile,
+                                   companies_vessel: @manifest.companies_vessel)
 
             @headers = auth_headers_for(@user, password: @password)
           end
@@ -42,6 +44,22 @@ module Api
 
             assert_response :ok
             assert_not FishingGearDetail.exists?(detail.id)
+          end
+
+          test "create rejects a gear assigned to a different vessel" do
+            another_vessel = create(:companies_vessel, :approved, company_profile: @manifest.company_profile)
+            another_gear = create(:companies_fishing_gear, :approved,
+                                  company_profile: @manifest.company_profile,
+                                  companies_vessel: another_vessel)
+            params = { fishing_gear_detail: { companies_fishing_gear_id: another_gear.id, quantity: 2 } }
+
+            post "/api/v1/manifests/#{@manifest.id}/capture_reports/#{@report.id}/fishing_gear_details",
+                 params: params, headers: @headers, as: :json
+
+            assert_response :unprocessable_content
+            error = "Companies fishing gear must reference an approved fishing gear assigned to this manifest's vessel"
+
+            assert_includes response.parsed_body["errors"], error
           end
         end
       end
