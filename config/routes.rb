@@ -47,7 +47,7 @@ Rails.application.routes.draw do
       resources :permissions, only: %i[index]
       resources :dictionaries, only: %i[index show create update destroy]
 
-      # Generic Active Storage redirect endpoint (see docs/MINIO.md §3-4): authorizes against the
+      # Generic Active Storage redirect endpoint (see docs/minio/MINIO.md §3-4): authorizes against the
       # attachment's owning record, then 302s to a freshly-signed MinIO URL. Works for any
       # attachable model with a Pundit policy — not Dictionary-specific.
       get "attachments/:signed_id", to: "attachments#show", as: :attachment

@@ -38,7 +38,7 @@ Controllers, models, and business logic each have one job. Don't let logic leak 
   type/role discriminator for business logic. If a model needs a small, fixed set of system-recognized
   kinds, add a dedicated column excluded from controller mass-assignment, nullable so it doesn't force
   custom/future records into one of the fixed buckets, seeded via `db/seeds`. See `Role#kind` and
-  `docs/business-flow.md` §2/§9 for the worked example and the incident that motivated it.
+  `docs/registration/business-flow.md` §2/§9 for the worked example and the incident that motivated it.
 - Soft-deletable/audited models use `Discard`/`Audited` consistently with existing models rather than rolling a custom `deleted_at` flag.
 - Background work goes through Solid Queue (`ApplicationJob` subclasses), not inline blocking calls in requests.
 

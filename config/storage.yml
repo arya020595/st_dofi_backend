@@ -43,7 +43,7 @@ minio_public:
   force_path_style: true
 
 # --- Public assets bucket (separate bucket, separate credentials, separate MinIO policy from
-# `minio:`/`minio_public:` above — see docs/MINIO.md §2 "Public vs private buckets") ---
+# `minio:`/`minio_public:` above — see docs/minio/MINIO.md §2 "Public vs private buckets") ---
 #
 # `minio:`/`minio_public:` are one PRIVATE bucket, accessed by presigned URL only, referenced in
 # JSON only as our own /api/v1/attachments/:signed_id redirect (Api::V1::AttachmentsController).

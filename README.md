@@ -88,7 +88,7 @@ Production runs on 3 separate government-provided servers instead of one shared 
 
 The backend server's `.env` must point `DATABASE_HOST`/`DATABASE_PORT` at the separate database server (see `.env.example`), and `CORS_ORIGINS` at the frontend server's real origin. The database server itself just needs PostgreSQL 16 running, with `pg_hba.conf` restricted to the backend server's IP and TLS required — it is not managed by this repo's CI/CD.
 
-File storage on both staging and production is self-hosted MinIO rather than Cloudinary, split across **two buckets with different access models** — a private bucket (no anonymous access, downloads via presigned URL) and a public-read bucket (anonymous `GetObject` only, e.g. `Dictionary` images) — see `docs/MINIO.md` §2 for the full rationale and `config/storage.yml`/the `MINIO_*` keys in `.env.example` for the config. Cloudinary is kept temporarily as a legacy service so existing attachments keep resolving during the cutover; run `bin/rails dictionaries:migrate_images_to_minio` (add `DRY_RUN=1` to preview) to copy existing `Dictionary` images onto MinIO before removing the `cloudinary` gem and its config.
+File storage on both staging and production is self-hosted MinIO rather than Cloudinary, split across **two buckets with different access models** — a private bucket (no anonymous access, downloads via presigned URL) and a public-read bucket (anonymous `GetObject` only, e.g. `Dictionary` images) — see `docs/minio/MINIO.md` §2 for the full rationale and `config/storage.yml`/the `MINIO_*` keys in `.env.example` for the config. Cloudinary is kept temporarily as a legacy service so existing attachments keep resolving during the cutover; run `bin/rails dictionaries:migrate_images_to_minio` (add `DRY_RUN=1` to preview) to copy existing `Dictionary` images onto MinIO before removing the `cloudinary` gem and its config.
 
 ## Option B: Run manually with Rails
 
@@ -216,16 +216,49 @@ Runs, in order: `bin/setup`, `bin/rubocop`, `bin/bundler-audit`, `bin/brakeman`,
 
 See [CLAUDE.md](CLAUDE.md) for the architectural and coding conventions (SOLID principles, layering, naming) followed in this codebase.
 
-## API documentation
+## Documentation
 
+Start with the [Architecture overview](docs/ARCHITECTURE.md) — system context, deployment
+topology, layered request flow, and the core domain model, all in one place. Everything else in
+`docs/` is organized into one folder per topic — the folder itself is the grouping, not just this
+list:
+
+```
+docs/
+├── ARCHITECTURE.md  system context, deployment topology, layers, domain model — start here
+├── registration/    actors, roles, self-registration & login flow
+├── api/             frontend-facing request/response contracts
+├── minio/           MinIO/file-storage architecture & setup
+├── ci-cd/           CI/CD & deployment
+└── incidents/       postmortems and dated test reports
+```
+
+### [`docs/registration/`](docs/registration/) — actors, roles & registration flow
+
+- [Business flow — actors, roles & lifecycles](docs/registration/business-flow.md) — who the three actors are (DoFi Officer, Jetty Manager, Fisherman), how each gets an account, who approves what, and the reasoning behind non-obvious decisions (`Role#kind`, single-role model, why passwords are never manually chosen).
+- [Registration flow](docs/registration/registration-flow.md) — endpoint request/response contracts for self-registration, officer profiling/approval, and login, for all three actors.
+- [Testing mock BruneiID login](docs/registration/testing-mock-brunei-id-login.md) — copy-pasteable curl walkthrough for the full register → approve → login loop, plus pending/rejected/not-found cases.
+
+### [`docs/api/`](docs/api/) — frontend-facing API contracts
+
+- [Locale (EN/MS) contract](docs/api/locale.md) — `Accept-Language` header contract, saving a preferred locale.
+- [Master data API](docs/api/master-data.md) — CRUD contract for reference/lookup resources (Port, Zone, Fishing Gear, Nationality, Position, Reason).
 - [Search, filter, sort & pagination contract](docs/api/search-filter-sort-pagination.md) — how the frontend should call list (`index`) endpoints (Ransack query params + Pagy pagination).
 - [Postman collection](postman/DoFi-Backend.postman_collection.json)
 
-## Infrastructure documentation
+### [`docs/minio/`](docs/minio/) — MinIO / file storage
 
-- [MinIO guide](docs/MINIO.md) — architecture and flow diagrams, how it's used and implemented, setup/start/stop for local, staging, and production, and the Cloudinary migration/cutover checklist.
-- [MinIO two-bucket migration runbook](docs/MINIO-TWO-BUCKET-SETUP.md) — what changed moving to the public/private bucket split, and step-by-step instructions to test it locally against real MinIO and roll it out to staging/production.
-- [MinIO staging test report (2026-07-28)](docs/MINIO-STAGING-TEST-REPORT-2026-07-28.md) — real test results against the staging server, two bugs found and fixed (stale container env, missing `s3:ListBucket` breaking image deletes), and a self-test guide for staging/production.
-- [MinIO public proxy setup tutorial](docs/MINIO-PUBLIC-PROXY-SETUP.md) — step-by-step guide for making MinIO URLs (both the private bucket's presigned and the public bucket's plain) reachable from a browser (host nginx or Docker-only options), including the `$host` vs `$http_host` pitfall.
-- [MinIO presigned URL postmortem (2026-07-27)](docs/POSTMORTEM-2026-07-27-minio-presigned-url.md) — incident writeup for `image_url` pointing at MinIO's internal Docker address instead of a public one.
-- [CI/CD setup guide](docs/CI-CD-SETUP.md) — how the GitHub Actions workflows and Docker Compose deploy files fit together.
+- [MinIO guide](docs/minio/MINIO.md) — architecture and flow diagrams, how it's used and implemented, setup/start/stop for local, staging, and production, and the Cloudinary migration/cutover checklist. Start here.
+- [Why two MinIO buckets?](docs/minio/MINIO-WHY-TWO-BUCKETS.md) — the reasoning behind the public/private bucket split (not just the mechanics) — read this first if you're new to the storage architecture.
+- [MinIO two-bucket migration runbook](docs/minio/MINIO-TWO-BUCKET-SETUP.md) — what changed moving to the public/private bucket split, and step-by-step instructions to test it locally against real MinIO and roll it out to staging/production.
+- [MinIO public proxy setup tutorial](docs/minio/MINIO-PUBLIC-PROXY-SETUP.md) — step-by-step guide for making MinIO URLs (both the private bucket's presigned and the public bucket's plain) reachable from a browser (host nginx or Docker-only options), including the `$host` vs `$http_host` pitfall.
+
+### [`docs/ci-cd/`](docs/ci-cd/) — CI/CD & deployment
+
+- [CI/CD setup guide](docs/ci-cd/CI-CD-SETUP.md) — how the GitHub Actions workflows and Docker Compose deploy files fit together; also a general template for standing up CI/CD on a new service.
+
+### [`docs/incidents/`](docs/incidents/) — postmortems & dated test reports
+
+- [MinIO presigned URL postmortem (2026-07-27)](docs/incidents/POSTMORTEM-2026-07-27-minio-presigned-url.md) — incident writeup for `image_url` pointing at MinIO's internal Docker address instead of a public one.
+- [MinIO staging test report (2026-07-28)](docs/incidents/MINIO-STAGING-TEST-REPORT-2026-07-28.md) — real test results against the staging server, two bugs found and fixed (stale container env, missing `s3:ListBucket` breaking image deletes), and a self-test guide for staging/production.
+- [Staging login 405 issue](docs/incidents/staging-login-405-issue.md) — `405` on admin login traced to the staging frontend posting to its own origin instead of the API.

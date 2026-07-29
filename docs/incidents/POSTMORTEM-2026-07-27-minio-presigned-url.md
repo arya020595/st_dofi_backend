@@ -8,9 +8,9 @@ Action Items) — it still needs to ship through the normal build/deploy pipelin
 > (commit `3e2e95b`, present at the start of the next working session). The architecture has since
 > gone further still: `Dictionary` now lives on a separate **public** bucket
 > (`minio_assets`/`minio_assets_public`) and no longer uses the presigned path this incident is
-> about at all — see `docs/MINIO.md` §2. The `minio_public` signing endpoint this incident
+> about at all — see `docs/minio/MINIO.md` §2. The `minio_public` signing endpoint this incident
 > introduced didn't go away; it's now the private-bucket half of that two-bucket split, still
-> exercised through `docs/MINIO-PUBLIC-PROXY-SETUP.md`'s same reverse proxy. Read the rest of this
+> exercised through `docs/minio/MINIO-PUBLIC-PROXY-SETUP.md`'s same reverse proxy. Read the rest of this
 > doc as a historical record of the incident, not as current architecture — the timeline and root
 > cause below are unchanged and still accurate for what happened on 2026-07-27.
 
@@ -40,7 +40,7 @@ on every request, since MinIO replaced Cloudinary as the storage backend.
 2. Root cause identified from the URL alone: `MINIO_ENDPOINT` (internal Docker address) was being
    used both for real uploads/downloads **and** for signing the URL shown to clients — the latter
    is the bug, since a browser can never reach `minio:9000`.
-3. Confirmed via docs/MINIO.md (already documented this exact architectural constraint) and via
+3. Confirmed via docs/minio/MINIO.md (already documented this exact architectural constraint) and via
    `docker ps`: MinIO's port was correctly *not* published — this was the system working as
    designed, just missing the "public-facing signing endpoint" half of the picture.
 4. Implemented a `minio_public` Active Storage service (`config/storage.yml`) — shares the same
@@ -87,7 +87,7 @@ Two independent things had to both be true for a presigned MinIO URL to be reach
 browser, and only one of them existed before this fix:
 
 1. **A network path from the internet to MinIO.** MinIO's port was correctly never published (per
-   existing docs/MINIO.md guidance) — but nothing had been put in front of it yet to give a
+   existing docs/minio/MINIO.md guidance) — but nothing had been put in front of it yet to give a
    browser *any* way in.
 2. **A URL signed against a hostname the browser can actually resolve.** Even with a proxy in
    place, the app was signing every presigned URL using `MINIO_ENDPOINT` (`http://minio:9000`) —
@@ -107,7 +107,7 @@ error, only opaque `403 SignatureDoesNotMatch` responses at request time.
 
 ## What went well
 
-- The existing `docs/MINIO.md` already documented the architectural rule ("MinIO's port is never
+- The existing `docs/minio/MINIO.md` already documented the architectural rule ("MinIO's port is never
   published... front it with a reverse proxy") — the fix direction was clear immediately, this was
   a matter of implementing the missing half, not discovering an unknown architecture problem.
 - Presigning being a local, no-network-call computation (already documented) made it possible to
@@ -146,7 +146,7 @@ error, only opaque `403 SignatureDoesNotMatch` responses at request time.
    (`docker-compose.production.yml` already has the loopback-port change; the reverse proxy step
    itself was not done there — production is a separate dedicated government server, and it's
    unknown whether it has host nginx or needs the Docker-sidecar alternative from
-   `docs/MINIO-PUBLIC-PROXY-SETUP.md`). **As of 2026-07-28, this now also gates the public assets
+   `docs/minio/MINIO-PUBLIC-PROXY-SETUP.md`). **As of 2026-07-28, this now also gates the public assets
    bucket**, not just the private one — both share the same `MINIO_PUBLIC_ENDPOINT`.
 3. Consider a scoped `NOPASSWD` sudo rule (or a narrower deploy account) for routine nginx
    config/reload operations on the staging box, so future changes don't require sharing the

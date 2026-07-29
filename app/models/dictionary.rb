@@ -2,7 +2,7 @@ class Dictionary < ApplicationRecord
   ALLOWED_IMAGE_TYPES = %w[image/jpeg image/png image/webp].freeze
   MAX_IMAGE_SIZE = 5.megabytes
 
-  # Public-read bucket (see docs/MINIO.md §2) — fish-species reference photos are not sensitive,
+  # Public-read bucket (see docs/minio/MINIO.md §2) — fish-species reference photos are not sensitive,
   # so downloads bypass Rails entirely rather than going through the private redirect pattern.
   has_one_attached :image, service: Rails.application.config.x.active_storage_public_service
 

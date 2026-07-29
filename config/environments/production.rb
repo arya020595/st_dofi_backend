@@ -21,7 +21,7 @@ Rails.application.configure do
   # Store uploaded files on MinIO (S3-compatible; see config/storage.yml for options).
   config.active_storage.service = :minio
 
-  # Public-read bucket for content where a leaked URL isn't a concern (see docs/MINIO.md §2 and
+  # Public-read bucket for content where a leaked URL isn't a concern (see docs/minio/MINIO.md §2 and
   # config/storage.yml's minio_assets/minio_assets_public blocks) — a separate MinIO bucket with
   # separate scoped credentials from the private `minio:` service above, not just a different
   # prefix in the same bucket. Models opt in via `has_one_attached ..., service:

@@ -18,7 +18,7 @@ Base path: `/api/v1/master_data`
 | Reason | `/api/v1/master_data/reasons` | `reasons` |
 
 These resources previously exposed an auto-generated `reference_id` display code (`"PT-NNN"`,
-`"FG-NNN"`, ...); it was removed as inert legacy (see `docs/business-flow.md` §9). Identify/search
+`"FG-NNN"`, ...); it was removed as inert legacy (see `docs/registration/business-flow.md` §9). Identify/search
 records by `name` (or `port_name`/`local_name` where the resource has no generic `name` field —
 see each resource's Fields table below) instead.
 

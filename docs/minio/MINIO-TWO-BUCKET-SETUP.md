@@ -1,6 +1,6 @@
 # MinIO Two-Bucket Migration — What Changed, and How to Test/Deploy It
 
-This is the practical companion to `docs/MINIO.md` §2 ("Public vs private buckets") — that doc
+This is the practical companion to `docs/minio/MINIO.md` §2 ("Public vs private buckets") — that doc
 explains the architecture and *why*; this one is the runbook: what changed in this migration, and
 the exact steps to test it locally and roll it out to staging/production.
 
@@ -8,7 +8,7 @@ the exact steps to test it locally and roll it out to staging/production.
 
 ## 1. What changed (summary)
 
-The app moved from **one MinIO bucket** to **two**, split by sensitivity (see `docs/MINIO.md` §2
+The app moved from **one MinIO bucket** to **two**, split by sensitivity (see `docs/minio/MINIO.md` §2
 for the full rationale):
 
 | | Private bucket (existing) | Public bucket (new) |
@@ -61,10 +61,10 @@ openssl rand -hex 20    # -> MINIO_ASSETS_SECRET_ACCESS_KEY (new)
 ```
 
 Use **two different key pairs** — reusing the private bucket's credential for the public bucket
-defeats the entire point of the split (see `docs/MINIO.md` §2, "credential separation").
+defeats the entire point of the split (see `docs/minio/MINIO.md` §2, "credential separation").
 
 Bucket names: recommended convention is `dofi-<env>-private` / `dofi-<env>-public` — e.g.
-`MINIO_BUCKET=dofi-staging-private`, `MINIO_ASSETS_BUCKET=dofi-staging-public` (see `docs/MINIO.md`
+`MINIO_BUCKET=dofi-staging-private`, `MINIO_ASSETS_BUCKET=dofi-staging-public` (see `docs/minio/MINIO.md`
 §2's naming note for why the env var stays `MINIO_ASSETS_*` even though the bucket itself is named
 `-public`). If `MINIO_BUCKET` is already set to something else (e.g. a bare `dofi-staging` from
 before this split existed), renaming it is safe as long as nothing has been deployed against the
@@ -244,7 +244,7 @@ curl -si "http://localhost:3000/api/v1/attachments/${SIGNED_ID}" -H "Authorizati
 ### 3.5.1 Test an actual purge/delete, not just create+read
 
 > ⚠️ **Don't skip this.** A real bug (found 2026-07-28, testing against staging — see
-> `docs/MINIO-STAGING-TEST-REPORT-2026-07-28.md`) only shows up on delete: the scoped IAM policies
+> `docs/incidents/MINIO-STAGING-TEST-REPORT-2026-07-28.md`) only shows up on delete: the scoped IAM policies
 > initially had `s3:GetObject`/`PutObject`/`DeleteObject` but not `s3:ListBucket`. Active Storage's
 > `Blob#delete` calls `service.delete_prefixed("variants/#{key}/")` for any **image** blob to clean
 > up variants — that needs `s3:ListBucket` on the bucket itself, not just object-level actions.
@@ -312,7 +312,7 @@ Revert the port-mapping edit in `docker-compose.production.local.yml` if you mad
    Then exercise the public flow the same way as §3.5 (log in, create a `Dictionary` with an
    image, confirm `image_url`, confirm it's fetchable) against the real staging URL.
 5. **`MINIO_PUBLIC_ENDPOINT`** (already configured for the private bucket per
-   `docs/MINIO-PUBLIC-PROXY-SETUP.md`) now also fronts the public bucket — same proxy, no new
+   `docs/minio/MINIO-PUBLIC-PROXY-SETUP.md`) now also fronts the public bucket — same proxy, no new
    config needed there. If `image_url` in a real API response still shows `http://minio:9000/...`
    instead of the public endpoint, see that doc's troubleshooting table.
 
@@ -320,7 +320,7 @@ Revert the port-mapping edit in `docker-compose.production.local.yml` if you mad
 
 Same steps as staging (§4), with production's existing differences in mind:
 
-- Production's `.env` lives on the dedicated backend server (`docs/CI-CD-SETUP.md`) — same two
+- Production's `.env` lives on the dedicated backend server (`docs/ci-cd/CI-CD-SETUP.md`) — same two
   new keys (`MINIO_ASSETS_BUCKET`, `MINIO_ASSETS_ACCESS_KEY_ID`, `MINIO_ASSETS_SECRET_ACCESS_KEY`).
 - The `record_id` migration should be run/verified on production **after** staging has proven
   clean, not in parallel — production's deploy is gated behind a required-reviewer GitHub
@@ -328,7 +328,7 @@ Same steps as staging (§4), with production's existing differences in mind:
 - If production doesn't yet have `MINIO_PUBLIC_ENDPOINT` configured at all (per the postmortem's
   action item #2 — still open as of this writing), that's a prerequisite for the public bucket's
   URLs to be browser-reachable too, not just the private bucket's. Follow
-  `docs/MINIO-PUBLIC-PROXY-SETUP.md` for that server before or alongside this change.
+  `docs/minio/MINIO-PUBLIC-PROXY-SETUP.md` for that server before or alongside this change.
 - Verification: same `mc-init` re-run + real API exercise as staging §4, against the production
   backend server.
 
@@ -356,7 +356,7 @@ Same steps as staging (§4), with production's existing differences in mind:
 
 ## 7. Troubleshooting
 
-See `docs/MINIO.md` §9 (extended this session with two-bucket-specific rows: wrong-bucket
+See `docs/minio/MINIO.md` §9 (extended this session with two-bucket-specific rows: wrong-bucket
 uploads from a `service_name:` mismatch, and public URLs 403ing because `mc-init` hasn't run
-since the public bucket was created) and `docs/MINIO-PUBLIC-PROXY-SETUP.md`'s pitfall table for
+since the public bucket was created) and `docs/minio/MINIO-PUBLIC-PROXY-SETUP.md`'s pitfall table for
 the reverse-proxy side.

@@ -10,7 +10,7 @@ module Users
     # CompanyProfile (see CompanyProfile#individual?, which only relaxes which company-level fields
     # that profile requires — the person-level match still goes through CompanyProfileContact like
     # every other type). Both are pre-created the same way, via POST /api/v1/company_profiles — see
-    # docs/registration-flow.md section 5 "Officer Profiling".
+    # docs/registration/registration-flow.md section 5 "Officer Profiling".
     def call(attributes)
       contact = matched_contact(attributes)
       return Failure(:contact_not_found) if contact.nil? && valid_registration_type?(attributes)
