@@ -14,7 +14,7 @@ end
 
 namespace :dictionaries do
   desc "Copy Dictionary image blobs to Dictionary's configured Active Storage service (the " \
-       "public assets bucket — see docs/MINIO.md §2 and config.x.active_storage_public_service). " \
+       "public assets bucket — see docs/minio/MINIO.md §2 and config.x.active_storage_public_service). " \
        "Idempotent — only touches blobs not already there. Pass DRY_RUN=1 to preview without writing."
   task migrate_images_to_minio: :environment do
     target_service_name = Rails.application.config.x.active_storage_public_service.to_s

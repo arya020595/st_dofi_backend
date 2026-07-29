@@ -76,7 +76,7 @@ leaving the operation half-done. Confirmed directly — `mc ls` as either app cr
 
 **Why this went undetected until now:** the Minitest suite only ever runs against the Disk
 service (no S3-style IAM at all), and this session's earlier local Docker/real-MinIO testing
-(`docs/MINIO-TWO-BUCKET-SETUP.md` §3) exercised create+read but never an actual delete. This is
+(`docs/minio/MINIO-TWO-BUCKET-SETUP.md` §3) exercised create+read but never an actual delete. This is
 now closed — see §3.5.1 in that doc, added as a direct result of this finding.
 
 **Fixed live:** re-issued both scoped policies (`mc admin policy create`, which updates in place)
@@ -161,7 +161,7 @@ curl -s -o /dev/null -w "HTTP %{http_code}\n" "<image_url from above>"
 ### 4.4 Full round trip: private bucket (redirect flow)
 
 Nothing in the app uses the private bucket yet, so this has to be exercised manually — same
-approach as local testing (`docs/MINIO-TWO-BUCKET-SETUP.md` §3.5), just point at the real server:
+approach as local testing (`docs/minio/MINIO-TWO-BUCKET-SETUP.md` §3.5), just point at the real server:
 
 ```bash
 docker compose exec -T api bin/rails runner '

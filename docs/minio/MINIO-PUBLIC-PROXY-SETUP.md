@@ -2,11 +2,11 @@
 
 Step-by-step, verified-by-hand setup for making MinIO URLs reachable from a browser, without ever
 exposing MinIO's own port to the internet. This one proxy serves **both** buckets described in
-`docs/MINIO.md` §2 — the private bucket's *presigned* URLs and the public assets bucket's plain
+`docs/minio/MINIO.md` §2 — the private bucket's *presigned* URLs and the public assets bucket's plain
 *unsigned* URLs both resolve through the same `MINIO_PUBLIC_ENDPOINT`, since the reverse proxy
 just forwards to `minio:9000` regardless of which bucket/key is being requested. Read
-`docs/MINIO.md` §2 first for the *why*; this doc is only the *how*. See
-`docs/POSTMORTEM-2026-07-27-minio-presigned-url.md` for the incident that made this necessary and
+`docs/minio/MINIO.md` §2 first for the *why*; this doc is only the *how*. See
+`docs/incidents/POSTMORTEM-2026-07-27-minio-presigned-url.md` for the incident that made this necessary and
 the mistakes made (and fixed) while building it — that incident predates the public/private bucket
 split, so its worked example (`Dictionary`, presigned) is now out of date; see the note below.
 
@@ -151,7 +151,7 @@ Notes:
    ```
    Then `curl` that exact URL from *outside* the server (not from the server itself) and confirm
    `HTTP 200` with the image bytes. To verify the **private** bucket's presigned path specifically
-   (relevant once a model actually uses it — see `docs/MINIO.md` §2), hit
+   (relevant once a model actually uses it — see `docs/minio/MINIO.md` §2), hit
    `GET /api/v1/attachments/<signed_id>` instead and confirm the `302 Location` header resolves the
    same way from outside the server.
 

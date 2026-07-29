@@ -4,7 +4,7 @@ default_password = ENV.fetch("ADMIN_DEFAULT_PASSWORD", "ChangeMe123!")
 
 # Matched to the Owner/Admin CompanyProfileContact rows from company_profiles.rb by ic_number — same
 # match Users::RegisterFisherman performs — so these accounts are ready to log in via mock BruneiID
-# (see docs/testing-mock-brunei-id-login.md) without going through self-registration first.
+# (see docs/registration/testing-mock-brunei-id-login.md) without going through self-registration first.
 FISHERMAN_USERS = [
   { name: "Haji Ahmad bin Salleh", ic_number: "00123456", registration_type: "Commercial" },
   { name: "Siti Aminah binti Yusof", ic_number: "00234567", registration_type: "Commercial" },

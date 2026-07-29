@@ -29,7 +29,7 @@ Rails.application.configure do
   # Store uploaded files on the local file system (see config/storage.yml for options).
   config.active_storage.service = :local
 
-  # Service used by models attached to the "public assets" tier (see docs/MINIO.md §2) — separate
+  # Service used by models attached to the "public assets" tier (see docs/minio/MINIO.md §2) — separate
   # from the default above in staging/production (two different MinIO buckets), but the same Disk
   # service here since there's no real bucket-policy distinction to exercise locally.
   config.x.active_storage_public_service = :local

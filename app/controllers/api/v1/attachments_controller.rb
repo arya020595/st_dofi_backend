@@ -10,7 +10,7 @@ module Api
       # GET /api/v1/attachments/:signed_id
       #
       # Authorization is evaluated here, at the moment the file is actually requested, not when
-      # the JSON payload referencing it was built (see docs/MINIO.md §3-4 and the spec this
+      # the JSON payload referencing it was built (see docs/minio/MINIO.md §3-4 and the spec this
       # follows). A signed_id only proves Rails issued it — it is not itself proof of access.
       def show
         blob = ActiveStorage::Blob.find_signed!(params.expect(:signed_id))

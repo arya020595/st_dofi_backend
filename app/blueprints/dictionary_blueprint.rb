@@ -3,7 +3,7 @@ class DictionaryBlueprint < Blueprinter::Base
 
   fields :local_name, :scientific_name, :group_name, :family_name, :created_at, :updated_at
 
-  # Dictionary images live in the public-read bucket (see docs/MINIO.md §2) — fish-species
+  # Dictionary images live in the public-read bucket (see docs/minio/MINIO.md §2) — fish-species
   # reference photos aren't sensitive, so this is a direct, stable, unsigned URL rather than our
   # own redirect endpoint. Anyone with the URL can fetch it without going through Rails at all;
   # that's the point of the public tier, not an oversight (contrast Attachments::PublicUrl, used

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Idempotent bucket + credential provisioning, run via `docker compose run --rm mc-init` (see
-# docs/MINIO.md §2 "Public vs private buckets" and §6). Safe to re-run on every deploy.
+# docs/minio/MINIO.md §2 "Public vs private buckets" and §6). Safe to re-run on every deploy.
 #
 # Two buckets, two scoped app credentials, two custom (not canned) policies — deliberately not
 # MinIO's builtin `readwrite` canned policy, which defaults to every bucket in the deployment
@@ -46,7 +46,7 @@ EOF
 # Aws::S3::Errors::AccessDenied partway through, leaving the DB row/purge job in a broken state.
 # Found by purging a real image blob against real MinIO on staging — the Minitest suite can't
 # catch this (it only ever runs against the Disk service, which has no S3-style permissions), and
-# local real-MinIO testing (docs/MINIO-TWO-BUCKET-SETUP.md) hadn't exercised an actual purge.
+# local real-MinIO testing (docs/minio/MINIO-TWO-BUCKET-SETUP.md) hadn't exercised an actual purge.
 
 # --- Private bucket: no public access, app reads it only via presigned URLs. ---
 mc mb --ignore-existing "local/$MINIO_BUCKET"
