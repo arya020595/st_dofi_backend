@@ -7133,7 +7133,7 @@
     },
     {
       "name": "Manifest - Fisherman",
-      "description": "Fisherman-facing manifest lifecycle: create, list/show/tab-counts (own company only), the port-out/port-in submit/resubmit/skip flow, minor fishermen, capture reports and their nested fish-capture/expense/fishing-gear details, offline bundle, and draft delete. See \"Manifest - Web Admin\" for the officer/jetty-manager side (approve/request-amendment/verify/update).",
+      "description": "Fisherman-facing manifest lifecycle: create/update, list/show/tab-counts (own company only), the port-out/port-in submit/resubmit/skip flow, minor fishermen, capture reports and their nested fish-capture/expense/fishing-gear details, offline bundle, and draft delete. See \"Manifest - Web Admin\" for the officer/jetty-manager side (approve/request-amendment/verify/update).",
       "item": [
         {
           "name": "Create Manifest (Small-Scale Full-Time)",
@@ -7198,6 +7198,110 @@
           ]
         },
         {
+          "name": "Update Manifest Port Out & AIS Tracking",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/fisherman/manifests/{{manifest_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "fisherman",
+                "manifests",
+                "{{manifest_id}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"manifest\": {\n    \"port_out_id\": \"{{manifest_port_id}}\",\n    \"port_out_datetime\": \"2026-07-28T08:30:00+08:00\",\n    \"ais_tracking\": true,\n    \"has_support_vessel\": false\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Updates a fisherman-owned manifest while it is `draft` or `amendment_required`. `port_out_datetime` must be an ISO-8601 datetime. To record a support vessel, set `has_support_vessel: true` and provide `support_vessel_id`; it must be an approved vessel from the same company and cannot be the primary vessel. Set `has_support_vessel: false` and omit `support_vessel_id` when none is used. The authenticated fisherman's company is server-derived, not client-submitted."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('AIS tracking saved', () => pm.expect(pm.response.json().data.ais_tracking).to.eql(true));",
+                  "pm.test('support vessel is disabled', () => pm.expect(pm.response.json().data.has_support_vessel).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "Manifest updated - Example",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/manifests/{{manifest_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "manifests",
+                    "{{manifest_id}}"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"manifest-uuid\",\n    \"manifest_number\": \"DOF-20260728-001\",\n    \"manifest_status\": \"draft\",\n    \"port_out_status\": \"draft\",\n    \"port_out_id\": \"port-uuid\",\n    \"port_out_datetime\": \"2026-07-28T08:30:00.000+08:00\",\n    \"ais_tracking\": true,\n    \"has_support_vessel\": false,\n    \"support_vessel_id\": null,\n    \"is_draft\": true\n  }\n}"
+            }
+          ]
+        },
+        {
           "name": "List Ports (Fisherman)",
           "request": {
             "method": "GET",
@@ -7225,6 +7329,139 @@
               ]
             },
             "description": "Fisherman-facing port picker for manifest port-out/port-in (`GET /api/v1/fisherman/ports`). Requires `ports.list`. Read-only — no show/create/update/delete; those stay under `Master Data - Port` for officers. Defaults to `port_name asc` (a selection dropdown), unlike the admin list's `created_at desc`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const ports = pm.response.json().data;",
+                  "if (ports.length > 0) { pm.collectionVariables.set('manifest_port_id', ports[0].id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Vessels (Fisherman)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/fisherman/vessels?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "fisherman",
+                "vessels"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Manifest vessel picker (`GET /api/v1/fisherman/vessels`). The company is derived from the logged-in fisherman; no company_profile_id is accepted. Only approved, non-deleted vessels are returned. Use the selected `id` as `companies_vessel_id` or `support_vessel_id`."
+          }
+        },
+        {
+          "name": "List Captains (Fisherman)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/fisherman/captains?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "fisherman",
+                "captains"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Manifest captain picker (`GET /api/v1/fisherman/captains`). The company is derived from the logged-in fisherman; only approved, non-deleted captains are returned. Use the selected `id` as `companies_captain_id`."
+          }
+        },
+        {
+          "name": "List Crews (Fisherman)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/fisherman/crews?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "fisherman",
+                "crews"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Manifest crew picker (`GET /api/v1/fisherman/crews`). The company is derived from the logged-in fisherman; only approved, non-deleted crew are returned. Send their IDs in `manifest.crew_ids`."
           }
         },
         {
@@ -7829,7 +8066,7 @@
                 }
               }
             },
-            "description": "`companies_fishing_gear_id` is optional (`belongs_to ..., optional: true`) — omitted here for simplicity. Pass a `CompaniesFishingGear` id (from `POST /api/v1/company_profiles/:id/fishing_gears`, an Approvable sub-resource like Vessel) to auto-snapshot its `name`/`gear_type`/`specification` instead."
+            "description": "`companies_fishing_gear_id` is optional (`belongs_to ..., optional: true`) — omitted here for simplicity. When supplied, it must reference an approved company gear assigned to this manifest's primary vessel; the API snapshots its `name`/`gear_type`/`specification`."
           },
           "event": [
             {

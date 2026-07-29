@@ -82,6 +82,21 @@ module Api
           assert_equal "commercial", response.parsed_body.dig("data", "fisherman_category")
         end
 
+        test "update lets a fisherman add port-out tracking and an approved support vessel" do
+          manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
+          support_vessel = create(:companies_vessel, :approved, company_profile: @company_profile)
+
+          patch "/api/v1/fisherman/manifests/#{manifest.id}",
+                params: { manifest: { ais_tracking: true,
+                                      has_support_vessel: true,
+                                      support_vessel_id: support_vessel.id } },
+                headers: @fisherman_headers, as: :json
+
+          assert_response :ok
+          assert_equal [true, true, support_vessel.id],
+                       response.parsed_body["data"].values_at("ais_tracking", "has_support_vessel", "support_vessel_id")
+        end
+
         test "create denies a vessel that is not yet approved" do
           pending_vessel = create(:companies_vessel, company_profile: @company_profile)
           params = { manifest: { companies_vessel_id: pending_vessel.id } }

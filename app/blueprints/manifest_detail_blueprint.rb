@@ -6,7 +6,8 @@ class ManifestDetailBlueprint < Blueprinter::Base
          :port_out_area, :port_out_datetime, :port_in_area, :port_in_datetime, :zone_area,
          :longitude, :latitude, :capture_report_skipped, :skip_reason_remarks, :has_minor_fishermen,
          :companies_vessel_id, :companies_captain_id, :company_profile_id, :port_out_id, :port_in_id,
-         :zone_id, :skip_reason_id, :discarded_at, :created_at, :updated_at
+         :zone_id, :skip_reason_id, :ais_tracking, :has_support_vessel, :support_vessel_id,
+         :discarded_at, :created_at, :updated_at
 
   field(:capture_report_overview_status, &:capture_report_overview_status)
   field(:is_draft, &:draft?)

@@ -55,7 +55,7 @@ Rails.application.routes.draw do
       get "attachments/:signed_id", to: "attachments#show", as: :attachment
 
       namespace :fisherman do
-        resources :manifests, only: %i[index show create destroy] do
+        resources :manifests, only: %i[index show create update destroy] do
           collection do
             get :tab_counts
           end
@@ -69,6 +69,9 @@ Rails.application.routes.draw do
           end
         end
         resources :ports, only: %i[index]
+        resources :vessels, only: %i[index]
+        resources :captains, only: %i[index]
+        resources :crews, only: %i[index]
       end
 
       # Nested manifest sub-resources are deliberately unprefixed (neither fisherman/ nor
