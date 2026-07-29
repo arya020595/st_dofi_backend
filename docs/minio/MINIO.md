@@ -2,7 +2,8 @@
 
 Everything the team needs to understand, use, operate, and troubleshoot MinIO in this repo: what
 it is, why we use it, how it fits into the app, how it's deployed in each environment, and how to
-start/stop/inspect it.
+start/stop/inspect it. For common questions that come up once you're actually working with this
+setup (reverse proxy, admin dashboard, CDN), see `docs/minio/MINIO-FAQ.md`.
 
 ## 1. What is MinIO
 
