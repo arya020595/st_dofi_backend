@@ -36,6 +36,7 @@ Rails.application.routes.draw do
         end
         resources :crews, module: "company_profiles"
         resources :captains, module: "company_profiles"
+        resources :documents, only: %i[index create update], module: "company_profiles"
       end
 
       namespace :registrations do
@@ -143,6 +144,13 @@ Rails.application.routes.draw do
         end
 
         resources :fishing_gears, only: %i[index show] do
+          member do
+            post :approve
+            post :request_amendment
+          end
+        end
+
+        resources :documents, only: %i[index show] do
           member do
             post :approve
             post :request_amendment

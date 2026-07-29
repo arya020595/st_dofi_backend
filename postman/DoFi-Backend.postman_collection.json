@@ -126,6 +126,11 @@
       "type": "string"
     },
     {
+      "key": "companies_document_id",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "admin_contact_id",
       "value": "",
       "type": "string"
@@ -4441,6 +4446,188 @@
       ]
     },
     {
+      "name": "Companies - Documents",
+      "description": "Fisherman-facing upload for CompaniesDocument, nested under a CompanyProfile (/api/v1/company_profiles/:company_profile_id/documents). Five fixed document_type values: company_registration, surat_tawaran, foreign_worker_license, white_card, fishing_gear_license — one document per type per company profile (re-uploading the same type replaces the file rather than creating a second row). PDF only (application/pdf, detected from the file's real bytes via Marcel — not the client-claimed Content-Type), max 10MB (CompaniesDocument::ALLOWED_CONTENT_TYPES/MAX_FILE_SIZE). Stored on the private MinIO bucket (see docs/minio/MINIO.md) — document_url in the response is our own /api/v1/attachments/:signed_id redirect endpoint, never a direct storage URL. Every document starts approval_status: pending (see Approvals - Documents below); replacing the file on an approved/amendment_required document automatically reverts it to pending via Approvable#revert_to_pending_for_edit!. No show/destroy actions — index/create/update only. Requires companies_documents.*.\n\nRun \"Create Profiling (Owner + Admin)\" in the Profiling folder first so company_profile_id is set.",
+      "item": [
+        {
+          "name": "List Documents",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/documents?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "documents?page=1&limit=10"
+              ]
+            },
+            "description": "Requires companies_documents.view or companies_documents.list."
+          }
+        },
+        {
+          "name": "Create Document",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/documents",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "documents"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "document[document_type]",
+                  "value": "white_card",
+                  "type": "text"
+                },
+                {
+                  "key": "document[file]",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "description": "Multipart upload. document_type must be one of company_registration, surat_tawaran, foreign_worker_license, white_card, fishing_gear_license and unique per company profile (among kept/non-discarded documents). file must be a real PDF under 10MB or the request fails with a 422 listing which constraint was violated. Always created approval_status: pending. Requires companies_documents.create."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('approval_status is pending', () => pm.expect(pm.response.json().data.approval_status).to.eql('pending'));",
+                  "pm.test('document_url is the private attachment redirect', () => pm.expect(pm.response.json().data.document_url).to.include('/api/v1/attachments/'));",
+                  "if (pm.response.json().data) { pm.collectionVariables.set('companies_document_id', pm.response.json().data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Document - Validation Error (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/documents",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "documents"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "document[document_type]",
+                  "value": "not_a_real_type",
+                  "type": "text"
+                },
+                {
+                  "key": "document[file]",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "description": "document_type outside the fixed 5-value list fails the inclusion validation."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Document (replace file)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/documents/{{companies_document_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "documents",
+                "{{companies_document_id}}"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "document[file]",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "description": "Replaces the attached file (document_type cannot be changed after creation). If the document is currently approved or amendment_required, this automatically reverts it to pending (clearing amendment_remarks/approved_by/approved_at) so the officer re-reviews the new file — see Approvable#revert_to_pending_for_edit!. Run \"Approve Document\" in Approvals - Documents first, then this request, to see approval_status flip back to pending in the response. Requires companies_documents.update."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Approvals - Vessels",
       "description": "Officer review queue for CompaniesVessel, scoped by CompaniesVesselApprovalPolicy (officers see every company's vessels; non-officers only their own). This is the general-purpose approve/amendment flow — the \"Vessels\" folder further down only calls approve inline as setup for the Manifest demo scenarios. Requires companies_vessel_approvals.*.\n\nRun \"Create Vessel\" in Companies - Vessels first so companies_vessel_id is set.",
       "item": [
@@ -4587,6 +4774,160 @@
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));",
                   "pm.test('approval_status is amendment_required', () => pm.expect(pm.response.json().data.approval_status).to.eql('amendment_required'));",
                   "pm.test('amendment_remarks matches submitted remarks', () => pm.expect(pm.response.json().data.amendment_remarks).to.eql('Boat number does not match ROCBN records'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Approvals - Documents",
+      "description": "Officer review queue for CompaniesDocument, scoped by CompaniesDocumentApprovalPolicy (officers see every company's documents; non-officers only their own). Requires companies_document_approvals.* — DoFi Officer only, same as every other companies_*_approvals resource (Jetty Manager is not granted this permission).\n\nRun \"Create Document\" in Companies - Documents first so companies_document_id is set.",
+      "item": [
+        {
+          "name": "List Document Approvals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/documents?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "documents?page=1&limit=10"
+              ]
+            },
+            "description": "Requires companies_document_approvals.list."
+          }
+        },
+        {
+          "name": "List Document Approvals - Filtered by status and company",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/documents?q[approval_status_eq]=pending&q[company_profile_id_eq]={{company_profile_id}}&q[s]=created_at desc&page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "documents?q[approval_status_eq]=pending&q[company_profile_id_eq]={{company_profile_id}}&q[s]=created_at desc&page=1&limit=10"
+              ]
+            },
+            "description": "Filterable ransackable attributes: document_type, approval_status, amendment_remarks, company_profile_id, discarded_at."
+          }
+        },
+        {
+          "name": "Show Document Approval",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/documents/{{companies_document_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "documents",
+                "{{companies_document_id}}"
+              ]
+            },
+            "description": "Requires companies_document_approvals.view."
+          }
+        },
+        {
+          "name": "Approve Document",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/documents/{{companies_document_id}}/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "documents",
+                "{{companies_document_id}}",
+                "approve"
+              ]
+            },
+            "description": "Requires companies_document_approvals.approve. Transitions pending to approved, stamping approved_by/approved_at. Only valid from pending — fails if already approved or amendment_required (Update Document first, which reverts it to pending, or use Request Amendment below)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('approval_status is approved', () => pm.expect(pm.response.json().data.approval_status).to.eql('approved'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Request Amendment (Document)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/approvals/documents/{{companies_document_id}}/request_amendment",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "approvals",
+                "documents",
+                "{{companies_document_id}}",
+                "request_amendment"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"remarks\": \"Scan is illegible, please re-upload a clearer copy\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "remarks is required free text. Transitions pending to amendment_required, storing remarks on amendment_remarks and clearing approved_by/approved_at. Only valid from pending — run \"Update Document\" first if the document is currently approved (that reverts it to pending). Requires companies_document_approvals.amendment.\n\nThe fisherman then re-uploads the file (Companies - Documents, Update Document), which automatically clears amendment_remarks and reverts to pending for re-review — there is no separate \"resubmit\" endpoint to call."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('approval_status is amendment_required', () => pm.expect(pm.response.json().data.approval_status).to.eql('amendment_required'));",
+                  "pm.test('amendment_remarks matches submitted remarks', () => pm.expect(pm.response.json().data.amendment_remarks).to.eql('Scan is illegible, please re-upload a clearer copy'));"
                 ]
               }
             }

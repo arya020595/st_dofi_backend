@@ -75,7 +75,7 @@ mechanics below), see `docs/minio/MINIO-WHY-TWO-BUCKETS.md`:
 | Anonymous access | None — MinIO rejects any unsigned request | `s3:GetObject` only (granted by `mc-init`); `ListBucket` stays denied, so the bucket can't be enumerated even though individual objects are world-readable |
 | How the app serves a URL | `Attachments::PublicUrl` presigns a short-lived GET, returned only via `302` from `Api::V1::AttachmentsController` — never embedded in JSON (see §3's Retrieval flow) | `Attachments::AssetUrl` returns the object's plain, unsigned, non-expiring URL directly in JSON — no redirect, no signature, Rails is never touched on download |
 | Credentials | `MINIO_ACCESS_KEY_ID`/`SECRET_ACCESS_KEY`, policy `dofi-private-readwrite` (scoped to this bucket's ARN only) | `MINIO_ASSETS_ACCESS_KEY_ID`/`SECRET_ACCESS_KEY`, policy `dofi-assets-readwrite` (scoped to this bucket's ARN only) |
-| Use for | Content where a leaked URL matters: identity documents, licences, anything Pundit should gate on every access | Content where it doesn't: `Dictionary` images (fish-species reference photos) today |
+| Use for | Content where a leaked URL matters: identity documents, licences, anything Pundit should gate on every access — e.g. `CompaniesDocument` (company registration/licence PDFs) | Content where it doesn't: `Dictionary` images (fish-species reference photos) today |
 
 > **Naming note.** The bucket-tier env vars (`MINIO_BUCKET`/`MINIO_ASSETS_BUCKET`) stay prefixed
 > `MINIO_ASSETS_*`, not `MINIO_PUBLIC_*`, deliberately — `MINIO_PUBLIC_ENDPOINT` (§ above) already
@@ -249,9 +249,9 @@ sequenceDiagram
     MinIO-->>C: image bytes (anonymous GetObject — bucket policy allows it, ListBucket stays denied)
 ```
 
-**Private bucket (no model uses this yet — built ahead of the first sensitive-document model,
-e.g. boat licence/KTP) — our own redirect endpoint, authorization re-checked every request.** A
-Blueprint on this tier would return `Rails.application.routes.url_helpers.api_v1_attachment_path(blob.signed_id)`
+**Private bucket (`CompaniesDocument` — company registration/licence PDFs, the first model built on
+this tier) — our own redirect endpoint, authorization re-checked every request.** A
+Blueprint on this tier returns `Rails.application.routes.url_helpers.api_v1_attachment_path(blob.signed_id)`
 — our own app URL, never a presigned MinIO URL embedded directly in JSON. This matters: embedding
 a presigned URL in a JSON payload means authorization is only checked at the moment that JSON was
 built, and the URL keeps working for as long as it's valid regardless of what happens afterward.
@@ -287,6 +287,12 @@ byte transfer only happens once the client's browser actually requests that URL,
 itself only proves Rails issued it — it is not itself proof of access (see `AttachmentsController`,
 which also logs every grant and denial — see §10).
 
+For a concrete, working instance of this exact diagram, see `CompaniesDocument`
+(`app/models/companies_document.rb`, `CompaniesDocumentBlueprint#document_url`,
+`Api::V1::CompanyProfiles::DocumentsController` for upload, `Api::V1::Approvals::DocumentsController`
+for the officer approve/request-amendment side) — company registration and licence PDFs, gated by
+`CompaniesDocumentPolicy#show?`.
+
 ## 4. How to implement this for a new model
 
 **Step 0 — decide the tier before writing any code.** Would it matter if the URL leaked — to
@@ -304,7 +310,10 @@ public bucket has no authorization check at all by design (§3).
    `MAX_IMAGE_SIZE` for the pattern).
 3. In whatever service creates/updates the record, **upload eagerly** rather than relying on
    Active Storage's default deferred upload — copy the `uploaded_blob_for` private method from
-   `app/services/dictionaries/create.rb` or `update.rb`:
+   `app/services/dictionaries/create.rb`/`update.rb` (public tier) or
+   `app/services/companies_documents/create.rb`/`update.rb` (private tier — also validates
+   size/content-type *before* attaching, which matters more once a record is already persisted and
+   `has_one_attached#attach` would otherwise replace an already-approved file immediately):
    ```ruby
    def uploaded_blob_for(file)
      io = file.respond_to?(:open) ? file.open : file
@@ -352,7 +361,8 @@ public bucket has no authorization check at all by design (§3).
      No per-model controller code needed — `Api::V1::AttachmentsController#show`
      (`config/routes.rb`'s `get "attachments/:signed_id"`) is generic: it looks up the blob's
      owning record via `ActiveStorage::Attachment#record` and calls `authorize record, :show?`, so
-     it works for any attachable model as long as that model has a policy with `show?`.
+     it works for any attachable model as long as that model has a policy with `show?`. See
+     `CompaniesDocumentBlueprint`/`CompaniesDocumentApprovalBlueprint` for the worked example.
 
 A second model on an *existing* tier doesn't need a new bucket — it shares `MINIO_BUCKET` or
 `MINIO_ASSETS_BUCKET` with whatever else is already on that tier, unless there's a reason to

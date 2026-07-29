@@ -34,6 +34,7 @@ ROLE_DEFINITIONS = {
       companies_captains.update companies_captains.delete
       companies_fishing_gears.view companies_fishing_gears.list companies_fishing_gears.create
       companies_fishing_gears.update companies_fishing_gears.delete
+      companies_documents.view companies_documents.list companies_documents.create companies_documents.update
       capture_reports.view capture_reports.list capture_reports.create capture_reports.update
       manifest_minor_fishermen.view manifest_minor_fishermen.create manifest_minor_fishermen.delete
     ]
