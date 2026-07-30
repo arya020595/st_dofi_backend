@@ -148,7 +148,9 @@ Rails.application.routes.draw do
             post :request_amendment
           end
         end
+      end
 
+      namespace :admin do
         resources :manifests, only: %i[index show update] do
           collection do
             get :tab_counts

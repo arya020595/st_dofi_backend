@@ -198,7 +198,7 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
     # Commercial waits for Jetty approval — it must NOT jump straight to at_sea like small-scale does.
     assert_equal %w[pending awaiting_port_out_approval], [data["port_out_status"], data["manifest_status"]]
 
-    post "/api/v1/approvals/manifests/#{manifest_id}/approve_port_out", headers: jetty_headers
+    post "/api/v1/admin/manifests/#{manifest_id}/approve_port_out", headers: jetty_headers
 
     assert_response :ok
     data = response.parsed_body["data"]

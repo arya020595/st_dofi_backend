@@ -47,11 +47,11 @@ module Api
         end
 
         test "index requires the approvals list permission" do
-          get "/api/v1/approvals/manifests", headers: @plain_headers
+          get "/api/v1/admin/manifests", headers: @plain_headers
 
           assert_response :forbidden
 
-          get "/api/v1/approvals/manifests", headers: @jetty_headers
+          get "/api/v1/admin/manifests", headers: @jetty_headers
 
           assert_response :ok
         end
@@ -62,7 +62,7 @@ module Api
           other_vessel = create(:companies_vessel, :approved, company_profile: other_company)
           create(:manifest, company_profile: other_company, companies_vessel: other_vessel)
 
-          get "/api/v1/approvals/manifests", headers: @jetty_headers
+          get "/api/v1/admin/manifests", headers: @jetty_headers
 
           assert_response :ok
           assert_equal 2, response.parsed_body["data"].size
@@ -71,7 +71,7 @@ module Api
         test "update lets an officer correct manifest fields" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
 
-          patch "/api/v1/approvals/manifests/#{manifest.id}", params: { manifest: { zone_area: "Zone 2" } },
+          patch "/api/v1/admin/manifests/#{manifest.id}", params: { manifest: { zone_area: "Zone 2" } },
                                                               headers: @officer_headers, as: :json
 
           assert_response :ok
@@ -81,7 +81,7 @@ module Api
         test "update is forbidden for a fisherman" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
 
-          patch "/api/v1/approvals/manifests/#{manifest.id}", params: { manifest: { zone_area: "Zone 2" } },
+          patch "/api/v1/admin/manifests/#{manifest.id}", params: { manifest: { zone_area: "Zone 2" } },
                                                               headers: @fisherman_headers, as: :json
 
           assert_response :forbidden
@@ -91,7 +91,7 @@ module Api
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
           manifest.submit_port_out!
 
-          post "/api/v1/approvals/manifests/#{manifest.id}/approve_port_out", headers: @jetty_headers
+          post "/api/v1/admin/manifests/#{manifest.id}/approve_port_out", headers: @jetty_headers
 
           assert_response :ok
           manifest.reload
@@ -103,7 +103,7 @@ module Api
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
           manifest.submit_port_out!
 
-          post "/api/v1/approvals/manifests/#{manifest.id}/approve_port_out", headers: @fisherman_headers
+          post "/api/v1/admin/manifests/#{manifest.id}/approve_port_out", headers: @fisherman_headers
 
           assert_response :forbidden
         end
@@ -112,7 +112,7 @@ module Api
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
           manifest.submit_port_out!
 
-          post "/api/v1/approvals/manifests/#{manifest.id}/request_amendment_port_out",
+          post "/api/v1/admin/manifests/#{manifest.id}/request_amendment_port_out",
                params: { remarks: "Fix the port-out time" }, headers: @jetty_headers, as: :json
 
           assert_response :ok
