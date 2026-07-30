@@ -7,7 +7,9 @@ module Api
         setup do
           @password = "Password123!"
 
-          fisherman_permissions = %w[ports.list].map do |code|
+          # ports.view is required for #show — beyond the ports.list the seeded Fisherman role
+          # actually carries today (db/seeds/roles.rb); included here to exercise the policy itself.
+          fisherman_permissions = %w[ports.list ports.view].map do |code|
             Permission.find_or_create_by!(code: code) { |p| p.name = code }
           end
 
@@ -42,6 +44,15 @@ module Api
           names = response.parsed_body["data"].pluck("port_name")
 
           assert_equal names.sort, names
+        end
+
+        test "show returns the port" do
+          port = create(:port, port_name: "Muara Port")
+
+          get "/api/v1/fisherman/ports/#{port.id}", headers: @fisherman_headers
+
+          assert_response :ok
+          assert_equal "Muara Port", response.parsed_body["data"]["port_name"]
         end
       end
     end

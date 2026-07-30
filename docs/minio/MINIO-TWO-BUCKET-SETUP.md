@@ -204,7 +204,7 @@ TOKEN=$(curl -s -i -X POST http://localhost:3000/api/v1/auth/sign_in \
   -d '{"user":{"username":"MPRT/DOF-001","password":"ChangeMe123!"}}' \
   | grep -i "^authorization:" | sed 's/authorization: //I' | tr -d '\r')
 
-curl -s -X POST http://localhost:3000/api/v1/dictionaries \
+curl -s -X POST http://localhost:3000/api/v1/admin/dictionaries \
   -H "Authorization: Bearer ${TOKEN}" \
   -F "dictionary[local_name]=Test Fish" \
   -F "dictionary[image]=@/path/to/any.png;type=image/png"
@@ -219,7 +219,7 @@ docker compose -f docker-compose.production.local.yml exec -T api \
 
 **Private bucket / redirect flow** — `CompaniesDocument` (company registration/licence PDFs) is the
 real private-tier model today; prefer exercising the actual endpoints (`POST
-/api/v1/company_profiles/:id/documents`, then `GET /api/v1/attachments/:signed_id`) over the
+/api/v1/admin/company_profiles/:id/documents`, then `GET /api/v1/attachments/:signed_id`) over the
 synthetic recipe below. The manual `bin/rails runner` version is still useful for a from-scratch
 bucket/policy smoke test that doesn't depend on any app-level model or fixture data:
 

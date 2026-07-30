@@ -9,8 +9,8 @@ module Api
 
         def index
           authorize CompaniesVessel
-          result = apply_ransack_search(policy_scope(@company_profile.companies_vessels),
-                                        default_sort: "created_at desc")
+          scope = policy_scope(@company_profile.companies_vessels).includes(images_attachments: :blob)
+          result = apply_ransack_search(scope, default_sort: "created_at desc")
           pagy, records = pagy(:offset, result)
           render json: { status: "success", data: CompaniesVesselBlueprint.render_as_hash(records),
                          meta: pagination_meta(pagy) }

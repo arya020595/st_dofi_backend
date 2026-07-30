@@ -1,0 +1,68 @@
+module Api
+  module V1
+    module Fisherman
+      module Manifests
+        module CaptureReports
+          class FishCaptureDetailsController < ApplicationController
+            include ::Manifests::FishCaptureDetailsReadable
+
+            def create
+              authorize FishCaptureDetail
+
+              case FishCaptureDetails::Create.call(@capture_report, fish_capture_detail_params)
+              in Success(detail)
+                render json: { status: "success", data: FishCaptureDetailBlueprint.render_as_hash(detail) },
+                       status: :created
+              in Failure(detail)
+                render json: { status: "fail", errors: detail.errors.full_messages }, status: :unprocessable_content
+              end
+            end
+
+            def update
+              set_fish_capture_detail
+              authorize @fish_capture_detail
+
+              case FishCaptureDetails::Update.call(@fish_capture_detail, fish_capture_detail_params)
+              in Success(detail)
+                render json: { status: "success", data: FishCaptureDetailBlueprint.render_as_hash(detail) }
+              in Failure(detail)
+                render json: { status: "fail", errors: detail.errors.full_messages }, status: :unprocessable_content
+              end
+            end
+
+            def destroy
+              set_fish_capture_detail
+              authorize @fish_capture_detail
+
+              if @fish_capture_detail.destroy
+                render json: { status: "success", message: "Fish capture detail removed." }
+              else
+                render json: { status: "fail", errors: @fish_capture_detail.errors.full_messages },
+                       status: :unprocessable_content
+              end
+            end
+
+            def bulk_sync
+              authorize FishCaptureDetail
+
+              result = FishCaptureDetails::BulkSync.call(@capture_report, bulk_sync_params)
+              render json: { status: "success", data: FishCaptureSyncResultBlueprint.render_as_hash(result.value!) }
+            end
+
+            private
+
+            def fish_capture_detail_params
+              params.expect(fish_capture_detail: %i[dictionary_id fish_type price_per_kg amount_captured_kg])
+            end
+
+            def bulk_sync_params
+              params.expect(
+                captures: [%i[id dictionary_id fish_type price_per_kg amount_captured_kg]]
+              )
+            end
+          end
+        end
+      end
+    end
+  end
+end

@@ -2,20 +2,24 @@
 
 CRUD endpoints for reference/lookup data managed by DoFi Officers. All endpoints require JWT authentication and a role with the corresponding permission.
 
-Base path: `/api/v1/master_data`
+Base path: `/api/v1/admin/master_data` for full CRUD (DoFi Officer/Jetty Manager). Ports, Zones, and
+Fishing Gears are also dual-mounted read-only (`index`/`show` only) at `/api/v1/fisherman/master_data`
+for the Fisherman app — same controllers, same records, just a narrower action set and a different
+`RequireAudience` prefix (see `config/routes.rb`). Nationalities, Positions, and Reasons have no
+Fisherman-side route at all.
 
 ---
 
 ## Resources overview
 
-| Resource | Base URL | Permission prefix |
-|---|---|---|
-| Port | `/api/v1/master_data/ports` | `ports` |
-| Zone | `/api/v1/master_data/zones` | `zones` |
-| Fishing Gear | `/api/v1/master_data/fishing_gears` | `fishing_gears` |
-| Nationality | `/api/v1/master_data/nationalities` | `nationalities` |
-| Position | `/api/v1/master_data/positions` | `positions` |
-| Reason | `/api/v1/master_data/reasons` | `reasons` |
+| Resource | Admin Base URL (full CRUD) | Fisherman Base URL (read-only) | Permission prefix |
+|---|---|---|---|
+| Port | `/api/v1/admin/master_data/ports` | `/api/v1/fisherman/master_data/ports` | `ports` |
+| Zone | `/api/v1/admin/master_data/zones` | `/api/v1/fisherman/master_data/zones` | `zones` |
+| Fishing Gear | `/api/v1/admin/master_data/fishing_gears` | `/api/v1/fisherman/master_data/fishing_gears` | `fishing_gears` |
+| Nationality | `/api/v1/admin/master_data/nationalities` | — (admin only) | `nationalities` |
+| Position | `/api/v1/admin/master_data/positions` | — (admin only) | `positions` |
+| Reason | `/api/v1/admin/master_data/reasons` | — (admin only) | `reasons` |
 
 These resources previously exposed an auto-generated `reference_id` display code (`"PT-NNN"`,
 `"FG-NNN"`, ...); it was removed as inert legacy (see `docs/registration/business-flow.md` §9). Identify/search
@@ -52,11 +56,14 @@ All endpoints follow the standard envelope:
 ### Endpoints
 
 ```
-GET    /api/v1/master_data/ports           # index (paginated)
-GET    /api/v1/master_data/ports/:id       # show
-POST   /api/v1/master_data/ports           # create
-PATCH  /api/v1/master_data/ports/:id       # update
-DELETE /api/v1/master_data/ports/:id       # destroy
+GET    /api/v1/admin/master_data/ports           # index (paginated)
+GET    /api/v1/admin/master_data/ports/:id       # show
+POST   /api/v1/admin/master_data/ports           # create
+PATCH  /api/v1/admin/master_data/ports/:id       # update
+DELETE /api/v1/admin/master_data/ports/:id       # destroy
+
+GET    /api/v1/fisherman/master_data/ports       # index (paginated), read-only
+GET    /api/v1/fisherman/master_data/ports/:id   # show, read-only
 ```
 
 ### Create request body
@@ -202,11 +209,11 @@ Used when a vessel returns early or skips capture reporting.
 ### Endpoints
 
 ```
-GET    /api/v1/master_data/reasons           # index (paginated)
-GET    /api/v1/master_data/reasons/:id       # show
-POST   /api/v1/master_data/reasons           # create
-PATCH  /api/v1/master_data/reasons/:id       # update
-DELETE /api/v1/master_data/reasons/:id       # soft-delete (sets discarded_at)
+GET    /api/v1/admin/master_data/reasons           # index (paginated)
+GET    /api/v1/admin/master_data/reasons/:id       # show
+POST   /api/v1/admin/master_data/reasons           # create
+PATCH  /api/v1/admin/master_data/reasons/:id       # update
+DELETE /api/v1/admin/master_data/reasons/:id       # soft-delete (sets discarded_at)
 ```
 
 ### Create request body

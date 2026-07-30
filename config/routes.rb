@@ -27,18 +27,6 @@ Rails.application.routes.draw do
       end
       post "auth/brunei_id", to: "brunei_id_sessions#create"
 
-      resources :users, only: %i[index show create update destroy]
-      resources :company_profiles, only: %i[index show create update destroy] do
-        resources :contacts, only: %i[create update destroy], module: "company_profiles"
-        resources :vessels, module: "company_profiles" do
-          member { post :images }
-          resources :fishing_gears, module: "vessels"
-        end
-        resources :crews, module: "company_profiles"
-        resources :captains, module: "company_profiles"
-        resources :documents, only: %i[index create update], module: "company_profiles"
-      end
-
       namespace :registrations do
         resource :jetty_manager, only: %i[create], controller: "jetty_managers"
         resource :fisherman, only: %i[create], controller: "fishermen"
@@ -46,16 +34,148 @@ Rails.application.routes.draw do
         get "status", to: "status#show"
       end
 
-      resources :roles, only: %i[index show create update destroy]
       resources :permissions, only: %i[index]
-      resources :dictionaries, only: %i[index show create update destroy]
 
       # Generic Active Storage redirect endpoint (see docs/minio/MINIO.md §3-4): authorizes against the
       # attachment's owning record, then 302s to a freshly-signed MinIO URL. Works for any
       # attachable model with a Pundit policy — not Dictionary-specific.
       get "attachments/:signed_id", to: "attachments#show", as: :attachment
 
-      namespace :fisherman do
+      # profile/locale, permissions, and attachments above are deliberately outside both admin/ and
+      # fisherman/ — none of them has any audience-specific behavior (no Pundit differentiation at
+      # all for the first two; attachments delegates entirely to whichever record owns the blob), so
+      # namespacing them would be noise, not signal. Everything else below sits inside admin/ or
+      # fisherman/, each tagged `defaults: { audience: "admin"/"fisherman" }` for RequireAudience
+      # (app/controllers/concerns/require_audience.rb) — a coarse pre-filter in front of Pundit's
+      # own per-action/per-record checks, not a replacement for them.
+
+      # ==================== admin/ : DoFi Officer + Jetty Manager ====================
+      namespace :admin, defaults: { audience: "admin" } do
+        resources :users, only: %i[index show create update destroy]
+        resources :roles, only: %i[index show create update destroy]
+        resources :dictionaries, only: %i[index show create update destroy]
+
+        # Ports/zones/fishing_gears sit flat here (not under master_data below) because they also
+        # exist on the fisherman side as flat resources (see fisherman/ below) — keeping the shape
+        # consistent across both namespaces. Reasons/nationalities/positions have no fisherman-facing
+        # equivalent at all, so there's no cross-namespace shape to keep consistent for them; they
+        # stay grouped under master_data purely as admin's own internal organization.
+        resources :ports,         only: %i[index show create update destroy]
+        resources :zones,         only: %i[index show create update destroy]
+        resources :fishing_gears, only: %i[index show create update destroy]
+
+        namespace :master_data do
+          resources :reasons, only: %i[index show create update destroy]
+          resources :nationalities, only: %i[index show create update destroy]
+          resources :positions, only: %i[index show create update destroy]
+        end
+
+        namespace :approvals do
+          resources :fishermen, only: %i[index show] do
+            member do
+              post :approve
+              post :reject
+            end
+          end
+
+          resources :jetty_managers, only: %i[index show] do
+            member do
+              post :approve
+              post :reject
+            end
+          end
+
+          resources :approval_remarks, only: %i[index show create update destroy]
+
+          resources :vessels, only: %i[index show] do
+            member do
+              post :approve
+              post :request_amendment
+            end
+          end
+
+          resources :crews, only: %i[index show] do
+            member do
+              post :approve
+              post :request_amendment
+            end
+          end
+
+          resources :captains, only: %i[index show] do
+            member do
+              post :approve
+              post :request_amendment
+            end
+          end
+
+          resources :fishing_gears, only: %i[index show] do
+            member do
+              post :approve
+              post :request_amendment
+            end
+          end
+
+          resources :documents, only: %i[index show] do
+            member do
+              post :approve
+              post :request_amendment
+            end
+          end
+
+          resources :manifests, only: %i[index show update] do
+            collection do
+              get :tab_counts
+            end
+            member do
+              post :approve_port_out
+              post :request_amendment_port_out
+              post :approve_port_in
+              post :request_amendment_port_in
+            end
+          end
+        end
+
+        # Dual-mounted, not moved — same controllers as fisherman/company_profiles below; each
+        # resource's own Policy::Scope (CompaniesVesselPolicy::Scope etc.) decides what's visible.
+        resources :company_profiles, only: %i[index show create update destroy],
+                                     controller: "/api/v1/company_profiles" do
+          resources :contacts, only: %i[create update destroy], controller: "/api/v1/company_profiles/contacts"
+          resources :vessels, controller: "/api/v1/company_profiles/vessels" do
+            member { post :images }
+            resources :fishing_gears, controller: "/api/v1/company_profiles/vessels/fishing_gears"
+          end
+          resources :crews, controller: "/api/v1/company_profiles/crews"
+          resources :captains, controller: "/api/v1/company_profiles/captains"
+          resources :documents, only: %i[index create update], controller: "/api/v1/company_profiles/documents"
+        end
+
+        # Admin only reviews these manifest sub-resources (index/show + the officer-only capture
+        # report workflow actions) — fisherman owns creating/editing them, see fisherman/manifests
+        # below. Native Admin::Manifests::* controllers, sharing read-only logic with their
+        # Fisherman:: counterparts via the Manifests:: concerns (app/controllers/concerns/manifests).
+        # `scope module:` (not just nested `resources`) is required to route to the nested
+        # Admin::Manifests::/Admin::Manifests::CaptureReports:: controller modules — nested
+        # `resources` blocks alone only affect the URL/params, not the controller's module path.
+        resources :manifests, only: [] do
+          scope module: "manifests" do
+            resources :minor_fishermen, only: %i[index]
+            resource :expense, only: %i[show]
+            resources :capture_reports, only: %i[index show] do
+              member do
+                post :verify
+                post :request_amendment
+              end
+              scope module: "capture_reports" do
+                resources :fish_capture_details, only: %i[index show]
+                resources :fishing_gear_details, only: %i[index show]
+              end
+            end
+          end
+        end
+      end
+
+      # ==================== fisherman/ : Fisherman PWA ====================
+      namespace :fisherman, defaults: { audience: "fisherman" } do
         resources :manifests, only: %i[index show create update destroy] do
           collection do
             get :tab_counts
@@ -68,105 +188,50 @@ Rails.application.routes.draw do
             post :skip_capture_report
             get :offline_bundle
           end
+
+          # Fisherman owns these manifest sub-resources (create/update/delete + resubmit); DoFi
+          # Officer's read/verify-only access lives in the parallel nested block under admin/
+          # manifests above. Native Fisherman::Manifests::* controllers, sharing read-only logic
+          # with Admin:: via the Manifests:: concerns (app/controllers/concerns/manifests).
+          # `scope module:` (see the matching admin/ comment above) routes to the nested
+          # Fisherman::Manifests::/Fisherman::Manifests::CaptureReports:: controller modules.
+          scope module: "manifests" do
+            resources :minor_fishermen, only: %i[index create destroy]
+            resource :expense, only: %i[show create update]
+            resources :capture_reports, only: %i[index show create update] do
+              member do
+                post :resubmit
+              end
+              scope module: "capture_reports" do
+                resources :fish_capture_details, only: %i[index show create update destroy] do
+                  collection { post :bulk_sync }
+                end
+                resources :fishing_gear_details, only: %i[index show create update destroy]
+              end
+            end
+          end
         end
-        resources :ports, only: %i[index]
+
+        # Ports/zones/fishing_gears are flat here (view-only), matching the flat shape used on the
+        # admin side (see admin/ above) — Fisherman holds zero create/update/delete permission on
+        # these reference-data resources today and has no plausible reason to.
+        resources :ports,         only: %i[index show]
+        resources :zones,         only: %i[index show]
+        resources :fishing_gears, only: %i[index show]
         resources :vessels, only: %i[index]
         resources :captains, only: %i[index]
         resources :crews, only: %i[index]
-      end
 
-      # Nested manifest sub-resources are deliberately unprefixed (neither fisherman/ nor
-      # approvals/) — capture_reports#verify/#request_amendment are officer actions invoked on a
-      # resource the fisherman created, so nesting them under either audience's namespace would be
-      # misleading. They're already authorized per-record by their own policies regardless of which
-      # namespace listed/created the parent manifest.
-      resources :manifests, only: [] do
-        resources :minor_fishermen, module: "manifests"
-        resource :expense, only: %i[show create update], module: "manifests"
-        resources :capture_reports, module: "manifests" do
-          member do
-            post :verify
-            post :request_amendment
-            post :resubmit
+        resources :company_profiles, only: %i[index show create update destroy],
+                                     controller: "/api/v1/company_profiles" do
+          resources :contacts, only: %i[create update destroy], controller: "/api/v1/company_profiles/contacts"
+          resources :vessels, controller: "/api/v1/company_profiles/vessels" do
+            member { post :images }
+            resources :fishing_gears, controller: "/api/v1/company_profiles/vessels/fishing_gears"
           end
-          resources :fish_capture_details, module: "capture_reports" do
-            collection { post :bulk_sync }
-          end
-          resources :fishing_gear_details, module: "capture_reports"
-        end
-      end
-
-      namespace :master_data do
-        resources :ports, only: %i[index show create update destroy]
-        resources :zones, only: %i[index show create update destroy]
-        resources :fishing_gears, only: %i[index show create update destroy]
-        resources :nationalities, only: %i[index show create update destroy]
-        resources :positions, only: %i[index show create update destroy]
-        resources :reasons, only: %i[index show create update destroy]
-      end
-
-      namespace :approvals do
-        resources :fishermen, only: %i[index show] do
-          member do
-            post :approve
-            post :reject
-          end
-        end
-
-        resources :jetty_managers, only: %i[index show] do
-          member do
-            post :approve
-            post :reject
-          end
-        end
-
-        resources :approval_remarks, only: %i[index show create update destroy]
-
-        resources :vessels, only: %i[index show] do
-          member do
-            post :approve
-            post :request_amendment
-          end
-        end
-
-        resources :crews, only: %i[index show] do
-          member do
-            post :approve
-            post :request_amendment
-          end
-        end
-
-        resources :captains, only: %i[index show] do
-          member do
-            post :approve
-            post :request_amendment
-          end
-        end
-
-        resources :fishing_gears, only: %i[index show] do
-          member do
-            post :approve
-            post :request_amendment
-          end
-        end
-
-        resources :documents, only: %i[index show] do
-          member do
-            post :approve
-            post :request_amendment
-          end
-        end
-
-        resources :manifests, only: %i[index show update] do
-          collection do
-            get :tab_counts
-          end
-          member do
-            post :approve_port_out
-            post :request_amendment_port_out
-            post :approve_port_in
-            post :request_amendment_port_in
-          end
+          resources :crews, controller: "/api/v1/company_profiles/crews"
+          resources :captains, controller: "/api/v1/company_profiles/captains"
+          resources :documents, only: %i[index create update], controller: "/api/v1/company_profiles/documents"
         end
       end
     end

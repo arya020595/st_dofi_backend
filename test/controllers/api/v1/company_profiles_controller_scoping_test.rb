@@ -12,11 +12,11 @@ module Api
         own_company = create(:company_profile, company_name: "Viewer's Own Co", rocbn_no: "RC-VIEWER-OWN")
         headers = viewer_headers_for(own_company)
 
-        get "/api/v1/company_profiles/#{@target.id}", headers: headers
+        get "/api/v1/fisherman/company_profiles/#{@target.id}", headers: headers
 
         assert_response :not_found
 
-        get "/api/v1/company_profiles", headers: headers
+        get "/api/v1/fisherman/company_profiles", headers: headers
 
         assert_response :ok
         assert_equal [own_company.id], response.parsed_body["data"].pluck("id")

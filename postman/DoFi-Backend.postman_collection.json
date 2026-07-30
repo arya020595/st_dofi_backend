@@ -734,13 +734,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles"
               ]
             },
@@ -1535,13 +1536,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/roles",
+              "raw": "{{base_url}}/api/v1/admin/roles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "roles"
               ]
             },
@@ -1570,13 +1572,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/roles",
+                  "raw": "{{base_url}}/api/v1/admin/roles",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "roles"
                   ]
                 }
@@ -1630,13 +1633,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/roles?q[name_cont]=role&q[s]=name desc&page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/roles?q[name_cont]=role&q[s]=name desc&page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "roles"
               ],
               "query": [
@@ -1686,13 +1690,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/roles?q[name_cont]=role&q[s]=name desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/roles?q[name_cont]=role&q[s]=name desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "roles"
                   ],
                   "query": [
@@ -1768,13 +1773,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/roles",
+              "raw": "{{base_url}}/api/v1/admin/roles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "roles"
               ]
             },
@@ -1813,13 +1819,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/roles",
+                  "raw": "{{base_url}}/api/v1/admin/roles",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "roles"
                   ]
                 },
@@ -1877,13 +1884,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/roles/{{role_id}}",
+              "raw": "{{base_url}}/api/v1/admin/roles/{{role_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "roles",
                 "{{role_id}}"
               ]
@@ -1913,13 +1921,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/roles/{{role_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/roles/{{role_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "roles",
                     "{{role_id}}"
                   ]
@@ -1978,13 +1987,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/roles/{{role_id}}",
+              "raw": "{{base_url}}/api/v1/admin/roles/{{role_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "roles",
                 "{{role_id}}"
               ]
@@ -2022,13 +2032,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/roles/{{role_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/roles/{{role_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "roles",
                     "{{role_id}}"
                   ]
@@ -2098,13 +2109,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/roles",
+              "raw": "{{base_url}}/api/v1/admin/roles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "roles"
               ]
             },
@@ -2146,13 +2158,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/roles",
+                  "raw": "{{base_url}}/api/v1/admin/roles",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "roles"
                   ]
                 },
@@ -2190,13 +2203,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/roles/{{role_id}}",
+              "raw": "{{base_url}}/api/v1/admin/roles/{{role_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "roles",
                 "{{role_id}}"
               ]
@@ -2226,13 +2240,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/roles/{{role_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/roles/{{role_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "roles",
                     "{{role_id}}"
                   ]
@@ -2293,13 +2308,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users",
+              "raw": "{{base_url}}/api/v1/admin/users",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "users"
               ]
             },
@@ -2328,13 +2344,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/users",
+                  "raw": "{{base_url}}/api/v1/admin/users",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "users"
                   ]
                 }
@@ -2388,13 +2405,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users?q[status_eq]=active&q[s][]=role_id asc&q[s][]=created_at desc&page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/users?q[status_eq]=active&q[s][]=role_id asc&q[s][]=created_at desc&page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "users"
               ],
               "query": [
@@ -2448,13 +2466,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/users?q[status_eq]=active&q[s][]=role_id asc&q[s][]=created_at desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/users?q[status_eq]=active&q[s][]=role_id asc&q[s][]=created_at desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "users"
                   ],
                   "query": [
@@ -2530,13 +2549,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users?q[encrypted_password_cont]=x",
+              "raw": "{{base_url}}/api/v1/admin/users?q[encrypted_password_cont]=x",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "users"
               ],
               "query": [
@@ -2571,13 +2591,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/users?q[encrypted_password_cont]=x",
+                  "raw": "{{base_url}}/api/v1/admin/users?q[encrypted_password_cont]=x",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "users"
                   ],
                   "query": [
@@ -2637,13 +2658,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/roles?q[kind_eq]=DoFi%20Officer",
+              "raw": "{{base_url}}/api/v1/admin/roles?q[kind_eq]=DoFi%20Officer",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "roles"
               ],
               "query": [
@@ -2684,13 +2706,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users",
+              "raw": "{{base_url}}/api/v1/admin/users",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "users"
               ]
             },
@@ -2732,13 +2755,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users",
+              "raw": "{{base_url}}/api/v1/admin/users",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "users"
               ]
             },
@@ -2776,13 +2800,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users",
+              "raw": "{{base_url}}/api/v1/admin/users",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "users"
               ]
             },
@@ -2818,13 +2843,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users/{{user_id}}",
+              "raw": "{{base_url}}/api/v1/admin/users/{{user_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "users",
                 "{{user_id}}"
               ]
@@ -2854,13 +2880,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/users/{{user_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/users/{{user_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "users",
                     "{{user_id}}"
                   ]
@@ -2919,13 +2946,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users/{{user_id}}",
+              "raw": "{{base_url}}/api/v1/admin/users/{{user_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "users",
                 "{{user_id}}"
               ]
@@ -2963,13 +2991,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/users/{{user_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/users/{{user_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "users",
                     "{{user_id}}"
                   ]
@@ -3032,13 +3061,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users/{{user_id}}",
+              "raw": "{{base_url}}/api/v1/admin/users/{{user_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "users",
                 "{{user_id}}"
               ]
@@ -3073,13 +3103,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users/{{user_id}}",
+              "raw": "{{base_url}}/api/v1/admin/users/{{user_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "users",
                 "{{user_id}}"
               ]
@@ -3109,13 +3140,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/users/{{user_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/users/{{user_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "users",
                     "{{user_id}}"
                   ]
@@ -3170,13 +3202,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users/{{user_id}}",
+              "raw": "{{base_url}}/api/v1/admin/users/{{user_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "users",
                 "{{user_id}}"
               ]
@@ -3206,13 +3239,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/users/{{user_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/users/{{user_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "users",
                     "{{user_id}}"
                   ]
@@ -3269,13 +3303,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles?page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles?page=1&limit=10"
               ]
             },
@@ -3288,13 +3323,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles?q[company_name_cont]=Azri&q[s]=created_at desc&page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles?q[company_name_cont]=Azri&q[s]=created_at desc&page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles?q[company_name_cont]=Azri&q[s]=created_at desc&page=1&limit=10"
               ]
             },
@@ -3316,13 +3352,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles"
               ]
             },
@@ -3371,13 +3408,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles"
               ]
             },
@@ -3421,13 +3459,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles"
               ]
             },
@@ -3471,13 +3510,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles"
               ]
             },
@@ -3520,13 +3560,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles"
               ]
             },
@@ -3559,13 +3600,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}"
               ]
@@ -3604,13 +3646,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}"
               ]
@@ -3646,13 +3689,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/company_profiles/{{owner_only_company_profile_id}}/contacts",
+                  "raw": "{{base_url}}/api/v1/admin/company_profiles/{{owner_only_company_profile_id}}/contacts",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "company_profiles",
                     "{{owner_only_company_profile_id}}",
                     "contacts"
@@ -3698,13 +3742,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/company_profiles/{{owner_only_company_profile_id}}/contacts",
+                  "raw": "{{base_url}}/api/v1/admin/company_profiles/{{owner_only_company_profile_id}}/contacts",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "company_profiles",
                     "{{owner_only_company_profile_id}}",
                     "contacts"
@@ -3748,13 +3793,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/company_profiles/{{owner_only_company_profile_id}}/contacts/{{new_contact_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/company_profiles/{{owner_only_company_profile_id}}/contacts/{{new_contact_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "company_profiles",
                     "{{owner_only_company_profile_id}}",
                     "contacts",
@@ -3791,13 +3837,14 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/company_profiles/{{owner_only_company_profile_id}}/contacts/{{new_contact_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/company_profiles/{{owner_only_company_profile_id}}/contacts/{{new_contact_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "company_profiles",
                     "{{owner_only_company_profile_id}}",
                     "contacts",
@@ -3826,13 +3873,14 @@
             "method": "DELETE",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{owner_only_company_profile_id}}",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{owner_only_company_profile_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{owner_only_company_profile_id}}"
               ]
@@ -3855,13 +3903,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles"
               ]
             },
@@ -3904,13 +3953,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles"
               ]
             },
@@ -3953,13 +4003,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles"
               ]
             },
@@ -3999,13 +4050,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels?page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels?page=1&limit=10"
@@ -4020,13 +4072,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels?q[approval_status_eq]=pending&q[s]=created_at desc&page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels?q[approval_status_eq]=pending&q[s]=created_at desc&page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels?q[approval_status_eq]=pending&q[s]=created_at desc&page=1&limit=10"
@@ -4050,13 +4103,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels"
@@ -4102,13 +4156,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels"
@@ -4132,13 +4187,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels",
@@ -4163,13 +4219,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels",
@@ -4210,13 +4267,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/images",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/images",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels",
@@ -4254,13 +4312,14 @@
             "method": "DELETE",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels",
@@ -4282,13 +4341,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears?page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels",
@@ -4314,13 +4374,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels",
@@ -4359,13 +4420,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears/{{companies_fishing_gear_id}}",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears/{{companies_fishing_gear_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels",
@@ -4392,13 +4454,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears/{{companies_fishing_gear_id}}",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears/{{companies_fishing_gear_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels",
@@ -4425,13 +4488,14 @@
             "method": "DELETE",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears/{{companies_fishing_gear_id}}",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears/{{companies_fishing_gear_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels",
@@ -4455,13 +4519,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/documents?page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/documents?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "documents?page=1&limit=10"
@@ -4481,13 +4546,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/documents",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/documents",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "documents"
@@ -4536,13 +4602,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/documents",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/documents",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "documents"
@@ -4588,13 +4655,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/documents/{{companies_document_id}}",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/documents/{{companies_document_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "documents",
@@ -4637,13 +4705,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/vessels?page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/approvals/vessels?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "vessels?page=1&limit=10"
               ]
@@ -4657,13 +4726,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/vessels?q[approval_status_eq]=pending&q[company_profile_id_eq]={{company_profile_id}}&q[s]=created_at desc&page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/approvals/vessels?q[approval_status_eq]=pending&q[company_profile_id_eq]={{company_profile_id}}&q[s]=created_at desc&page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "vessels?q[approval_status_eq]=pending&q[company_profile_id_eq]={{company_profile_id}}&q[s]=created_at desc&page=1&limit=10"
               ]
@@ -4677,13 +4747,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/vessels/{{companies_vessel_id}}",
+              "raw": "{{base_url}}/api/v1/admin/approvals/vessels/{{companies_vessel_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "vessels",
                 "{{companies_vessel_id}}"
@@ -4698,13 +4769,14 @@
             "method": "POST",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/vessels/{{companies_vessel_id}}/approve",
+              "raw": "{{base_url}}/api/v1/admin/approvals/vessels/{{companies_vessel_id}}/approve",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "vessels",
                 "{{companies_vessel_id}}",
@@ -4741,13 +4813,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/vessels/{{companies_vessel_id}}/request_amendment",
+              "raw": "{{base_url}}/api/v1/admin/approvals/vessels/{{companies_vessel_id}}/request_amendment",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "vessels",
                 "{{companies_vessel_id}}",
@@ -4791,13 +4864,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/documents?page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/approvals/documents?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "documents?page=1&limit=10"
               ]
@@ -4811,13 +4885,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/documents?q[approval_status_eq]=pending&q[company_profile_id_eq]={{company_profile_id}}&q[s]=created_at desc&page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/approvals/documents?q[approval_status_eq]=pending&q[company_profile_id_eq]={{company_profile_id}}&q[s]=created_at desc&page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "documents?q[approval_status_eq]=pending&q[company_profile_id_eq]={{company_profile_id}}&q[s]=created_at desc&page=1&limit=10"
               ]
@@ -4831,13 +4906,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/documents/{{companies_document_id}}",
+              "raw": "{{base_url}}/api/v1/admin/approvals/documents/{{companies_document_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "documents",
                 "{{companies_document_id}}"
@@ -4852,13 +4928,14 @@
             "method": "POST",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/documents/{{companies_document_id}}/approve",
+              "raw": "{{base_url}}/api/v1/admin/approvals/documents/{{companies_document_id}}/approve",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "documents",
                 "{{companies_document_id}}",
@@ -4895,13 +4972,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/documents/{{companies_document_id}}/request_amendment",
+              "raw": "{{base_url}}/api/v1/admin/approvals/documents/{{companies_document_id}}/request_amendment",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "documents",
                 "{{companies_document_id}}",
@@ -6058,13 +6136,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/approval_remarks?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "approval_remarks?page=1&limit=10"
                   ]
@@ -6078,13 +6157,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks?q[name_cont]=mismatch&q[s]=created_at desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/approval_remarks?q[name_cont]=mismatch&q[s]=created_at desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "approval_remarks?q[name_cont]=mismatch&q[s]=created_at desc&page=1&limit=10"
                   ]
@@ -6098,13 +6178,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/approval_remarks",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "approval_remarks"
                   ]
@@ -6138,13 +6219,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/approval_remarks",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "approval_remarks"
                   ]
@@ -6167,13 +6249,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks/{{approval_remark_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/approval_remarks/{{approval_remark_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "approval_remarks",
                     "{{approval_remark_id}}"
@@ -6188,13 +6271,14 @@
                 "method": "PATCH",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks/{{approval_remark_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/approval_remarks/{{approval_remark_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "approval_remarks",
                     "{{approval_remark_id}}"
@@ -6218,13 +6302,14 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks/{{approval_remark_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/approval_remarks/{{approval_remark_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "approval_remarks",
                     "{{approval_remark_id}}"
@@ -6250,13 +6335,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks?page=1&limit=1",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/approval_remarks?page=1&limit=1",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "approval_remarks"
                   ],
@@ -6397,13 +6483,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/fishermen?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "fishermen?page=1&limit=10"
                   ]
@@ -6417,13 +6504,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/fishermen?q[status_eq]=pending&q[s]=created_at desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen?q[status_eq]=pending&q[s]=created_at desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "fishermen?q[status_eq]=pending&q[s]=created_at desc&page=1&limit=10"
                   ]
@@ -6437,13 +6525,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/fishermen/{{fisherman_to_approve_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen/{{fisherman_to_approve_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "fishermen",
                     "{{fisherman_to_approve_id}}"
@@ -6458,13 +6547,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/fishermen/{{commercial_fisherman_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen/{{commercial_fisherman_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "fishermen",
                     "{{commercial_fisherman_id}}"
@@ -6495,13 +6585,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/fishermen/{{fisherman_to_approve_id}}/approve",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen/{{fisherman_to_approve_id}}/approve",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "fishermen",
                     "{{fisherman_to_approve_id}}",
@@ -6538,13 +6629,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/fishermen/{{fisherman_to_reject_id}}/reject",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen/{{fisherman_to_reject_id}}/reject",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "fishermen",
                     "{{fisherman_to_reject_id}}",
@@ -6591,13 +6683,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/fishermen/{{fisherman_to_reject_id}}/reject",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen/{{fisherman_to_reject_id}}/reject",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "fishermen",
                     "{{fisherman_to_reject_id}}",
@@ -6642,13 +6735,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/fishermen/{{manifest_fisherman_user_id}}/approve",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen/{{manifest_fisherman_user_id}}/approve",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "fishermen",
                     "{{manifest_fisherman_user_id}}",
@@ -6684,13 +6778,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/fishermen/{{manifest_commercial_fisherman_user_id}}/approve",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen/{{manifest_commercial_fisherman_user_id}}/approve",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "fishermen",
                     "{{manifest_commercial_fisherman_user_id}}",
@@ -6726,13 +6821,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/fishermen/{{manifest_skip_demo_fisherman_user_id}}/approve",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen/{{manifest_skip_demo_fisherman_user_id}}/approve",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "fishermen",
                     "{{manifest_skip_demo_fisherman_user_id}}",
@@ -6869,13 +6965,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/jetty_managers?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/jetty_managers?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "jetty_managers?page=1&limit=10"
                   ]
@@ -6889,13 +6986,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/jetty_managers/{{jetty_manager_to_approve_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/jetty_managers/{{jetty_manager_to_approve_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "jetty_managers",
                     "{{jetty_manager_to_approve_id}}"
@@ -6910,13 +7008,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/jetty_managers/{{jetty_manager_to_approve_id}}/approve",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/jetty_managers/{{jetty_manager_to_approve_id}}/approve",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "jetty_managers",
                     "{{jetty_manager_to_approve_id}}",
@@ -6953,13 +7052,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/jetty_managers/{{jetty_manager_to_reject_id}}/reject",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/jetty_managers/{{jetty_manager_to_reject_id}}/reject",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "jetty_managers",
                     "{{jetty_manager_to_reject_id}}",
@@ -7066,13 +7166,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{manifest_company_profile_id}}/vessels",
+              "raw": "{{base_url}}/api/v1/fisherman/company_profiles/{{manifest_company_profile_id}}/vessels",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "fisherman",
                 "company_profiles",
                 "{{manifest_company_profile_id}}",
                 "vessels"
@@ -7127,13 +7228,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/vessels/{{manifest_vessel_id}}/approve",
+              "raw": "{{base_url}}/api/v1/admin/approvals/vessels/{{manifest_vessel_id}}/approve",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "vessels",
                 "{{manifest_vessel_id}}",
@@ -7224,13 +7326,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{manifest_commercial_company_profile_id}}/vessels",
+              "raw": "{{base_url}}/api/v1/fisherman/company_profiles/{{manifest_commercial_company_profile_id}}/vessels",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "fisherman",
                 "company_profiles",
                 "{{manifest_commercial_company_profile_id}}",
                 "vessels"
@@ -7285,13 +7388,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/vessels/{{manifest_commercial_vessel_id}}/approve",
+              "raw": "{{base_url}}/api/v1/admin/approvals/vessels/{{manifest_commercial_vessel_id}}/approve",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "vessels",
                 "{{manifest_commercial_vessel_id}}",
@@ -7381,13 +7485,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{manifest_skip_demo_company_profile_id}}/vessels",
+              "raw": "{{base_url}}/api/v1/fisherman/company_profiles/{{manifest_skip_demo_company_profile_id}}/vessels",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "fisherman",
                 "company_profiles",
                 "{{manifest_skip_demo_company_profile_id}}",
                 "vessels"
@@ -7442,13 +7547,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/vessels/{{manifest_skip_demo_vessel_id}}/approve",
+              "raw": "{{base_url}}/api/v1/admin/approvals/vessels/{{manifest_skip_demo_vessel_id}}/approve",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "vessels",
                 "{{manifest_skip_demo_vessel_id}}",
@@ -7820,13 +7926,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/minor_fishermen",
+              "raw": "{{base_url}}/api/v1/fisherman/manifests/{{manifest_id}}/minor_fishermen",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "fisherman",
                 "manifests",
                 "{{manifest_id}}",
                 "minor_fishermen"
@@ -7881,13 +7988,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/minor_fishermen",
+              "raw": "{{base_url}}/api/v1/fisherman/manifests/{{manifest_id}}/minor_fishermen",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "fisherman",
                 "manifests",
                 "{{manifest_id}}",
                 "minor_fishermen"
@@ -7932,13 +8040,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/minor_fishermen/{{manifest_minor_fisherman_id}}",
+              "raw": "{{base_url}}/api/v1/fisherman/manifests/{{manifest_id}}/minor_fishermen/{{manifest_minor_fisherman_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "fisherman",
                 "manifests",
                 "{{manifest_id}}",
                 "minor_fishermen",
@@ -8190,13 +8299,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/capture_reports",
+              "raw": "{{base_url}}/api/v1/fisherman/manifests/{{manifest_id}}/capture_reports",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "fisherman",
                 "manifests",
                 "{{manifest_id}}",
                 "capture_reports"
@@ -8251,13 +8361,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/fish_capture_details",
+              "raw": "{{base_url}}/api/v1/fisherman/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/fish_capture_details",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "fisherman",
                 "manifests",
                 "{{manifest_id}}",
                 "capture_reports",
@@ -8314,13 +8425,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/expense",
+              "raw": "{{base_url}}/api/v1/fisherman/manifests/{{manifest_id}}/expense",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "fisherman",
                 "manifests",
                 "{{manifest_id}}",
                 "expense"
@@ -8374,13 +8486,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/fishing_gear_details",
+              "raw": "{{base_url}}/api/v1/fisherman/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/fishing_gear_details",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "fisherman",
                 "manifests",
                 "{{manifest_id}}",
                 "capture_reports",
@@ -8436,13 +8549,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/fish_capture_details/bulk_sync",
+              "raw": "{{base_url}}/api/v1/fisherman/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/fish_capture_details/bulk_sync",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "fisherman",
                 "manifests",
                 "{{manifest_id}}",
                 "capture_reports",
@@ -9118,13 +9232,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/manifests",
+              "raw": "{{base_url}}/api/v1/admin/approvals/manifests",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "manifests"
               ]
@@ -9158,13 +9273,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/manifests/{{manifest_id}}",
+              "raw": "{{base_url}}/api/v1/admin/approvals/manifests/{{manifest_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "manifests",
                 "{{manifest_id}}"
@@ -9199,13 +9315,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/manifests/tab_counts",
+              "raw": "{{base_url}}/api/v1/admin/approvals/manifests/tab_counts",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "manifests",
                 "tab_counts"
@@ -9301,13 +9418,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/manifests/{{manifest_throwaway_update_id}}",
+              "raw": "{{base_url}}/api/v1/admin/approvals/manifests/{{manifest_throwaway_update_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "manifests",
                 "{{manifest_throwaway_update_id}}"
@@ -9351,13 +9469,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/verify",
+              "raw": "{{base_url}}/api/v1/admin/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/verify",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "manifests",
                 "{{manifest_id}}",
                 "capture_reports",
@@ -9395,13 +9514,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/manifests/{{manifest_id}}",
+              "raw": "{{base_url}}/api/v1/admin/approvals/manifests/{{manifest_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "manifests",
                 "{{manifest_id}}"
@@ -9551,13 +9671,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/manifests/{{manifest_commercial_amendment_demo_id}}/request_amendment_port_out",
+              "raw": "{{base_url}}/api/v1/admin/approvals/manifests/{{manifest_commercial_amendment_demo_id}}/request_amendment_port_out",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "manifests",
                 "{{manifest_commercial_amendment_demo_id}}",
@@ -9656,13 +9777,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/manifests/{{manifest_commercial_amendment_demo_id}}/approve_port_out",
+              "raw": "{{base_url}}/api/v1/admin/approvals/manifests/{{manifest_commercial_amendment_demo_id}}/approve_port_out",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "manifests",
                 "{{manifest_commercial_amendment_demo_id}}",
@@ -9699,13 +9821,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/ports?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/ports?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "ports?page=1&limit=10"
                   ]
@@ -9719,13 +9842,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/ports?q[port_name_cont]=Serasa&q[s]=created_at desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/ports?q[port_name_cont]=Serasa&q[s]=created_at desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "ports?q[port_name_cont]=Serasa&q[s]=created_at desc&page=1&limit=10"
                   ]
@@ -9739,13 +9863,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/ports",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/ports",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "ports"
                   ]
@@ -9780,13 +9905,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/ports",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/ports",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "ports"
                   ]
@@ -9809,13 +9935,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/ports/{{port_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/ports/{{port_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "ports",
                     "{{port_id}}"
@@ -9830,13 +9957,14 @@
                 "method": "PATCH",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/ports/{{port_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/ports/{{port_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "ports",
                     "{{port_id}}"
@@ -9860,13 +9988,14 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/ports/{{port_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/ports/{{port_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "ports",
                     "{{port_id}}"
@@ -9887,13 +10016,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/zones?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/zones?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "zones?page=1&limit=10"
                   ]
@@ -9907,13 +10037,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/zones?q[name_cont]=Zone&q[s]=name asc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/zones?q[name_cont]=Zone&q[s]=name asc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "zones?q[name_cont]=Zone&q[s]=name asc&page=1&limit=10"
                   ]
@@ -9927,13 +10058,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/zones",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/zones",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "zones"
                   ]
@@ -9968,13 +10100,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/zones",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/zones",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "zones"
                   ]
@@ -9997,13 +10130,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/zones/{{zone_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/zones/{{zone_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "zones",
                     "{{zone_id}}"
@@ -10018,13 +10152,14 @@
                 "method": "PATCH",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/zones/{{zone_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/zones/{{zone_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "zones",
                     "{{zone_id}}"
@@ -10048,13 +10183,14 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/zones/{{zone_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/zones/{{zone_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "zones",
                     "{{zone_id}}"
@@ -10075,13 +10211,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/fishing_gears?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "fishing_gears?page=1&limit=10"
                   ]
@@ -10095,13 +10232,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/fishing_gears?q[name_cont]=Net&q[s]=created_at desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears?q[name_cont]=Net&q[s]=created_at desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "fishing_gears?q[name_cont]=Net&q[s]=created_at desc&page=1&limit=10"
                   ]
@@ -10115,13 +10253,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/fishing_gears",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "fishing_gears"
                   ]
@@ -10156,13 +10295,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/fishing_gears",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "fishing_gears"
                   ]
@@ -10185,13 +10325,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/fishing_gears/{{fishing_gear_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears/{{fishing_gear_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "fishing_gears",
                     "{{fishing_gear_id}}"
@@ -10206,13 +10347,14 @@
                 "method": "PATCH",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/fishing_gears/{{fishing_gear_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears/{{fishing_gear_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "fishing_gears",
                     "{{fishing_gear_id}}"
@@ -10236,13 +10378,14 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/fishing_gears/{{fishing_gear_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears/{{fishing_gear_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "fishing_gears",
                     "{{fishing_gear_id}}"
@@ -10263,13 +10406,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/nationalities?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/nationalities?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "nationalities?page=1&limit=10"
                   ]
@@ -10283,13 +10427,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/nationalities?q[name_cont]=ian&q[s]=created_at desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/nationalities?q[name_cont]=ian&q[s]=created_at desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "nationalities?q[name_cont]=ian&q[s]=created_at desc&page=1&limit=10"
                   ]
@@ -10303,13 +10448,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/nationalities",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/nationalities",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "nationalities"
                   ]
@@ -10344,13 +10490,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/nationalities",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/nationalities",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "nationalities"
                   ]
@@ -10373,13 +10520,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/nationalities/{{nationality_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/nationalities/{{nationality_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "nationalities",
                     "{{nationality_id}}"
@@ -10394,13 +10542,14 @@
                 "method": "PATCH",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/nationalities/{{nationality_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/nationalities/{{nationality_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "nationalities",
                     "{{nationality_id}}"
@@ -10424,13 +10573,14 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/nationalities/{{nationality_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/nationalities/{{nationality_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "nationalities",
                     "{{nationality_id}}"
@@ -10451,13 +10601,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/positions?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/positions?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "positions?page=1&limit=10"
                   ]
@@ -10471,13 +10622,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/positions?q[category_eq]=Fisherman&q[s]=created_at desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/positions?q[category_eq]=Fisherman&q[s]=created_at desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "positions?q[category_eq]=Fisherman&q[s]=created_at desc&page=1&limit=10"
                   ]
@@ -10491,13 +10643,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/positions",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/positions",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "positions"
                   ]
@@ -10532,13 +10685,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/positions",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/positions",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "positions"
                   ]
@@ -10561,13 +10715,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/positions/{{position_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/positions/{{position_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "positions",
                     "{{position_id}}"
@@ -10582,13 +10737,14 @@
                 "method": "PATCH",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/positions/{{position_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/positions/{{position_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "positions",
                     "{{position_id}}"
@@ -10612,13 +10768,14 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/positions/{{position_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/positions/{{position_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "positions",
                     "{{position_id}}"
@@ -10639,13 +10796,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/reasons?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/reasons?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "reasons?page=1&limit=10"
                   ]
@@ -10659,13 +10817,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/reasons?q[name_cont]=weather&q[s]=created_at desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/reasons?q[name_cont]=weather&q[s]=created_at desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "reasons?q[name_cont]=weather&q[s]=created_at desc&page=1&limit=10"
                   ]
@@ -10679,13 +10838,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/reasons",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/reasons",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "reasons"
                   ]
@@ -10720,13 +10880,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/reasons",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/reasons",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "reasons"
                   ]
@@ -10749,13 +10910,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/reasons/{{reason_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/reasons/{{reason_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "reasons",
                     "{{reason_id}}"
@@ -10770,13 +10932,14 @@
                 "method": "PATCH",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/reasons/{{reason_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/reasons/{{reason_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "reasons",
                     "{{reason_id}}"
@@ -10800,13 +10963,14 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/reasons/{{reason_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/reasons/{{reason_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "reasons",
                     "{{reason_id}}"
@@ -10830,13 +10994,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/reasons?limit=1",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/reasons?limit=1",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "reasons?limit=1"
                   ]
@@ -10877,13 +11042,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dictionaries?page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/dictionaries?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "dictionaries"
               ],
               "query": [
@@ -10927,13 +11093,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/dictionaries?page=1&limit=3",
+                  "raw": "{{base_url}}/api/v1/admin/dictionaries?page=1&limit=3",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "dictionaries"
                   ],
                   "query": [
@@ -10973,13 +11140,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dictionaries?q[group_name_eq]=Crustacean&page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/dictionaries?q[group_name_eq]=Crustacean&page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "dictionaries"
               ],
               "query": [
@@ -11026,13 +11194,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dictionaries?q[local_name_cont]=Udang&page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/dictionaries?q[local_name_cont]=Udang&page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "dictionaries"
               ],
               "query": [
@@ -11077,13 +11246,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
+              "raw": "{{base_url}}/api/v1/admin/dictionaries/{{dictionary_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "dictionaries",
                 "{{dictionary_id}}"
               ]
@@ -11114,13 +11284,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/dictionaries/{{dictionary_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "dictionaries",
                     "{{dictionary_id}}"
                   ]
@@ -11151,13 +11322,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dictionaries/00000000-0000-0000-0000-000000000000",
+              "raw": "{{base_url}}/api/v1/admin/dictionaries/00000000-0000-0000-0000-000000000000",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "dictionaries",
                 "00000000-0000-0000-0000-000000000000"
               ]
@@ -11187,13 +11359,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/dictionaries/00000000-0000-0000-0000-000000000000",
+                  "raw": "{{base_url}}/api/v1/admin/dictionaries/00000000-0000-0000-0000-000000000000",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "dictionaries",
                     "00000000-0000-0000-0000-000000000000"
                   ]
@@ -11224,13 +11397,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dictionaries",
+              "raw": "{{base_url}}/api/v1/admin/dictionaries",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "dictionaries"
               ]
             },
@@ -11293,13 +11467,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/dictionaries",
+                  "raw": "{{base_url}}/api/v1/admin/dictionaries",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "dictionaries"
                   ]
                 },
@@ -11354,13 +11529,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dictionaries",
+              "raw": "{{base_url}}/api/v1/admin/dictionaries",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "dictionaries"
               ]
             },
@@ -11452,13 +11628,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/dictionaries",
+                  "raw": "{{base_url}}/api/v1/admin/dictionaries",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "dictionaries"
                   ]
                 },
@@ -11537,13 +11714,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dictionaries",
+              "raw": "{{base_url}}/api/v1/admin/dictionaries",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "dictionaries"
               ]
             },
@@ -11581,13 +11759,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/dictionaries",
+                  "raw": "{{base_url}}/api/v1/admin/dictionaries",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "dictionaries"
                   ]
                 },
@@ -11621,13 +11800,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
+              "raw": "{{base_url}}/api/v1/admin/dictionaries/{{dictionary_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "dictionaries",
                 "{{dictionary_id}}"
               ]
@@ -11690,13 +11870,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/dictionaries/{{dictionary_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "dictionaries",
                     "{{dictionary_id}}"
                   ]
@@ -11752,13 +11933,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
+              "raw": "{{base_url}}/api/v1/admin/dictionaries/{{dictionary_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "dictionaries",
                 "{{dictionary_id}}"
               ]
@@ -11789,13 +11971,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/dictionaries/{{dictionary_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "dictionaries",
                     "{{dictionary_id}}"
                   ]
@@ -11830,13 +12013,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dictionaries?limit=1",
+              "raw": "{{base_url}}/api/v1/admin/dictionaries?limit=1",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "dictionaries?limit=1"
               ]
             },

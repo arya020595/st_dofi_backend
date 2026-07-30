@@ -149,7 +149,7 @@ Fisherman registration has two sub-flows driven by `registration_type`:
 
 Every type is matched the same way — by `ic_number` against a `CompanyProfileContact` an officer
 pre-profiled. Full-Time has no separate "no company" path: it uses the same
-`POST /api/v1/company_profiles` flow, just profiled with only an Owner contact (the fisherman
+`POST /api/v1/admin/company_profiles` flow, just profiled with only an Owner contact (the fisherman
 themselves) and none of the company-shape fields (`company_name`, `worker_quota`, ...), since
 `CompanyProfile#individual?` makes those optional for this registration_type.
 
@@ -348,8 +348,8 @@ Valid values for `registration_type`: `"Commercial"`, `"Small-Scale (Company)"`,
 
 | Feature | Notes |
 |---|---|
-| Officer approve/reject endpoint | ✅ Built — `POST /api/v1/approvals/fishermen/:id/approve`\|`reject` and `POST /api/v1/approvals/jetty_managers/:id/approve`\|`reject`. Moves a Fisherman or Jetty Manager from `pending` → `active` or `rejected`, sets `rejection_reason` on `rejected` |
-| Admin create CompanyProfile endpoint | ✅ Built — `POST /api/v1/company_profiles` (see "5. Officer Profiling" below). Officers pre-create `CompanyProfile` records (Owner and optionally Admin) before fishermen self-register |
+| Officer approve/reject endpoint | ✅ Built — `POST /api/v1/admin/approvals/fishermen/:id/approve`\|`reject` and `POST /api/v1/admin/approvals/jetty_managers/:id/approve`\|`reject`. Moves a Fisherman or Jetty Manager from `pending` → `active` or `rejected`, sets `rejection_reason` on `rejected` |
+| Admin create CompanyProfile endpoint | ✅ Built — `POST /api/v1/admin/company_profiles` (see "5. Officer Profiling" below). Officers pre-create `CompanyProfile` records (Owner and optionally Admin) before fishermen self-register |
 | Registration status check endpoint | ✅ Built — `GET /api/v1/registrations/status?ic_number=...` |
 | Login after registration | ✅ Built — `POST /api/v1/auth/brunei_id` (see "6. Mock BruneiID Login" below). Gates on `active` status; `pending`/`rejected` get the same status payload as the registration-status check instead of a token |
 
@@ -358,6 +358,12 @@ Valid values for `registration_type`: `"Commercial"`, `"Small-Scale (Company)"`,
 ## 5. Officer Profiling (pre-creating a CompanyProfile)
 
 Unlike everything above, this endpoint is **authenticated** (`profiling.*` permission required — DoFi Officer has it via full access, and Fisherman also has `profiling.create`/`profiling.update`). It lets an officer (or, once already registered/active, a fisherman for their own profile) pre-create the `CompanyProfile` record(s) a fisherman will later match against by IC number during self-registration (section 2a) — this applies to **every** registration type, including Small - Scale (Full-Time).
+
+`CompanyProfile` and its sub-resources are dual-mounted: the same controllers are reachable at
+`/api/v1/admin/company_profiles/...` (DoFi Officer, Jetty Manager) and
+`/api/v1/fisherman/company_profiles/...` (Fisherman, scoped to their own company via
+`CompanyProfilePolicy::Scope`). Every path below shows the `admin/` prefix since officer profiling is
+the primary flow this section documents — swap in `fisherman/` for the self-service case.
 
 For Small - Scale (Full-Time), profile only an Owner (the fisherman themselves) and omit every
 company-shape field — `CompanyProfile#individual?` (true when `registration_type` is Full-Time)
@@ -375,7 +381,7 @@ type only:
 ```
 
 ```
-POST /api/v1/company_profiles
+POST /api/v1/admin/company_profiles
 ```
 
 **Request body**
@@ -433,7 +439,7 @@ Owner, or Owner-only-when-Admin-was-requested) state is left behind.
 
 `admin_profile` is `null` when no `admin` was submitted.
 
-Also supports standard `GET /api/v1/company_profiles` (list, searchable via `q[company_name_cont]`/`q[rocbn_no_cont]` — this is how the FE's "Select & Search Company" picks an existing company), `GET /api/v1/company_profiles/:id`, `PATCH /api/v1/company_profiles/:id` (company-level fields only — no `owner`/`admin`), and `DELETE /api/v1/company_profiles/:id` (soft-deletes the company **and** its contacts together).
+Also supports standard `GET /api/v1/admin/company_profiles` (list, searchable via `q[company_name_cont]`/`q[rocbn_no_cont]` — this is how the FE's "Select & Search Company" picks an existing company), `GET /api/v1/admin/company_profiles/:id`, `PATCH /api/v1/admin/company_profiles/:id` (company-level fields only — no `owner`/`admin`), and `DELETE /api/v1/admin/company_profiles/:id` (soft-deletes the company **and** its contacts together).
 
 ### Adding a contact to an existing company (`CompanyProfileContacts::Create`)
 
@@ -443,7 +449,7 @@ calls the nested contacts endpoint instead of resubmitting `create` — no compa
 duplicating the Owner:
 
 ```
-POST /api/v1/company_profiles/:company_profile_id/contacts
+POST /api/v1/admin/company_profiles/:company_profile_id/contacts
 ```
 
 ```json

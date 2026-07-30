@@ -13,13 +13,13 @@ module Api
             end
           end
           @admin_role = create(:role, kind: Role::DOFI_OFFICER, permissions: admin_permissions)
-          @no_access_role = create(:role)
+          @no_access_role = create(:role, kind: Role::JETTY_MANAGER)
 
-          @admin = create(:user, role: @admin_role, position: "Administrator", unit: "HQ",
-                                 password: @password, password_confirmation: @password)
+          @admin = create(:user, :officer_shaped, role: @admin_role,
+                                                  password: @password, password_confirmation: @password)
           @company_profile = create(:company_profile)
-          @plain_user = create(:user, role: @no_access_role, company_profile: @company_profile,
-                                      password: @password, password_confirmation: @password)
+          @plain_user = create(:user, :jetty_manager_shaped, role: @no_access_role, company_profile: @company_profile,
+                                                             password: @password, password_confirmation: @password)
           @owner = create(:company_profile_contact, company_profile: @company_profile, designation: "Owner")
 
           @admin_headers = auth_headers_for(@admin, password: @password)
@@ -31,8 +31,8 @@ module Api
                                 ic_colour: "Green", designation: "Admin" } }
 
           assert_difference("CompanyProfileContact.count", 1) do
-            post "/api/v1/company_profiles/#{@company_profile.id}/contacts", params: params,
-                                                                             headers: @admin_headers, as: :json
+            post "/api/v1/admin/company_profiles/#{@company_profile.id}/contacts", params: params,
+                                                                                   headers: @admin_headers, as: :json
           end
 
           assert_response :created
@@ -43,8 +43,8 @@ module Api
           params = { contact: { full_name: "Admin Person", gender: "Female", ic_no: "01-800002",
                                 ic_colour: "Green", designation: "Admin" } }
 
-          post "/api/v1/company_profiles/#{@company_profile.id}/contacts", params: params,
-                                                                           headers: @plain_headers, as: :json
+          post "/api/v1/admin/company_profiles/#{@company_profile.id}/contacts", params: params,
+                                                                                 headers: @plain_headers, as: :json
 
           assert_response :forbidden
         end
@@ -52,20 +52,20 @@ module Api
         test "editing the company's details does not desync the Owner/Admin pairing" do
           admin = create(:company_profile_contact, company_profile: @company_profile, designation: "Admin")
 
-          patch "/api/v1/company_profiles/#{@company_profile.id}",
+          patch "/api/v1/admin/company_profiles/#{@company_profile.id}",
                 params: { company_profile: { company_name: "Renamed Co", rocbn_no: "RC-RENAMED" } },
                 headers: @admin_headers, as: :json
 
           assert_response :ok
 
-          get "/api/v1/company_profiles/#{@company_profile.id}", headers: @admin_headers
+          get "/api/v1/admin/company_profiles/#{@company_profile.id}", headers: @admin_headers
           data = response.parsed_body["data"]
 
           assert_equal admin.id, data.dig("admin_profile", "id")
         end
 
         test "update modifies the target contact" do
-          patch "/api/v1/company_profiles/#{@company_profile.id}/contacts/#{@owner.id}",
+          patch "/api/v1/admin/company_profiles/#{@company_profile.id}/contacts/#{@owner.id}",
                 params: { contact: { full_name: "Updated Name" } }, headers: @admin_headers, as: :json
 
           assert_response :ok
@@ -73,7 +73,7 @@ module Api
         end
 
         test "destroy soft-deletes only the target contact, leaving the company profile intact" do
-          delete "/api/v1/company_profiles/#{@company_profile.id}/contacts/#{@owner.id}", headers: @admin_headers
+          delete "/api/v1/admin/company_profiles/#{@company_profile.id}/contacts/#{@owner.id}", headers: @admin_headers
 
           assert_response :ok
           assert_predicate @owner.reload, :discarded?

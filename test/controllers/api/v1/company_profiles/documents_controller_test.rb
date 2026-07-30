@@ -13,24 +13,24 @@ module Api
             end
           end
           @admin_role = create(:role, kind: Role::DOFI_OFFICER, permissions: admin_permissions)
-          @no_access_role = create(:role)
+          @no_access_role = create(:role, kind: Role::JETTY_MANAGER)
 
-          @admin = create(:user, role: @admin_role, position: "Administrator", unit: "HQ",
-                                 password: @password, password_confirmation: @password)
+          @admin = create(:user, :officer_shaped, role: @admin_role,
+                                                  password: @password, password_confirmation: @password)
           @company_profile = create(:company_profile)
-          @plain_user = create(:user, role: @no_access_role, company_profile: @company_profile,
-                                      password: @password, password_confirmation: @password)
+          @plain_user = create(:user, :jetty_manager_shaped, role: @no_access_role, company_profile: @company_profile,
+                                                             password: @password, password_confirmation: @password)
 
           @admin_headers = auth_headers_for(@admin, password: @password)
           @plain_headers = auth_headers_for(@plain_user, password: @password)
         end
 
         test "index requires the list/view permission" do
-          get "/api/v1/company_profiles/#{@company_profile.id}/documents", headers: @plain_headers
+          get "/api/v1/admin/company_profiles/#{@company_profile.id}/documents", headers: @plain_headers
 
           assert_response :forbidden
 
-          get "/api/v1/company_profiles/#{@company_profile.id}/documents", headers: @admin_headers
+          get "/api/v1/admin/company_profiles/#{@company_profile.id}/documents", headers: @admin_headers
 
           assert_response :ok
         end
@@ -40,7 +40,8 @@ module Api
                                  file: fixture_file_upload("sample.pdf", "application/pdf") } }
 
           assert_difference("CompaniesDocument.count", 1) do
-            post "/api/v1/company_profiles/#{@company_profile.id}/documents", params: params, headers: @admin_headers
+            post "/api/v1/admin/company_profiles/#{@company_profile.id}/documents", params: params,
+                                                                                    headers: @admin_headers
           end
 
           assert_response :created
@@ -50,7 +51,8 @@ module Api
           params = { document: { document_type: "white_card",
                                  file: fixture_file_upload("sample.pdf", "application/pdf") } }
 
-          post "/api/v1/company_profiles/#{@company_profile.id}/documents", params: params, headers: @admin_headers
+          post "/api/v1/admin/company_profiles/#{@company_profile.id}/documents", params: params,
+                                                                                  headers: @admin_headers
           data = response.parsed_body["data"]
 
           assert_equal "pending", data["approval_status"]
@@ -66,7 +68,8 @@ module Api
           params = { document: { document_type: "white_card", file: spoofed_file } }
 
           assert_no_difference("CompaniesDocument.count") do
-            post "/api/v1/company_profiles/#{@company_profile.id}/documents", params: params, headers: @admin_headers
+            post "/api/v1/admin/company_profiles/#{@company_profile.id}/documents", params: params,
+                                                                                    headers: @admin_headers
           end
 
           assert_response :unprocessable_content
@@ -78,7 +81,7 @@ module Api
           document = create(:companies_document, :approved, company_profile: @company_profile)
           params = { document: { file: fixture_file_upload("sample.pdf", "application/pdf") } }
 
-          patch "/api/v1/company_profiles/#{@company_profile.id}/documents/#{document.id}",
+          patch "/api/v1/admin/company_profiles/#{@company_profile.id}/documents/#{document.id}",
                 params: params, headers: @admin_headers
 
           assert_response :ok

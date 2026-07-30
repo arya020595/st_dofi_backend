@@ -54,7 +54,7 @@ Full-Time, that means an individual-shaped `CompanyProfile` with just an Owner c
 fisherman themselves) and no company-shape fields:
 
 ```bash
-curl -s -X POST "$BASE_URL/api/v1/company_profiles" \
+curl -s -X POST "$BASE_URL/api/v1/admin/company_profiles" \
   -H "Authorization: $OFFICER_TOKEN" -H "Content-Type: application/json" \
   -d '{
     "company_profile": {
@@ -86,7 +86,7 @@ Status is `pending` at this point — the fisherman cannot log in yet.
 **3. Approve, as the officer.**
 
 ```bash
-curl -s -X POST "$BASE_URL/api/v1/approvals/fishermen/$FISHERMAN_ID/approve" \
+curl -s -X POST "$BASE_URL/api/v1/admin/approvals/fishermen/$FISHERMAN_ID/approve" \
   -H "Authorization: $OFFICER_TOKEN" | jq .
 ```
 
@@ -141,7 +141,7 @@ curl -s -X POST "$BASE_URL/api/v1/registrations/jetty_manager" \
 
 JETTY_MANAGER_ID=$(jq -r '.data.id' /tmp/jetty_manager.json)
 
-curl -s -X POST "$BASE_URL/api/v1/approvals/jetty_managers/$JETTY_MANAGER_ID/approve" \
+curl -s -X POST "$BASE_URL/api/v1/admin/approvals/jetty_managers/$JETTY_MANAGER_ID/approve" \
   -H "Authorization: $OFFICER_TOKEN" | jq .
 
 curl -s -D - -X POST "$BASE_URL/api/v1/auth/brunei_id" \
@@ -156,7 +156,7 @@ curl -s -D - -X POST "$BASE_URL/api/v1/auth/brunei_id" \
 **Pending** — profile, register, but skip the approve step, then hit the login endpoint anyway:
 
 ```bash
-curl -s -X POST "$BASE_URL/api/v1/company_profiles" \
+curl -s -X POST "$BASE_URL/api/v1/admin/company_profiles" \
   -H "Authorization: $OFFICER_TOKEN" -H "Content-Type: application/json" \
   -d '{
     "company_profile": {
@@ -182,10 +182,10 @@ Returns **200 OK**, `data.status: "pending"`, **no** `access_token` — same sha
 (a real row's `id`) — look one up first:
 
 ```bash
-REMARK_ID=$(curl -s "$BASE_URL/api/v1/approvals/approval_remarks" \
+REMARK_ID=$(curl -s "$BASE_URL/api/v1/admin/approvals/approval_remarks" \
   -H "Authorization: $OFFICER_TOKEN" | jq -r '.data[0].id')
 
-curl -s -X POST "$BASE_URL/api/v1/approvals/fishermen/$FISHERMAN_ID/reject" \
+curl -s -X POST "$BASE_URL/api/v1/admin/approvals/fishermen/$FISHERMAN_ID/reject" \
   -H "Authorization: $OFFICER_TOKEN" -H "Content-Type: application/json" \
   -d "{\"approval_remark_id\": \"$REMARK_ID\"}" | jq .
 
@@ -231,8 +231,8 @@ the Fisherman requests and swap the endpoint/body per the registration-flow.md s
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `brunei_id` login returns 404 for an `ic_number` you just registered | Typo, or registered on a different environment than you're testing against | Re-check `BASE_URL` and the exact `ic_number` string (must match byte-for-byte, no normalization happens) |
-| `brunei_id` login returns 200 but no `access_token`, and you expected one | User is not `active` yet | Approve it first via `POST /api/v1/approvals/{fishermen,jetty_managers}/:id/approve` as an officer |
-| Approve/reject call returns 401/403 | Missing or expired `OFFICER_TOKEN`, or the officer's role lacks the `*_approvals.approve` permission | Re-run the officer sign-in step; confirm the role via `GET /api/v1/roles` |
+| `brunei_id` login returns 200 but no `access_token`, and you expected one | User is not `active` yet | Approve it first via `POST /api/v1/admin/approvals/{fishermen,jetty_managers}/:id/approve` as an officer |
+| Approve/reject call returns 401/403 | Missing or expired `OFFICER_TOKEN`, or the officer's role lacks the `*_approvals.approve` permission | Re-run the officer sign-in step; confirm the role via `GET /api/v1/admin/roles` |
 | Officer sign-in itself fails with "Invalid username or password" | Using `email` instead of `username`, or wrong casing expectations | Officers authenticate by `username`, not `email` (see registration-flow.md's "DoFi Officer/Administrator login" note). Username is stored lowercase regardless of how it was typed/seeded. |
 | Same `ic_number` reused across test runs hits a uniqueness error on register | A prior test run already created that IC | Pick a fresh `ic_number`, or look up/reuse the existing record instead of re-registering |
 | Register call 500s with `PG::UniqueViolation` on `index_users_on_email` | Known pre-existing gap: Devise's email uniqueness check uses `allow_blank: true`, so it never catches a second blank-email row at the validation layer — the DB's plain unique index does, as a raw 500 instead of a 422. Registration always submits a blank email (Fisherman/Jetty Manager have none), so this fires as soon as **any** blank-email row already exists | Not something to work around per-request — find and clear the stale blank-email row(s) first (`User.where(email: [nil, ""])`), or fix the underlying validation (out of scope for this doc) |
