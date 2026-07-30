@@ -9,7 +9,9 @@ class CompanyProfilePolicy < ApplicationPolicy
 
   class Scope < Scope
     def resolve
-      scope.kept
+      return scope.kept if user.officer?
+
+      scope.kept.where(id: user.company_profile_id)
     end
   end
 end

@@ -10,12 +10,14 @@ module Api
           admin_permissions = %w[view list create update delete].map do |action|
             Permission.find_or_create_by!(code: "companies_crews.#{action}") { |p| p.name = "Crews - #{action}" }
           end
-          @admin_role = create(:role, permissions: admin_permissions)
+          @admin_role = create(:role, kind: Role::DOFI_OFFICER, permissions: admin_permissions)
           @no_access_role = create(:role)
 
-          @admin = create(:user, role: @admin_role, password: @password, password_confirmation: @password)
-          @plain_user = create(:user, role: @no_access_role, password: @password, password_confirmation: @password)
+          @admin = create(:user, role: @admin_role, position: "Administrator", unit: "HQ",
+                                 password: @password, password_confirmation: @password)
           @company_profile = create(:company_profile)
+          @plain_user = create(:user, role: @no_access_role, company_profile: @company_profile,
+                                      password: @password, password_confirmation: @password)
 
           @admin_headers = auth_headers_for(@admin, password: @password)
           @plain_headers = auth_headers_for(@plain_user, password: @password)

@@ -12,12 +12,14 @@ module Api
               permission.name = "Profiling - #{action.capitalize}"
             end
           end
-          @admin_role = create(:role, permissions: admin_permissions)
+          @admin_role = create(:role, kind: Role::DOFI_OFFICER, permissions: admin_permissions)
           @no_access_role = create(:role)
 
-          @admin = create(:user, role: @admin_role, password: @password, password_confirmation: @password)
-          @plain_user = create(:user, role: @no_access_role, password: @password, password_confirmation: @password)
+          @admin = create(:user, role: @admin_role, position: "Administrator", unit: "HQ",
+                                 password: @password, password_confirmation: @password)
           @company_profile = create(:company_profile)
+          @plain_user = create(:user, role: @no_access_role, company_profile: @company_profile,
+                                      password: @password, password_confirmation: @password)
           @owner = create(:company_profile_contact, company_profile: @company_profile, designation: "Owner")
 
           @admin_headers = auth_headers_for(@admin, password: @password)
