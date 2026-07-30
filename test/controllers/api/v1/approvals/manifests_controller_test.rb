@@ -71,8 +71,9 @@ module Api
         test "update lets an officer correct manifest fields" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
 
-          patch "/api/v1/admin/manifests/#{manifest.id}", params: { manifest: { zone_area: "Zone 2" } },
-                                                              headers: @officer_headers, as: :json
+          patch "/api/v1/admin/manifests/#{manifest.id}",
+                params: { manifest: { zone_area: "Zone 2" } },
+                headers: @officer_headers, as: :json
 
           assert_response :ok
           assert_equal "Zone 2", manifest.reload.zone_area
@@ -81,8 +82,9 @@ module Api
         test "update is forbidden for a fisherman" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
 
-          patch "/api/v1/admin/manifests/#{manifest.id}", params: { manifest: { zone_area: "Zone 2" } },
-                                                              headers: @fisherman_headers, as: :json
+          patch "/api/v1/admin/manifests/#{manifest.id}",
+                params: { manifest: { zone_area: "Zone 2" } },
+                headers: @fisherman_headers, as: :json
 
           assert_response :forbidden
         end
