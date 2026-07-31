@@ -380,8 +380,10 @@ manifest8.submit_port_out!(actor: small_scale_owner) if manifest8.may_submit_por
 if manifest8.capture_reports.none?
   report8 = manifest8.capture_reports.create!(zone: inshore_zone, zone_area: inshore_zone.name,
                                               latitude: 4.70, longitude: 114.90)
-  drift_gill_net8 = small_scale_company_profile.companies_fishing_gears.approved
-                         .find_by!(fishing_gear: FishingGear.find_by!(name: "Drift Gill Net"))
+  drift_gill_net8 = small_scale_company_profile
+                    .companies_fishing_gears
+                    .approved
+                    .find_by!(fishing_gear: FishingGear.find_by!(name: "Drift Gill Net"))
   report8_gear_detail = report8.fishing_gear_details.create!(
     companies_fishing_gear: drift_gill_net8,
     name: drift_gill_net8.fishing_gear.name,
