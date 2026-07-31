@@ -70,12 +70,12 @@ module Api
           end
 
           def fish_capture_detail_params
-            params.expect(fish_capture_detail: %i[dictionary_id fish_type price_per_kg amount_captured_kg])
+            params.expect(fish_capture_detail: %i[fishing_gear_detail_id dictionary_id fish_type price_per_kg amount_captured_kg])
           end
 
           def bulk_sync_params
             params.expect(
-              captures: [%i[id dictionary_id fish_type price_per_kg amount_captured_kg]]
+              captures: [%i[id fishing_gear_detail_id dictionary_id fish_type price_per_kg amount_captured_kg]]
             )
           end
         end
