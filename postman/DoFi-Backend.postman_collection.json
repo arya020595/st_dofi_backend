@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "DoFi Backend API",
-    "description": "# DoFi Backend API\n\nCovers JWT authentication (sign in/me/sign out), DoFi officer user management, role management with permission assignment, the permissions catalog, public self-registration for Jetty Managers and Fishermen, officer Profiling (pre-registering a Company Profile a fisherman later matches by IC number), FINS Approval (the Fisherman/Jetty Manager registration review queues), the full Manifest module (Vessel self-service + approval, the port-out/capture-report/port-in lifecycle, Capture Reports and their nested resources), master reference data, and the fish species Dictionary.\n\n## Environments\n\nSelect one of these Postman environments before running anything — they provide `base_url` and the seeded admin credentials:\n\n| Environment | base_url | Notes |\n|---|---|---|\n| **DoFi Backend - Local** | `http://localhost:3000` | Local Docker dev stack (`docker compose up`). Safe to use freely. |\n| **DoFi Backend - Staging** | `http://46.202.163.155:3012` | Shared staging server, no TLS yet. Shared with other testers — be considerate with writes/deletes. |\n\n## Authentication flow\n\n1. Run **Auth → Sign In**. On success the response includes the JWT both as `data.access_token` in the JSON body and in the `Authorization` response header (`Bearer <token>`) — pick whichever your client finds easier. A test script automatically saves it into the `jwt_token` **environment** variable (Local and Staging each keep their own value, so switching environments never sends a token signed for the other one).\n2. Every other request in this collection uses collection-level Bearer auth (`{{jwt_token}}`) by default — no need to copy/paste tokens manually between requests. The **Manifest** folder is the one exception; see its own section below.\n3. Run **Z - Sign Out (run last) → Sign Out** when you're done. This revokes the JWT (devise-jwt JTI denylist) and clears `jwt_token`. Anything run after Sign Out needs a fresh Sign In first.\n\n## Roles & permissions model\n\nEach `User` belongs to one `Role` (e.g. the seeded `DoFi Officer`), and each `Role` has many `Permission`s identified by a `code` (e.g. `roles.create`, `dofi_officer_users.update`). Endpoints are authorized via Pundit policies that check the signed-in user's role permissions:\n\n- **Roles**: `roles.list`/`roles.view`, `roles.create`, `roles.update`, `roles.delete`\n- **Users**: `dofi_officer_users.list`/`.view`, `.create`, `.update`, `.delete`\n- **Permissions**: read-only catalog, available to any authenticated user\n\nA failing permission check returns `401` (no/invalid session) or `403` (authenticated but not allowed), depending on the failure mode.\n\n## Manifest module: two extra tokens, per-request auth\n\nThe **Manifest** folder is the one place in this collection that needs more than one authenticated identity in the same run: officer Profiling/approval steps use the collection default (`{{jwt_token}}`), but vessel/manifest creation and lifecycle submission (`submit_port_out`, `submit_port_in`, ...) must run as the fisherman — `Manifests::Create` derives `company_profile` from `current_user`, so an officer token can't be used for those calls. Requests that need the fisherman's identity override `request.auth` (Bearer, one of `{{manifest_fisherman_jwt_token}}` / `{{manifest_commercial_fisherman_jwt_token}}` / `{{manifest_skip_demo_jwt_token}}`, all environment variables like `jwt_token`) instead of inheriting the collection default — look for a request-level Authorization tab that differs from its folder/collection parent if you're browsing in the Postman UI. The folder demonstrates both `fisherman_category` guard paths side by side (Small-Scale (Full-Time) skips Jetty/officer approval at port-out/port-in; Commercial requires it, including a full request-amendment → resubmit → approve cycle), plus the Skip Capture Report path and the draft-only delete guard. Like the rest of this collection's demo flows, it uses hardcoded IC numbers/boat numbers — re-running the whole folder a second time against a database that already has a prior run's data will 422 on \"IC number has already been taken\" partway through (same caveat as **Users → Create User**).\n\n## List endpoints: filter, sort & pagination\n\n`GET` index endpoints (`/api/v1/permissions`, `/api/v1/roles`, `/api/v1/users`) accept Ransack query params for filtering/sorting and Pagy params for pagination:\n\n- **Filter**: `q[<attribute>_<predicate>]=<value>`, e.g. `q[name_cont]=officer`, `q[status_eq]=active`.\n- **Sort**: `q[s]=<attribute> <asc|desc>`, or repeat `q[s][]=...` for multiple sort keys.\n- **Paginate**: `page` and `limit` query params (roles/users only — the permissions catalog is not paginated).\n- Non-whitelisted attributes (e.g. `encrypted_password`) are silently ignored rather than erroring or leaking data through the search index.\n\nFull contract: `docs/api/search-filter-sort-pagination.md` in the backend repo.\n\n## Soft delete\n\n`DELETE /api/v1/users/:id` soft-deletes via the `Discard` gem — the record is excluded from default scopes (so a subsequent `GET` returns `404`) but stays in the database for audit purposes.\n\n## Manifest module: fisherman vs Web Admin paths\n\nBetween FINS Approval and Manifest sits a `Vessels` folder: it logs each demo fisherman in via BruneiID and creates/approves their vessel, kept separate from Manifest (per-folder scoping) but unable to live inside Auth or Profiling because it depends on FINS Approval having already approved the fisherman.\n\nManifest itself is split into `Manifest - Fisherman` and `Manifest - Web Admin`. The Web Admin folder can't just reuse the Fisherman folder's manifests for its Update/amendment-cycle demos (they're no longer in an editable/pending state by the time Web Admin runs), so it creates two small throwaway manifests of its own — the same self-contained-folder pattern as Auth and Vessels.\n\nManifest List/Show/Update/Tab Counts are split by audience: fisherman-facing endpoints live under `/api/v1/fisherman/manifests` (list/show/create/destroy/tab_counts + the port-out/port-in submit-resubmit-skip lifecycle, scoped to the signed-in fisherman's own company), while officer/jetty-manager-facing endpoints live under `/api/v1/approvals/manifests` (list/show/update/tab_counts + the approve/request-amendment lifecycle, seeing every company). Nested resources (`capture_reports`, `expense`, `fish_capture_details`, `fishing_gear_details`, `minor_fishermen`) stay unprefixed at `/api/v1/manifests/:manifest_id/...` since both audiences reach them (e.g. the officer's `verify`/`request_amendment` on a capture report) and per-record authorization already scopes access correctly regardless of path.\n",
+    "description": "# DoFi Backend API\n\nCovers JWT authentication (sign in/me/sign out), DoFi officer user management, role management with permission assignment, the permissions catalog, public self-registration for Jetty Managers and Fishermen, officer Profiling (pre-registering a Company Profile a fisherman later matches by IC number), FINS Approval (the Fisherman/Jetty Manager registration review queues), the full Manifest module (Vessel self-service + approval, the port-out/capture-report/port-in lifecycle, Capture Reports and their nested resources), master reference data, and the fish species Dictionary.\n\n## Environments\n\nSelect one of these Postman environments before running anything — they provide `base_url` and the seeded admin credentials:\n\n| Environment | base_url | Notes |\n|---|---|---|\n| **DoFi Backend - Local** | `http://localhost:3000` | Local Docker dev stack (`docker compose up`). Safe to use freely. |\n| **DoFi Backend - Staging** | `http://46.202.163.155:3012` | Shared staging server, no TLS yet. Shared with other testers — be considerate with writes/deletes. |\n\n## Authentication flow\n\n1. Run **Auth → Sign In**. On success the response includes the JWT both as `data.access_token` in the JSON body and in the `Authorization` response header (`Bearer <token>`) — pick whichever your client finds easier. A test script automatically saves it into the `jwt_token` **environment** variable (Local and Staging each keep their own value, so switching environments never sends a token signed for the other one).\n2. Every other request in this collection uses collection-level Bearer auth (`{{jwt_token}}`) by default — no need to copy/paste tokens manually between requests. The **Manifest** folder is the one exception; see its own section below.\n3. Run **Z - Sign Out (run last) → Sign Out** when you're done. This revokes the JWT (devise-jwt JTI denylist) and clears `jwt_token`. Anything run after Sign Out needs a fresh Sign In first.\n\n## Roles & permissions model\n\nEach `User` belongs to one `Role` (e.g. the seeded `DoFi Officer`), and each `Role` has many `Permission`s identified by a `code` (e.g. `roles.create`, `dofi_officer_users.update`). Endpoints are authorized via Pundit policies that check the signed-in user's role permissions:\n\n- **Roles**: `roles.list`/`roles.view`, `roles.create`, `roles.update`, `roles.delete`\n- **Users**: `dofi_officer_users.list`/`.view`, `.create`, `.update`, `.delete`\n- **Permissions**: read-only catalog, available to any authenticated user\n\nA failing permission check returns `401` (no/invalid session) or `403` (authenticated but not allowed), depending on the failure mode.\n\n## Manifest module: two extra tokens, per-request auth\n\nThe **Manifest** folder is the one place in this collection that needs more than one authenticated identity in the same run: officer Profiling/approval steps use the collection default (`{{jwt_token}}`), but vessel/manifest creation and lifecycle submission (`submit_port_out`, `submit_port_in`, ...) must run as the fisherman — `Manifests::Create` derives `company_profile` from `current_user`, so an officer token can't be used for those calls. Requests that need the fisherman's identity override `request.auth` (Bearer, one of `{{manifest_fisherman_jwt_token}}` / `{{manifest_commercial_fisherman_jwt_token}}` / `{{manifest_skip_demo_jwt_token}}`, all environment variables like `jwt_token`) instead of inheriting the collection default — look for a request-level Authorization tab that differs from its folder/collection parent if you're browsing in the Postman UI. The folder demonstrates both `fisherman_category` guard paths side by side (Small-Scale (Full-Time) skips Jetty/officer approval at port-out/port-in; Commercial requires it, including a full request-amendment → resubmit → approve cycle), plus the Skip Capture Report path and the draft-only delete guard. Like the rest of this collection's demo flows, it uses hardcoded IC numbers/boat numbers — re-running the whole folder a second time against a database that already has a prior run's data will 422 on \"IC number has already been taken\" partway through (same caveat as **Users → Create User**).\n\n## List endpoints: filter, sort & pagination\n\n`GET` index endpoints (`/api/v1/permissions`, `/api/v1/admin/roles`, `/api/v1/admin/users`) accept Ransack query params for filtering/sorting and Pagy params for pagination:\n\n- **Filter**: `q[<attribute>_<predicate>]=<value>`, e.g. `q[name_cont]=officer`, `q[status_eq]=active`.\n- **Sort**: `q[s]=<attribute> <asc|desc>`, or repeat `q[s][]=...` for multiple sort keys.\n- **Paginate**: `page` and `limit` query params (roles/users only — the permissions catalog is not paginated).\n- Non-whitelisted attributes (e.g. `encrypted_password`) are silently ignored rather than erroring or leaking data through the search index.\n\nFull contract: `docs/api/search-filter-sort-pagination.md` in the backend repo.\n\n## Soft delete\n\n`DELETE /api/v1/admin/users/:id` soft-deletes via the `Discard` gem — the record is excluded from default scopes (so a subsequent `GET` returns `404`) but stays in the database for audit purposes.\n\n## Manifest module: fisherman vs Web Admin paths\n\nBetween FINS Approval and Manifest sits a `Vessels` folder: it logs each demo fisherman in via BruneiID and creates/approves their vessel, kept separate from Manifest (per-folder scoping) but unable to live inside Auth or Profiling because it depends on FINS Approval having already approved the fisherman.\n\nManifest itself is split into `Manifest - Fisherman` and `Manifest - Web Admin`. The Web Admin folder can't just reuse the Fisherman folder's manifests for its Update/amendment-cycle demos (they're no longer in an editable/pending state by the time Web Admin runs), so it creates two small throwaway manifests of its own — the same self-contained-folder pattern as Auth and Vessels.\n\nManifest List/Show/Update/Tab Counts are split by audience: fisherman-facing endpoints live under `/api/v1/fisherman/manifests` (list/show/create/destroy/tab_counts + the port-out/port-in submit-resubmit-skip lifecycle, scoped to the signed-in fisherman's own company), while officer/jetty-manager-facing endpoints live under `/api/v1/admin/approvals/manifests` (list/show/update/tab_counts + the approve/request-amendment lifecycle, seeing every company). Nested resources (`capture_reports`, `expense`, `fish_capture_details`, `fishing_gear_details`, `minor_fishermen`) are mounted separately per namespace: `/api/v1/admin/manifests/:manifest_id/...` (officer: index/show, plus `verify`/`request_amendment` on capture reports) and `/api/v1/fisherman/manifests/:manifest_id/...` (fisherman: full create/update/destroy, plus `resubmit` on capture reports).\n",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -7912,6 +7912,46 @@
           }
         },
         {
+          "name": "List Dictionaries (Fisherman)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/fisherman/dictionaries?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "fisherman",
+                "dictionaries"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Fish species dictionary picker for Capture Report fish captures (`GET /api/v1/fisherman/dictionaries`). Authorized against `Manifest#create?` (requires `manifest_form.create`), not a `Dictionary`-specific permission. Defaults to `local_name asc`. Read-only — create/update/delete stay under `Dictionary` for officers."
+          }
+        },
+        {
           "name": "Create Minor Fisherman",
           "request": {
             "method": "POST",
@@ -9821,7 +9861,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/master_data/ports?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/ports?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -9829,7 +9869,6 @@
                     "api",
                     "v1",
                     "admin",
-                    "master_data",
                     "ports?page=1&limit=10"
                   ]
                 },
@@ -9842,7 +9881,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/master_data/ports?q[port_name_cont]=Serasa&q[s]=created_at desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/ports?q[port_name_cont]=Serasa&q[s]=created_at desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -9850,7 +9889,6 @@
                     "api",
                     "v1",
                     "admin",
-                    "master_data",
                     "ports?q[port_name_cont]=Serasa&q[s]=created_at desc&page=1&limit=10"
                   ]
                 },
@@ -9863,7 +9901,7 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/master_data/ports",
+                  "raw": "{{base_url}}/api/v1/admin/ports",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -9871,7 +9909,6 @@
                     "api",
                     "v1",
                     "admin",
-                    "master_data",
                     "ports"
                   ]
                 },
@@ -9905,7 +9942,7 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/master_data/ports",
+                  "raw": "{{base_url}}/api/v1/admin/ports",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -9913,7 +9950,6 @@
                     "api",
                     "v1",
                     "admin",
-                    "master_data",
                     "ports"
                   ]
                 },
@@ -9935,7 +9971,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/master_data/ports/{{port_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/ports/{{port_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -9943,7 +9979,6 @@
                     "api",
                     "v1",
                     "admin",
-                    "master_data",
                     "ports",
                     "{{port_id}}"
                   ]
@@ -9957,7 +9992,7 @@
                 "method": "PATCH",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/master_data/ports/{{port_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/ports/{{port_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -9965,7 +10000,6 @@
                     "api",
                     "v1",
                     "admin",
-                    "master_data",
                     "ports",
                     "{{port_id}}"
                   ]
@@ -9988,7 +10022,7 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/master_data/ports/{{port_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/ports/{{port_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -9996,7 +10030,6 @@
                     "api",
                     "v1",
                     "admin",
-                    "master_data",
                     "ports",
                     "{{port_id}}"
                   ]
@@ -10016,7 +10049,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/master_data/zones?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/zones?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10024,7 +10057,6 @@
                     "api",
                     "v1",
                     "admin",
-                    "master_data",
                     "zones?page=1&limit=10"
                   ]
                 },
@@ -10037,7 +10069,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/master_data/zones?q[name_cont]=Zone&q[s]=name asc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/zones?q[name_cont]=Zone&q[s]=name asc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10045,7 +10077,6 @@
                     "api",
                     "v1",
                     "admin",
-                    "master_data",
                     "zones?q[name_cont]=Zone&q[s]=name asc&page=1&limit=10"
                   ]
                 },
@@ -10058,7 +10089,7 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/master_data/zones",
+                  "raw": "{{base_url}}/api/v1/admin/zones",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10066,7 +10097,6 @@
                     "api",
                     "v1",
                     "admin",
-                    "master_data",
                     "zones"
                   ]
                 },
@@ -10100,7 +10130,7 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/master_data/zones",
+                  "raw": "{{base_url}}/api/v1/admin/zones",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10108,7 +10138,6 @@
                     "api",
                     "v1",
                     "admin",
-                    "master_data",
                     "zones"
                   ]
                 },
@@ -10130,7 +10159,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/master_data/zones/{{zone_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/zones/{{zone_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10138,7 +10167,6 @@
                     "api",
                     "v1",
                     "admin",
-                    "master_data",
                     "zones",
                     "{{zone_id}}"
                   ]
@@ -10152,7 +10180,7 @@
                 "method": "PATCH",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/master_data/zones/{{zone_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/zones/{{zone_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10160,7 +10188,6 @@
                     "api",
                     "v1",
                     "admin",
-                    "master_data",
                     "zones",
                     "{{zone_id}}"
                   ]
@@ -10183,7 +10210,7 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/master_data/zones/{{zone_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/zones/{{zone_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10191,7 +10218,6 @@
                     "api",
                     "v1",
                     "admin",
-                    "master_data",
                     "zones",
                     "{{zone_id}}"
                   ]
@@ -10211,7 +10237,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/fishing_gears?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10219,7 +10245,6 @@
                     "api",
                     "v1",
                     "admin",
-                    "master_data",
                     "fishing_gears?page=1&limit=10"
                   ]
                 },
@@ -10232,7 +10257,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears?q[name_cont]=Net&q[s]=created_at desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/fishing_gears?q[name_cont]=Net&q[s]=created_at desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10240,7 +10265,6 @@
                     "api",
                     "v1",
                     "admin",
-                    "master_data",
                     "fishing_gears?q[name_cont]=Net&q[s]=created_at desc&page=1&limit=10"
                   ]
                 },
@@ -10253,7 +10277,7 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears",
+                  "raw": "{{base_url}}/api/v1/admin/fishing_gears",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10261,7 +10285,6 @@
                     "api",
                     "v1",
                     "admin",
-                    "master_data",
                     "fishing_gears"
                   ]
                 },
@@ -10295,7 +10318,7 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears",
+                  "raw": "{{base_url}}/api/v1/admin/fishing_gears",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10303,7 +10326,6 @@
                     "api",
                     "v1",
                     "admin",
-                    "master_data",
                     "fishing_gears"
                   ]
                 },
@@ -10325,7 +10347,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears/{{fishing_gear_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/fishing_gears/{{fishing_gear_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10333,7 +10355,6 @@
                     "api",
                     "v1",
                     "admin",
-                    "master_data",
                     "fishing_gears",
                     "{{fishing_gear_id}}"
                   ]
@@ -10347,7 +10368,7 @@
                 "method": "PATCH",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears/{{fishing_gear_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/fishing_gears/{{fishing_gear_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10355,7 +10376,6 @@
                     "api",
                     "v1",
                     "admin",
-                    "master_data",
                     "fishing_gears",
                     "{{fishing_gear_id}}"
                   ]
@@ -10378,7 +10398,7 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears/{{fishing_gear_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/fishing_gears/{{fishing_gear_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10386,7 +10406,6 @@
                     "api",
                     "v1",
                     "admin",
-                    "master_data",
                     "fishing_gears",
                     "{{fishing_gear_id}}"
                   ]
