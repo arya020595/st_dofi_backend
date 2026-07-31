@@ -16,7 +16,7 @@ for the full rationale):
 | Env vars | `MINIO_BUCKET`, `MINIO_ACCESS_KEY_ID`, `MINIO_SECRET_ACCESS_KEY` | `MINIO_ASSETS_BUCKET`, `MINIO_ASSETS_ACCESS_KEY_ID`, `MINIO_ASSETS_SECRET_ACCESS_KEY` |
 | Anonymous access | None | `GetObject` only (never `ListBucket`) |
 | Download path | `Api::V1::AttachmentsController` → `302` redirect to a presigned URL | Direct, unsigned URL straight in JSON — no redirect |
-| Who uses it today | Nobody yet — built ahead of the first sensitive-document model | `Dictionary#image` (fish-species reference photos) |
+| Who uses it today | `CompaniesDocument#file` (company registration/licence PDFs) | `Dictionary#image` (fish-species reference photos) |
 
 Also in this pass, an independent security/SOLID audit turned up and fixed:
 
@@ -204,7 +204,7 @@ TOKEN=$(curl -s -i -X POST http://localhost:3000/api/v1/auth/sign_in \
   -d '{"user":{"username":"MPRT/DOF-001","password":"ChangeMe123!"}}' \
   | grep -i "^authorization:" | sed 's/authorization: //I' | tr -d '\r')
 
-curl -s -X POST http://localhost:3000/api/v1/dictionaries \
+curl -s -X POST http://localhost:3000/api/v1/admin/dictionaries \
   -H "Authorization: Bearer ${TOKEN}" \
   -F "dictionary[local_name]=Test Fish" \
   -F "dictionary[image]=@/path/to/any.png;type=image/png"
@@ -217,8 +217,11 @@ docker compose -f docker-compose.production.local.yml exec -T api \
 # -> HTTP 200
 ```
 
-**Private bucket / redirect flow** — nothing uses this yet, so exercise it manually via
-`bin/rails runner`, matching how a future sensitive-document model would:
+**Private bucket / redirect flow** — `CompaniesDocument` (company registration/licence PDFs) is the
+real private-tier model today; prefer exercising the actual endpoints (`POST
+/api/v1/admin/company_profiles/:id/documents`, then `GET /api/v1/attachments/:signed_id`) over the
+synthetic recipe below. The manual `bin/rails runner` version is still useful for a from-scratch
+bucket/policy smoke test that doesn't depend on any app-level model or fixture data:
 
 ```bash
 docker compose -f docker-compose.production.local.yml exec -T api bin/rails runner '

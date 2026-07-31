@@ -5,15 +5,15 @@ pagination. It currently covers:
 
 | Endpoint | Paginated? | Auth required | Permission needed |
 |---|---|---|---|
-| `GET /api/v1/users` | Yes | Yes (JWT) | `dofi_officer_users.list` or `dofi_officer_users.view` |
-| `GET /api/v1/roles` | Yes | Yes (JWT) | `roles.list` or `roles.view` |
+| `GET /api/v1/admin/users` | Yes | Yes (JWT) | `dofi_officer_users.list` or `dofi_officer_users.view` |
+| `GET /api/v1/admin/roles` | Yes | Yes (JWT) | `roles.list` or `roles.view` |
 | `GET /api/v1/permissions` | No (returns full filtered list) | Yes (JWT) | any authenticated user |
-| `GET /api/v1/master_data/ports` | Yes | Yes (JWT) | `ports.list` or `ports.view` |
-| `GET /api/v1/master_data/zones` | Yes | Yes (JWT) | `zones.list` or `zones.view` |
-| `GET /api/v1/master_data/fishing_gears` | Yes | Yes (JWT) | `fishing_gears.list` or `fishing_gears.view` |
-| `GET /api/v1/master_data/nationalities` | Yes | Yes (JWT) | `nationalities.list` or `nationalities.view` |
-| `GET /api/v1/master_data/positions` | Yes | Yes (JWT) | `positions.list` or `positions.view` |
-| `GET /api/v1/master_data/reasons` | Yes | Yes (JWT) | `reasons.list` or `reasons.view` |
+| `GET /api/v1/admin/master_data/ports` (also `/api/v1/fisherman/master_data/ports`, read-only) | Yes | Yes (JWT) | `ports.list` or `ports.view` |
+| `GET /api/v1/admin/master_data/zones` (also `/api/v1/fisherman/master_data/zones`, read-only) | Yes | Yes (JWT) | `zones.list` or `zones.view` |
+| `GET /api/v1/admin/master_data/fishing_gears` (also `/api/v1/fisherman/master_data/fishing_gears`, read-only) | Yes | Yes (JWT) | `fishing_gears.list` or `fishing_gears.view` |
+| `GET /api/v1/admin/master_data/nationalities` | Yes | Yes (JWT) | `nationalities.list` or `nationalities.view` |
+| `GET /api/v1/admin/master_data/positions` | Yes | Yes (JWT) | `positions.list` or `positions.view` |
+| `GET /api/v1/admin/master_data/reasons` | Yes | Yes (JWT) | `reasons.list` or `reasons.view` |
 
 Send the JWT the same way as every other endpoint: `Authorization: Bearer <token>`.
 
@@ -25,13 +25,13 @@ All search/filter/sort params are nested under a single `q` object. Pagination p
 (`page`, `limit`) are top-level, sibling to `q`.
 
 ```
-GET /api/v1/users?q[name_cont]=alice&q[status_eq]=active&q[s]=created_at desc&page=2&limit=25
+GET /api/v1/admin/users?q[name_cont]=alice&q[status_eq]=active&q[s]=created_at desc&page=2&limit=25
 ```
 
 As a query string (URL-encoded):
 
 ```
-/api/v1/users?q%5Bname_cont%5D=alice&q%5Bstatus_eq%5D=active&q%5Bs%5D=created_at+desc&page=2&limit=25
+/api/v1/admin/users?q%5Bname_cont%5D=alice&q%5Bstatus_eq%5D=active&q%5Bs%5D=created_at+desc&page=2&limit=25
 ```
 
 ---
@@ -120,7 +120,7 @@ has no effect and the request still returns `200 OK`. Only the fields listed bel
 
 ## Per-resource reference
 
-### Users — `GET /api/v1/users`
+### Users — `GET /api/v1/admin/users`
 
 Filterable/sortable fields (`ransackable_attributes` on `User`):
 
@@ -139,10 +139,10 @@ Notes:
 Example — active users whose name or email contains "tan", sorted by name:
 
 ```
-GET /api/v1/users?q[status_eq]=active&q[name_or_email_cont]=tan&q[s]=name asc
+GET /api/v1/admin/users?q[status_eq]=active&q[name_or_email_cont]=tan&q[s]=name asc
 ```
 
-### Roles — `GET /api/v1/roles`
+### Roles — `GET /api/v1/admin/roles`
 
 Filterable/sortable fields (`ransackable_attributes` on `Role`):
 
@@ -151,7 +151,7 @@ Filterable/sortable fields (`ransackable_attributes` on `Role`):
 Example — roles created in the last 30 days:
 
 ```
-GET /api/v1/roles?q[created_at_gteq]=2026-05-20&q[s]=created_at desc
+GET /api/v1/admin/roles?q[created_at_gteq]=2026-05-20&q[s]=created_at desc
 ```
 
 ### Permissions — `GET /api/v1/permissions`
@@ -169,31 +169,31 @@ Example — permissions whose code contains "export":
 GET /api/v1/permissions?q[code_cont]=export
 ```
 
-### Ports — `GET /api/v1/master_data/ports`
+### Ports — `GET /api/v1/admin/master_data/ports` (also `/api/v1/fisherman/master_data/ports`, read-only)
 
 Filterable/sortable fields: `id`, `port_name`, `latitude`, `longitude`, `created_at`, `updated_at`
 
 Default sort: `created_at desc`
 
-### Zones — `GET /api/v1/master_data/zones`
+### Zones — `GET /api/v1/admin/master_data/zones` (also `/api/v1/fisherman/master_data/zones`, read-only)
 
 Filterable/sortable fields: `id`, `name`, `zone_type`, `start_range`, `end_range`, `created_at`, `updated_at`
 
 Default sort: `name asc`
 
-### Fishing Gears — `GET /api/v1/master_data/fishing_gears`
+### Fishing Gears — `GET /api/v1/admin/master_data/fishing_gears` (also `/api/v1/fisherman/master_data/fishing_gears`, read-only)
 
 Filterable/sortable fields: `id`, `local_name`, `name`, `gear_type`, `unit`, `size`, `fee`, `created_at`, `updated_at`
 
 Default sort: `created_at desc`
 
-### Nationalities — `GET /api/v1/master_data/nationalities`
+### Nationalities — `GET /api/v1/admin/master_data/nationalities`
 
 Filterable/sortable fields: `id`, `name`, `code`, `created_at`, `updated_at`
 
 Default sort: `created_at desc`
 
-### Positions — `GET /api/v1/master_data/positions`
+### Positions — `GET /api/v1/admin/master_data/positions`
 
 Filterable/sortable fields: `id`, `name`, `category`, `created_at`, `updated_at`
 
@@ -201,7 +201,7 @@ Default sort: `created_at desc`
 
 Valid `category` values: `Fisherman`, `Jetty Manager`, `DoFi Officer`
 
-### Reasons — `GET /api/v1/master_data/reasons`
+### Reasons — `GET /api/v1/admin/master_data/reasons`
 
 Filterable/sortable fields: `id`, `name`, `discarded_at`, `created_at`, `updated_at`
 
@@ -222,7 +222,7 @@ async function fetchUsers({ name, status, page = 1, limit = 25, sort = "created_
   params.set("page", page);
   params.set("limit", limit);
 
-  const res = await fetch(`/api/v1/users?${params}`, {
+  const res = await fetch(`/api/v1/admin/users?${params}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   const { status: result, data, meta } = await res.json();

@@ -65,3 +65,6 @@ Metrics/ClassLength:
     # One controller, many independent actions (index/show/create/destroy/5 lifecycle transitions/
     # tab_counts/offline_bundle) — naturally many small, focused test blocks in one file.
     - "test/controllers/api/v1/fisherman/manifests_controller_test.rb"
+    # Same reasoning: index/show/ransack-filter/create/update/destroy plus owner+admin contact
+    # variants, each its own focused test block.
+    - "test/controllers/api/v1/company_profiles_controller_test.rb"

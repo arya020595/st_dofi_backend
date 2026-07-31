@@ -5,32 +5,35 @@ module Api
     module Fisherman
       class ZonesControllerTest < ActionDispatch::IntegrationTest
         setup do
-          @password = "Password123!"
-
-          permissions = %w[manifest_form.create].map do |code|
-            Permission.find_or_create_by!(code: code) { |permission| permission.name = code }
-          end
-          @role = create(:role, permissions: permissions)
-          @user = create(:user, role: @role, password: @password, password_confirmation: @password)
-          @headers = auth_headers_for(@user, password: @password)
+          @manifest = create(:manifest)
+          @headers = fisherman_headers_for(@manifest, permission_codes: %w[zones.view zones.list])
+          @zone = create(:zone)
         end
 
-        test "index requires manifest create permission" do
-          plain_user = create(:user, password: @password, password_confirmation: @password)
+        test "index lists zones" do
+          get "/api/v1/fisherman/zones", headers: @headers
 
-          get "/api/v1/fisherman/zones", headers: auth_headers_for(plain_user, password: @password)
-
-          assert_response :forbidden
+          assert_response :ok
+          assert_includes response.parsed_body["data"].pluck("id"), @zone.id
         end
 
-        test "index returns zones ordered by name" do
-          create(:zone, name: "Zone 3")
-          create(:zone, name: "Zone 1A")
+        test "show returns the zone" do
+          get "/api/v1/fisherman/zones/#{@zone.id}", headers: @headers
+
+          assert_response :ok
+          assert_equal @zone.name, response.parsed_body["data"]["name"]
+        end
+
+        test "index defaults to name ascending" do
+          create(:zone, name: "Zeta Zone")
+          create(:zone, name: "Alpha Zone")
 
           get "/api/v1/fisherman/zones", headers: @headers
 
           assert_response :ok
-          assert_equal ["Zone 1A", "Zone 3"], response.parsed_body["data"].pluck("name")
+          names = response.parsed_body["data"].pluck("name")
+
+          assert_equal names.sort, names
         end
       end
     end

@@ -10,6 +10,7 @@ class ApplicationController < ActionController::API
   before_action :authenticate_user!
   before_action :set_locale
   before_action :set_active_storage_url_options
+  include RequireAudience # after authenticate_user! — needs current_user to already be set
 
   rescue_from Pundit::NotAuthorizedError, with: :render_forbidden
   rescue_from ActiveRecord::RecordNotFound, with: :render_not_found

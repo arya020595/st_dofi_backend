@@ -32,7 +32,7 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
     # the fisherman themselves as the Owner contact — the same POST /api/v1/company_profiles flow
     # Commercial/Small-Scale (Company) already uses, just with company-shape fields omitted (see
     # CompanyProfile#individual?).
-    post "/api/v1/company_profiles",
+    post "/api/v1/admin/company_profiles",
          params: { company_profile: { registration_type: "Small - Scale (Full-Time)",
                                       owner: { full_name: "Solo Fisherman", gender: "Male",
                                                ic_no: ic_number, ic_colour: "Yellow" } } },
@@ -53,7 +53,7 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
     assert_equal company_profile_id, fisherman.company_profile_id
 
     # 3. DoFi Officer approves the registration.
-    post "/api/v1/approvals/fishermen/#{fisherman.id}/approve", headers: @officer_headers
+    post "/api/v1/admin/approvals/fishermen/#{fisherman.id}/approve", headers: @officer_headers
 
     assert_response :ok
     assert_equal "active", fisherman.reload.status
@@ -65,7 +65,7 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
     fisherman_headers = { "Authorization" => response.headers["Authorization"] }
 
     # 5. Fisherman registers a vessel under their own (pre-profiled) company profile.
-    post "/api/v1/company_profiles/#{fisherman.company_profile_id}/vessels",
+    post "/api/v1/fisherman/company_profiles/#{fisherman.company_profile_id}/vessels",
          params: { vessel: { vessel_name: "Solo Boat", boat_number: "BN 1234" } },
          headers: fisherman_headers, as: :json
 
@@ -73,7 +73,7 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
     vessel_id = response.parsed_body.dig("data", "id")
 
     # 6. DoFi Officer approves the vessel — required before it can be used on a manifest.
-    post "/api/v1/approvals/vessels/#{vessel_id}/approve", headers: @officer_headers
+    post "/api/v1/admin/approvals/vessels/#{vessel_id}/approve", headers: @officer_headers
 
     assert_response :ok
 
@@ -97,8 +97,8 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
     assert_equal %w[submitted at_sea], [data["port_out_status"], data["manifest_status"]]
 
     # 9. Fisherman submits a capture report while at sea.
-    post "/api/v1/manifests/#{manifest_id}/capture_reports", params: { capture_report: {} },
-                                                             headers: fisherman_headers, as: :json
+    post "/api/v1/fisherman/manifests/#{manifest_id}/capture_reports", params: { capture_report: {} },
+                                                                       headers: fisherman_headers, as: :json
 
     assert_response :created
     capture_report_id = response.parsed_body.dig("data", "id")
@@ -113,7 +113,7 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
 
     # 11. DoFi Officer verifies the capture report — the manifest auto-completes once every report
     # on it is verified.
-    post "/api/v1/manifests/#{manifest_id}/capture_reports/#{capture_report_id}/verify", headers: @officer_headers
+    post "/api/v1/admin/manifests/#{manifest_id}/capture_reports/#{capture_report_id}/verify", headers: @officer_headers
 
     assert_response :ok
 
@@ -123,7 +123,7 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
   test "a small-scale part-time fisherman maps to the small_scale_part_time category" do
     ic_number = "01-999002"
 
-    post "/api/v1/company_profiles",
+    post "/api/v1/admin/company_profiles",
          params: { company_profile: { registration_type: "Small - Scale (Part-Time)",
                                       owner: { full_name: "Part Time Fisherman", gender: "Male",
                                                ic_no: ic_number, ic_colour: "Yellow" } } },
@@ -138,7 +138,7 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
     assert_response :created
     fisherman = User.find(response.parsed_body.dig("data", "id"))
 
-    post "/api/v1/approvals/fishermen/#{fisherman.id}/approve", headers: @officer_headers
+    post "/api/v1/admin/approvals/fishermen/#{fisherman.id}/approve", headers: @officer_headers
 
     assert_response :ok
 
@@ -147,14 +147,14 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
     assert_response :ok
     fisherman_headers = { "Authorization" => response.headers["Authorization"] }
 
-    post "/api/v1/company_profiles/#{fisherman.company_profile_id}/vessels",
+    post "/api/v1/fisherman/company_profiles/#{fisherman.company_profile_id}/vessels",
          params: { vessel: { vessel_name: "Part Time Boat", boat_number: "BN 5678" } },
          headers: fisherman_headers, as: :json
 
     assert_response :created
     vessel_id = response.parsed_body.dig("data", "id")
 
-    post "/api/v1/approvals/vessels/#{vessel_id}/approve", headers: @officer_headers
+    post "/api/v1/admin/approvals/vessels/#{vessel_id}/approve", headers: @officer_headers
 
     assert_response :ok
 
@@ -198,7 +198,7 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
     # Commercial waits for Jetty approval — it must NOT jump straight to at_sea like small-scale does.
     assert_equal %w[pending awaiting_port_out_approval], [data["port_out_status"], data["manifest_status"]]
 
-    post "/api/v1/admin/manifests/#{manifest_id}/approve_port_out", headers: jetty_headers
+    post "/api/v1/admin/approvals/manifests/#{manifest_id}/approve_port_out", headers: jetty_headers
 
     assert_response :ok
     data = response.parsed_body["data"]

@@ -51,4 +51,33 @@ class ActionDispatch::IntegrationTest
     post "/api/v1/auth/sign_in", params: { user: { username: user.username, password: password } }, as: :json
     { "Authorization" => response.headers["Authorization"] }
   end
+
+  # Shared setup for the admin/fisherman manifest sub-resource controller tests (capture_reports,
+  # expenses, minor_fishermen, fish_capture_details, fishing_gear_details) — both platforms' test
+  # suites for the same resource need a role with the right permissions and a signed-in user,
+  # which was previously copy-pasted per test file. See test/controllers/api/v1/{admin,fisherman}/
+  # manifests/ for usage.
+  MANIFEST_SUB_RESOURCE_TEST_PASSWORD = "Password123!".freeze
+
+  def create_role_with_permissions(kind:, permission_codes:, name: nil)
+    permissions = permission_codes.map { |code| Permission.find_or_create_by!(code: code) { |p| p.name = code } }
+    create(:role, kind: kind, name: name || kind, permissions: permissions)
+  end
+
+  def fisherman_headers_for(manifest, permission_codes:)
+    role = create_role_with_permissions(kind: Role::FISHERMAN, permission_codes: permission_codes)
+    user = create(:user, role: role, company_profile: manifest.company_profile, ic_number: SecureRandom.hex(5),
+                         registration_type: "Commercial", password: MANIFEST_SUB_RESOURCE_TEST_PASSWORD,
+                         password_confirmation: MANIFEST_SUB_RESOURCE_TEST_PASSWORD)
+    auth_headers_for(user, password: MANIFEST_SUB_RESOURCE_TEST_PASSWORD)
+  end
+
+  def officer_headers_for(permission_codes:)
+    role = create_role_with_permissions(kind: Role::DOFI_OFFICER, permission_codes: permission_codes,
+                                        name: "DoFi Officer")
+    user = create(:user, role: role, position: "Administrator", unit: "HQ", username: "officer_#{SecureRandom.hex(4)}",
+                         password: MANIFEST_SUB_RESOURCE_TEST_PASSWORD,
+                         password_confirmation: MANIFEST_SUB_RESOURCE_TEST_PASSWORD)
+    auth_headers_for(user, password: MANIFEST_SUB_RESOURCE_TEST_PASSWORD)
+  end
 end

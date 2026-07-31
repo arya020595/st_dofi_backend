@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "DoFi Backend API",
-    "description": "# DoFi Backend API\n\nCovers JWT authentication (sign in/me/sign out), DoFi officer user management, role management with permission assignment, the permissions catalog, public self-registration for Jetty Managers and Fishermen, officer Profiling (pre-registering a Company Profile a fisherman later matches by IC number), FINS Approval (the Fisherman/Jetty Manager registration review queues), the full Manifest module (Vessel self-service + approval, the port-out/capture-report/port-in lifecycle, Capture Reports and their nested resources), master reference data, and the fish species Dictionary.\n\n## Environments\n\nSelect one of these Postman environments before running anything — they provide `base_url` and the seeded admin credentials:\n\n| Environment | base_url | Notes |\n|---|---|---|\n| **DoFi Backend - Local** | `http://localhost:3000` | Local Docker dev stack (`docker compose up`). Safe to use freely. |\n| **DoFi Backend - Staging** | `http://46.202.163.155:3012` | Shared staging server, no TLS yet. Shared with other testers — be considerate with writes/deletes. |\n\n## Authentication flow\n\n1. Run **Auth → Sign In**. On success the response includes the JWT both as `data.access_token` in the JSON body and in the `Authorization` response header (`Bearer <token>`) — pick whichever your client finds easier. A test script automatically saves it into the `jwt_token` **environment** variable (Local and Staging each keep their own value, so switching environments never sends a token signed for the other one).\n2. Every other request in this collection uses collection-level Bearer auth (`{{jwt_token}}`) by default — no need to copy/paste tokens manually between requests. The **Manifest** folder is the one exception; see its own section below.\n3. Run **Z - Sign Out (run last) → Sign Out** when you're done. This revokes the JWT (devise-jwt JTI denylist) and clears `jwt_token`. Anything run after Sign Out needs a fresh Sign In first.\n\n## Roles & permissions model\n\nEach `User` belongs to one `Role` (e.g. the seeded `DoFi Officer`), and each `Role` has many `Permission`s identified by a `code` (e.g. `roles.create`, `dofi_officer_users.update`). Endpoints are authorized via Pundit policies that check the signed-in user's role permissions:\n\n- **Roles**: `roles.list`/`roles.view`, `roles.create`, `roles.update`, `roles.delete`\n- **Users**: `dofi_officer_users.list`/`.view`, `.create`, `.update`, `.delete`\n- **Permissions**: read-only catalog, available to any authenticated user\n\nA failing permission check returns `401` (no/invalid session) or `403` (authenticated but not allowed), depending on the failure mode.\n\n## Manifest module: two extra tokens, per-request auth\n\nThe **Manifest** folder is the one place in this collection that needs more than one authenticated identity in the same run: officer Profiling/approval steps use the collection default (`{{jwt_token}}`), but vessel/manifest creation and lifecycle submission (`submit_port_out`, `submit_port_in`, ...) must run as the fisherman — `Manifests::Create` derives `company_profile` from `current_user`, so an officer token can't be used for those calls. Requests that need the fisherman's identity override `request.auth` (Bearer, one of `{{manifest_fisherman_jwt_token}}` / `{{manifest_commercial_fisherman_jwt_token}}` / `{{manifest_skip_demo_jwt_token}}`, all environment variables like `jwt_token`) instead of inheriting the collection default — look for a request-level Authorization tab that differs from its folder/collection parent if you're browsing in the Postman UI. The folder demonstrates both `fisherman_category` guard paths side by side (Small-Scale (Full-Time) skips Jetty/officer approval at port-out/port-in; Commercial requires it, including a full request-amendment → resubmit → approve cycle), plus the Skip Capture Report path and the draft-only delete guard. Like the rest of this collection's demo flows, it uses hardcoded IC numbers/boat numbers — re-running the whole folder a second time against a database that already has a prior run's data will 422 on \"IC number has already been taken\" partway through (same caveat as **Users → Create User**).\n\n## List endpoints: filter, sort & pagination\n\n`GET` index endpoints (`/api/v1/permissions`, `/api/v1/roles`, `/api/v1/users`) accept Ransack query params for filtering/sorting and Pagy params for pagination:\n\n- **Filter**: `q[<attribute>_<predicate>]=<value>`, e.g. `q[name_cont]=officer`, `q[status_eq]=active`.\n- **Sort**: `q[s]=<attribute> <asc|desc>`, or repeat `q[s][]=...` for multiple sort keys.\n- **Paginate**: `page` and `limit` query params (roles/users only — the permissions catalog is not paginated).\n- Non-whitelisted attributes (e.g. `encrypted_password`) are silently ignored rather than erroring or leaking data through the search index.\n\nFull contract: `docs/api/search-filter-sort-pagination.md` in the backend repo.\n\n## Soft delete\n\n`DELETE /api/v1/users/:id` soft-deletes via the `Discard` gem — the record is excluded from default scopes (so a subsequent `GET` returns `404`) but stays in the database for audit purposes.\n\n## Manifest module: fisherman vs Web Admin paths\n\nBetween FINS Approval and Manifest sits a `Vessels` folder: it logs each demo fisherman in via BruneiID and creates/approves their vessel, kept separate from Manifest (per-folder scoping) but unable to live inside Auth or Profiling because it depends on FINS Approval having already approved the fisherman.\n\nManifest itself is split into `Manifest - Fisherman` and `Manifest - Web Admin`. The Web Admin folder can't just reuse the Fisherman folder's manifests for its Update/amendment-cycle demos (they're no longer in an editable/pending state by the time Web Admin runs), so it creates two small throwaway manifests of its own — the same self-contained-folder pattern as Auth and Vessels.\n\nManifest List/Show/Update/Tab Counts are split by audience: fisherman-facing endpoints live under `/api/v1/fisherman/manifests` (list/show/create/destroy/tab_counts + the port-out/port-in submit-resubmit-skip lifecycle, scoped to the signed-in fisherman's own company), while officer/jetty-manager-facing endpoints live under `/api/v1/admin/manifests` (list/show/update/tab_counts + the approve/request-amendment lifecycle, seeing every company). Nested resources (`capture_reports`, `expense`, `fish_capture_details`, `fishing_gear_details`, `minor_fishermen`) stay unprefixed at `/api/v1/manifests/:manifest_id/...` since both audiences reach them (e.g. the officer's `verify`/`request_amendment` on a capture report) and per-record authorization already scopes access correctly regardless of path.\n",
+    "description": "# DoFi Backend API\n\nCovers JWT authentication (sign in/me/sign out), DoFi officer user management, role management with permission assignment, the permissions catalog, public self-registration for Jetty Managers and Fishermen, officer Profiling (pre-registering a Company Profile a fisherman later matches by IC number), FINS Approval (the Fisherman/Jetty Manager registration review queues), the full Manifest module (Vessel self-service + approval, the port-out/capture-report/port-in lifecycle, Capture Reports and their nested resources), master reference data, and the fish species Dictionary.\n\n## Environments\n\nSelect one of these Postman environments before running anything — they provide `base_url` and the seeded admin credentials:\n\n| Environment | base_url | Notes |\n|---|---|---|\n| **DoFi Backend - Local** | `http://localhost:3000` | Local Docker dev stack (`docker compose up`). Safe to use freely. |\n| **DoFi Backend - Staging** | `http://46.202.163.155:3012` | Shared staging server, no TLS yet. Shared with other testers — be considerate with writes/deletes. |\n\n## Authentication flow\n\n1. Run **Auth → Sign In**. On success the response includes the JWT both as `data.access_token` in the JSON body and in the `Authorization` response header (`Bearer <token>`) — pick whichever your client finds easier. A test script automatically saves it into the `jwt_token` **environment** variable (Local and Staging each keep their own value, so switching environments never sends a token signed for the other one).\n2. Every other request in this collection uses collection-level Bearer auth (`{{jwt_token}}`) by default — no need to copy/paste tokens manually between requests. The **Manifest** folder is the one exception; see its own section below.\n3. Run **Z - Sign Out (run last) → Sign Out** when you're done. This revokes the JWT (devise-jwt JTI denylist) and clears `jwt_token`. Anything run after Sign Out needs a fresh Sign In first.\n\n## Roles & permissions model\n\nEach `User` belongs to one `Role` (e.g. the seeded `DoFi Officer`), and each `Role` has many `Permission`s identified by a `code` (e.g. `roles.create`, `dofi_officer_users.update`). Endpoints are authorized via Pundit policies that check the signed-in user's role permissions:\n\n- **Roles**: `roles.list`/`roles.view`, `roles.create`, `roles.update`, `roles.delete`\n- **Users**: `dofi_officer_users.list`/`.view`, `.create`, `.update`, `.delete`\n- **Permissions**: read-only catalog, available to any authenticated user\n\nA failing permission check returns `401` (no/invalid session) or `403` (authenticated but not allowed), depending on the failure mode.\n\n## Manifest module: two extra tokens, per-request auth\n\nThe **Manifest** folder is the one place in this collection that needs more than one authenticated identity in the same run: officer Profiling/approval steps use the collection default (`{{jwt_token}}`), but vessel/manifest creation and lifecycle submission (`submit_port_out`, `submit_port_in`, ...) must run as the fisherman — `Manifests::Create` derives `company_profile` from `current_user`, so an officer token can't be used for those calls. Requests that need the fisherman's identity override `request.auth` (Bearer, one of `{{manifest_fisherman_jwt_token}}` / `{{manifest_commercial_fisherman_jwt_token}}` / `{{manifest_skip_demo_jwt_token}}`, all environment variables like `jwt_token`) instead of inheriting the collection default — look for a request-level Authorization tab that differs from its folder/collection parent if you're browsing in the Postman UI. The folder demonstrates both `fisherman_category` guard paths side by side (Small-Scale (Full-Time) skips Jetty/officer approval at port-out/port-in; Commercial requires it, including a full request-amendment → resubmit → approve cycle), plus the Skip Capture Report path and the draft-only delete guard. Like the rest of this collection's demo flows, it uses hardcoded IC numbers/boat numbers — re-running the whole folder a second time against a database that already has a prior run's data will 422 on \"IC number has already been taken\" partway through (same caveat as **Users → Create User**).\n\n## List endpoints: filter, sort & pagination\n\n`GET` index endpoints (`/api/v1/permissions`, `/api/v1/roles`, `/api/v1/users`) accept Ransack query params for filtering/sorting and Pagy params for pagination:\n\n- **Filter**: `q[<attribute>_<predicate>]=<value>`, e.g. `q[name_cont]=officer`, `q[status_eq]=active`.\n- **Sort**: `q[s]=<attribute> <asc|desc>`, or repeat `q[s][]=...` for multiple sort keys.\n- **Paginate**: `page` and `limit` query params (roles/users only — the permissions catalog is not paginated).\n- Non-whitelisted attributes (e.g. `encrypted_password`) are silently ignored rather than erroring or leaking data through the search index.\n\nFull contract: `docs/api/search-filter-sort-pagination.md` in the backend repo.\n\n## Soft delete\n\n`DELETE /api/v1/users/:id` soft-deletes via the `Discard` gem — the record is excluded from default scopes (so a subsequent `GET` returns `404`) but stays in the database for audit purposes.\n\n## Manifest module: fisherman vs Web Admin paths\n\nBetween FINS Approval and Manifest sits a `Vessels` folder: it logs each demo fisherman in via BruneiID and creates/approves their vessel, kept separate from Manifest (per-folder scoping) but unable to live inside Auth or Profiling because it depends on FINS Approval having already approved the fisherman.\n\nManifest itself is split into `Manifest - Fisherman` and `Manifest - Web Admin`. The Web Admin folder can't just reuse the Fisherman folder's manifests for its Update/amendment-cycle demos (they're no longer in an editable/pending state by the time Web Admin runs), so it creates two small throwaway manifests of its own — the same self-contained-folder pattern as Auth and Vessels.\n\nManifest List/Show/Update/Tab Counts are split by audience: fisherman-facing endpoints live under `/api/v1/fisherman/manifests` (list/show/create/destroy/tab_counts + the port-out/port-in submit-resubmit-skip lifecycle, scoped to the signed-in fisherman's own company), while officer/jetty-manager-facing endpoints live under `/api/v1/approvals/manifests` (list/show/update/tab_counts + the approve/request-amendment lifecycle, seeing every company). Nested resources (`capture_reports`, `expense`, `fish_capture_details`, `fishing_gear_details`, `minor_fishermen`) stay unprefixed at `/api/v1/manifests/:manifest_id/...` since both audiences reach them (e.g. the officer's `verify`/`request_amendment` on a capture report) and per-record authorization already scopes access correctly regardless of path.\n",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -122,6 +122,11 @@
     },
     {
       "key": "companies_fishing_gear_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "companies_document_id",
       "value": "",
       "type": "string"
     },
@@ -729,13 +734,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles"
               ]
             },
@@ -1530,13 +1536,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/roles",
+              "raw": "{{base_url}}/api/v1/admin/roles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "roles"
               ]
             },
@@ -1565,13 +1572,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/roles",
+                  "raw": "{{base_url}}/api/v1/admin/roles",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "roles"
                   ]
                 }
@@ -1625,13 +1633,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/roles?q[name_cont]=role&q[s]=name desc&page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/roles?q[name_cont]=role&q[s]=name desc&page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "roles"
               ],
               "query": [
@@ -1681,13 +1690,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/roles?q[name_cont]=role&q[s]=name desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/roles?q[name_cont]=role&q[s]=name desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "roles"
                   ],
                   "query": [
@@ -1763,13 +1773,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/roles",
+              "raw": "{{base_url}}/api/v1/admin/roles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "roles"
               ]
             },
@@ -1808,13 +1819,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/roles",
+                  "raw": "{{base_url}}/api/v1/admin/roles",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "roles"
                   ]
                 },
@@ -1872,13 +1884,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/roles/{{role_id}}",
+              "raw": "{{base_url}}/api/v1/admin/roles/{{role_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "roles",
                 "{{role_id}}"
               ]
@@ -1908,13 +1921,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/roles/{{role_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/roles/{{role_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "roles",
                     "{{role_id}}"
                   ]
@@ -1973,13 +1987,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/roles/{{role_id}}",
+              "raw": "{{base_url}}/api/v1/admin/roles/{{role_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "roles",
                 "{{role_id}}"
               ]
@@ -2017,13 +2032,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/roles/{{role_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/roles/{{role_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "roles",
                     "{{role_id}}"
                   ]
@@ -2093,13 +2109,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/roles",
+              "raw": "{{base_url}}/api/v1/admin/roles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "roles"
               ]
             },
@@ -2141,13 +2158,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/roles",
+                  "raw": "{{base_url}}/api/v1/admin/roles",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "roles"
                   ]
                 },
@@ -2185,13 +2203,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/roles/{{role_id}}",
+              "raw": "{{base_url}}/api/v1/admin/roles/{{role_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "roles",
                 "{{role_id}}"
               ]
@@ -2221,13 +2240,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/roles/{{role_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/roles/{{role_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "roles",
                     "{{role_id}}"
                   ]
@@ -2288,13 +2308,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users",
+              "raw": "{{base_url}}/api/v1/admin/users",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "users"
               ]
             },
@@ -2323,13 +2344,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/users",
+                  "raw": "{{base_url}}/api/v1/admin/users",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "users"
                   ]
                 }
@@ -2383,13 +2405,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users?q[status_eq]=active&q[s][]=role_id asc&q[s][]=created_at desc&page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/users?q[status_eq]=active&q[s][]=role_id asc&q[s][]=created_at desc&page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "users"
               ],
               "query": [
@@ -2443,13 +2466,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/users?q[status_eq]=active&q[s][]=role_id asc&q[s][]=created_at desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/users?q[status_eq]=active&q[s][]=role_id asc&q[s][]=created_at desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "users"
                   ],
                   "query": [
@@ -2525,13 +2549,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users?q[encrypted_password_cont]=x",
+              "raw": "{{base_url}}/api/v1/admin/users?q[encrypted_password_cont]=x",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "users"
               ],
               "query": [
@@ -2566,13 +2591,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/users?q[encrypted_password_cont]=x",
+                  "raw": "{{base_url}}/api/v1/admin/users?q[encrypted_password_cont]=x",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "users"
                   ],
                   "query": [
@@ -2632,13 +2658,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/roles?q[kind_eq]=DoFi%20Officer",
+              "raw": "{{base_url}}/api/v1/admin/roles?q[kind_eq]=DoFi%20Officer",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "roles"
               ],
               "query": [
@@ -2679,13 +2706,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users",
+              "raw": "{{base_url}}/api/v1/admin/users",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "users"
               ]
             },
@@ -2727,13 +2755,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users",
+              "raw": "{{base_url}}/api/v1/admin/users",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "users"
               ]
             },
@@ -2771,13 +2800,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users",
+              "raw": "{{base_url}}/api/v1/admin/users",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "users"
               ]
             },
@@ -2813,13 +2843,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users/{{user_id}}",
+              "raw": "{{base_url}}/api/v1/admin/users/{{user_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "users",
                 "{{user_id}}"
               ]
@@ -2849,13 +2880,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/users/{{user_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/users/{{user_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "users",
                     "{{user_id}}"
                   ]
@@ -2914,13 +2946,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users/{{user_id}}",
+              "raw": "{{base_url}}/api/v1/admin/users/{{user_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "users",
                 "{{user_id}}"
               ]
@@ -2958,13 +2991,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/users/{{user_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/users/{{user_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "users",
                     "{{user_id}}"
                   ]
@@ -3027,13 +3061,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users/{{user_id}}",
+              "raw": "{{base_url}}/api/v1/admin/users/{{user_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "users",
                 "{{user_id}}"
               ]
@@ -3068,13 +3103,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users/{{user_id}}",
+              "raw": "{{base_url}}/api/v1/admin/users/{{user_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "users",
                 "{{user_id}}"
               ]
@@ -3104,13 +3140,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/users/{{user_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/users/{{user_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "users",
                     "{{user_id}}"
                   ]
@@ -3165,13 +3202,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/users/{{user_id}}",
+              "raw": "{{base_url}}/api/v1/admin/users/{{user_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "users",
                 "{{user_id}}"
               ]
@@ -3201,13 +3239,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/users/{{user_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/users/{{user_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "users",
                     "{{user_id}}"
                   ]
@@ -3264,13 +3303,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles?page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles?page=1&limit=10"
               ]
             },
@@ -3283,13 +3323,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles?q[company_name_cont]=Azri&q[s]=created_at desc&page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles?q[company_name_cont]=Azri&q[s]=created_at desc&page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles?q[company_name_cont]=Azri&q[s]=created_at desc&page=1&limit=10"
               ]
             },
@@ -3311,13 +3352,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles"
               ]
             },
@@ -3366,13 +3408,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles"
               ]
             },
@@ -3416,13 +3459,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles"
               ]
             },
@@ -3466,13 +3510,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles"
               ]
             },
@@ -3515,13 +3560,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles"
               ]
             },
@@ -3554,13 +3600,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}"
               ]
@@ -3599,13 +3646,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}"
               ]
@@ -3641,13 +3689,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/company_profiles/{{owner_only_company_profile_id}}/contacts",
+                  "raw": "{{base_url}}/api/v1/admin/company_profiles/{{owner_only_company_profile_id}}/contacts",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "company_profiles",
                     "{{owner_only_company_profile_id}}",
                     "contacts"
@@ -3693,13 +3742,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/company_profiles/{{owner_only_company_profile_id}}/contacts",
+                  "raw": "{{base_url}}/api/v1/admin/company_profiles/{{owner_only_company_profile_id}}/contacts",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "company_profiles",
                     "{{owner_only_company_profile_id}}",
                     "contacts"
@@ -3743,13 +3793,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/company_profiles/{{owner_only_company_profile_id}}/contacts/{{new_contact_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/company_profiles/{{owner_only_company_profile_id}}/contacts/{{new_contact_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "company_profiles",
                     "{{owner_only_company_profile_id}}",
                     "contacts",
@@ -3786,13 +3837,14 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/company_profiles/{{owner_only_company_profile_id}}/contacts/{{new_contact_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/company_profiles/{{owner_only_company_profile_id}}/contacts/{{new_contact_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "company_profiles",
                     "{{owner_only_company_profile_id}}",
                     "contacts",
@@ -3821,13 +3873,14 @@
             "method": "DELETE",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{owner_only_company_profile_id}}",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{owner_only_company_profile_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{owner_only_company_profile_id}}"
               ]
@@ -3850,13 +3903,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles"
               ]
             },
@@ -3899,13 +3953,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles"
               ]
             },
@@ -3948,13 +4003,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles"
               ]
             },
@@ -3994,13 +4050,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels?page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels?page=1&limit=10"
@@ -4015,13 +4072,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels?q[approval_status_eq]=pending&q[s]=created_at desc&page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels?q[approval_status_eq]=pending&q[s]=created_at desc&page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels?q[approval_status_eq]=pending&q[s]=created_at desc&page=1&limit=10"
@@ -4045,13 +4103,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels"
@@ -4097,13 +4156,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels"
@@ -4127,13 +4187,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels",
@@ -4158,13 +4219,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels",
@@ -4205,13 +4267,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/images",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/images",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels",
@@ -4249,13 +4312,14 @@
             "method": "DELETE",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels",
@@ -4277,13 +4341,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears?page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels",
@@ -4309,13 +4374,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels",
@@ -4354,13 +4420,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears/{{companies_fishing_gear_id}}",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears/{{companies_fishing_gear_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels",
@@ -4387,13 +4454,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears/{{companies_fishing_gear_id}}",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears/{{companies_fishing_gear_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels",
@@ -4420,13 +4488,14 @@
             "method": "DELETE",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears/{{companies_fishing_gear_id}}",
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/fishing_gears/{{companies_fishing_gear_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "company_profiles",
                 "{{company_profile_id}}",
                 "vessels",
@@ -4441,6 +4510,192 @@
       ]
     },
     {
+      "name": "Companies - Documents",
+      "description": "Fisherman-facing upload for CompaniesDocument, nested under a CompanyProfile (/api/v1/company_profiles/:company_profile_id/documents). Five fixed document_type values: company_registration, surat_tawaran, foreign_worker_license, white_card, fishing_gear_license — one document per type per company profile (re-uploading the same type replaces the file rather than creating a second row). PDF only (application/pdf, detected from the file's real bytes via Marcel — not the client-claimed Content-Type), max 10MB (CompaniesDocument::ALLOWED_CONTENT_TYPES/MAX_FILE_SIZE). Stored on the private MinIO bucket (see docs/minio/MINIO.md) — document_url in the response is our own /api/v1/attachments/:signed_id redirect endpoint, never a direct storage URL. Every document starts approval_status: pending (see Approvals - Documents below); replacing the file on an approved/amendment_required document automatically reverts it to pending via Approvable#revert_to_pending_for_edit!. No show/destroy actions — index/create/update only. Requires companies_documents.*.\n\nRun \"Create Profiling (Owner + Admin)\" in the Profiling folder first so company_profile_id is set.",
+      "item": [
+        {
+          "name": "List Documents",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/documents?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "documents?page=1&limit=10"
+              ]
+            },
+            "description": "Requires companies_documents.view or companies_documents.list."
+          }
+        },
+        {
+          "name": "Create Document",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/documents",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "documents"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "document[document_type]",
+                  "value": "white_card",
+                  "type": "text"
+                },
+                {
+                  "key": "document[file]",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "description": "Multipart upload. document_type must be one of company_registration, surat_tawaran, foreign_worker_license, white_card, fishing_gear_license and unique per company profile (among kept/non-discarded documents). file must be a real PDF under 10MB or the request fails with a 422 listing which constraint was violated. Always created approval_status: pending. Requires companies_documents.create."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('approval_status is pending', () => pm.expect(pm.response.json().data.approval_status).to.eql('pending'));",
+                  "pm.test('document_url is the private attachment redirect', () => pm.expect(pm.response.json().data.document_url).to.include('/api/v1/attachments/'));",
+                  "if (pm.response.json().data) { pm.collectionVariables.set('companies_document_id', pm.response.json().data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Document - Validation Error (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/documents",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "documents"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "document[document_type]",
+                  "value": "not_a_real_type",
+                  "type": "text"
+                },
+                {
+                  "key": "document[file]",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "description": "document_type outside the fixed 5-value list fails the inclusion validation."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 422', () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Document (replace file)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/documents/{{companies_document_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "documents",
+                "{{companies_document_id}}"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "document[file]",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "description": "Replaces the attached file (document_type cannot be changed after creation). If the document is currently approved or amendment_required, this automatically reverts it to pending (clearing amendment_remarks/approved_by/approved_at) so the officer re-reviews the new file — see Approvable#revert_to_pending_for_edit!. Run \"Approve Document\" in Approvals - Documents first, then this request, to see approval_status flip back to pending in the response. Requires companies_documents.update."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Approvals - Vessels",
       "description": "Officer review queue for CompaniesVessel, scoped by CompaniesVesselApprovalPolicy (officers see every company's vessels; non-officers only their own). This is the general-purpose approve/amendment flow — the \"Vessels\" folder further down only calls approve inline as setup for the Manifest demo scenarios. Requires companies_vessel_approvals.*.\n\nRun \"Create Vessel\" in Companies - Vessels first so companies_vessel_id is set.",
       "item": [
@@ -4450,13 +4705,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/vessels?page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/approvals/vessels?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "vessels?page=1&limit=10"
               ]
@@ -4470,13 +4726,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/vessels?q[approval_status_eq]=pending&q[company_profile_id_eq]={{company_profile_id}}&q[s]=created_at desc&page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/approvals/vessels?q[approval_status_eq]=pending&q[company_profile_id_eq]={{company_profile_id}}&q[s]=created_at desc&page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "vessels?q[approval_status_eq]=pending&q[company_profile_id_eq]={{company_profile_id}}&q[s]=created_at desc&page=1&limit=10"
               ]
@@ -4490,13 +4747,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/vessels/{{companies_vessel_id}}",
+              "raw": "{{base_url}}/api/v1/admin/approvals/vessels/{{companies_vessel_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "vessels",
                 "{{companies_vessel_id}}"
@@ -4511,13 +4769,14 @@
             "method": "POST",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/vessels/{{companies_vessel_id}}/approve",
+              "raw": "{{base_url}}/api/v1/admin/approvals/vessels/{{companies_vessel_id}}/approve",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "vessels",
                 "{{companies_vessel_id}}",
@@ -4554,13 +4813,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/vessels/{{companies_vessel_id}}/request_amendment",
+              "raw": "{{base_url}}/api/v1/admin/approvals/vessels/{{companies_vessel_id}}/request_amendment",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "vessels",
                 "{{companies_vessel_id}}",
@@ -4587,6 +4847,165 @@
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));",
                   "pm.test('approval_status is amendment_required', () => pm.expect(pm.response.json().data.approval_status).to.eql('amendment_required'));",
                   "pm.test('amendment_remarks matches submitted remarks', () => pm.expect(pm.response.json().data.amendment_remarks).to.eql('Boat number does not match ROCBN records'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Approvals - Documents",
+      "description": "Officer review queue for CompaniesDocument, scoped by CompaniesDocumentApprovalPolicy (officers see every company's documents; non-officers only their own). Requires companies_document_approvals.* — DoFi Officer only, same as every other companies_*_approvals resource (Jetty Manager is not granted this permission).\n\nRun \"Create Document\" in Companies - Documents first so companies_document_id is set.",
+      "item": [
+        {
+          "name": "List Document Approvals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/approvals/documents?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "approvals",
+                "documents?page=1&limit=10"
+              ]
+            },
+            "description": "Requires companies_document_approvals.list."
+          }
+        },
+        {
+          "name": "List Document Approvals - Filtered by status and company",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/approvals/documents?q[approval_status_eq]=pending&q[company_profile_id_eq]={{company_profile_id}}&q[s]=created_at desc&page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "approvals",
+                "documents?q[approval_status_eq]=pending&q[company_profile_id_eq]={{company_profile_id}}&q[s]=created_at desc&page=1&limit=10"
+              ]
+            },
+            "description": "Filterable ransackable attributes: document_type, approval_status, amendment_remarks, company_profile_id, discarded_at."
+          }
+        },
+        {
+          "name": "Show Document Approval",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/approvals/documents/{{companies_document_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "approvals",
+                "documents",
+                "{{companies_document_id}}"
+              ]
+            },
+            "description": "Requires companies_document_approvals.view."
+          }
+        },
+        {
+          "name": "Approve Document",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/approvals/documents/{{companies_document_id}}/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "approvals",
+                "documents",
+                "{{companies_document_id}}",
+                "approve"
+              ]
+            },
+            "description": "Requires companies_document_approvals.approve. Transitions pending to approved, stamping approved_by/approved_at. Only valid from pending — fails if already approved or amendment_required (Update Document first, which reverts it to pending, or use Request Amendment below)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('approval_status is approved', () => pm.expect(pm.response.json().data.approval_status).to.eql('approved'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Request Amendment (Document)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/approvals/documents/{{companies_document_id}}/request_amendment",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "approvals",
+                "documents",
+                "{{companies_document_id}}",
+                "request_amendment"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"remarks\": \"Scan is illegible, please re-upload a clearer copy\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "remarks is required free text. Transitions pending to amendment_required, storing remarks on amendment_remarks and clearing approved_by/approved_at. Only valid from pending — run \"Update Document\" first if the document is currently approved (that reverts it to pending). Requires companies_document_approvals.amendment.\n\nThe fisherman then re-uploads the file (Companies - Documents, Update Document), which automatically clears amendment_remarks and reverts to pending for re-review — there is no separate \"resubmit\" endpoint to call."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('approval_status is amendment_required', () => pm.expect(pm.response.json().data.approval_status).to.eql('amendment_required'));",
+                  "pm.test('amendment_remarks matches submitted remarks', () => pm.expect(pm.response.json().data.amendment_remarks).to.eql('Scan is illegible, please re-upload a clearer copy'));"
                 ]
               }
             }
@@ -5717,13 +6136,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/approval_remarks?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "approval_remarks?page=1&limit=10"
                   ]
@@ -5737,13 +6157,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks?q[name_cont]=mismatch&q[s]=created_at desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/approval_remarks?q[name_cont]=mismatch&q[s]=created_at desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "approval_remarks?q[name_cont]=mismatch&q[s]=created_at desc&page=1&limit=10"
                   ]
@@ -5757,13 +6178,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/approval_remarks",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "approval_remarks"
                   ]
@@ -5797,13 +6219,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/approval_remarks",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "approval_remarks"
                   ]
@@ -5826,13 +6249,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks/{{approval_remark_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/approval_remarks/{{approval_remark_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "approval_remarks",
                     "{{approval_remark_id}}"
@@ -5847,13 +6271,14 @@
                 "method": "PATCH",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks/{{approval_remark_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/approval_remarks/{{approval_remark_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "approval_remarks",
                     "{{approval_remark_id}}"
@@ -5877,13 +6302,14 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks/{{approval_remark_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/approval_remarks/{{approval_remark_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "approval_remarks",
                     "{{approval_remark_id}}"
@@ -5909,13 +6335,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/approval_remarks?page=1&limit=1",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/approval_remarks?page=1&limit=1",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "approval_remarks"
                   ],
@@ -6056,13 +6483,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/fishermen?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "fishermen?page=1&limit=10"
                   ]
@@ -6076,13 +6504,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/fishermen?q[status_eq]=pending&q[s]=created_at desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen?q[status_eq]=pending&q[s]=created_at desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "fishermen?q[status_eq]=pending&q[s]=created_at desc&page=1&limit=10"
                   ]
@@ -6096,13 +6525,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/fishermen/{{fisherman_to_approve_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen/{{fisherman_to_approve_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "fishermen",
                     "{{fisherman_to_approve_id}}"
@@ -6117,13 +6547,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/fishermen/{{commercial_fisherman_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen/{{commercial_fisherman_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "fishermen",
                     "{{commercial_fisherman_id}}"
@@ -6154,13 +6585,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/fishermen/{{fisherman_to_approve_id}}/approve",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen/{{fisherman_to_approve_id}}/approve",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "fishermen",
                     "{{fisherman_to_approve_id}}",
@@ -6197,13 +6629,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/fishermen/{{fisherman_to_reject_id}}/reject",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen/{{fisherman_to_reject_id}}/reject",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "fishermen",
                     "{{fisherman_to_reject_id}}",
@@ -6250,13 +6683,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/fishermen/{{fisherman_to_reject_id}}/reject",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen/{{fisherman_to_reject_id}}/reject",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "fishermen",
                     "{{fisherman_to_reject_id}}",
@@ -6301,13 +6735,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/fishermen/{{manifest_fisherman_user_id}}/approve",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen/{{manifest_fisherman_user_id}}/approve",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "fishermen",
                     "{{manifest_fisherman_user_id}}",
@@ -6343,13 +6778,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/fishermen/{{manifest_commercial_fisherman_user_id}}/approve",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen/{{manifest_commercial_fisherman_user_id}}/approve",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "fishermen",
                     "{{manifest_commercial_fisherman_user_id}}",
@@ -6385,13 +6821,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/fishermen/{{manifest_skip_demo_fisherman_user_id}}/approve",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen/{{manifest_skip_demo_fisherman_user_id}}/approve",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "fishermen",
                     "{{manifest_skip_demo_fisherman_user_id}}",
@@ -6528,13 +6965,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/jetty_managers?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/jetty_managers?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "jetty_managers?page=1&limit=10"
                   ]
@@ -6548,13 +6986,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/jetty_managers/{{jetty_manager_to_approve_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/jetty_managers/{{jetty_manager_to_approve_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "jetty_managers",
                     "{{jetty_manager_to_approve_id}}"
@@ -6569,13 +7008,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/jetty_managers/{{jetty_manager_to_approve_id}}/approve",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/jetty_managers/{{jetty_manager_to_approve_id}}/approve",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "jetty_managers",
                     "{{jetty_manager_to_approve_id}}",
@@ -6612,13 +7052,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/approvals/jetty_managers/{{jetty_manager_to_reject_id}}/reject",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/jetty_managers/{{jetty_manager_to_reject_id}}/reject",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "approvals",
                     "jetty_managers",
                     "{{jetty_manager_to_reject_id}}",
@@ -6725,13 +7166,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{manifest_company_profile_id}}/vessels",
+              "raw": "{{base_url}}/api/v1/fisherman/company_profiles/{{manifest_company_profile_id}}/vessels",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "fisherman",
                 "company_profiles",
                 "{{manifest_company_profile_id}}",
                 "vessels"
@@ -6786,13 +7228,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/vessels/{{manifest_vessel_id}}/approve",
+              "raw": "{{base_url}}/api/v1/admin/approvals/vessels/{{manifest_vessel_id}}/approve",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "vessels",
                 "{{manifest_vessel_id}}",
@@ -6883,13 +7326,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{manifest_commercial_company_profile_id}}/vessels",
+              "raw": "{{base_url}}/api/v1/fisherman/company_profiles/{{manifest_commercial_company_profile_id}}/vessels",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "fisherman",
                 "company_profiles",
                 "{{manifest_commercial_company_profile_id}}",
                 "vessels"
@@ -6944,13 +7388,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/vessels/{{manifest_commercial_vessel_id}}/approve",
+              "raw": "{{base_url}}/api/v1/admin/approvals/vessels/{{manifest_commercial_vessel_id}}/approve",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "vessels",
                 "{{manifest_commercial_vessel_id}}",
@@ -7040,13 +7485,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/company_profiles/{{manifest_skip_demo_company_profile_id}}/vessels",
+              "raw": "{{base_url}}/api/v1/fisherman/company_profiles/{{manifest_skip_demo_company_profile_id}}/vessels",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "fisherman",
                 "company_profiles",
                 "{{manifest_skip_demo_company_profile_id}}",
                 "vessels"
@@ -7101,13 +7547,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/approvals/vessels/{{manifest_skip_demo_vessel_id}}/approve",
+              "raw": "{{base_url}}/api/v1/admin/approvals/vessels/{{manifest_skip_demo_vessel_id}}/approve",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "vessels",
                 "{{manifest_skip_demo_vessel_id}}",
@@ -7479,13 +7926,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/minor_fishermen",
+              "raw": "{{base_url}}/api/v1/fisherman/manifests/{{manifest_id}}/minor_fishermen",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "fisherman",
                 "manifests",
                 "{{manifest_id}}",
                 "minor_fishermen"
@@ -7540,13 +7988,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/minor_fishermen",
+              "raw": "{{base_url}}/api/v1/fisherman/manifests/{{manifest_id}}/minor_fishermen",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "fisherman",
                 "manifests",
                 "{{manifest_id}}",
                 "minor_fishermen"
@@ -7591,13 +8040,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/minor_fishermen/{{manifest_minor_fisherman_id}}",
+              "raw": "{{base_url}}/api/v1/fisherman/manifests/{{manifest_id}}/minor_fishermen/{{manifest_minor_fisherman_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "fisherman",
                 "manifests",
                 "{{manifest_id}}",
                 "minor_fishermen",
@@ -7849,13 +8299,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/capture_reports",
+              "raw": "{{base_url}}/api/v1/fisherman/manifests/{{manifest_id}}/capture_reports",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "fisherman",
                 "manifests",
                 "{{manifest_id}}",
                 "capture_reports"
@@ -7910,13 +8361,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/fish_capture_details",
+              "raw": "{{base_url}}/api/v1/fisherman/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/fish_capture_details",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "fisherman",
                 "manifests",
                 "{{manifest_id}}",
                 "capture_reports",
@@ -7973,13 +8425,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/expense",
+              "raw": "{{base_url}}/api/v1/fisherman/manifests/{{manifest_id}}/expense",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "fisherman",
                 "manifests",
                 "{{manifest_id}}",
                 "expense"
@@ -8033,13 +8486,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/fishing_gear_details",
+              "raw": "{{base_url}}/api/v1/fisherman/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/fishing_gear_details",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "fisherman",
                 "manifests",
                 "{{manifest_id}}",
                 "capture_reports",
@@ -8095,13 +8549,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/fish_capture_details/bulk_sync",
+              "raw": "{{base_url}}/api/v1/fisherman/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/fish_capture_details/bulk_sync",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "fisherman",
                 "manifests",
                 "{{manifest_id}}",
                 "capture_reports",
@@ -8777,13 +9232,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/admin/manifests",
+              "raw": "{{base_url}}/api/v1/admin/approvals/manifests",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "manifests"
               ]
@@ -8817,13 +9273,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/admin/manifests/{{manifest_id}}",
+              "raw": "{{base_url}}/api/v1/admin/approvals/manifests/{{manifest_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "manifests",
                 "{{manifest_id}}"
@@ -8858,13 +9315,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/admin/manifests/tab_counts",
+              "raw": "{{base_url}}/api/v1/admin/approvals/manifests/tab_counts",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "manifests",
                 "tab_counts"
@@ -8960,13 +9418,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/admin/manifests/{{manifest_throwaway_update_id}}",
+              "raw": "{{base_url}}/api/v1/admin/approvals/manifests/{{manifest_throwaway_update_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "manifests",
                 "{{manifest_throwaway_update_id}}"
@@ -9010,13 +9469,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/verify",
+              "raw": "{{base_url}}/api/v1/admin/manifests/{{manifest_id}}/capture_reports/{{manifest_capture_report_id}}/verify",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "manifests",
                 "{{manifest_id}}",
                 "capture_reports",
@@ -9054,13 +9514,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/admin/manifests/{{manifest_id}}",
+              "raw": "{{base_url}}/api/v1/admin/approvals/manifests/{{manifest_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "manifests",
                 "{{manifest_id}}"
@@ -9210,13 +9671,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/admin/manifests/{{manifest_commercial_amendment_demo_id}}/request_amendment_port_out",
+              "raw": "{{base_url}}/api/v1/admin/approvals/manifests/{{manifest_commercial_amendment_demo_id}}/request_amendment_port_out",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "manifests",
                 "{{manifest_commercial_amendment_demo_id}}",
@@ -9315,13 +9777,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/admin/manifests/{{manifest_commercial_amendment_demo_id}}/approve_port_out",
+              "raw": "{{base_url}}/api/v1/admin/approvals/manifests/{{manifest_commercial_amendment_demo_id}}/approve_port_out",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "approvals",
                 "manifests",
                 "{{manifest_commercial_amendment_demo_id}}",
@@ -9358,13 +9821,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/ports?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/ports?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "ports?page=1&limit=10"
                   ]
@@ -9378,13 +9842,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/ports?q[port_name_cont]=Serasa&q[s]=created_at desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/ports?q[port_name_cont]=Serasa&q[s]=created_at desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "ports?q[port_name_cont]=Serasa&q[s]=created_at desc&page=1&limit=10"
                   ]
@@ -9398,13 +9863,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/ports",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/ports",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "ports"
                   ]
@@ -9439,13 +9905,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/ports",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/ports",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "ports"
                   ]
@@ -9468,13 +9935,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/ports/{{port_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/ports/{{port_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "ports",
                     "{{port_id}}"
@@ -9489,13 +9957,14 @@
                 "method": "PATCH",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/ports/{{port_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/ports/{{port_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "ports",
                     "{{port_id}}"
@@ -9519,13 +9988,14 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/ports/{{port_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/ports/{{port_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "ports",
                     "{{port_id}}"
@@ -9546,13 +10016,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/zones?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/zones?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "zones?page=1&limit=10"
                   ]
@@ -9566,13 +10037,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/zones?q[name_cont]=Zone&q[s]=name asc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/zones?q[name_cont]=Zone&q[s]=name asc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "zones?q[name_cont]=Zone&q[s]=name asc&page=1&limit=10"
                   ]
@@ -9586,13 +10058,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/zones",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/zones",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "zones"
                   ]
@@ -9627,13 +10100,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/zones",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/zones",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "zones"
                   ]
@@ -9656,13 +10130,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/zones/{{zone_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/zones/{{zone_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "zones",
                     "{{zone_id}}"
@@ -9677,13 +10152,14 @@
                 "method": "PATCH",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/zones/{{zone_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/zones/{{zone_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "zones",
                     "{{zone_id}}"
@@ -9707,13 +10183,14 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/zones/{{zone_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/zones/{{zone_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "zones",
                     "{{zone_id}}"
@@ -9734,13 +10211,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/fishing_gears?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "fishing_gears?page=1&limit=10"
                   ]
@@ -9754,13 +10232,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/fishing_gears?q[name_cont]=Net&q[s]=created_at desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears?q[name_cont]=Net&q[s]=created_at desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "fishing_gears?q[name_cont]=Net&q[s]=created_at desc&page=1&limit=10"
                   ]
@@ -9774,13 +10253,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/fishing_gears",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "fishing_gears"
                   ]
@@ -9815,13 +10295,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/fishing_gears",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "fishing_gears"
                   ]
@@ -9844,13 +10325,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/fishing_gears/{{fishing_gear_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears/{{fishing_gear_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "fishing_gears",
                     "{{fishing_gear_id}}"
@@ -9865,13 +10347,14 @@
                 "method": "PATCH",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/fishing_gears/{{fishing_gear_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears/{{fishing_gear_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "fishing_gears",
                     "{{fishing_gear_id}}"
@@ -9895,13 +10378,14 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/fishing_gears/{{fishing_gear_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears/{{fishing_gear_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "fishing_gears",
                     "{{fishing_gear_id}}"
@@ -9922,13 +10406,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/nationalities?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/nationalities?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "nationalities?page=1&limit=10"
                   ]
@@ -9942,13 +10427,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/nationalities?q[name_cont]=ian&q[s]=created_at desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/nationalities?q[name_cont]=ian&q[s]=created_at desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "nationalities?q[name_cont]=ian&q[s]=created_at desc&page=1&limit=10"
                   ]
@@ -9962,13 +10448,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/nationalities",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/nationalities",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "nationalities"
                   ]
@@ -10003,13 +10490,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/nationalities",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/nationalities",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "nationalities"
                   ]
@@ -10032,13 +10520,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/nationalities/{{nationality_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/nationalities/{{nationality_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "nationalities",
                     "{{nationality_id}}"
@@ -10053,13 +10542,14 @@
                 "method": "PATCH",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/nationalities/{{nationality_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/nationalities/{{nationality_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "nationalities",
                     "{{nationality_id}}"
@@ -10083,13 +10573,14 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/nationalities/{{nationality_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/nationalities/{{nationality_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "nationalities",
                     "{{nationality_id}}"
@@ -10110,13 +10601,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/positions?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/positions?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "positions?page=1&limit=10"
                   ]
@@ -10130,13 +10622,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/positions?q[category_eq]=Fisherman&q[s]=created_at desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/positions?q[category_eq]=Fisherman&q[s]=created_at desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "positions?q[category_eq]=Fisherman&q[s]=created_at desc&page=1&limit=10"
                   ]
@@ -10150,13 +10643,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/positions",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/positions",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "positions"
                   ]
@@ -10191,13 +10685,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/positions",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/positions",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "positions"
                   ]
@@ -10220,13 +10715,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/positions/{{position_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/positions/{{position_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "positions",
                     "{{position_id}}"
@@ -10241,13 +10737,14 @@
                 "method": "PATCH",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/positions/{{position_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/positions/{{position_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "positions",
                     "{{position_id}}"
@@ -10271,13 +10768,14 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/positions/{{position_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/positions/{{position_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "positions",
                     "{{position_id}}"
@@ -10298,13 +10796,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/reasons?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/reasons?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "reasons?page=1&limit=10"
                   ]
@@ -10318,13 +10817,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/reasons?q[name_cont]=weather&q[s]=created_at desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/reasons?q[name_cont]=weather&q[s]=created_at desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "reasons?q[name_cont]=weather&q[s]=created_at desc&page=1&limit=10"
                   ]
@@ -10338,13 +10838,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/reasons",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/reasons",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "reasons"
                   ]
@@ -10379,13 +10880,14 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/reasons",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/reasons",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "reasons"
                   ]
@@ -10408,13 +10910,14 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/reasons/{{reason_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/reasons/{{reason_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "reasons",
                     "{{reason_id}}"
@@ -10429,13 +10932,14 @@
                 "method": "PATCH",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/reasons/{{reason_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/reasons/{{reason_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "reasons",
                     "{{reason_id}}"
@@ -10459,13 +10963,14 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/reasons/{{reason_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/reasons/{{reason_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "reasons",
                     "{{reason_id}}"
@@ -10489,13 +10994,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/master_data/reasons?limit=1",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/reasons?limit=1",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "master_data",
                     "reasons?limit=1"
                   ]
@@ -10536,13 +11042,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dictionaries?page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/dictionaries?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "dictionaries"
               ],
               "query": [
@@ -10586,13 +11093,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/dictionaries?page=1&limit=3",
+                  "raw": "{{base_url}}/api/v1/admin/dictionaries?page=1&limit=3",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "dictionaries"
                   ],
                   "query": [
@@ -10632,13 +11140,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dictionaries?q[group_name_eq]=Crustacean&page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/dictionaries?q[group_name_eq]=Crustacean&page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "dictionaries"
               ],
               "query": [
@@ -10685,13 +11194,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dictionaries?q[local_name_cont]=Udang&page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/dictionaries?q[local_name_cont]=Udang&page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "dictionaries"
               ],
               "query": [
@@ -10736,13 +11246,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
+              "raw": "{{base_url}}/api/v1/admin/dictionaries/{{dictionary_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "dictionaries",
                 "{{dictionary_id}}"
               ]
@@ -10773,13 +11284,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/dictionaries/{{dictionary_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "dictionaries",
                     "{{dictionary_id}}"
                   ]
@@ -10810,13 +11322,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dictionaries/00000000-0000-0000-0000-000000000000",
+              "raw": "{{base_url}}/api/v1/admin/dictionaries/00000000-0000-0000-0000-000000000000",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "dictionaries",
                 "00000000-0000-0000-0000-000000000000"
               ]
@@ -10846,13 +11359,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/dictionaries/00000000-0000-0000-0000-000000000000",
+                  "raw": "{{base_url}}/api/v1/admin/dictionaries/00000000-0000-0000-0000-000000000000",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "dictionaries",
                     "00000000-0000-0000-0000-000000000000"
                   ]
@@ -10883,13 +11397,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dictionaries",
+              "raw": "{{base_url}}/api/v1/admin/dictionaries",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "dictionaries"
               ]
             },
@@ -10952,13 +11467,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/dictionaries",
+                  "raw": "{{base_url}}/api/v1/admin/dictionaries",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "dictionaries"
                   ]
                 },
@@ -11013,13 +11529,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dictionaries",
+              "raw": "{{base_url}}/api/v1/admin/dictionaries",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "dictionaries"
               ]
             },
@@ -11111,13 +11628,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/dictionaries",
+                  "raw": "{{base_url}}/api/v1/admin/dictionaries",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "dictionaries"
                   ]
                 },
@@ -11196,13 +11714,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dictionaries",
+              "raw": "{{base_url}}/api/v1/admin/dictionaries",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "dictionaries"
               ]
             },
@@ -11240,13 +11759,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/dictionaries",
+                  "raw": "{{base_url}}/api/v1/admin/dictionaries",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "dictionaries"
                   ]
                 },
@@ -11280,13 +11800,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
+              "raw": "{{base_url}}/api/v1/admin/dictionaries/{{dictionary_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "dictionaries",
                 "{{dictionary_id}}"
               ]
@@ -11349,13 +11870,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/dictionaries/{{dictionary_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "dictionaries",
                     "{{dictionary_id}}"
                   ]
@@ -11411,13 +11933,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
+              "raw": "{{base_url}}/api/v1/admin/dictionaries/{{dictionary_id}}",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "dictionaries",
                 "{{dictionary_id}}"
               ]
@@ -11448,13 +11971,14 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/dictionaries/{{dictionary_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/dictionaries/{{dictionary_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
+                    "admin",
                     "dictionaries",
                     "{{dictionary_id}}"
                   ]
@@ -11489,13 +12013,14 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/dictionaries?limit=1",
+              "raw": "{{base_url}}/api/v1/admin/dictionaries?limit=1",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
                 "v1",
+                "admin",
                 "dictionaries?limit=1"
               ]
             },

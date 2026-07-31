@@ -9,8 +9,8 @@ module Users
     # Small - Scale (Full-Time) it's the fisherman's own Owner contact on their individual-shaped
     # CompanyProfile (see CompanyProfile#individual?, which only relaxes which company-level fields
     # that profile requires — the person-level match still goes through CompanyProfileContact like
-    # every other type). Both are pre-created the same way, via POST /api/v1/company_profiles — see
-    # docs/registration/registration-flow.md section 5 "Officer Profiling".
+    # every other type). Both are pre-created the same way, via POST /api/v1/admin/company_profiles —
+    # see docs/registration/registration-flow.md section 5 "Officer Profiling".
     def call(attributes)
       contact = matched_contact(attributes)
       return Failure(:contact_not_found) if contact.nil? && valid_registration_type?(attributes)

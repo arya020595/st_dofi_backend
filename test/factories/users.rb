@@ -9,6 +9,22 @@ FactoryBot.define do
     status { "active" }
     preferred_locale { "en" }
     role
+
+    # DOFI_OFFICER/JETTY_MANAGER-kind roles trigger User's role-scoped presence validations
+    # (position/unit always; contact_no/ic_number for jetty_manager too) — these traits exist so
+    # controller tests assigning an officer/jetty_manager-kind role don't each hand-roll the same
+    # field set just to satisfy validation, not because the model needs them by default.
+    trait :officer_shaped do
+      position { "Administrator" }
+      unit { "HQ" }
+    end
+
+    trait :jetty_manager_shaped do
+      position { "Staff" }
+      unit { "HQ" }
+      contact_no { "71999999" }
+      sequence(:ic_number) { |n| "71-#{100_000 + n}" }
+    end
   end
 end
 

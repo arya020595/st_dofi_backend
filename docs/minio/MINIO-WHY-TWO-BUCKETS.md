@@ -76,7 +76,8 @@ similarly non-gated — event posters, org logos, avatars — is a candidate for
 something already implemented; see `docs/minio/MINIO.md` §4 before wiring a new model to either tier.
 
 **Private bucket:** everything else — the app-wide default when a model attaches a file with no
-`service:` override. Identity/licence-style documents belong here once the app grows them.
+`service:` override. `CompaniesDocument` (`app/models/companies_document.rb`, company registration/
+licence PDFs, Pundit-gated per company profile) is the first model on this tier.
 
 ### Public access flow — Rails is bypassed entirely
 
@@ -131,7 +132,7 @@ sure the expensive path is only used where the answer can actually be "no."
 
 | | Public bucket (`MINIO_ASSETS_BUCKET`) | Private bucket (`MINIO_BUCKET`) |
 |---|---|---|
-| Example content | `Dictionary` images (today); future: posters, logos, avatars | Future: identity documents, licences — anything Pundit should gate |
+| Example content | `Dictionary` images (today); future: posters, logos, avatars | `CompaniesDocument` (company registration/licence PDFs, today); future: any other Pundit-gated document |
 | Rails involved on read? | No | Yes — `Api::V1::AttachmentsController` |
 | URL shape | Plain, unsigned, non-expiring | Presigned, 5-minute expiry, via `302` |
 | Access decision | None — anonymous `GetObject` | Pundit `authorize ..., :show?` on every request |

@@ -66,7 +66,7 @@ Role (e.g. "DoFi Officer") ──has many──> Permission (e.g. "dofi_officer_
 ```mermaid
 sequenceDiagram
     participant Existing as Existing DoFi Officer
-    participant API as POST /api/v1/users
+    participant API as POST /api/v1/admin/users
     participant DB as User (role: DoFi Officer)
 
     Existing->>API: Add User — name, position, unit, username (no email, no password)
@@ -142,12 +142,18 @@ self-register, an officer must have already profiled them. For the first two, th
 company; for Small - Scale (Full-Time), the fisherman is profiled as their own Owner contact on a
 `CompanyProfile` with `registration_type: "Small - Scale (Full-Time)"` and every company-shape
 field (company_name, worker_quota, ...) left blank — `CompanyProfile#individual?` makes those
-fields optional for that one registration_type, nothing else about the flow changes:
+fields optional for that one registration_type, nothing else about the flow changes.
+
+`CompanyProfile` and its sub-resources are dual-mounted — the same controllers, reachable at
+`/api/v1/admin/company_profiles/...` (DoFi Officer, Jetty Manager) and
+`/api/v1/fisherman/company_profiles/...` (Fisherman, scoped to their own company). The diagram below
+shows the officer path; a fisherman managing their own already-linked company hits the same actions
+under the `fisherman/` prefix instead:
 
 ```mermaid
 sequenceDiagram
     participant Officer
-    participant API as POST /api/v1/company_profiles
+    participant API as POST /api/v1/admin/company_profiles
     participant DB
 
     Officer->>API: registration_type, company details, owner{full_name, ic_no, ...}, admin{...}? (optional)
@@ -155,7 +161,7 @@ sequenceDiagram
     DB-->>API: company_profile, owner_profile, admin_profile (null if no admin submitted)
 
     Note over Officer: Later — an Admin is added to a company already profiled
-    Officer->>API: POST /api/v1/company_profiles/:company_profile_id/contacts {full_name, ic_no, ...}
+    Officer->>API: POST /api/v1/admin/company_profiles/:company_profile_id/contacts {full_name, ic_no, ...}
     API->>DB: New CompanyProfileContact row on the existing CompanyProfile
     DB-->>API: contact
 
@@ -169,13 +175,13 @@ sequenceDiagram
 `CompanyProfile` is one row per **company**; `CompanyProfileContact` is one row per **person**
 (`belongs_to :company_profile`, `designation` "Owner" or "Admin"). Company-level fields
 (company_name, address, ROCBN No., worker_quota, ...) live once, on the company row — editing them
-via `PATCH /api/v1/company_profiles/:id` can never desync an Owner/Admin pairing, because there's no
-pairing to maintain, just a normal `has_many :contacts`. "Delete the company"
-(`DELETE /api/v1/company_profiles/:id`) discards the company **and** all its kept contacts in one
-transaction (`CompanyProfiles::Destroy`); removing a single contact without touching the company is
-`DELETE /api/v1/company_profiles/:company_profile_id/contacts/:id`.
+via `PATCH /api/v1/admin/company_profiles/:id` can never desync an Owner/Admin pairing, because
+there's no pairing to maintain, just a normal `has_many :contacts`. "Delete the company"
+(`DELETE /api/v1/admin/company_profiles/:id`) discards the company **and** all its kept contacts in
+one transaction (`CompanyProfiles::Destroy`); removing a single contact without touching the company
+is `DELETE /api/v1/admin/company_profiles/:company_profile_id/contacts/:id`.
 
-The list endpoint (`GET /api/v1/company_profiles`, searchable by company name/ROCBN No.) exists
+The list endpoint (`GET /api/v1/admin/company_profiles`, searchable by company name/ROCBN No.) exists
 specifically so the FE's "Select & Search Company" flow can find an existing company when profiling a
 second person — that's now the real `POST .../contacts` call above, not a resubmission through
 `create` (which previously duplicated the Owner every time). `index` and `show` both render one entry
@@ -232,7 +238,7 @@ A few choices made along the way that aren't obvious just from reading the code:
   included) used to have an auto-generated `reference_id` business code (`"ROLE-001"`, `"FG-001"`,
   ...) purely for display. For `Role` specifically, that code was *also* reused as the hardcoded
   string `User#officer?/jetty_manager?/fisherman?`, the approval policies, and the self-registration
-  services all compared against — and it was writable via `PATCH /api/v1/roles/:id`
+  services all compared against — and it was writable via `PATCH /api/v1/admin/roles/:id`
   (`RolesController#role_params` permitted it), so an officer renaming a role's `reference_id` would
   have silently broken officer detection, approval routing, and the unit/position mandatory-field
   validations everywhere, with no error at write time. `reference_id` was removed system-wide (all
@@ -247,7 +253,7 @@ A few choices made along the way that aren't obvious just from reading the code:
   diverge; if they never diverge, a second role would only have been ceremony.
 - **`Unit` is free-text, hardcoded on the frontend** — no `Unit` master-data table exists. A
   deliberate simplification; revisit only if Unit options need to be centrally managed later.
-- **`Position` *is* master-data-backed** (`GET /api/v1/master_data/positions`, filterable by
+- **`Position` *is* master-data-backed** (`GET /api/v1/admin/master_data/positions`, filterable by
   `category` — `"Fisherman"`, `"Jetty Manager"`, `"DoFi Officer"`) — shared across all three actor
   types' forms, each scoped to its own category client-side.
 - **Passwords are never manually chosen for anyone** — random for Jetty Manager/Fisherman (never

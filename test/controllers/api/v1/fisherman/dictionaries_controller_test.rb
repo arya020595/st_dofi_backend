@@ -10,8 +10,9 @@ module Api
           permissions = %w[manifest_form.create].map do |code|
             Permission.find_or_create_by!(code: code) { |permission| permission.name = code }
           end
-          @role = create(:role, permissions: permissions)
-          @user = create(:user, role: @role, password: @password, password_confirmation: @password)
+          @role = create(:role, kind: Role::FISHERMAN, permissions: permissions)
+          @user = create(:user, role: @role, ic_number: "01-800200", registration_type: "Commercial",
+                                password: @password, password_confirmation: @password)
           @headers = auth_headers_for(@user, password: @password)
         end
 

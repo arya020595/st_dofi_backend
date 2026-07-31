@@ -88,7 +88,7 @@ Production runs on 3 separate government-provided servers instead of one shared 
 
 The backend server's `.env` must point `DATABASE_HOST`/`DATABASE_PORT` at the separate database server (see `.env.example`), and `CORS_ORIGINS` at the frontend server's real origin. The database server itself just needs PostgreSQL 16 running, with `pg_hba.conf` restricted to the backend server's IP and TLS required — it is not managed by this repo's CI/CD.
 
-File storage on both staging and production is self-hosted MinIO rather than Cloudinary, split across **two buckets with different access models** — a private bucket (no anonymous access, downloads via presigned URL) and a public-read bucket (anonymous `GetObject` only, e.g. `Dictionary` images) — see `docs/minio/MINIO.md` §2 for the full rationale and `config/storage.yml`/the `MINIO_*` keys in `.env.example` for the config. Cloudinary is kept temporarily as a legacy service so existing attachments keep resolving during the cutover; run `bin/rails dictionaries:migrate_images_to_minio` (add `DRY_RUN=1` to preview) to copy existing `Dictionary` images onto MinIO before removing the `cloudinary` gem and its config.
+File storage on both staging and production is self-hosted MinIO rather than Cloudinary, split across **two buckets with different access models** — a private bucket (no anonymous access, downloads via presigned URL, e.g. `CompaniesDocument` company registration/licence PDFs) and a public-read bucket (anonymous `GetObject` only, e.g. `Dictionary` images) — see `docs/minio/MINIO.md` §2 for the full rationale and `config/storage.yml`/the `MINIO_*` keys in `.env.example` for the config. Cloudinary is kept temporarily as a legacy service so existing attachments keep resolving during the cutover; run `bin/rails dictionaries:migrate_images_to_minio` (add `DRY_RUN=1` to preview) to copy existing `Dictionary` images onto MinIO before removing the `cloudinary` gem and its config.
 
 ## Option B: Run manually with Rails
 
@@ -252,6 +252,7 @@ docs/
 - [Why two MinIO buckets?](docs/minio/MINIO-WHY-TWO-BUCKETS.md) — the reasoning behind the public/private bucket split (not just the mechanics) — read this first if you're new to the storage architecture.
 - [MinIO two-bucket migration runbook](docs/minio/MINIO-TWO-BUCKET-SETUP.md) — what changed moving to the public/private bucket split, and step-by-step instructions to test it locally against real MinIO and roll it out to staging/production.
 - [MinIO public proxy setup tutorial](docs/minio/MINIO-PUBLIC-PROXY-SETUP.md) — step-by-step guide for making MinIO URLs (both the private bucket's presigned and the public bucket's plain) reachable from a browser (host nginx or Docker-only options), including the `$host` vs `$http_host` pitfall.
+- [MinIO FAQ](docs/minio/MINIO-FAQ.md) — answers to common questions once you're actually working with the setup: is the reverse proxy mandatory, is there an admin dashboard, can a CDN sit in front of the public bucket.
 
 ### [`docs/ci-cd/`](docs/ci-cd/) — CI/CD & deployment
 

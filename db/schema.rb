@@ -112,6 +112,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_31_110002) do
     t.index ["discarded_at"], name: "index_companies_crews_on_discarded_at"
   end
 
+  create_table "companies_documents", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.text "amendment_remarks"
+    t.string "approval_status", default: "pending", null: false
+    t.datetime "approved_at"
+    t.uuid "approved_by_id"
+    t.uuid "company_profile_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "discarded_at"
+    t.string "document_type", null: false
+    t.datetime "updated_at", null: false
+    t.index ["approved_by_id"], name: "index_companies_documents_on_approved_by_id"
+    t.index ["company_profile_id", "document_type"], name: "index_companies_documents_on_profile_and_type_kept", unique: true, where: "(discarded_at IS NULL)"
+    t.index ["company_profile_id"], name: "index_companies_documents_on_company_profile_id"
+    t.index ["discarded_at"], name: "index_companies_documents_on_discarded_at"
+  end
+
   create_table "companies_fishing_gears", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.text "amendment_remarks"
     t.string "approval_status", default: "pending", null: false
@@ -515,6 +531,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_31_110002) do
   add_foreign_key "companies_captains", "users", column: "approved_by_id"
   add_foreign_key "companies_crews", "company_profiles"
   add_foreign_key "companies_crews", "users", column: "approved_by_id"
+  add_foreign_key "companies_documents", "company_profiles"
+  add_foreign_key "companies_documents", "users", column: "approved_by_id"
   add_foreign_key "companies_fishing_gears", "companies_vessels"
   add_foreign_key "companies_fishing_gears", "company_profiles"
   add_foreign_key "companies_fishing_gears", "fishing_gears"

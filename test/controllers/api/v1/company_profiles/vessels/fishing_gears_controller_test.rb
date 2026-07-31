@@ -13,12 +13,15 @@ module Api
                 p.name = "Gears - #{action}"
               end
             end
-            @admin_role = create(:role, permissions: admin_permissions)
-            @no_access_role = create(:role)
+            @admin_role = create(:role, kind: Role::DOFI_OFFICER, permissions: admin_permissions)
+            @no_access_role = create(:role, kind: Role::JETTY_MANAGER)
 
-            @admin = create(:user, role: @admin_role, password: @password, password_confirmation: @password)
-            @plain_user = create(:user, role: @no_access_role, password: @password, password_confirmation: @password)
+            @admin = create(:user, :officer_shaped, role: @admin_role,
+                                                    password: @password, password_confirmation: @password)
             @company_profile = create(:company_profile)
+            @plain_user = create(:user, :jetty_manager_shaped, role: @no_access_role,
+                                                               company_profile: @company_profile,
+                                                               password: @password, password_confirmation: @password)
             @vessel = create(:companies_vessel, company_profile: @company_profile)
             @fishing_gear = create(:fishing_gear)
 
@@ -27,7 +30,7 @@ module Api
           end
 
           test "index requires the list/view permission" do
-            path = "/api/v1/company_profiles/#{@company_profile.id}/vessels/#{@vessel.id}/fishing_gears"
+            path = "/api/v1/admin/company_profiles/#{@company_profile.id}/vessels/#{@vessel.id}/fishing_gears"
 
             get path, headers: @plain_headers
 
@@ -43,7 +46,7 @@ module Api
                                        usage_value: 50 } }
 
             assert_difference("CompaniesFishingGear.count", 1) do
-              post "/api/v1/company_profiles/#{@company_profile.id}/vessels/#{@vessel.id}/fishing_gears",
+              post "/api/v1/admin/company_profiles/#{@company_profile.id}/vessels/#{@vessel.id}/fishing_gears",
                    params: params, headers: @admin_headers, as: :json
             end
 
@@ -57,8 +60,8 @@ module Api
           test "destroy soft-deletes the vessel's fishing gear link" do
             gear = create(:companies_fishing_gear, company_profile: @company_profile, companies_vessel: @vessel)
 
-            delete "/api/v1/company_profiles/#{@company_profile.id}/vessels/#{@vessel.id}/fishing_gears/#{gear.id}",
-                   headers: @admin_headers
+            delete "/api/v1/admin/company_profiles/#{@company_profile.id}/vessels/#{@vessel.id}" \
+                   "/fishing_gears/#{gear.id}", headers: @admin_headers
 
             assert_response :ok
             assert_predicate gear.reload, :discarded?
