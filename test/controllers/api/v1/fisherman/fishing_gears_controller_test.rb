@@ -24,8 +24,12 @@ module Api
             companies_vessel: @vessel
           )
           create(:companies_fishing_gear, company_profile: @company_profile, companies_vessel: @vessel)
-          create(:companies_fishing_gear, :approved, company_profile: @company_profile,
-                                                  companies_vessel: @other_vessel)
+          create(
+            :companies_fishing_gear,
+            :approved,
+            company_profile: @company_profile,
+            companies_vessel: @other_vessel
+          )
           create(:companies_fishing_gear, :approved)
 
           @headers = auth_headers_for(@user, password: @password)

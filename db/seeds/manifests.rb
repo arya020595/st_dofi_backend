@@ -272,11 +272,13 @@ if manifest6.capture_reports.none?
 
   trawler_gear6 = commercial_profile.companies_fishing_gears.approved
                                     .find_by!(fishing_gear: FishingGear.find_by!(name: "Trawler"))
-  report6_gear_detail = report6.fishing_gear_details.create!(companies_fishing_gear: trawler_gear6,
-                                                              name: trawler_gear6.fishing_gear.name,
-                                                              gear_type: trawler_gear6.fishing_gear.gear_type,
-                                                              specification: trawler_gear6.fishing_gear.gear_specification,
-                                                              quantity: 1)
+  report6_gear_detail = report6.fishing_gear_details.create!(
+    companies_fishing_gear: trawler_gear6,
+    name: trawler_gear6.fishing_gear.name,
+    gear_type: trawler_gear6.fishing_gear.gear_type,
+    specification: trawler_gear6.fishing_gear.gear_specification,
+    quantity: 1
+  )
 
   selar = Dictionary.find_by!(local_name: "Ikan Selar")
   report6.fish_capture_details.create!(dictionary: selar, local_name: selar.local_name,
@@ -327,11 +329,13 @@ if manifest7.capture_reports.none?
                                               latitude: 5.11, longitude: 115.11)
   trawler_gear7 = commercial_profile.companies_fishing_gears.approved
                                     .find_by!(fishing_gear: FishingGear.find_by!(name: "Trawler"))
-  report7_gear_detail = report7.fishing_gear_details.create!(companies_fishing_gear: trawler_gear7,
-                                                              name: trawler_gear7.fishing_gear.name,
-                                                              gear_type: trawler_gear7.fishing_gear.gear_type,
-                                                              specification: trawler_gear7.fishing_gear.gear_specification,
-                                                              quantity: 1)
+  report7_gear_detail = report7.fishing_gear_details.create!(
+    companies_fishing_gear: trawler_gear7,
+    name: trawler_gear7.fishing_gear.name,
+    gear_type: trawler_gear7.fishing_gear.gear_type,
+    specification: trawler_gear7.fishing_gear.gear_specification,
+    quantity: 1
+  )
   tongkol = Dictionary.find_by!(local_name: "Ikan Tongkol")
   report7.fish_capture_details.create!(dictionary: tongkol, local_name: tongkol.local_name,
                                        scientific_name: tongkol.scientific_name, fish_type: tongkol.group_name,
@@ -377,12 +381,14 @@ if manifest8.capture_reports.none?
   report8 = manifest8.capture_reports.create!(zone: inshore_zone, zone_area: inshore_zone.name,
                                               latitude: 4.70, longitude: 114.90)
   drift_gill_net8 = small_scale_company_profile.companies_fishing_gears.approved
-                                             .find_by!(fishing_gear: FishingGear.find_by!(name: "Drift Gill Net"))
-  report8_gear_detail = report8.fishing_gear_details.create!(companies_fishing_gear: drift_gill_net8,
-                                                              name: drift_gill_net8.fishing_gear.name,
-                                                              gear_type: drift_gill_net8.fishing_gear.gear_type,
-                                                              specification: drift_gill_net8.fishing_gear.gear_specification,
-                                                              quantity: 1)
+                                                .find_by!(fishing_gear: FishingGear.find_by!(name: "Drift Gill Net"))
+  report8_gear_detail = report8.fishing_gear_details.create!(
+    companies_fishing_gear: drift_gill_net8,
+    name: drift_gill_net8.fishing_gear.name,
+    gear_type: drift_gill_net8.fishing_gear.gear_type,
+    specification: drift_gill_net8.fishing_gear.gear_specification,
+    quantity: 1
+  )
   bilis = Dictionary.find_by!(local_name: "Ikan Bilis")
   report8.fish_capture_details.create!(dictionary: bilis, local_name: bilis.local_name,
                                        scientific_name: bilis.scientific_name, fish_type: bilis.group_name,
