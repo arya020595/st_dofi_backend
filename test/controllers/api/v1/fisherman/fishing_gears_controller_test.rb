@@ -17,8 +17,12 @@ module Api
           @user = create(:user, role: @role, company_profile: @company_profile,
                                 password: @password, password_confirmation: @password)
 
-          @approved_gear = create(:companies_fishing_gear, :approved, company_profile: @company_profile,
-                                                             companies_vessel: @vessel)
+          @approved_gear = create(
+            :companies_fishing_gear,
+            :approved,
+            company_profile: @company_profile,
+            companies_vessel: @vessel
+          )
           create(:companies_fishing_gear, company_profile: @company_profile, companies_vessel: @vessel)
           create(:companies_fishing_gear, :approved, company_profile: @company_profile,
                                                   companies_vessel: @other_vessel)

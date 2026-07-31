@@ -18,7 +18,7 @@ module Api
         def manifest_fishing_gears
           scope = CompaniesFishingGear.kept.where(company_profile_id: current_user.company_profile_id,
                                                   approval_status: "approved")
-          return scope unless params[:vessel_id].present?
+          return scope if params[:vessel_id].blank?
 
           scope.where(companies_vessel_id: params[:vessel_id])
         end

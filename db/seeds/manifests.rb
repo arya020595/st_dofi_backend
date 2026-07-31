@@ -81,11 +81,13 @@ if manifest1.capture_reports.none?
 
   trawler_gear = commercial_profile.companies_fishing_gears.approved
                                    .find_by!(fishing_gear: FishingGear.find_by!(name: "Trawler"))
-  report1_gear_detail = report1.fishing_gear_details.create!(companies_fishing_gear: trawler_gear,
-                                                              name: trawler_gear.fishing_gear.name,
-                                                              gear_type: trawler_gear.fishing_gear.gear_type,
-                                                              specification: trawler_gear.fishing_gear.gear_specification,
-                                                              quantity: 2)
+  report1_gear_detail = report1.fishing_gear_details.create!(
+    companies_fishing_gear: trawler_gear,
+    name: trawler_gear.fishing_gear.name,
+    gear_type: trawler_gear.fishing_gear.gear_type,
+    specification: trawler_gear.fishing_gear.gear_specification,
+    quantity: 2
+  )
 
   tenggiri = Dictionary.find_by!(local_name: "Ikan Tenggiri")
   report1.fish_capture_details.create!(dictionary: tenggiri, local_name: tenggiri.local_name,
@@ -447,11 +449,13 @@ if manifest10.capture_reports.none?
                                                 latitude: 5.12, longitude: 115.12)
   trawler_gear10 = commercial_profile.companies_fishing_gears.approved
                                      .find_by!(fishing_gear: FishingGear.find_by!(name: "Trawler"))
-  report10_gear_detail = report10.fishing_gear_details.create!(companies_fishing_gear: trawler_gear10,
-                                                                name: trawler_gear10.fishing_gear.name,
-                                                                gear_type: trawler_gear10.fishing_gear.gear_type,
-                                                                specification: trawler_gear10.fishing_gear.gear_specification,
-                                                                quantity: 1)
+  report10_gear_detail = report10.fishing_gear_details.create!(
+    companies_fishing_gear: trawler_gear10,
+    name: trawler_gear10.fishing_gear.name,
+    gear_type: trawler_gear10.fishing_gear.gear_type,
+    specification: trawler_gear10.fishing_gear.gear_specification,
+    quantity: 1
+  )
   kembung = Dictionary.find_by!(local_name: "Ikan Kembung")
   report10.fish_capture_details.create!(dictionary: kembung, local_name: kembung.local_name,
                                         scientific_name: kembung.scientific_name, fish_type: kembung.group_name,

@@ -38,7 +38,9 @@ module FishCaptureDetails
     end
 
     def persist(detail, attributes)
-      return invalid_gear_result(attributes[:id]) unless valid_gear_detail?(detail.capture_report, attributes[:fishing_gear_detail_id])
+      unless valid_gear_detail?(detail.capture_report, attributes[:fishing_gear_detail_id])
+        return invalid_gear_result(attributes[:id])
+      end
 
       detail.assign_attributes(synced_attributes(attributes))
 
