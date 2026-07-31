@@ -72,6 +72,9 @@ Rails.application.routes.draw do
         resources :vessels, only: %i[index]
         resources :captains, only: %i[index]
         resources :crews, only: %i[index]
+        resources :fishing_gears, only: %i[index]
+        resources :zones, only: %i[index]
+        resources :dictionaries, only: %i[index]
       end
 
       # Nested manifest sub-resources are deliberately unprefixed (neither fisherman/ nor
