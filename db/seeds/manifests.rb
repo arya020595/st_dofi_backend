@@ -79,17 +79,21 @@ if manifest1.capture_reports.none?
   manifest1.create_manifest_expense!(fuel_litres: 180, fuel_bnd: 320.50, ice_litres: 60, ice_bnd: 45.00,
                                      ration_bnd: 90.00)
 
+  trawler_gear = commercial_profile.companies_fishing_gears.approved
+                                   .find_by!(fishing_gear: FishingGear.find_by!(name: "Trawler"))
+  report1_gear_detail = report1.fishing_gear_details.create!(
+    companies_fishing_gear: trawler_gear,
+    name: trawler_gear.fishing_gear.name,
+    gear_type: trawler_gear.fishing_gear.gear_type,
+    specification: trawler_gear.fishing_gear.gear_specification,
+    quantity: 2
+  )
+
   tenggiri = Dictionary.find_by!(local_name: "Ikan Tenggiri")
   report1.fish_capture_details.create!(dictionary: tenggiri, local_name: tenggiri.local_name,
                                        scientific_name: tenggiri.scientific_name, fish_type: tenggiri.group_name,
                                        amount_captured_kg: 320.5, price_per_kg: 12.0, overall_total: 320.5 * 12.0,
-                                       synced_at: Time.current)
-
-  trawler_gear = commercial_profile.companies_fishing_gears.approved
-                                   .find_by!(fishing_gear: FishingGear.find_by!(name: "Trawler"))
-  report1.fishing_gear_details.create!(companies_fishing_gear: trawler_gear, name: trawler_gear.fishing_gear.name,
-                                       gear_type: trawler_gear.fishing_gear.gear_type,
-                                       specification: trawler_gear.fishing_gear.gear_specification, quantity: 2)
+                                       synced_at: Time.current, fishing_gear_detail: report1_gear_detail)
 end
 
 if manifest1.may_submit_port_in?
@@ -266,17 +270,21 @@ if manifest6.capture_reports.none?
   manifest6.create_manifest_expense!(fuel_litres: 150, fuel_bnd: 270.00, ice_litres: 50, ice_bnd: 38.00,
                                      ration_bnd: 75.00)
 
+  trawler_gear6 = commercial_profile.companies_fishing_gears.approved
+                                    .find_by!(fishing_gear: FishingGear.find_by!(name: "Trawler"))
+  report6_gear_detail = report6.fishing_gear_details.create!(
+    companies_fishing_gear: trawler_gear6,
+    name: trawler_gear6.fishing_gear.name,
+    gear_type: trawler_gear6.fishing_gear.gear_type,
+    specification: trawler_gear6.fishing_gear.gear_specification,
+    quantity: 1
+  )
+
   selar = Dictionary.find_by!(local_name: "Ikan Selar")
   report6.fish_capture_details.create!(dictionary: selar, local_name: selar.local_name,
                                        scientific_name: selar.scientific_name, fish_type: selar.group_name,
                                        amount_captured_kg: 210.0, price_per_kg: 8.0, overall_total: 210.0 * 8.0,
-                                       synced_at: Time.current)
-
-  trawler_gear6 = commercial_profile.companies_fishing_gears.approved
-                                    .find_by!(fishing_gear: FishingGear.find_by!(name: "Trawler"))
-  report6.fishing_gear_details.create!(companies_fishing_gear: trawler_gear6, name: trawler_gear6.fishing_gear.name,
-                                       gear_type: trawler_gear6.fishing_gear.gear_type,
-                                       specification: trawler_gear6.fishing_gear.gear_specification, quantity: 1)
+                                       synced_at: Time.current, fishing_gear_detail: report6_gear_detail)
 end
 
 if manifest6.may_submit_port_in?
@@ -319,11 +327,20 @@ end
 if manifest7.capture_reports.none?
   report7 = manifest7.capture_reports.create!(zone: offshore_zone, zone_area: offshore_zone.name,
                                               latitude: 5.11, longitude: 115.11)
+  trawler_gear7 = commercial_profile.companies_fishing_gears.approved
+                                    .find_by!(fishing_gear: FishingGear.find_by!(name: "Trawler"))
+  report7_gear_detail = report7.fishing_gear_details.create!(
+    companies_fishing_gear: trawler_gear7,
+    name: trawler_gear7.fishing_gear.name,
+    gear_type: trawler_gear7.fishing_gear.gear_type,
+    specification: trawler_gear7.fishing_gear.gear_specification,
+    quantity: 1
+  )
   tongkol = Dictionary.find_by!(local_name: "Ikan Tongkol")
   report7.fish_capture_details.create!(dictionary: tongkol, local_name: tongkol.local_name,
                                        scientific_name: tongkol.scientific_name, fish_type: tongkol.group_name,
                                        amount_captured_kg: 180.0, price_per_kg: 9.5, overall_total: 180.0 * 9.5,
-                                       synced_at: Time.current)
+                                       synced_at: Time.current, fishing_gear_detail: report7_gear_detail)
 end
 
 if manifest7.may_submit_port_in?
@@ -363,11 +380,22 @@ manifest8.submit_port_out!(actor: small_scale_owner) if manifest8.may_submit_por
 if manifest8.capture_reports.none?
   report8 = manifest8.capture_reports.create!(zone: inshore_zone, zone_area: inshore_zone.name,
                                               latitude: 4.70, longitude: 114.90)
+  drift_gill_net8 = small_scale_company_profile
+                    .companies_fishing_gears
+                    .approved
+                    .find_by!(fishing_gear: FishingGear.find_by!(name: "Drift Gill Net"))
+  report8_gear_detail = report8.fishing_gear_details.create!(
+    companies_fishing_gear: drift_gill_net8,
+    name: drift_gill_net8.fishing_gear.name,
+    gear_type: drift_gill_net8.fishing_gear.gear_type,
+    specification: drift_gill_net8.fishing_gear.gear_specification,
+    quantity: 1
+  )
   bilis = Dictionary.find_by!(local_name: "Ikan Bilis")
   report8.fish_capture_details.create!(dictionary: bilis, local_name: bilis.local_name,
                                        scientific_name: bilis.scientific_name, fish_type: bilis.group_name,
                                        amount_captured_kg: 45.0, price_per_kg: 6.0, overall_total: 45.0 * 6.0,
-                                       synced_at: Time.current)
+                                       synced_at: Time.current, fishing_gear_detail: report8_gear_detail)
 end
 
 # Left at :needs_amendment (port_in not submitted yet) — the fisherman is still expected to fix the
@@ -427,11 +455,20 @@ end
 if manifest10.capture_reports.none?
   report10 = manifest10.capture_reports.create!(zone: offshore_zone, zone_area: offshore_zone.name,
                                                 latitude: 5.12, longitude: 115.12)
+  trawler_gear10 = commercial_profile.companies_fishing_gears.approved
+                                     .find_by!(fishing_gear: FishingGear.find_by!(name: "Trawler"))
+  report10_gear_detail = report10.fishing_gear_details.create!(
+    companies_fishing_gear: trawler_gear10,
+    name: trawler_gear10.fishing_gear.name,
+    gear_type: trawler_gear10.fishing_gear.gear_type,
+    specification: trawler_gear10.fishing_gear.gear_specification,
+    quantity: 1
+  )
   kembung = Dictionary.find_by!(local_name: "Ikan Kembung")
   report10.fish_capture_details.create!(dictionary: kembung, local_name: kembung.local_name,
                                         scientific_name: kembung.scientific_name, fish_type: kembung.group_name,
                                         amount_captured_kg: 260.0, price_per_kg: 7.5, overall_total: 260.0 * 7.5,
-                                        synced_at: Time.current)
+                                        synced_at: Time.current, fishing_gear_detail: report10_gear_detail)
 end
 
 if manifest10.may_submit_port_in?

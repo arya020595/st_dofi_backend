@@ -26,7 +26,22 @@ module FishCaptureDetails
       { id: local_id, status: "fail", errors: ["already belongs to a different capture report"] }
     end
 
+    def synced_attributes(attributes)
+      dictionary = Dictionary.find_by(id: attributes[:dictionary_id])
+      price = attributes[:price_per_kg].to_f
+      amount = attributes[:amount_captured_kg].to_f
+
+      attributes.slice(:fishing_gear_detail_id, :dictionary_id, :fish_type, :price_per_kg, :amount_captured_kg).merge(
+        local_name: dictionary&.local_name, scientific_name: dictionary&.scientific_name,
+        overall_total: price * amount, synced_at: Time.current
+      )
+    end
+
     def persist(detail, attributes)
+      unless valid_gear_detail?(detail.capture_report, attributes[:fishing_gear_detail_id])
+        return invalid_gear_result(attributes[:id])
+      end
+
       detail.assign_attributes(synced_attributes(attributes))
 
       if detail.save
@@ -36,15 +51,16 @@ module FishCaptureDetails
       end
     end
 
-    def synced_attributes(attributes)
-      dictionary = Dictionary.find_by(id: attributes[:dictionary_id])
-      price = attributes[:price_per_kg].to_f
-      amount = attributes[:amount_captured_kg].to_f
+    def valid_gear_detail?(capture_report, gear_detail_id)
+      gear_detail_id.present? && capture_report.fishing_gear_details.exists?(id: gear_detail_id)
+    end
 
-      attributes.slice(:dictionary_id, :fish_type, :price_per_kg, :amount_captured_kg).merge(
-        local_name: dictionary&.local_name, scientific_name: dictionary&.scientific_name,
-        overall_total: price * amount, synced_at: Time.current
-      )
+    def invalid_gear_result(local_id)
+      {
+        id: local_id,
+        status: "fail",
+        errors: ["fishing_gear_detail_id must reference a fishing gear detail on this capture report"]
+      }
     end
   end
 end
