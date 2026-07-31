@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_28_100002) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_31_110002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -257,6 +257,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_28_100002) do
     t.datetime "created_at", null: false
     t.uuid "dictionary_id", null: false
     t.string "fish_type"
+    t.uuid "fishing_gear_detail_id"
     t.string "local_name"
     t.decimal "overall_total", precision: 12, scale: 2
     t.decimal "price_per_kg", precision: 10, scale: 2
@@ -265,6 +266,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_28_100002) do
     t.datetime "updated_at", null: false
     t.index ["capture_report_id"], name: "index_fish_capture_details_on_capture_report_id"
     t.index ["dictionary_id"], name: "index_fish_capture_details_on_dictionary_id"
+    t.index ["fishing_gear_detail_id"], name: "index_fish_capture_details_on_fishing_gear_detail_id"
   end
 
   create_table "fishing_gear_details", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -526,6 +528,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_28_100002) do
   add_foreign_key "crew_manifests", "manifests"
   add_foreign_key "fish_capture_details", "capture_reports"
   add_foreign_key "fish_capture_details", "dictionaries"
+  add_foreign_key "fish_capture_details", "fishing_gear_details"
   add_foreign_key "fishing_gear_details", "capture_reports"
   add_foreign_key "fishing_gear_details", "companies_fishing_gears"
   add_foreign_key "manifest_expenses", "manifests"
