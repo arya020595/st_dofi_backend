@@ -123,7 +123,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_31_110002) do
     t.string "document_type", null: false
     t.datetime "updated_at", null: false
     t.index ["approved_by_id"], name: "index_companies_documents_on_approved_by_id"
-    t.index ["company_profile_id", "document_type"], name: "index_companies_documents_on_profile_and_type_kept", unique: true, where: "(discarded_at IS NULL)"
+    t.index ["company_profile_id", "document_type"], name: "idx_companies_documents_on_profile_and_type_kept", unique: true, where: "(discarded_at IS NULL)"
     t.index ["company_profile_id"], name: "index_companies_documents_on_company_profile_id"
     t.index ["discarded_at"], name: "index_companies_documents_on_discarded_at"
   end

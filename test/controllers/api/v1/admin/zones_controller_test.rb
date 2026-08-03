@@ -12,12 +12,14 @@ module Api
 
         test "index lists zones" do
           get "/api/v1/admin/master_data/zones", headers: @headers
+          get "/api/v1/admin/master_data/zones", headers: @headers
 
           assert_response :ok
           assert_includes response.parsed_body["data"].pluck("id"), @zone.id
         end
 
         test "show returns the zone" do
+          get "/api/v1/admin/master_data/zones/#{@zone.id}", headers: @headers
           get "/api/v1/admin/master_data/zones/#{@zone.id}", headers: @headers
 
           assert_response :ok
