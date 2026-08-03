@@ -55,16 +55,12 @@ Rails.application.routes.draw do
         resources :roles, only: %i[index show create update destroy]
         resources :dictionaries, only: %i[index show create update destroy]
 
-        # Ports/zones/fishing_gears sit flat here (not under master_data below) because they also
-        # exist on the fisherman side as flat resources (see fisherman/ below) — keeping the shape
-        # consistent across both namespaces. Reasons/nationalities/positions have no fisherman-facing
-        # equivalent at all, so there's no cross-namespace shape to keep consistent for them; they
-        # stay grouped under master_data purely as admin's own internal organization.
-        resources :ports,         only: %i[index show create update destroy]
-        resources :zones,         only: %i[index show create update destroy]
-        resources :fishing_gears, only: %i[index show create update destroy]
-
         namespace :master_data do
+          resources :ports, only: %i[index show create update destroy], controller: "/api/v1/admin/ports"
+          resources :zones, only: %i[index show create update destroy], controller: "/api/v1/admin/zones"
+          resources :fishing_gears,
+                    only: %i[index show create update destroy],
+                    controller: "/api/v1/admin/fishing_gears"
           resources :reasons, only: %i[index show create update destroy]
           resources :nationalities, only: %i[index show create update destroy]
           resources :positions, only: %i[index show create update destroy]
@@ -212,12 +208,11 @@ Rails.application.routes.draw do
           end
         end
 
-        # Ports/zones/fishing_gears are flat here (view-only), matching the flat shape used on the
-        # admin side (see admin/ above) — Fisherman holds zero create/update/delete permission on
-        # these reference-data resources today and has no plausible reason to.
-        resources :ports,         only: %i[index show]
-        resources :zones,         only: %i[index show]
-        resources :fishing_gears, only: %i[index show]
+        namespace :master_data do
+          resources :ports, only: %i[index show], controller: "/api/v1/fisherman/ports"
+          resources :zones, only: %i[index show], controller: "/api/v1/fisherman/zones"
+          resources :fishing_gears, only: %i[index show], controller: "/api/v1/fisherman/fishing_gears"
+        end
         resources :vessels, only: %i[index]
         resources :captains, only: %i[index]
         resources :crews, only: %i[index]

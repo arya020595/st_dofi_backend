@@ -11,14 +11,14 @@ module Api
         end
 
         test "index lists zones" do
-          get "/api/v1/fisherman/zones", headers: @headers
+          get "/api/v1/fisherman/master_data/zones", headers: @headers
 
           assert_response :ok
           assert_includes response.parsed_body["data"].pluck("id"), @zone.id
         end
 
         test "show returns the zone" do
-          get "/api/v1/fisherman/zones/#{@zone.id}", headers: @headers
+          get "/api/v1/fisherman/master_data/zones/#{@zone.id}", headers: @headers
 
           assert_response :ok
           assert_equal @zone.name, response.parsed_body["data"]["name"]
@@ -28,7 +28,7 @@ module Api
           create(:zone, name: "Zeta Zone")
           create(:zone, name: "Alpha Zone")
 
-          get "/api/v1/fisherman/zones", headers: @headers
+          get "/api/v1/fisherman/master_data/zones", headers: @headers
 
           assert_response :ok
           names = response.parsed_body["data"].pluck("name")
