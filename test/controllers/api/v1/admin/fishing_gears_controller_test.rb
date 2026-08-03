@@ -13,14 +13,12 @@ module Api
 
         test "index lists fishing gears" do
           get "/api/v1/admin/master_data/fishing_gears", headers: @headers
-          get "/api/v1/admin/master_data/fishing_gears", headers: @headers
 
           assert_response :ok
           assert_includes response.parsed_body["data"].pluck("id"), @gear.id
         end
 
         test "show returns the fishing gear" do
-          get "/api/v1/admin/master_data/fishing_gears/#{@gear.id}", headers: @headers
           get "/api/v1/admin/master_data/fishing_gears/#{@gear.id}", headers: @headers
 
           assert_response :ok
@@ -47,7 +45,6 @@ module Api
         end
 
         test "destroy removes the fishing gear" do
-          delete "/api/v1/admin/master_data/fishing_gears/#{@gear.id}", headers: @headers
           delete "/api/v1/admin/master_data/fishing_gears/#{@gear.id}", headers: @headers
 
           assert_response :ok
