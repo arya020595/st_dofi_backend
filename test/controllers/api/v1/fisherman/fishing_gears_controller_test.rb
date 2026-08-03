@@ -11,14 +11,14 @@ module Api
         end
 
         test "index lists fishing gears" do
-          get "/api/v1/fisherman/fishing_gears", headers: @headers
+          get "/api/v1/fisherman/master_data/fishing_gears", headers: @headers
 
           assert_response :ok
           assert_includes response.parsed_body["data"].pluck("id"), @gear.id
         end
 
         test "show returns the fishing gear" do
-          get "/api/v1/fisherman/fishing_gears/#{@gear.id}", headers: @headers
+          get "/api/v1/fisherman/master_data/fishing_gears/#{@gear.id}", headers: @headers
 
           assert_response :ok
           assert_equal @gear.name, response.parsed_body["data"]["name"]

@@ -7754,7 +7754,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/fisherman/ports?page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/fisherman/master_data/ports?page=1&limit=10",
               "host": [
                 "{{base_url}}"
               ],
@@ -7775,7 +7775,7 @@
                 }
               ]
             },
-            "description": "Fisherman-facing port picker for manifest port-out/port-in (`GET /api/v1/fisherman/ports`). Requires `ports.list`. Read-only — no show/create/update/delete; those stay under `Master Data - Port` for officers. Defaults to `port_name asc` (a selection dropdown), unlike the admin list's `created_at desc`."
+            "description": "Fisherman-facing port picker for manifest port-out/port-in (`GET /api/v1/fisherman/master_data/ports`). Requires `ports.list`. Read-only — no show/create/update/delete; those stay under `Master Data - Port` for officers. Defaults to `port_name asc` (a selection dropdown), unlike the admin list's `created_at desc`."
           },
           "event": [
             {
@@ -9861,7 +9861,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/ports?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/ports?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -9881,7 +9881,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/ports?q[port_name_cont]=Serasa&q[s]=created_at desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/ports?q[port_name_cont]=Serasa&q[s]=created_at desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -9901,7 +9901,7 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/ports",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/ports",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -9942,7 +9942,7 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/ports",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/ports",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -9971,7 +9971,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/ports/{{port_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/ports/{{port_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -9992,7 +9992,7 @@
                 "method": "PATCH",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/ports/{{port_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/ports/{{port_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10022,7 +10022,7 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/ports/{{port_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/ports/{{port_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10049,7 +10049,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/zones?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/zones?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10069,7 +10069,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/zones?q[name_cont]=Zone&q[s]=name asc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/zones?q[name_cont]=Zone&q[s]=name asc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10089,7 +10089,7 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/zones",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/zones",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10130,7 +10130,7 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/zones",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/zones",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10159,7 +10159,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/zones/{{zone_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/zones/{{zone_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10180,7 +10180,7 @@
                 "method": "PATCH",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/zones/{{zone_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/zones/{{zone_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10210,7 +10210,7 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/zones/{{zone_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/zones/{{zone_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10237,7 +10237,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/fishing_gears?page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears?page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10257,7 +10257,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/fishing_gears?q[name_cont]=Net&q[s]=created_at desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears?q[name_cont]=Net&q[s]=created_at desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10277,7 +10277,7 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/fishing_gears",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10318,7 +10318,7 @@
                 "method": "POST",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/fishing_gears",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10347,7 +10347,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/fishing_gears/{{fishing_gear_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears/{{fishing_gear_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10368,7 +10368,7 @@
                 "method": "PATCH",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/fishing_gears/{{fishing_gear_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears/{{fishing_gear_id}}",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -10398,7 +10398,7 @@
                 "method": "DELETE",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/fishing_gears/{{fishing_gear_id}}",
+                  "raw": "{{base_url}}/api/v1/admin/master_data/fishing_gears/{{fishing_gear_id}}",
                   "host": [
                     "{{base_url}}"
                   ],

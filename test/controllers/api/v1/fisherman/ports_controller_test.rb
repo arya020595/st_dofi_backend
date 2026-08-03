@@ -25,11 +25,11 @@ module Api
         end
 
         test "index requires the list permission" do
-          get "/api/v1/fisherman/ports", headers: @plain_headers
+          get "/api/v1/fisherman/master_data/ports", headers: @plain_headers
 
           assert_response :forbidden
 
-          get "/api/v1/fisherman/ports", headers: @fisherman_headers
+          get "/api/v1/fisherman/master_data/ports", headers: @fisherman_headers
 
           assert_response :ok
         end
@@ -38,7 +38,7 @@ module Api
           create(:port, port_name: "Zeta Port")
           create(:port, port_name: "Alpha Port")
 
-          get "/api/v1/fisherman/ports", headers: @fisherman_headers
+          get "/api/v1/fisherman/master_data/ports", headers: @fisherman_headers
 
           assert_response :ok
           names = response.parsed_body["data"].pluck("port_name")
@@ -49,7 +49,7 @@ module Api
         test "show returns the port" do
           port = create(:port, port_name: "Muara Port")
 
-          get "/api/v1/fisherman/ports/#{port.id}", headers: @fisherman_headers
+          get "/api/v1/fisherman/master_data/ports/#{port.id}", headers: @fisherman_headers
 
           assert_response :ok
           assert_equal "Muara Port", response.parsed_body["data"]["port_name"]
