@@ -123,6 +123,8 @@ Rails.application.routes.draw do
               get :tab_counts
             end
             member do
+              get :port_out_approval
+              get :port_in_approval
               post :approve_port_out
               post :request_amendment_port_out
               post :approve_port_in
