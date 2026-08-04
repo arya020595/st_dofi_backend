@@ -6,7 +6,9 @@ module Api
           include RansackSearchable
           include ManifestApprovalTransitions
 
-          before_action :set_manifest, only: [:show, :update, *ManifestApprovalTransitions::TRANSITION_ACTIONS]
+          before_action :set_manifest,
+                        only: [:show, :update, :port_out_approval, :port_in_approval,
+                               *ManifestApprovalTransitions::TRANSITION_ACTIONS]
 
           def index
             authorize Manifest
@@ -24,6 +26,16 @@ module Api
           def show
             authorize @manifest
             render json: { status: "success", data: ManifestDetailBlueprint.render_as_hash(@manifest) }
+          end
+
+          def port_out_approval
+            authorize @manifest, :show?
+            render_approval_histories("port_out_status")
+          end
+
+          def port_in_approval
+            authorize @manifest, :show?
+            render_approval_histories("port_in_status")
           end
 
           def update
@@ -51,6 +63,52 @@ module Api
                                      { crew_ids: [],
                                        ad_hoc_crew: [%i[crew_name ic_number passport_number
                                                         position nationality date_of_birth]] }])
+          end
+
+          def render_approval_histories(status_type)
+            render json: {
+              status: "success",
+              data: {
+                manifest_id: @manifest.id,
+                status_type: status_type,
+                current_status: current_status_for(status_type),
+                histories: approval_histories_for(status_type).map { |history| approval_history_payload(history) }
+              }
+            }
+          end
+
+          def current_status_for(status_type)
+            case status_type
+            when "port_out_status" then @manifest.port_out_status
+            when "port_in_status" then @manifest.port_in_status
+            end
+          end
+
+          def approval_history_payload(history)
+            history.slice("id", "action", "status_type", "from_state", "to_state", "remarks", "changed_by_id",
+                          "created_at")
+                   .symbolize_keys
+                   .merge(changed_by: approval_history_actor_payload(history.changed_by))
+          end
+
+          def approval_history_actor_payload(user)
+            return nil unless user
+
+            {
+              id: user.id,
+              name: user.name,
+              email: user.email,
+              username: user.username,
+              unit: user.unit,
+              position: user.position
+            }
+          end
+
+          def approval_histories_for(status_type)
+            @manifest.manifest_histories
+                     .includes(:changed_by)
+                     .where(status_type: status_type, to_state: "approved")
+                     .order(created_at: :desc)
           end
         end
       end

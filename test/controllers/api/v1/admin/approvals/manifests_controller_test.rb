@@ -3,6 +3,7 @@ require "test_helper"
 module Api
   module V1
     module Approvals
+      # rubocop:disable Metrics/ClassLength
       class ManifestsControllerTest < ActionDispatch::IntegrationTest
         setup do
           @password = "Password123!"
@@ -118,7 +119,60 @@ module Api
           assert_response :ok
           assert_equal "amendment_required", manifest.reload.port_out_status
         end
+
+        test "port_out_approval returns the manifest port-out histories with actor details" do
+          manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
+          manifest.submit_port_out!
+          post "/api/v1/admin/approvals/manifests/#{manifest.id}/approve_port_out", headers: @jetty_headers
+
+          get "/api/v1/admin/approvals/manifests/#{manifest.id}/port_out_approval", headers: @jetty_headers
+
+          assert_response :ok
+          assert_approval_payload(manifest.id, "port_out_status", "approve_port_out!", @jetty_manager.name)
+        end
+
+        test "port_in_approval returns the manifest port-in histories with actor details" do
+          manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel,
+                                       capture_report_skipped: true)
+          manifest.submit_port_out!
+          manifest.approve_port_out!(actor: @jetty_manager)
+          manifest.submit_port_in!
+          manifest.approve_port_in!(actor: @jetty_manager)
+
+          get "/api/v1/admin/approvals/manifests/#{manifest.id}/port_in_approval", headers: @jetty_headers
+
+          assert_response :ok
+          assert_approval_payload(manifest.id, "port_in_status", "approve_port_in!", @jetty_manager.name)
+        end
+
+        private
+
+        def approval_data
+          response.parsed_body["data"]
+        end
+
+        # rubocop:disable Metrics/AbcSize
+        def assert_approval_payload(manifest_id, status_type, action, approver_name)
+          data = approval_data
+          history = data["histories"].find { |item| item["action"] == action }
+
+          assert_equal manifest_id, data["manifest_id"]
+          assert_equal status_type, data["status_type"]
+          assert_equal "approved", data["current_status"]
+          assert_equal 1, data["histories"].size
+          assert_histories_approved(data["histories"])
+          assert_not_nil history
+          assert_equal approver_name, history.dig("changed_by", "name")
+        end
+        # rubocop:enable Metrics/AbcSize
+
+        def assert_histories_approved(histories)
+          approved_only = histories.all? { |history| history["to_state"] == "approved" }
+
+          assert approved_only
+        end
       end
+      # rubocop:enable Metrics/ClassLength
     end
   end
 end

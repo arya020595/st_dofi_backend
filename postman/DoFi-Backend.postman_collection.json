@@ -9846,6 +9846,62 @@
               }
             }
           ]
+        },
+        {
+          "name": "Get Port Out Approval",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/approvals/manifests/{{manifest_id}}/port_out_approval",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "approvals",
+                "manifests",
+                "{{manifest_id}}",
+                "port_out_approval"
+              ]
+            },
+            "description": "Returns only the approved port-out history (`status_type = port_out_status` and `to_state = approved`) for the given manifest, including the admin/jetty-manager user who performed the approval."
+          }
+        },
+        {
+          "name": "Get Port In Approval",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/approvals/manifests/{{manifest_id}}/port_in_approval",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "approvals",
+                "manifests",
+                "{{manifest_id}}",
+                "port_in_approval"
+              ]
+            },
+            "description": "Returns only the approved port-in history (`status_type = port_in_status` and `to_state = approved`) for the given manifest, including the admin/jetty-manager user who performed the approval."
+          }
         }
       ]
     },
