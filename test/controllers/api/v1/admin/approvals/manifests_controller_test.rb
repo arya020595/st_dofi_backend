@@ -168,6 +168,7 @@ module Api
 
         def assert_histories_approved(histories)
           approved_only = histories.all? { |history| history["to_state"] == "approved" }
+
           assert approved_only
         end
       end
