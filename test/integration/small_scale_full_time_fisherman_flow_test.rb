@@ -103,7 +103,8 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
     assert_response :created
     capture_report_id = response.parsed_body.dig("data", "id")
 
-    # 10. Port-in: small-scale again skips Jetty approval, advancing straight to capture-report-submitted.
+    # 10. Port-in: small-scale again skips Jetty approval, but capture verification still needs to
+    # complete before the manifest closes.
     post "/api/v1/fisherman/manifests/#{manifest_id}/submit_port_in", headers: fisherman_headers
 
     assert_response :ok
@@ -112,7 +113,7 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
     assert_equal %w[submitted capture_report_submitted], [data["port_in_status"], data["manifest_status"]]
 
     # 11. DoFi Officer verifies the capture report — the manifest auto-completes once every report
-    # on it is verified.
+    # on it is verified, with no separate Jetty port-in approval for small-scale.
     post "/api/v1/admin/manifests/#{manifest_id}/capture_reports/#{capture_report_id}/verify", headers: @officer_headers
 
     assert_response :ok

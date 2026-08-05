@@ -36,7 +36,7 @@ class CaptureReportTest < ActiveSupport::TestCase
 
     report.resubmit!
 
-    assert_equal "pending_verification", report.capture_report_status
+    assert_resubmitted_report(report)
   end
 
   test "verify! records a manifest_histories row on the parent manifest" do
@@ -52,14 +52,13 @@ class CaptureReportTest < ActiveSupport::TestCase
                  [history.status_type, history.from_state, history.to_state]
   end
 
-  test "verify! completes the manifest only once ALL of its capture reports are verified" do
+  test "verify! moves the manifest to awaiting_port_in_approval only once ALL reports are verified" do
     manifest = create(:manifest, fisherman_category: "commercial")
     manifest.submit_port_out!
     manifest.approve_port_out!
     report_one = create(:capture_report, manifest: manifest)
     report_two = create(:capture_report, manifest: manifest)
     manifest.submit_port_in!
-    manifest.approve_port_in!
 
     report_one.verify!
 
@@ -67,7 +66,16 @@ class CaptureReportTest < ActiveSupport::TestCase
 
     report_two.verify!
 
-    assert_equal "completed", manifest.reload.manifest_status
+    assert_equal "awaiting_port_in_approval", manifest.reload.manifest_status
+  end
+
+  private
+
+  def assert_resubmitted_report(report)
+    assert_equal "pending_verification", report.capture_report_status
+    assert_nil report.capture_report_remarks
+    assert_nil report.reviewed_by_id
+    assert_nil report.reviewed_at
   end
 end
 

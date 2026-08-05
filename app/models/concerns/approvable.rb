@@ -35,15 +35,15 @@ module Approvable
 
   private
 
-  def stamp_approval(actor: nil, **)
+  def stamp_approval(*, actor: nil, **)
     update!(approved_by_id: actor&.id, approved_at: Time.current)
   end
 
-  def stamp_amendment(remarks: nil, **)
+  def stamp_amendment(*, remarks: nil, **)
     update!(approved_by_id: nil, approved_at: nil, amendment_remarks: remarks)
   end
 
-  def clear_amendment(**)
+  def clear_amendment(*, **)
     update!(approved_by_id: nil, approved_at: nil, amendment_remarks: nil)
   end
 end

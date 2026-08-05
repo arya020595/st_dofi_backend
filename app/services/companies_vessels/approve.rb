@@ -7,8 +7,23 @@ module CompaniesVessels
     def call(vessel, actor:)
       return Failure(vessel) unless vessel.may_approve?
 
-      vessel.approve!(actor: actor)
+      ActiveRecord::Base.transaction do
+        vessel.approve!(actor: actor)
+        approve_fishing_gears!(vessel, actor)
+      end
+
       Success(vessel)
+    end
+
+    private
+
+    def approve_fishing_gears!(vessel, actor)
+      vessel.companies_fishing_gears.kept.find_each do |gear|
+        next if gear.approved?
+
+        gear.resubmit!(actor: actor) if gear.may_resubmit?
+        gear.approve!(actor: actor) if gear.may_approve?
+      end
     end
   end
 end

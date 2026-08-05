@@ -1,40 +1,50 @@
 require "test_helper"
 
 class ManifestCompletionTest < ActiveSupport::TestCase
-  test "port-in approval lands on capture_report_submitted while a report is still pending verification" do
+  test "submit_port_in lands on capture_report_submitted while a report is still pending verification" do
     manifest = create(:manifest, fisherman_category: "commercial")
     manifest.submit_port_out!
     manifest.approve_port_out!
     create(:capture_report, manifest: manifest)
 
     manifest.submit_port_in!
-    manifest.approve_port_in!
 
-    assert_equal "approved", manifest.port_in_status
+    assert_equal "pending", manifest.port_in_status
     assert_equal "capture_report_submitted", manifest.manifest_status
   end
 
-  test "manifest auto-completes once every capture report is verified" do
+  test "manifest moves to awaiting_port_in_approval once every capture report is verified" do
     manifest = create(:manifest, fisherman_category: "commercial")
     manifest.submit_port_out!
     manifest.approve_port_out!
     report = create(:capture_report, manifest: manifest)
 
     manifest.submit_port_in!
-    manifest.approve_port_in!
     report.verify!
+
+    assert_equal "awaiting_port_in_approval", manifest.reload.manifest_status
+  end
+
+  test "approve_port_in completes the manifest once capture reports are verified" do
+    manifest = create(:manifest, fisherman_category: "commercial")
+    manifest.submit_port_out!
+    manifest.approve_port_out!
+    report = create(:capture_report, manifest: manifest)
+
+    manifest.submit_port_in!
+    report.verify!
+    manifest.approve_port_in!
 
     assert_equal "completed", manifest.reload.manifest_status
   end
 
-  test "skipped manifest auto-completes immediately once port-in is approved, with no capture report" do
+  test "skipped manifest auto-completes on submit_port_in!, with no capture report" do
     manifest = create(:manifest, fisherman_category: "commercial")
     manifest.submit_port_out!
     manifest.approve_port_out!
     manifest.update!(capture_report_skipped: true)
 
     manifest.submit_port_in!
-    manifest.approve_port_in!
 
     assert_equal "completed", manifest.manifest_status
   end

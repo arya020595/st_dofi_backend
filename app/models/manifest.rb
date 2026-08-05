@@ -88,11 +88,11 @@ class Manifest < ApplicationRecord
 
     event :submit_port_in do
       transitions from: :draft, to: :pending,   guard: %i[commercial? capture_report_ready?],
-                  after: :begin_port_in_review!
+                  after: :complete_capture_report!
       transitions from: :draft, to: :submitted, guard: %i[small_scale? capture_report_ready?],
                   after: :complete_capture_report!
     end
-    event(:approve_port_in)           { transitions from: :pending, to: :approved, after: :complete_capture_report! }
+    event(:approve_port_in)           { transitions from: :pending, to: :approved, after: :complete_manifest! }
     event(:request_amendment_port_in) { transitions from: :pending, to: :amendment_required }
     event(:resubmit_port_in)          { transitions from: :amendment_required, to: :pending }
 
@@ -114,7 +114,7 @@ class Manifest < ApplicationRecord
 
     event(:begin_port_out_review)   { transitions from: :draft, to: :awaiting_port_out_approval }
     event(:advance_to_sea)          { transitions from: %i[draft awaiting_port_out_approval], to: :at_sea }
-    event(:begin_port_in_review)    { transitions from: :at_sea, to: :awaiting_port_in_approval }
+    event(:begin_port_in_review)    { transitions from: :capture_report_submitted, to: :awaiting_port_in_approval }
     # success: (not after:) — auto_complete_if_skipped! checks this same machine's current_state,
     # which after: callbacks see pre-transition (state is written only once event.fire returns, see
     # AASM::InstanceBase#aasm_fired). success: fires post-write via fire_transition_callbacks.
@@ -122,7 +122,9 @@ class Manifest < ApplicationRecord
       transitions from: %i[at_sea awaiting_port_in_approval], to: :capture_report_submitted,
                   success: :auto_complete_if_skipped!
     end
-    event(:complete_manifest) { transitions from: :capture_report_submitted, to: :completed }
+    event(:complete_manifest) do
+      transitions from: %i[capture_report_submitted awaiting_port_in_approval], to: :completed
+    end
 
     after_all_transitions :record_manifest_history
   end

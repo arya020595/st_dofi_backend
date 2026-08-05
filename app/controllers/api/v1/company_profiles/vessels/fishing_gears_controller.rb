@@ -49,7 +49,7 @@ module Api
           def destroy
             authorize @fishing_gear
 
-            if @fishing_gear.discard
+            if discard_fishing_gear?
               render json: { status: "success", message: "Fishing gear removed." }
             else
               render json: { status: "fail", errors: @fishing_gear.errors.full_messages },
@@ -73,6 +73,16 @@ module Api
 
           def fishing_gear_params
             params.expect(fishing_gear: %i[fishing_gear_id local_name quantity usage_value])
+          end
+
+          def discard_fishing_gear?
+            ActiveRecord::Base.transaction do
+              return false unless @fishing_gear.discard
+
+              @vessel.revert_to_pending_for_edit!
+            end
+
+            true
           end
         end
       end
