@@ -48,6 +48,12 @@ Layout/LineLength:
   Max: 120
   Exclude:
     - "config/initializers/devise.rb"
+    # Annotate-generated schema comment for a partial unique index (name + composite columns + WHERE
+    # clause) is longer than 120 chars and can't be shortened without diverging from what `annotaterb`
+    # regenerates on every run.
+    - "app/models/companies_document.rb"
+    - "test/factories/companies_documents.rb"
+    - "test/models/companies_document_test.rb"
 
 # Integration tests assert against a sequential, dependent multi-step HTTP flow (e.g. register ->
 # approve -> login -> create vessel -> ... -> complete) where each step's assertions depend on the
