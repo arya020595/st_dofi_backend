@@ -33,7 +33,7 @@ class CaptureReport < ApplicationRecord
       transitions from: :pending_verification, to: :verified, success: :stamp_review_and_maybe_complete!
     end
     event(:request_amendment) { transitions from: :pending_verification, to: :needs_amendment, after: :stamp_review! }
-    event(:resubmit) { transitions from: :needs_amendment, to: :pending_verification }
+    event(:resubmit) { transitions from: :needs_amendment, to: :pending_verification, after: :clear_review! }
 
     after_all_transitions :record_catch_history
   end
@@ -44,14 +44,31 @@ class CaptureReport < ApplicationRecord
     record_history!("capture_report_status", actor: actor, remarks: remarks)
   end
 
-  def stamp_review!(actor: nil, remarks: nil, **)
+  def stamp_review!(*, actor: nil, remarks: nil, **)
     update!(reviewed_by_id: actor&.id, reviewed_at: Time.current, capture_report_remarks: remarks)
   end
 
-  def stamp_review_and_maybe_complete!(actor: nil, **)
+  def stamp_review_and_maybe_complete!(*, actor: nil, **)
     update!(reviewed_by_id: actor&.id, reviewed_at: Time.current)
-    return unless manifest.capture_reports.all?(&:verified?) && manifest.may_complete_manifest?
+    advance_manifest_after_verification!(actor: actor) if manifest.capture_reports.all?(&:verified?)
+  end
 
+  def clear_review!(*, **)
+    update!(reviewed_by_id: nil, reviewed_at: nil, capture_report_remarks: nil)
+  end
+
+  def advance_manifest_after_verification!(actor:)
+    return complete_small_scale_manifest!(actor: actor) if complete_small_scale_manifest?(manifest)
+    return unless manifest.may_begin_port_in_review?
+
+    manifest.begin_port_in_review!(actor: actor)
+  end
+
+  def complete_small_scale_manifest?(manifest)
+    manifest.small_scale? && manifest.may_complete_manifest?
+  end
+
+  def complete_small_scale_manifest!(actor:)
     manifest.complete_manifest!(actor: actor)
   end
 end

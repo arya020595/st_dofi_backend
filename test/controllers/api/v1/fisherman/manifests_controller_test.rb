@@ -60,6 +60,20 @@ module Api
           assert response.parsed_body.dig("data", "is_draft")
         end
 
+        test "show includes changed_by details in manifest_histories" do
+          reviewer = create(:user, role: create(:role, kind: Role::JETTY_MANAGER, name: "Jetty Reviewer"),
+                                   unit: "Lumut Port", position: "Jetty Supervisor", username: "jetty.manager",
+                                   ic_number: "01-900001", contact_no: "81111111")
+          manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
+          manifest.submit_port_out!
+          manifest.approve_port_out!(actor: reviewer)
+
+          get "/api/v1/fisherman/manifests/#{manifest.id}", headers: @fisherman_headers
+
+          assert_response :ok
+          assert_review_history(reviewer)
+        end
+
         test "create builds a draft manifest snapshotting the approved vessel" do
           params = { manifest: { companies_vessel_id: @vessel.id } }
 
@@ -180,6 +194,73 @@ module Api
 
           assert_response :ok
           assert_equal "pending", manifest.reload.port_in_status
+          assert_equal "completed", manifest.reload.manifest_status
+        end
+
+        test "submit_port_in resets all capture reports to pending_verification" do
+          manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
+          manifest.submit_port_out!
+          manifest.approve_port_out!
+          first_report = create(:capture_report, manifest: manifest)
+          second_report = create(:capture_report, manifest: manifest)
+          first_report.request_amendment!(remarks: "Fix gear")
+          second_report.verify!(actor: create(:user))
+
+          post "/api/v1/fisherman/manifests/#{manifest.id}/submit_port_in", headers: @fisherman_headers
+
+          assert_response :ok
+          assert_equal %w[pending_verification pending_verification],
+                       [first_report.reload.capture_report_status, second_report.reload.capture_report_status]
+        end
+
+        test "resubmit_port_in resets amended capture reports back to pending_verification" do
+          manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
+          manifest.submit_port_out!
+          manifest.approve_port_out!
+          first_report = create(:capture_report, manifest: manifest)
+          second_report = create(:capture_report, manifest: manifest)
+          manifest.submit_port_in!
+          first_report.request_amendment!(remarks: "Fix catch", actor: create(:user))
+          second_report.request_amendment!(remarks: "Fix zone", actor: create(:user))
+
+          post "/api/v1/fisherman/manifests/#{manifest.id}/resubmit_port_in", headers: @fisherman_headers
+
+          assert_response :ok
+          assert_equal %w[pending_verification pending_verification],
+                       [first_report.reload.capture_report_status, second_report.reload.capture_report_status]
+        end
+
+        test "update allows a fisherman to fill port-in details while the manifest is at sea" do
+          manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
+          manifest.submit_port_out!
+          manifest.approve_port_out!
+          port = create(:port, port_name: "Lumut Port")
+
+          patch "/api/v1/fisherman/manifests/#{manifest.id}",
+                params: { manifest: { port_in_id: port.id,
+                                      port_in_area: "Lumut Port",
+                                      port_in_datetime: "2026-08-05T00:11:00.000Z" } },
+                headers: @fisherman_headers, as: :json
+
+          assert_response :ok
+          assert_equal [port.id, "Lumut Port"],
+                       manifest.reload.values_at(:port_in_id, :port_in_area)
+        end
+
+        test "update allows manifest changes while a capture report amendment is outstanding" do
+          manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
+          manifest.submit_port_out!
+          manifest.approve_port_out!
+          report = create(:capture_report, manifest: manifest)
+          manifest.submit_port_in!
+          report.request_amendment!(remarks: "Fix capture detail", actor: create(:user))
+
+          patch "/api/v1/fisherman/manifests/#{manifest.id}",
+                params: { manifest: { port_in_area: "Muara Port" } },
+                headers: @fisherman_headers, as: :json
+
+          assert_response :ok
+          assert_equal "Muara Port", manifest.reload.port_in_area
         end
 
         test "tab_counts buckets manifests into port_out, capture_report_and_port_in, and complete" do
@@ -206,6 +287,34 @@ module Api
 
           assert_equal manifest.id, data.dig("manifest", "id")
           assert_equal %w[dictionaries skip_reasons zones], %w[dictionaries skip_reasons zones] & data.keys
+        end
+
+        private
+
+        def assert_review_history(reviewer)
+          history = review_history
+
+          assert_history_identity(reviewer, history)
+          assert_history_reviewer_profile(reviewer, history)
+        end
+
+        def review_history
+          response.parsed_body["data"]["manifest_histories"].find do |item|
+            item["status_type"] == "port_out_status" && item["to_state"] == "approved"
+          end
+        end
+
+        def assert_history_identity(reviewer, history)
+          assert_not_nil history
+          assert_equal reviewer.id, history["changed_by_id"]
+          assert_equal reviewer.id, history.dig("changed_by", "id")
+          assert_equal reviewer.name, history.dig("changed_by", "name")
+        end
+
+        def assert_history_reviewer_profile(reviewer, history)
+          assert_equal reviewer.username, history.dig("changed_by", "username")
+          assert_equal reviewer.unit, history.dig("changed_by", "unit")
+          assert_equal reviewer.position, history.dig("changed_by", "position")
         end
       end
     end

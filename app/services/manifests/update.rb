@@ -1,11 +1,13 @@
 module Manifests
   class Update
+    PORT_IN_FIELDS = %w[port_in_id port_in_datetime port_in_area].freeze
+
     include Dry::Monads[:result]
 
     def self.call(...) = new.call(...)
 
     def call(manifest, attributes, company_profile: nil)
-      return Failure(manifest) unless manifest.editable?
+      return Failure(not_editable(manifest)) unless editable_for_update?(manifest, attributes)
 
       ActiveRecord::Base.transaction do
         manifest.update!(attributes_for_update(manifest, attributes, company_profile))
@@ -19,6 +21,29 @@ module Manifests
     end
 
     private
+
+    def editable_for_update?(manifest, attributes)
+      manifest.editable? ||
+        port_in_draft_update?(manifest, attributes) ||
+        capture_report_amendment_update?(manifest)
+    end
+
+    def port_in_draft_update?(manifest, attributes)
+      attribute_keys = attributes.keys.map(&:to_s)
+
+      manifest.at_sea? &&
+        manifest.port_in_draft? &&
+        attribute_keys.all? { |key| PORT_IN_FIELDS.include?(key) }
+    end
+
+    def capture_report_amendment_update?(manifest)
+      manifest.capture_report_submitted? && manifest.capture_reports.any?(&:needs_amendment?)
+    end
+
+    def not_editable(manifest)
+      manifest.errors.add(:base, "Manifest is not editable")
+      manifest
+    end
 
     def attributes_for_update(manifest, attributes, company_profile)
       update_attributes = attributes.except(:crew_ids, :ad_hoc_crew)
