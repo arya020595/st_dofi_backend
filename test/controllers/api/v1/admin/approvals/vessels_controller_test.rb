@@ -41,6 +41,22 @@ module Api
           assert_equal "approved", @vessel.reload.approval_status
         end
 
+        test "approve also approves the vessel's fishing gears" do
+          pending_gear = create(:companies_fishing_gear,
+                                company_profile: @vessel.company_profile,
+                                companies_vessel: @vessel)
+          amended_gear = create(:companies_fishing_gear,
+                                company_profile: @vessel.company_profile,
+                                companies_vessel: @vessel)
+          amended_gear.request_amendment!(remarks: "Fix quantity")
+
+          post "/api/v1/admin/approvals/vessels/#{@vessel.id}/approve", headers: @admin_headers
+
+          assert_response :ok
+          assert_equal "approved", pending_gear.reload.approval_status
+          assert_equal "approved", amended_gear.reload.approval_status
+        end
+
         test "approve without permission is forbidden" do
           post "/api/v1/admin/approvals/vessels/#{@vessel.id}/approve", headers: @plain_headers
 

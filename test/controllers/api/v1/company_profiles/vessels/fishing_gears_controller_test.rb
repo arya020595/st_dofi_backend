@@ -42,6 +42,7 @@ module Api
           end
 
           test "create links the vessel to a master fishing gear, pending approval" do
+            @vessel.approve!
             params = { fishing_gear: { fishing_gear_id: @fishing_gear.id, local_name: "Pukat Tarik", quantity: 3,
                                        usage_value: 50 } }
 
@@ -51,13 +52,24 @@ module Api
             end
 
             assert_response :created
-            data = response.parsed_body["data"]
+            assert_created_fishing_gear_response
+          end
 
-            assert_equal ["pending", @fishing_gear.id, @vessel.id],
-                         [data["approval_status"], data["fishing_gear_id"], data["companies_vessel_id"]]
+          test "update reverts the vessel approval back to pending" do
+            @vessel.approve!
+            gear = create(:companies_fishing_gear, :approved,
+                          company_profile: @company_profile,
+                          companies_vessel: @vessel)
+
+            patch fishing_gear_path(gear),
+                  params: { fishing_gear: { quantity: 7 } }, headers: @admin_headers, as: :json
+
+            assert_response :ok
+            assert_equal "pending", @vessel.reload.approval_status
           end
 
           test "destroy soft-deletes the vessel's fishing gear link" do
+            @vessel.approve!
             gear = create(:companies_fishing_gear, company_profile: @company_profile, companies_vessel: @vessel)
 
             delete "/api/v1/admin/company_profiles/#{@company_profile.id}/vessels/#{@vessel.id}" \
@@ -65,6 +77,22 @@ module Api
 
             assert_response :ok
             assert_predicate gear.reload, :discarded?
+            assert_equal "pending", @vessel.reload.approval_status
+          end
+
+          private
+
+          def assert_created_fishing_gear_response
+            data = response.parsed_body["data"]
+
+            assert_equal ["pending", @fishing_gear.id, @vessel.id],
+                         [data["approval_status"], data["fishing_gear_id"], data["companies_vessel_id"]]
+
+            assert_equal "pending", @vessel.reload.approval_status
+          end
+
+          def fishing_gear_path(gear)
+            "/api/v1/admin/company_profiles/#{@company_profile.id}/vessels/#{@vessel.id}/fishing_gears/#{gear.id}"
           end
         end
       end

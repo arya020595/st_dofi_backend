@@ -5,9 +5,13 @@ module CompaniesFishingGears
     def self.call(...) = new.call(...)
 
     def call(gear, attributes)
-      return Failure(gear) unless gear.update(attributes)
+      ActiveRecord::Base.transaction do
+        return Failure(gear) unless gear.update(attributes)
 
-      gear.revert_to_pending_for_edit!
+        gear.revert_to_pending_for_edit!
+        gear.companies_vessel.revert_to_pending_for_edit!
+      end
+
       Success(gear)
     end
   end
