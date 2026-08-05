@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_31_110002) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_05_013713) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -101,15 +101,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_31_110002) do
     t.string "crew_name", null: false
     t.date "date_of_birth"
     t.datetime "discarded_at"
+    t.date "foreign_worker_license_end_date"
+    t.string "foreign_worker_license_no"
+    t.date "foreign_worker_license_start_date"
+    t.string "gender"
     t.string "ic_number"
     t.string "nationality"
     t.string "passport_number"
     t.string "position"
+    t.string "status", default: "active", null: false
     t.datetime "updated_at", null: false
     t.index ["approval_status"], name: "index_companies_crews_on_approval_status"
     t.index ["approved_by_id"], name: "index_companies_crews_on_approved_by_id"
     t.index ["company_profile_id"], name: "index_companies_crews_on_company_profile_id"
     t.index ["discarded_at"], name: "index_companies_crews_on_discarded_at"
+    t.index ["status"], name: "index_companies_crews_on_status"
   end
 
   create_table "companies_documents", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

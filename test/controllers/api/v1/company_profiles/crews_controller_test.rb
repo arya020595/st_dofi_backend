@@ -34,7 +34,11 @@ module Api
         end
 
         test "create adds a pending crew member under the company" do
-          params = { crew: { crew_name: "Haji Muhammad Afiq", nationality: "Bruneian", position: "Crew Staff" } }
+          params = { crew: { crew_name: "Haji Muhammad Afiq", nationality: "Bruneian", position: "Crew Staff",
+                             date_of_birth: "1995-01-01", ic_number: "00123456", gender: "Male",
+                             foreign_worker_license_no: "FWL000123",
+                             foreign_worker_license_start_date: "2026-01-01",
+                             foreign_worker_license_end_date: "2027-01-01" } }
 
           assert_difference("CompaniesCrew.count", 1) do
             post "/api/v1/admin/company_profiles/#{@company_profile.id}/crews", params: params,
@@ -42,7 +46,39 @@ module Api
           end
 
           assert_response :created
-          assert_equal "pending", response.parsed_body.dig("data", "approval_status")
+          assert_equal({ "approval_status" => "pending", "status" => "active" },
+                       response.parsed_body["data"].slice("approval_status", "status"))
+        end
+
+        test "create fails without the required fields" do
+          params = { crew: { crew_name: "Incomplete Crew" } }
+
+          assert_no_difference("CompaniesCrew.count") do
+            post "/api/v1/admin/company_profiles/#{@company_profile.id}/crews", params: params,
+                                                                                headers: @admin_headers, as: :json
+          end
+
+          assert_response :unprocessable_content
+        end
+
+        test "update changes crew details and reverts to pending" do
+          crew = create(:companies_crew, :approved, company_profile: @company_profile)
+
+          patch "/api/v1/admin/company_profiles/#{@company_profile.id}/crews/#{crew.id}",
+                params: { crew: { status: "non_active" } }, headers: @admin_headers, as: :json
+
+          assert_response :ok
+          assert_equal "non_active", crew.reload.status
+          assert_equal "pending", crew.approval_status
+        end
+
+        test "update fails when clearing a required field" do
+          crew = create(:companies_crew, company_profile: @company_profile)
+
+          patch "/api/v1/admin/company_profiles/#{@company_profile.id}/crews/#{crew.id}",
+                params: { crew: { gender: "" } }, headers: @admin_headers, as: :json
+
+          assert_response :unprocessable_content
         end
 
         test "destroy soft-deletes the crew member" do
