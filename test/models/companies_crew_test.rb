@@ -64,12 +64,12 @@ end
 #  ic_number                         :string
 #  nationality                       :string
 #  passport_number                   :string
-#  position                          :string
 #  status                            :string           default("active"), not null
 #  created_at                        :datetime         not null
 #  updated_at                        :datetime         not null
 #  approved_by_id                    :uuid
 #  company_profile_id                :uuid             not null
+#  position_id                       :uuid
 #
 # Indexes
 #
@@ -77,10 +77,12 @@ end
 #  index_companies_crews_on_approved_by_id      (approved_by_id)
 #  index_companies_crews_on_company_profile_id  (company_profile_id)
 #  index_companies_crews_on_discarded_at        (discarded_at)
+#  index_companies_crews_on_position_id         (position_id)
 #  index_companies_crews_on_status              (status)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (approved_by_id => users.id)
 #  fk_rails_...  (company_profile_id => company_profiles.id)
+#  fk_rails_...  (position_id => positions.id)
 #

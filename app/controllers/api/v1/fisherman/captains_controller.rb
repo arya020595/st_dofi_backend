@@ -6,17 +6,19 @@ module Api
 
         def index
           authorize Manifest, :create?
-          result = apply_ransack_search(manifest_captains, default_sort: "captain_name asc")
+          result = apply_ransack_search(manifest_captains, default_sort: "crew_name asc")
           pagy, records = pagy(:offset, result)
 
-          render json: { status: "success", data: CompaniesCaptainBlueprint.render_as_hash(records),
+          render json: { status: "success", data: CompaniesCrewBlueprint.render_as_hash(records),
                          meta: pagination_meta(pagy) }
         end
 
         private
 
         def manifest_captains
-          CompaniesCaptain.kept.where(company_profile_id: current_user.company_profile_id, approval_status: "approved")
+          CompaniesCrew.kept.joins(:position)
+                       .where(company_profile_id: current_user.company_profile_id, approval_status: "approved")
+                       .where(positions: { name: "Boat Captain" })
         end
       end
     end

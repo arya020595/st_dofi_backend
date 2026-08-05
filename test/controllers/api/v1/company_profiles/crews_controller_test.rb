@@ -34,7 +34,8 @@ module Api
         end
 
         test "create adds a pending crew member under the company" do
-          params = { crew: { crew_name: "Haji Muhammad Afiq", nationality: "Bruneian", position: "Crew Staff",
+          position = create(:position)
+          params = { crew: { crew_name: "Haji Muhammad Afiq", nationality: "Bruneian", position_id: position.id,
                              date_of_birth: "1995-01-01", ic_number: "00123456", gender: "Male",
                              foreign_worker_license_no: "FWL000123",
                              foreign_worker_license_start_date: "2026-01-01",

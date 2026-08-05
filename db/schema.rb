@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_05_042642) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_05_080015) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -71,26 +71,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_05_042642) do
     t.index ["zone_id"], name: "index_capture_reports_on_zone_id"
   end
 
-  create_table "companies_captains", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.text "amendment_remarks"
-    t.string "approval_status", default: "pending", null: false
-    t.datetime "approved_at"
-    t.uuid "approved_by_id"
-    t.string "captain_name", null: false
-    t.uuid "company_profile_id", null: false
-    t.datetime "created_at", null: false
-    t.date "date_of_birth"
-    t.datetime "discarded_at"
-    t.string "ic_number"
-    t.string "nationality"
-    t.string "passport_number"
-    t.datetime "updated_at", null: false
-    t.index ["approval_status"], name: "index_companies_captains_on_approval_status"
-    t.index ["approved_by_id"], name: "index_companies_captains_on_approved_by_id"
-    t.index ["company_profile_id"], name: "index_companies_captains_on_company_profile_id"
-    t.index ["discarded_at"], name: "index_companies_captains_on_discarded_at"
-  end
-
   create_table "companies_crews", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.text "amendment_remarks"
     t.string "approval_status", default: "pending", null: false
@@ -108,13 +88,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_05_042642) do
     t.string "ic_number"
     t.string "nationality"
     t.string "passport_number"
-    t.string "position"
+    t.uuid "position_id"
     t.string "status", default: "active", null: false
     t.datetime "updated_at", null: false
     t.index ["approval_status"], name: "index_companies_crews_on_approval_status"
     t.index ["approved_by_id"], name: "index_companies_crews_on_approved_by_id"
     t.index ["company_profile_id"], name: "index_companies_crews_on_company_profile_id"
     t.index ["discarded_at"], name: "index_companies_crews_on_discarded_at"
+    t.index ["position_id"], name: "index_companies_crews_on_position_id"
     t.index ["status"], name: "index_companies_crews_on_status"
   end
 
@@ -366,10 +347,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_05_042642) do
 
   create_table "manifests", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.boolean "ais_tracking", default: false, null: false
+    t.uuid "captain_crew_id"
     t.string "captain_ic_number"
     t.string "captain_name"
     t.boolean "capture_report_skipped", default: false, null: false
-    t.uuid "companies_captain_id"
     t.uuid "companies_vessel_id", null: false
     t.string "company_name"
     t.uuid "company_profile_id", null: false
@@ -399,8 +380,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_05_042642) do
     t.string "vessel_boat_no"
     t.string "zone_area"
     t.uuid "zone_id"
+    t.index ["captain_crew_id"], name: "index_manifests_on_captain_crew_id"
     t.index ["capture_report_skipped"], name: "index_manifests_on_capture_report_skipped"
-    t.index ["companies_captain_id"], name: "index_manifests_on_companies_captain_id"
     t.index ["companies_vessel_id"], name: "index_manifests_on_companies_vessel_id"
     t.index ["company_profile_id"], name: "index_manifests_on_company_profile_id"
     t.index ["created_by_id"], name: "index_manifests_on_created_by_id"
@@ -533,9 +514,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_05_042642) do
   add_foreign_key "capture_reports", "manifests"
   add_foreign_key "capture_reports", "users", column: "reviewed_by_id"
   add_foreign_key "capture_reports", "zones"
-  add_foreign_key "companies_captains", "company_profiles"
-  add_foreign_key "companies_captains", "users", column: "approved_by_id"
   add_foreign_key "companies_crews", "company_profiles"
+  add_foreign_key "companies_crews", "positions"
   add_foreign_key "companies_crews", "users", column: "approved_by_id"
   add_foreign_key "companies_documents", "company_profiles"
   add_foreign_key "companies_documents", "users", column: "approved_by_id"
@@ -559,7 +539,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_05_042642) do
   add_foreign_key "manifest_histories", "manifests"
   add_foreign_key "manifest_histories", "users", column: "changed_by_id"
   add_foreign_key "manifest_minor_fishermen", "manifests"
-  add_foreign_key "manifests", "companies_captains"
+  add_foreign_key "manifests", "companies_crews", column: "captain_crew_id"
   add_foreign_key "manifests", "companies_vessels"
   add_foreign_key "manifests", "companies_vessels", column: "support_vessel_id"
   add_foreign_key "manifests", "company_profiles"

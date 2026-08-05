@@ -97,6 +97,31 @@ module Api
                        response.parsed_body["data"].values_at("ais_tracking", "has_support_vessel", "support_vessel_id")
         end
 
+        test "update sets and snapshots a Boat Captain crew member as captain" do
+          manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
+          boat_captain = create(:position, name: "Boat Captain")
+          captain = create(:companies_crew, :approved, company_profile: @company_profile, position: boat_captain)
+
+          patch "/api/v1/fisherman/manifests/#{manifest.id}",
+                params: { manifest: { captain_crew_id: captain.id } }, headers: @fisherman_headers, as: :json
+
+          assert_response :ok
+          data = response.parsed_body["data"]
+
+          assert_equal [captain.id, captain.crew_name, captain.ic_number],
+                       data.values_at("captain_crew_id", "captain_name", "captain_ic_number")
+        end
+
+        test "update rejects a crew member whose position is not Boat Captain" do
+          manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
+          deckhand = create(:companies_crew, :approved, company_profile: @company_profile)
+
+          patch "/api/v1/fisherman/manifests/#{manifest.id}",
+                params: { manifest: { captain_crew_id: deckhand.id } }, headers: @fisherman_headers, as: :json
+
+          assert_response :unprocessable_content
+        end
+
         test "create denies a vessel that is not yet approved" do
           pending_vessel = create(:companies_vessel, company_profile: @company_profile)
           params = { manifest: { companies_vessel_id: pending_vessel.id } }
@@ -111,6 +136,41 @@ module Api
           other_company = create(:company_profile)
           foreign_vessel = create(:companies_vessel, :approved, company_profile: other_company)
           params = { manifest: { companies_vessel_id: foreign_vessel.id } }
+
+          post "/api/v1/fisherman/manifests", params: params, headers: @fisherman_headers, as: :json
+
+          assert_response :unprocessable_content
+        end
+
+        test "create snapshots captain_name and captain_ic_number from an approved Boat Captain crew member" do
+          boat_captain = create(:position, name: "Boat Captain")
+          captain = create(:companies_crew, :approved, company_profile: @company_profile, position: boat_captain)
+          params = { manifest: { companies_vessel_id: @vessel.id, captain_crew_id: captain.id } }
+
+          post "/api/v1/fisherman/manifests", params: params, headers: @fisherman_headers, as: :json
+
+          assert_response :created
+          data = response.parsed_body["data"]
+
+          assert_equal [captain.id, captain.crew_name, captain.ic_number],
+                       data.values_at("captain_crew_id", "captain_name", "captain_ic_number")
+        end
+
+        test "create rejects a crew member whose position is not Boat Captain" do
+          deckhand = create(:companies_crew, :approved, company_profile: @company_profile)
+          params = { manifest: { companies_vessel_id: @vessel.id, captain_crew_id: deckhand.id } }
+
+          assert_no_difference("Manifest.count") do
+            post "/api/v1/fisherman/manifests", params: params, headers: @fisherman_headers, as: :json
+          end
+          assert_response :unprocessable_content
+        end
+
+        test "create rejects a Boat Captain crew member belonging to a different company" do
+          boat_captain = create(:position, name: "Boat Captain")
+          other_company = create(:company_profile)
+          foreign_captain = create(:companies_crew, :approved, company_profile: other_company, position: boat_captain)
+          params = { manifest: { companies_vessel_id: @vessel.id, captain_crew_id: foreign_captain.id } }
 
           post "/api/v1/fisherman/manifests", params: params, headers: @fisherman_headers, as: :json
 

@@ -19,7 +19,7 @@ module Manifests
     # Users::RegisterFisherman for the precedent of not trusting client input for identity/ownership.
     def call(attributes, company_profile:, actor:)
       manifest = build_manifest(attributes, company_profile, actor)
-      return Failure(manifest) unless vessel_valid?(manifest) && captain_valid?(manifest)
+      return Failure(manifest) unless vessel_valid?(manifest) && captain_valid?(manifest, attributes[:captain_crew_id])
 
       ActiveRecord::Base.transaction do
         manifest.save!
@@ -34,7 +34,7 @@ module Manifests
 
     def build_manifest(attributes, company_profile, actor)
       vessel = company_profile.companies_vessels.kept.find_by(id: attributes[:companies_vessel_id])
-      captain = find_captain(company_profile, attributes[:companies_captain_id])
+      captain = find_captain(company_profile, attributes[:captain_crew_id])
 
       Manifest.new(sanitized_attributes(attributes).merge(
                      manifest_number: next_manifest_number, created_by: actor, company_profile: company_profile,
@@ -45,13 +45,13 @@ module Manifests
     end
 
     def sanitized_attributes(attributes)
-      attributes.except(:crew_ids, :ad_hoc_crew, :companies_vessel_id, :companies_captain_id, :fisherman_category)
+      attributes.except(:crew_ids, :ad_hoc_crew, :companies_vessel_id, :captain_crew_id, :fisherman_category)
     end
 
-    def find_captain(company_profile, companies_captain_id)
-      return nil if companies_captain_id.blank?
+    def find_captain(company_profile, captain_crew_id)
+      return nil if captain_crew_id.blank?
 
-      company_profile.companies_captains.kept.find_by(id: companies_captain_id)
+      company_profile.companies_crews.kept.find_by(id: captain_crew_id)
     end
 
     def vessel_snapshot(vessel)
@@ -59,7 +59,7 @@ module Manifests
     end
 
     def captain_snapshot(captain)
-      { companies_captain: captain, captain_name: captain&.captain_name, captain_ic_number: captain&.ic_number }
+      { captain_crew: captain, captain_name: captain&.crew_name, captain_ic_number: captain&.ic_number }
     end
 
     def vessel_valid?(manifest)
@@ -69,11 +69,18 @@ module Manifests
       false
     end
 
-    def captain_valid?(manifest)
-      return true if manifest.companies_captain_id.blank? || manifest.companies_captain&.approved?
+    # Checked against the originally requested id, not manifest.captain_crew_id — find_captain scopes
+    # the lookup to this company, so a captain_crew_id for someone else's crew resolves to a nil
+    # association, which would otherwise be indistinguishable from "no captain requested at all".
+    def captain_valid?(manifest, requested_captain_crew_id)
+      return true if requested_captain_crew_id.blank? || boat_captain?(manifest.captain_crew)
 
-      manifest.errors.add(:companies_captain_id, "must reference an approved captain owned by this company")
+      manifest.errors.add(:captain_crew_id, "must reference an approved Boat Captain owned by this company")
       false
+    end
+
+    def boat_captain?(crew)
+      crew&.approved? && crew.position&.name == "Boat Captain"
     end
 
     def next_manifest_number

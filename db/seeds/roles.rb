@@ -26,12 +26,11 @@ ROLE_DEFINITIONS = {
       profiling.view profiling.create profiling.update
       zones.view zones.list
       fishing_gears.view fishing_gears.list
+      positions.view positions.list
       companies_vessels.view companies_vessels.list companies_vessels.create
       companies_vessels.update companies_vessels.delete
       companies_crews.view companies_crews.list companies_crews.create
       companies_crews.update companies_crews.delete
-      companies_captains.view companies_captains.list companies_captains.create
-      companies_captains.update companies_captains.delete
       companies_fishing_gears.view companies_fishing_gears.list companies_fishing_gears.create
       companies_fishing_gears.update companies_fishing_gears.delete
       companies_documents.view companies_documents.list companies_documents.create companies_documents.update

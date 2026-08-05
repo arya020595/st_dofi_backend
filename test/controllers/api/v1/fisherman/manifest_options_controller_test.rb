@@ -22,7 +22,6 @@ module Api
 
         {
           vessels: [CompaniesVessel, :companies_vessel, "vessel_name"],
-          captains: [CompaniesCaptain, :companies_captain, "captain_name"],
           crews: [CompaniesCrew, :companies_crew, "crew_name"]
         }.each do |endpoint, (_model, factory, name_field)|
           test "#{endpoint} require manifest create permission and return only this company's approved records" do
@@ -42,6 +41,29 @@ module Api
 
             assert_equal [approved.public_send(name_field)], data.pluck(name_field)
           end
+        end
+
+        # Captains aren't their own resource — they're CompaniesCrew rows filtered to the
+        # "Boat Captain" position, so this can't share the generic loop above (it also needs to
+        # exclude approved crew in the right company with the wrong position).
+        test "captains require manifest create permission and return only this company's approved Boat Captain crew" do
+          boat_captain = create(:position, name: "Boat Captain")
+          approved = create(:companies_crew, :approved, company_profile: @company_profile, position: boat_captain)
+          create(:companies_crew, company_profile: @company_profile, position: boat_captain)
+          create(:companies_crew, :approved, company_profile: @company_profile)
+          create(:companies_crew, :approved, position: boat_captain)
+
+          get "/api/v1/fisherman/captains", headers: @plain_headers
+
+          assert_response :forbidden
+
+          get "/api/v1/fisherman/captains", headers: @fisherman_headers
+
+          assert_response :ok
+
+          data = response.parsed_body.fetch("data")
+
+          assert_equal [approved.crew_name], data.pluck("crew_name")
         end
       end
     end
