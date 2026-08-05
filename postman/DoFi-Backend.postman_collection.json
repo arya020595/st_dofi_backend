@@ -136,6 +136,14 @@
       "type": "string"
     },
     {
+      "key": "crew_position_id",
+      "value": ""
+    },
+    {
+      "key": "fisherman_crew_position_id",
+      "value": ""
+    },
+    {
       "key": "fisherman_company_profile_id",
       "value": "",
       "type": "string"
@@ -4759,6 +4767,40 @@
           }
         },
         {
+          "name": "Setup - Get Crew Position",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/master_data/positions?q[name_eq]=Boat Captain&limit=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "master_data",
+                "positions?q[name_eq]=Boat Captain&limit=1"
+              ]
+            },
+            "description": "Looks up the seeded Crew-category \"Boat Captain\" position so Create Crew below can send a real `position_id` (position is now a `Position` association, not a free string — see `Master Data - Position`)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const positions = pm.response.json().data;",
+                  "if (positions.length > 0) { pm.collectionVariables.set('crew_position_id', positions[0].id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Create Crew",
           "request": {
             "method": "POST",
@@ -4788,14 +4830,14 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"crew\": {\n    \"crew_name\": \"Ahmad Faiz bin Salleh\",\n    \"date_of_birth\": \"1995-04-12\",\n    \"ic_number\": \"01123456\",\n    \"passport_number\": \"A98765432\",\n    \"position\": \"Deckhand\",\n    \"nationality\": \"Bruneian\",\n    \"gender\": \"Male\",\n    \"status\": \"active\",\n    \"foreign_worker_license_no\": \"FWL-2026-0001\",\n    \"foreign_worker_license_start_date\": \"2026-01-01\",\n    \"foreign_worker_license_end_date\": \"2027-01-01\"\n  }\n}",
+              "raw": "{\n  \"crew\": {\n    \"crew_name\": \"Ahmad Faiz bin Salleh\",\n    \"date_of_birth\": \"1995-04-12\",\n    \"ic_number\": \"01123456\",\n    \"passport_number\": \"A98765432\",\n    \"position_id\": \"{{crew_position_id}}\",\n    \"nationality\": \"Bruneian\",\n    \"gender\": \"Male\",\n    \"status\": \"active\",\n    \"foreign_worker_license_no\": \"FWL-2026-0001\",\n    \"foreign_worker_license_start_date\": \"2026-01-01\",\n    \"foreign_worker_license_end_date\": \"2027-01-01\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
             },
-            "description": "crew_name, date_of_birth, ic_number, nationality, position, gender, foreign_worker_license_no, foreign_worker_license_start_date, and foreign_worker_license_end_date are all required (passport_number is optional). status defaults to active if omitted and must be active or non_active if present. Always created with approval_status: pending, regardless of who creates it. Requires companies_crews.create."
+            "description": "crew_name, date_of_birth, ic_number, nationality, position_id, gender, foreign_worker_license_no, foreign_worker_license_start_date, and foreign_worker_license_end_date are all required (passport_number is optional). position_id must reference a Crew-category Position (see \"Setup - Get Crew Position\" above and Master Data - Position). status defaults to active if omitted and must be active or non_active if present. Always created with approval_status: pending, regardless of who creates it. Requires companies_crews.create."
           },
           "event": [
             {
@@ -4985,6 +5027,50 @@
               }
             },
             {
+              "name": "Setup - Get Crew Position (Fisherman)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/master_data/positions?q[name_eq]=Boat Captain&limit=1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "master_data",
+                    "positions?q[name_eq]=Boat Captain&limit=1"
+                  ]
+                },
+                "description": "Fisherman-namespace equivalent of \"Setup - Get Crew Position\" above (`GET /api/v1/fisherman/master_data/positions`) — looks up the seeded \"Boat Captain\" position so Create Crew (Fisherman) below can send a real `position_id`. Requires `positions.list`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "const positions = pm.response.json().data;",
+                      "if (positions.length > 0) { pm.collectionVariables.set('fisherman_crew_position_id', positions[0].id); }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
               "name": "Create Crew (Fisherman)",
               "request": {
                 "auth": {
@@ -5024,14 +5110,14 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"crew\": {\n    \"crew_name\": \"Zulkifli bin Ahmad\",\n    \"date_of_birth\": \"1997-08-20\",\n    \"ic_number\": \"01987654\",\n    \"position\": \"Deckhand\",\n    \"nationality\": \"Bruneian\",\n    \"gender\": \"Male\",\n    \"status\": \"active\",\n    \"foreign_worker_license_no\": \"FWL-2026-0002\",\n    \"foreign_worker_license_start_date\": \"2026-01-01\",\n    \"foreign_worker_license_end_date\": \"2027-01-01\"\n  }\n}",
+                  "raw": "{\n  \"crew\": {\n    \"crew_name\": \"Zulkifli bin Ahmad\",\n    \"date_of_birth\": \"1997-08-20\",\n    \"ic_number\": \"01987654\",\n    \"position_id\": \"{{fisherman_crew_position_id}}\",\n    \"nationality\": \"Bruneian\",\n    \"gender\": \"Male\",\n    \"status\": \"active\",\n    \"foreign_worker_license_no\": \"FWL-2026-0002\",\n    \"foreign_worker_license_start_date\": \"2026-01-01\",\n    \"foreign_worker_license_end_date\": \"2027-01-01\"\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
                     }
                   }
                 },
-                "description": "Fisherman-namespace equivalent of Create Crew above — same controller, same required fields, same permission requirement (companies_crews.create), same pending approval_status regardless of who creates it. The fisherman can only create crew under their own company_profile (enforced by set_company_profile's policy_scope, not by trusting company_profile_id in the URL)."
+                "description": "Fisherman-namespace equivalent of Create Crew above — same controller, same required fields (position_id must reference a Crew-category Position, see \"Setup - Get Crew Position (Fisherman)\" above), same permission requirement (companies_crews.create), same pending approval_status regardless of who creates it. The fisherman can only create crew under their own company_profile (enforced by set_company_profile's policy_scope, not by trusting company_profile_id in the URL)."
               },
               "event": [
                 {
@@ -8269,7 +8355,7 @@
                 }
               }
             },
-            "description": "Fisherman-only endpoint (`POST /api/v1/fisherman/manifests`). This demo sends only the required `companies_vessel_id`, but the full accepted `manifest` payload is:\n\n| Field | Type | Notes |\n|---|---|---|\n| `companies_vessel_id` | uuid, required | Must belong to an **approved** vessel owned by the fisherman's company. |\n| `companies_captain_id` | uuid, optional | Must belong to an **approved** captain owned by the same company. |\n| `port_out_id` / `port_out_datetime` / `port_out_area` | optional | Port Out Detail — can be filled at creation or later via Update. |\n| `port_in_id` / `port_in_datetime` / `port_in_area` | optional | Port In Detail — same as above, usually filled once at sea/returning. |\n| `zone_id` / `zone_area` / `longitude` / `latitude` | optional | Fishing zone / location detail. |\n| `has_minor_fishermen` | boolean, optional | Flags that minor fishermen will be added via the nested Minor Fishermen endpoints. |\n| `crew_ids` | array of uuid, optional | Existing `CompaniesCrew` records to snapshot onto this manifest. |\n| `ad_hoc_crew` | array of objects, optional | One-off crew not in the company roster: `crew_name`, `ic_number`, `passport_number`, `position`, `nationality`, `date_of_birth`. |\n\n**Expenses are not part of this payload.** They're set via a separate call once the manifest exists (1:1 with the manifest itself, not tied to a Capture Report) — see \"Create Manifest Expense\" further down this folder, which posts to `.../manifests/:manifest_id/expense`.\n\nThe manifest starts in the `draft` status (`is_draft: true` in the response) and stays editable/deletable until `submit_port_out` is called.\n\nUses the vessel already created/approved for this scenario in the \"Vessels\" folder above."
+            "description": "Fisherman-only endpoint (`POST /api/v1/fisherman/manifests`). This demo sends only the required `companies_vessel_id`, but the full accepted `manifest` payload is:\n\n| Field | Type | Notes |\n|---|---|---|\n| `companies_vessel_id` | uuid, required | Must belong to an **approved** vessel owned by the fisherman's company. |\n| `captain_crew_id` | uuid, optional | Must reference an **approved** crew member (position: \"Boat Captain\") owned by the same company. |\n| `port_out_id` / `port_out_datetime` / `port_out_area` | optional | Port Out Detail — can be filled at creation or later via Update. |\n| `port_in_id` / `port_in_datetime` / `port_in_area` | optional | Port In Detail — same as above, usually filled once at sea/returning. |\n| `zone_id` / `zone_area` / `longitude` / `latitude` | optional | Fishing zone / location detail. |\n| `has_minor_fishermen` | boolean, optional | Flags that minor fishermen will be added via the nested Minor Fishermen endpoints. |\n| `crew_ids` | array of uuid, optional | Existing `CompaniesCrew` records to snapshot onto this manifest. |\n| `ad_hoc_crew` | array of objects, optional | One-off crew not in the company roster: `crew_name`, `ic_number`, `passport_number`, `position`, `nationality`, `date_of_birth`. |\n\n**Expenses are not part of this payload.** They're set via a separate call once the manifest exists (1:1 with the manifest itself, not tied to a Capture Report) — see \"Create Manifest Expense\" further down this folder, which posts to `.../manifests/:manifest_id/expense`.\n\nThe manifest starts in the `draft` status (`is_draft: true` in the response) and stays editable/deletable until `submit_port_out` is called.\n\nUses the vessel already created/approved for this scenario in the \"Vessels\" folder above."
           },
           "event": [
             {
@@ -8510,8 +8596,19 @@
                 }
               ]
             },
-            "description": "Manifest captain picker (`GET /api/v1/fisherman/captains`). The company is derived from the logged-in fisherman; only approved, non-deleted captains are returned. Use the selected `id` as `companies_captain_id`."
-          }
+            "description": "Manifest captain picker (`GET /api/v1/fisherman/captains`). Captain is no longer a separate resource — this now returns the company's approved `CompaniesCrew` records whose position is \"Boat Captain\" (see List Positions (Fisherman) above). The company is derived from the logged-in fisherman. Use the selected `id` as `captain_crew_id`, not `companies_captain_id`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "List Crews (Fisherman)",
@@ -8552,6 +8649,48 @@
             },
             "description": "Manifest crew picker (`GET /api/v1/fisherman/crews`). The company is derived from the logged-in fisherman; only approved, non-deleted crew are returned. Send their IDs in `manifest.crew_ids`."
           }
+        },
+        {
+          "name": "List Positions (Fisherman)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/fisherman/master_data/positions?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "fisherman",
+                "master_data",
+                "positions?page=1&limit=10"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{manifest_fisherman_jwt_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Crew-profiling position picker (`GET /api/v1/fisherman/master_data/positions`). Requires `positions.list`. Returns all positions (same convention as List Ports/List Zones) — the mobile \"Add New Fisherman\" form filters client-side to `category == \"Crew\"` (Boat Captain, Full-Time Fisherman, Part-Time Fisherman, Ice & Storage Assistant, Logistic Assistant); `q[category_eq]=Crew` works server-side too. Use the selected `id` as `position_id` on `POST/PATCH .../crews`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "List Dictionaries (Fisherman)",
@@ -11381,7 +11520,7 @@
                     }
                   }
                 },
-                "description": "Creates a position with a unique `name` and `category` (one of `Fisherman`/`Jetty Manager`/`DoFi Officer`). Requires `positions.create`."
+                "description": "Creates a position with a unique `name` and `category` (one of `Fisherman`/`Jetty Manager`/`DoFi Officer`/`Crew`). `Crew`-category positions back the fisherman crew-profiling form (Boat Captain, Full-Time Fisherman, Part-Time Fisherman, Ice & Storage Assistant, Logistic Assistant) and Manifest's captain picker (Boat Captain specifically). Requires `positions.create`."
               },
               "event": [
                 {
