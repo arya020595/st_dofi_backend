@@ -48,6 +48,14 @@ module Api
           assert_response :ok
           assert_equal "amendment_required", @crew.reload.approval_status
         end
+
+        test "show exposes gender and status for the officer's Crew Details view" do
+          get "/api/v1/admin/approvals/crews/#{@crew.id}", headers: @admin_headers
+
+          assert_response :ok
+          assert response.parsed_body["data"].key?("gender")
+          assert response.parsed_body["data"].key?("status")
+        end
       end
     end
   end
