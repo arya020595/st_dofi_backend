@@ -97,13 +97,6 @@ Rails.application.routes.draw do
             end
           end
 
-          resources :captains, only: %i[index show] do
-            member do
-              post :approve
-              post :request_amendment
-            end
-          end
-
           resources :fishing_gears, only: %i[index show] do
             member do
               post :approve
@@ -143,7 +136,6 @@ Rails.application.routes.draw do
             resources :fishing_gears, controller: "/api/v1/company_profiles/vessels/fishing_gears"
           end
           resources :crews, controller: "/api/v1/company_profiles/crews"
-          resources :captains, controller: "/api/v1/company_profiles/captains"
           resources :documents, only: %i[index create update], controller: "/api/v1/company_profiles/documents"
         end
 
@@ -214,6 +206,7 @@ Rails.application.routes.draw do
           resources :ports, only: %i[index show], controller: "/api/v1/fisherman/ports"
           resources :zones, only: %i[index show], controller: "/api/v1/fisherman/zones"
           resources :fishing_gears, only: %i[index show], controller: "/api/v1/fisherman/fishing_gears"
+          resources :positions, only: %i[index show], controller: "/api/v1/fisherman/positions"
         end
         resources :vessels, only: %i[index]
         resources :captains, only: %i[index]
@@ -227,7 +220,6 @@ Rails.application.routes.draw do
             resources :fishing_gears, controller: "/api/v1/company_profiles/vessels/fishing_gears"
           end
           resources :crews, controller: "/api/v1/company_profiles/crews"
-          resources :captains, controller: "/api/v1/company_profiles/captains"
           resources :documents, only: %i[index create update], controller: "/api/v1/company_profiles/documents"
         end
       end

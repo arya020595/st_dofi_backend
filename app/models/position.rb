@@ -1,5 +1,5 @@
 class Position < ApplicationRecord
-  CATEGORIES = ["Fisherman", "Jetty Manager", "DoFi Officer"].freeze
+  CATEGORIES = ["Fisherman", "Jetty Manager", "DoFi Officer", "Crew"].freeze
 
   validates :name, presence: true, uniqueness: true
   validates :category, presence: true, inclusion: { in: CATEGORIES }

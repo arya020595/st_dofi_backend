@@ -21,7 +21,7 @@ module Manifests
         ic_number: crew.ic_number,
         passport_number: crew.passport_number,
         date_of_birth: crew.date_of_birth,
-        position: crew.position,
+        position: crew.position&.name,
         nationality: crew.nationality
       )
     end

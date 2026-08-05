@@ -27,9 +27,7 @@ module Manifests
       if update_attributes.key?(:companies_vessel_id)
         update_vessel_snapshot!(manifest, update_attributes, company_profile)
       end
-      if update_attributes.key?(:companies_captain_id)
-        update_captain_snapshot!(manifest, update_attributes, company_profile)
-      end
+      update_captain_snapshot!(manifest, update_attributes, company_profile) if update_attributes.key?(:captain_crew_id)
       update_attributes
     end
 
@@ -44,26 +42,29 @@ module Manifests
     end
 
     def update_captain_snapshot!(manifest, attributes, company_profile)
-      if attributes[:companies_captain_id].blank?
+      if attributes[:captain_crew_id].blank?
         clear_captain_snapshot!(attributes)
         return
       end
 
-      captain = approved_captain!(manifest, company_profile, attributes[:companies_captain_id])
-      attributes.merge!(companies_captain: captain,
-                        captain_name: captain.captain_name,
+      captain = approved_captain!(manifest, company_profile, attributes[:captain_crew_id])
+      attributes.merge!(captain_crew: captain,
+                        captain_name: captain.crew_name,
                         captain_ic_number: captain.ic_number)
     end
 
-    def approved_captain!(manifest, company_profile, captain_id)
-      company_profile.companies_captains.kept.approved.find(captain_id)
+    def approved_captain!(manifest, company_profile, captain_crew_id)
+      crew = company_profile.companies_crews.kept.approved.find(captain_crew_id)
+      return crew if crew.position&.name == "Boat Captain"
+
+      raise ActiveRecord::RecordNotFound
     rescue ActiveRecord::RecordNotFound
-      manifest.errors.add(:companies_captain_id, "must reference an approved captain owned by this company")
+      manifest.errors.add(:captain_crew_id, "must reference an approved Boat Captain owned by this company")
       raise ActiveRecord::RecordInvalid, manifest
     end
 
     def clear_captain_snapshot!(attributes)
-      attributes.merge!(companies_captain: nil, captain_name: nil, captain_ic_number: nil)
+      attributes.merge!(captain_crew: nil, captain_name: nil, captain_ic_number: nil)
     end
   end
 end

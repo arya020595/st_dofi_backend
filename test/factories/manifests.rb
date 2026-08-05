@@ -42,7 +42,7 @@ end
 #  zone_area              :string
 #  created_at             :datetime         not null
 #  updated_at             :datetime         not null
-#  companies_captain_id   :uuid
+#  captain_crew_id        :uuid
 #  companies_vessel_id    :uuid             not null
 #  company_profile_id     :uuid             not null
 #  created_by_id          :uuid
@@ -54,8 +54,8 @@ end
 #
 # Indexes
 #
+#  index_manifests_on_captain_crew_id         (captain_crew_id)
 #  index_manifests_on_capture_report_skipped  (capture_report_skipped)
-#  index_manifests_on_companies_captain_id    (companies_captain_id)
 #  index_manifests_on_companies_vessel_id     (companies_vessel_id)
 #  index_manifests_on_company_profile_id      (company_profile_id)
 #  index_manifests_on_created_by_id           (created_by_id)
@@ -73,7 +73,7 @@ end
 #
 # Foreign Keys
 #
-#  fk_rails_...  (companies_captain_id => companies_captains.id)
+#  fk_rails_...  (captain_crew_id => companies_crews.id)
 #  fk_rails_...  (companies_vessel_id => companies_vessels.id)
 #  fk_rails_...  (company_profile_id => company_profiles.id)
 #  fk_rails_...  (created_by_id => users.id)

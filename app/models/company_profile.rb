@@ -15,7 +15,6 @@ class CompanyProfile < ApplicationRecord
   has_many :contacts, class_name: "CompanyProfileContact", dependent: :restrict_with_error
   has_many :companies_vessels, dependent: :restrict_with_error
   has_many :companies_crews, dependent: :restrict_with_error
-  has_many :companies_captains, dependent: :restrict_with_error
   has_many :companies_fishing_gears, dependent: :restrict_with_error
   has_many :companies_documents, dependent: :restrict_with_error
   has_many :manifests, dependent: :restrict_with_error

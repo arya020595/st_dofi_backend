@@ -7,7 +7,7 @@ class Manifest < ApplicationRecord
   include HasManifestHistory
 
   belongs_to :companies_vessel
-  belongs_to :companies_captain, optional: true
+  belongs_to :captain_crew, class_name: "CompaniesCrew", optional: true
   belongs_to :support_vessel, class_name: "CompaniesVessel", optional: true
   belongs_to :company_profile
   belongs_to :port_out, class_name: "Port", optional: true
@@ -32,7 +32,7 @@ class Manifest < ApplicationRecord
   def self.ransackable_attributes(_auth_object = nil)
     %w[id manifest_number fisherman_category manifest_status port_out_status port_in_status
        vessel_boat_name vessel_boat_no company_name capture_report_skipped has_minor_fishermen
-       company_profile_id companies_vessel_id companies_captain_id discarded_at created_at updated_at]
+       company_profile_id companies_vessel_id captain_crew_id discarded_at created_at updated_at]
   end
 
   def self.ransackable_associations(_auth_object = nil)
@@ -207,7 +207,7 @@ end
 #  zone_area              :string
 #  created_at             :datetime         not null
 #  updated_at             :datetime         not null
-#  companies_captain_id   :uuid
+#  captain_crew_id        :uuid
 #  companies_vessel_id    :uuid             not null
 #  company_profile_id     :uuid             not null
 #  created_by_id          :uuid
@@ -219,8 +219,8 @@ end
 #
 # Indexes
 #
+#  index_manifests_on_captain_crew_id         (captain_crew_id)
 #  index_manifests_on_capture_report_skipped  (capture_report_skipped)
-#  index_manifests_on_companies_captain_id    (companies_captain_id)
 #  index_manifests_on_companies_vessel_id     (companies_vessel_id)
 #  index_manifests_on_company_profile_id      (company_profile_id)
 #  index_manifests_on_created_by_id           (created_by_id)
@@ -238,7 +238,7 @@ end
 #
 # Foreign Keys
 #
-#  fk_rails_...  (companies_captain_id => companies_captains.id)
+#  fk_rails_...  (captain_crew_id => companies_crews.id)
 #  fk_rails_...  (companies_vessel_id => companies_vessels.id)
 #  fk_rails_...  (company_profile_id => company_profiles.id)
 #  fk_rails_...  (created_by_id => users.id)

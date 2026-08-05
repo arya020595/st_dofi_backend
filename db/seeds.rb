@@ -16,7 +16,6 @@ SEED_FILES = %w[
   dictionaries
   company_profiles
   companies_vessels
-  companies_captains
   companies_crews
   companies_fishing_gears
   profiled_users
