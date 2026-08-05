@@ -131,6 +131,21 @@
       "type": "string"
     },
     {
+      "key": "companies_crew_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "fisherman_company_profile_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "fisherman_companies_crew_id",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "admin_contact_id",
       "value": "",
       "type": "string"
@@ -702,7 +717,7 @@
                 }
               }
             },
-            "description": "Mock stand-in for the real BruneiID QR re-scan login used by Fishermen/Jetty Managers (no username/password for them, only registration). Trusts the given `ic_number` as already BruneiID-verified — same trust boundary registration itself relies on. Uses a pre-seeded, already-`active` fisherman (`db/seeds/profiled_users.rb` — Haji Ahmad bin Salleh) so this succeeds standalone against any seeded environment with no setup requests needed. Returns the same `access_token`/`Authorization` header shape as the officer `POST /api/v1/auth/sign_in`. This request's test script auto-saves the token to the `fisherman_jwt_token` environment variable — a standalone, always-available fisherman identity for ad-hoc testing, separate from the Manifest folder's own scripted-demo tokens (`manifest_fisherman_jwt_token` / `manifest_commercial_fisherman_jwt_token` / `manifest_skip_demo_jwt_token`)."
+            "description": "Mock stand-in for the real BruneiID QR re-scan login used by Fishermen/Jetty Managers (no username/password for them, only registration). Trusts the given `ic_number` as already BruneiID-verified — same trust boundary registration itself relies on. Uses a pre-seeded, already-`active` fisherman (`db/seeds/profiled_users.rb` — Haji Ahmad bin Salleh) so this succeeds standalone against any seeded environment with no setup requests needed. Returns the same `access_token`/`Authorization` header shape as the officer `POST /api/v1/auth/sign_in`. This request's test script auto-saves the token to the `fisherman_jwt_token` environment variable — a standalone, always-available fisherman identity for ad-hoc testing, separate from the Manifest folder's own scripted-demo tokens (`manifest_fisherman_jwt_token` / `manifest_commercial_fisherman_jwt_token` / `manifest_skip_demo_jwt_token`). Also saves the fisherman's own company_profile.id to the fisherman_company_profile_id collection variable, for use by fisherman-namespace requests scoped to their own company (e.g. Companies - Crews / Fisherman)."
           },
           "event": [
             {
@@ -713,7 +728,8 @@
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));",
                   "pm.test('Access token present', () => pm.expect(pm.response.json().data.access_token).to.be.a('string'));",
                   "const authHeader = pm.response.headers.get('Authorization');",
-                  "if (authHeader) { pm.environment.set('fisherman_jwt_token', authHeader.replace(/^Bearer\\s+/i, '')); }"
+                  "if (authHeader) { pm.environment.set('fisherman_jwt_token', authHeader.replace(/^Bearer\\s+/i, '')); }",
+                  "if (pm.response.json().data.user && pm.response.json().data.user.company_profile) { pm.collectionVariables.set('fisherman_company_profile_id', pm.response.json().data.user.company_profile.id); }"
                 ]
               }
             }
@@ -4696,6 +4712,474 @@
       ]
     },
     {
+      "name": "Companies - Crews",
+      "item": [
+        {
+          "name": "List Crews",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/crews?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "crews?page=1&limit=10"
+              ]
+            },
+            "description": "Requires companies_crews.list."
+          }
+        },
+        {
+          "name": "List Crews - Filtered by status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/crews?q[approval_status_eq]=pending&q[s]=created_at desc&page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "crews?q[approval_status_eq]=pending&q[s]=created_at desc&page=1&limit=10"
+              ]
+            },
+            "description": "Requires companies_crews.list."
+          }
+        },
+        {
+          "name": "Create Crew",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/crews",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "crews"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"crew\": {\n    \"crew_name\": \"Ahmad Faiz bin Salleh\",\n    \"date_of_birth\": \"1995-04-12\",\n    \"ic_number\": \"01123456\",\n    \"passport_number\": \"A98765432\",\n    \"position\": \"Deckhand\",\n    \"nationality\": \"Bruneian\",\n    \"gender\": \"Male\",\n    \"status\": \"active\",\n    \"foreign_worker_license_no\": \"FWL-2026-0001\",\n    \"foreign_worker_license_start_date\": \"2026-01-01\",\n    \"foreign_worker_license_end_date\": \"2027-01-01\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "crew_name, date_of_birth, ic_number, nationality, position, gender, foreign_worker_license_no, foreign_worker_license_start_date, and foreign_worker_license_end_date are all required (passport_number is optional). status defaults to active if omitted and must be active or non_active if present. Always created with approval_status: pending, regardless of who creates it. Requires companies_crews.create."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('approval_status is pending', () => pm.expect(pm.response.json().data.approval_status).to.eql('pending'));",
+                  "if (pm.response.json().data) { pm.collectionVariables.set('companies_crew_id', pm.response.json().data.id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Crew - Validation Error (422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/crews",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "crews"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"crew\": {\n    \"crew_name\": \"\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Blank crew_name (and the other missing required fields — date_of_birth, ic_number, nationality, position, gender, foreign_worker_license_no, foreign_worker_license_start_date, foreign_worker_license_end_date) fail presence validation."
+          }
+        },
+        {
+          "name": "Show Crew",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/crews/{{companies_crew_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "crews",
+                "{{companies_crew_id}}"
+              ]
+            },
+            "description": "Requires companies_crews.view."
+          }
+        },
+        {
+          "name": "Update Crew",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/crews/{{companies_crew_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "crews",
+                "{{companies_crew_id}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"crew\": {\n    \"status\": \"non_active\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Accepts the same fields as Create. If the crew member is currently approved or amendment_required, this automatically reverts it to pending (clearing amendment_remarks/approved_by/approved_at) so the officer re-reviews the new data — see Approvable#revert_to_pending_for_edit!. Run \"Approve Crew\" below first, then this request, to see approval_status flip back to pending in the response. Requires companies_crews.update."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Crew (soft)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/crews/{{companies_crew_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "crews",
+                "{{companies_crew_id}}"
+              ]
+            },
+            "description": "Soft-deletes via Discard. Requires companies_crews.delete."
+          }
+        },
+        {
+          "name": "Fisherman",
+          "item": [
+            {
+              "name": "List Crews (Fisherman)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/company_profiles/{{fisherman_company_profile_id}}/crews?page=1&limit=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "company_profiles",
+                    "{{fisherman_company_profile_id}}",
+                    "crews?page=1&limit=10"
+                  ]
+                },
+                "description": "Fisherman-namespace equivalent of List Crews above, scoped to the signed-in fisherman's own company via CompaniesCrewPolicy::Scope (non-officers only see scope.kept.where(company_profile_id: user.company_profile_id)). Run \"BruneiID Login - Active\" in Auth first to populate fisherman_jwt_token and fisherman_company_profile_id. Requires companies_crews.list."
+              }
+            },
+            {
+              "name": "Create Crew (Fisherman)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/company_profiles/{{fisherman_company_profile_id}}/crews",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "company_profiles",
+                    "{{fisherman_company_profile_id}}",
+                    "crews"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"crew\": {\n    \"crew_name\": \"Zulkifli bin Ahmad\",\n    \"date_of_birth\": \"1997-08-20\",\n    \"ic_number\": \"01987654\",\n    \"position\": \"Deckhand\",\n    \"nationality\": \"Bruneian\",\n    \"gender\": \"Male\",\n    \"status\": \"active\",\n    \"foreign_worker_license_no\": \"FWL-2026-0002\",\n    \"foreign_worker_license_start_date\": \"2026-01-01\",\n    \"foreign_worker_license_end_date\": \"2027-01-01\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Fisherman-namespace equivalent of Create Crew above — same controller, same required fields, same permission requirement (companies_crews.create), same pending approval_status regardless of who creates it. The fisherman can only create crew under their own company_profile (enforced by set_company_profile's policy_scope, not by trusting company_profile_id in the URL)."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                      "pm.test('approval_status is pending', () => pm.expect(pm.response.json().data.approval_status).to.eql('pending'));",
+                      "if (pm.response.json().data) { pm.collectionVariables.set('fisherman_companies_crew_id', pm.response.json().data.id); }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Show Crew (Fisherman)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/company_profiles/{{fisherman_company_profile_id}}/crews/{{fisherman_companies_crew_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "company_profiles",
+                    "{{fisherman_company_profile_id}}",
+                    "crews",
+                    "{{fisherman_companies_crew_id}}"
+                  ]
+                },
+                "description": "Requires companies_crews.view."
+              }
+            },
+            {
+              "name": "Update Crew (Fisherman)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/company_profiles/{{fisherman_company_profile_id}}/crews/{{fisherman_companies_crew_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "company_profiles",
+                    "{{fisherman_company_profile_id}}",
+                    "crews",
+                    "{{fisherman_companies_crew_id}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"crew\": {\n    \"status\": \"non_active\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Accepts the same fields as Create. If the crew member is currently approved or amendment_required, this automatically reverts it to pending for officer re-review — see Approvable#revert_to_pending_for_edit!. Requires companies_crews.update."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Delete Crew (Fisherman - soft)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/company_profiles/{{fisherman_company_profile_id}}/crews/{{fisherman_companies_crew_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "company_profiles",
+                    "{{fisherman_company_profile_id}}",
+                    "crews",
+                    "{{fisherman_companies_crew_id}}"
+                  ]
+                },
+                "description": "Soft-deletes via Discard. Requires companies_crews.delete."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Approvals - Vessels",
       "description": "Officer review queue for CompaniesVessel, scoped by CompaniesVesselApprovalPolicy (officers see every company's vessels; non-officers only their own). This is the general-purpose approve/amendment flow — the \"Vessels\" folder further down only calls approve inline as setup for the Manifest demo scenarios. Requires companies_vessel_approvals.*.\n\nRun \"Create Vessel\" in Companies - Vessels first so companies_vessel_id is set.",
       "item": [
@@ -5006,6 +5490,164 @@
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));",
                   "pm.test('approval_status is amendment_required', () => pm.expect(pm.response.json().data.approval_status).to.eql('amendment_required'));",
                   "pm.test('amendment_remarks matches submitted remarks', () => pm.expect(pm.response.json().data.amendment_remarks).to.eql('Scan is illegible, please re-upload a clearer copy'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Approvals - Crews",
+      "item": [
+        {
+          "name": "List Crew Approvals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/approvals/crews?page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "approvals",
+                "crews?page=1&limit=10"
+              ]
+            },
+            "description": "Requires companies_crew_approvals.list."
+          }
+        },
+        {
+          "name": "List Crew Approvals - Filtered by status and company",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/approvals/crews?q[approval_status_eq]=pending&q[company_profile_id_eq]={{company_profile_id}}&q[s]=created_at desc&page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "approvals",
+                "crews?q[approval_status_eq]=pending&q[company_profile_id_eq]={{company_profile_id}}&q[s]=created_at desc&page=1&limit=10"
+              ]
+            },
+            "description": "This is how the admin \"Approve Profile\" list derives which companies have at least one pending crew member — list pending crews, then dedupe by company_profile_id."
+          }
+        },
+        {
+          "name": "Show Crew Approval",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/approvals/crews/{{companies_crew_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "approvals",
+                "crews",
+                "{{companies_crew_id}}"
+              ]
+            },
+            "description": "Requires companies_crew_approvals.view."
+          }
+        },
+        {
+          "name": "Approve Crew",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/approvals/crews/{{companies_crew_id}}/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "approvals",
+                "crews",
+                "{{companies_crew_id}}",
+                "approve"
+              ]
+            },
+            "description": "Requires companies_crew_approvals.approve. Transitions pending to approved, stamping approved_by/approved_at. Only valid from pending — fails if already approved or amendment_required (Update Crew first, which reverts it to pending, or use Request Amendment below)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('approval_status is approved', () => pm.expect(pm.response.json().data.approval_status).to.eql('approved'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Request Amendment (Crew)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/approvals/crews/{{companies_crew_id}}/request_amendment",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "approvals",
+                "crews",
+                "{{companies_crew_id}}",
+                "request_amendment"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"remarks\": \"IC number does not match ROCBN records\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "remarks is required free text (not an approval_remark_id reference, unlike Reject Fisherman/Jetty Manager). Transitions pending to amendment_required, storing remarks on amendment_remarks and clearing approved_by/approved_at. Only valid from pending — run \"Update Crew\" first if the crew member is currently approved (that reverts it to pending). Requires companies_crew_approvals.amendment.\n\nThe fisherman then edits the crew member (Companies - Crews, Update Crew), which automatically clears amendment_remarks and reverts to pending for re-review — there is no separate \"resubmit\" endpoint to call."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('approval_status is amendment_required', () => pm.expect(pm.response.json().data.approval_status).to.eql('amendment_required'));",
+                  "pm.test('amendment_remarks matches submitted remarks', () => pm.expect(pm.response.json().data.amendment_remarks).to.eql('IC number does not match ROCBN records'));"
                 ]
               }
             }
