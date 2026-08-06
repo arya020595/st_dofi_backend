@@ -53,6 +53,9 @@ module Manifests
         update_vessel_snapshot!(manifest, update_attributes, company_profile)
       end
       update_captain_snapshot!(manifest, update_attributes, company_profile) if update_attributes.key?(:captain_crew_id)
+      if update_attributes.key?(:support_vessel_id)
+        update_support_vessel_snapshot!(manifest, update_attributes, company_profile)
+      end
       update_attributes
     end
 
@@ -90,6 +93,29 @@ module Manifests
 
     def clear_captain_snapshot!(attributes)
       attributes.merge!(captain_crew: nil, captain_name: nil, captain_ic_number: nil)
+    end
+
+    def update_support_vessel_snapshot!(manifest, attributes, company_profile)
+      if attributes[:support_vessel_id].blank?
+        clear_support_vessel_snapshot!(attributes)
+        return
+      end
+
+      vessel = approved_support_vessel!(manifest, company_profile, attributes[:support_vessel_id])
+      attributes.merge!(support_vessel: vessel,
+                        support_vessel_name: vessel.vessel_name,
+                        support_vessel_no: vessel.boat_number)
+    end
+
+    def approved_support_vessel!(manifest, company_profile, support_vessel_id)
+      company_profile.companies_vessels.kept.approved.find(support_vessel_id)
+    rescue ActiveRecord::RecordNotFound
+      manifest.errors.add(:support_vessel_id, "must reference an approved vessel owned by this company")
+      raise ActiveRecord::RecordInvalid, manifest
+    end
+
+    def clear_support_vessel_snapshot!(attributes)
+      attributes.merge!(support_vessel: nil, support_vessel_name: nil, support_vessel_no: nil)
     end
   end
 end

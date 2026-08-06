@@ -204,6 +204,8 @@ end
 #  port_out_datetime      :datetime
 #  port_out_status        :string           default("draft"), not null
 #  skip_reason_remarks    :text
+#  support_vessel_name    :string
+#  support_vessel_no      :string
 #  vessel_boat_name       :string
 #  vessel_boat_no         :string
 #  zone_area              :string
