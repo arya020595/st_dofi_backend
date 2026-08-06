@@ -5,7 +5,9 @@ module CompaniesFishingGears
     def self.call(...) = new.call(...)
 
     def call(company_profile, vessel, attributes)
-      gear = company_profile.companies_fishing_gears.new(attributes.merge(companies_vessel: vessel))
+      gear = company_profile.companies_fishing_gears.new(
+        attributes.merge(companies_vessel: vessel, **Snapshots.fishing_gear(attributes[:fishing_gear_id]))
+      )
 
       ActiveRecord::Base.transaction do
         return Failure(gear) unless gear.save

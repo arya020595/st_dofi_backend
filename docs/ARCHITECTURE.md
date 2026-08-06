@@ -217,12 +217,16 @@ erDiagram
 and `ApprovalRemark` are lookup tables referenced from many places above (`Manifest.port_out`,
 `CaptureReport.zone`, rejection reasons, etc.) rather than owned by any one domain area. All six
 share the same CRUD/search shape — see [`docs/api/master-data.md`](api/master-data.md) and
-[`docs/api/search-filter-sort-pagination.md`](api/search-filter-sort-pagination.md).
+[`docs/api/search-filter-sort-pagination.md`](api/search-filter-sort-pagination.md). Because these
+are editable after the fact, `Manifest`/`CrewManifest`/`CompaniesFishingGear` and friends freeze the
+fields that matter onto their own rows rather than only holding the foreign key — see
+[`docs/data-model/denormalized-snapshots.md`](data-model/denormalized-snapshots.md).
 
 ## Where to go deeper
 
 - [`docs/registration/`](registration/) — actors, roles, registration & approval flow
 - [`docs/api/`](api/) — frontend-facing request/response contracts
+- [`docs/data-model/`](data-model/) — denormalized historical snapshots vs. live master-data references
 - [`docs/minio/`](minio/) — file storage architecture & setup
 - [`docs/ci-cd/`](ci-cd/) — CI/CD & deployment
 - [`docs/incidents/`](incidents/) — postmortems & dated test reports

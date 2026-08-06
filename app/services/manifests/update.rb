@@ -47,35 +47,35 @@ module Manifests
 
     def attributes_for_update(manifest, attributes, company_profile)
       update_attributes = attributes.except(:crew_ids, :ad_hoc_crew)
-      return update_attributes unless company_profile
-
-      if update_attributes.key?(:companies_vessel_id)
-        update_vessel_snapshot!(manifest, update_attributes, company_profile)
-      end
-      update_captain_snapshot!(manifest, update_attributes, company_profile) if update_attributes.key?(:captain_crew_id)
+      update_port_snapshot!(update_attributes)
+      update_company_scoped_snapshots!(manifest, update_attributes, company_profile) if company_profile
       update_attributes
     end
 
+    def update_company_scoped_snapshots!(manifest, attributes, company_profile)
+      update_vessel_snapshot!(manifest, attributes, company_profile) if attributes.key?(:companies_vessel_id)
+      update_captain_snapshot!(manifest, attributes, company_profile) if attributes.key?(:captain_crew_id)
+      update_support_vessel_snapshot!(manifest, attributes, company_profile) if attributes.key?(:support_vessel_id)
+    end
+
+    def update_port_snapshot!(attributes)
+      attributes[:port_out_name] = Snapshots.port_name(attributes[:port_out_id]) if attributes.key?(:port_out_id)
+      attributes[:port_in_name] = Snapshots.port_name(attributes[:port_in_id]) if attributes.key?(:port_in_id)
+    end
+
     def update_vessel_snapshot!(manifest, attributes, company_profile)
-      vessel = company_profile.companies_vessels.kept.approved.find(attributes[:companies_vessel_id])
-      attributes.merge!(companies_vessel: vessel,
-                        vessel_boat_name: vessel.vessel_name,
-                        vessel_boat_no: vessel.boat_number)
-    rescue ActiveRecord::RecordNotFound
-      manifest.errors.add(:companies_vessel_id, "must reference an approved vessel owned by this company")
-      raise ActiveRecord::RecordInvalid, manifest
+      vessel = approved_vessel!(manifest, company_profile, attributes[:companies_vessel_id], :companies_vessel_id)
+      attributes.merge!(Snapshots.vessel(vessel))
     end
 
     def update_captain_snapshot!(manifest, attributes, company_profile)
       if attributes[:captain_crew_id].blank?
-        clear_captain_snapshot!(attributes)
+        attributes.merge!(Snapshots.captain(nil))
         return
       end
 
       captain = approved_captain!(manifest, company_profile, attributes[:captain_crew_id])
-      attributes.merge!(captain_crew: captain,
-                        captain_name: captain.crew_name,
-                        captain_ic_number: captain.ic_number)
+      attributes.merge!(Snapshots.captain(captain))
     end
 
     def approved_captain!(manifest, company_profile, captain_crew_id)
@@ -88,8 +88,23 @@ module Manifests
       raise ActiveRecord::RecordInvalid, manifest
     end
 
-    def clear_captain_snapshot!(attributes)
-      attributes.merge!(captain_crew: nil, captain_name: nil, captain_ic_number: nil)
+    def update_support_vessel_snapshot!(manifest, attributes, company_profile)
+      if attributes[:support_vessel_id].blank?
+        attributes.merge!(Snapshots.support_vessel(nil))
+        return
+      end
+
+      vessel = approved_vessel!(manifest, company_profile, attributes[:support_vessel_id], :support_vessel_id)
+      attributes.merge!(Snapshots.support_vessel(vessel))
+    end
+
+    # Shared by both the primary and support vessel — same "approved, owned by this company" rule,
+    # only the attribute an error gets attached to differs.
+    def approved_vessel!(manifest, company_profile, vessel_id, attribute_name)
+      company_profile.companies_vessels.kept.approved.find(vessel_id)
+    rescue ActiveRecord::RecordNotFound
+      manifest.errors.add(attribute_name, "must reference an approved vessel owned by this company")
+      raise ActiveRecord::RecordInvalid, manifest
     end
   end
 end

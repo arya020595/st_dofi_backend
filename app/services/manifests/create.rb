@@ -33,19 +33,32 @@ module Manifests
     private
 
     def build_manifest(attributes, company_profile, actor)
-      vessel = company_profile.companies_vessels.kept.find_by(id: attributes[:companies_vessel_id])
-      captain = find_captain(company_profile, attributes[:captain_crew_id])
-
       Manifest.new(sanitized_attributes(attributes).merge(
                      manifest_number: next_manifest_number, created_by: actor, company_profile: company_profile,
                      company_name: company_profile.company_name,
                      fisherman_category: FISHERMAN_CATEGORY_BY_REGISTRATION_TYPE[company_profile.registration_type],
-                     **vessel_snapshot(vessel), **captain_snapshot(captain)
+                     **snapshots(attributes, company_profile)
                    ))
     end
 
+    def snapshots(attributes, company_profile)
+      vessel = company_profile.companies_vessels.kept.find_by(id: attributes[:companies_vessel_id])
+      captain = find_captain(company_profile, attributes[:captain_crew_id])
+      support_vessel = find_support_vessel(company_profile, attributes[:support_vessel_id])
+
+      Snapshots.vessel(vessel).merge(Snapshots.captain(captain))
+               .merge(Snapshots.support_vessel(support_vessel))
+               .merge(port_snapshot(attributes))
+    end
+
+    def port_snapshot(attributes)
+      { port_out_name: Snapshots.port_name(attributes[:port_out_id]),
+        port_in_name: Snapshots.port_name(attributes[:port_in_id]) }
+    end
+
     def sanitized_attributes(attributes)
-      attributes.except(:crew_ids, :ad_hoc_crew, :companies_vessel_id, :captain_crew_id, :fisherman_category)
+      attributes.except(:crew_ids, :ad_hoc_crew, :companies_vessel_id, :captain_crew_id, :support_vessel_id,
+                        :fisherman_category)
     end
 
     def find_captain(company_profile, captain_crew_id)
@@ -54,12 +67,10 @@ module Manifests
       company_profile.companies_crews.kept.find_by(id: captain_crew_id)
     end
 
-    def vessel_snapshot(vessel)
-      { companies_vessel: vessel, vessel_boat_name: vessel&.vessel_name, vessel_boat_no: vessel&.boat_number }
-    end
+    def find_support_vessel(company_profile, support_vessel_id)
+      return nil if support_vessel_id.blank?
 
-    def captain_snapshot(captain)
-      { captain_crew: captain, captain_name: captain&.crew_name, captain_ic_number: captain&.ic_number }
+      company_profile.companies_vessels.kept.find_by(id: support_vessel_id)
     end
 
     def vessel_valid?(manifest)
