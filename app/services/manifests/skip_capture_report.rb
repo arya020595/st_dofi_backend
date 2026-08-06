@@ -10,7 +10,8 @@ module Manifests
       reason = ManifestSkipReason.kept.find_by(id: skip_reason_id)
       return invalid_reason(manifest) if reason.nil?
 
-      manifest.update!(capture_report_skipped: true, skip_reason: reason, skip_reason_remarks: remarks)
+      manifest.update!(capture_report_skipped: true, skip_reason: reason, skip_reason_name: reason.name,
+                       skip_reason_remarks: remarks)
       Success(manifest)
     end
 

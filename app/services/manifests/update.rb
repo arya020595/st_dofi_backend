@@ -47,16 +47,21 @@ module Manifests
 
     def attributes_for_update(manifest, attributes, company_profile)
       update_attributes = attributes.except(:crew_ids, :ad_hoc_crew)
-      return update_attributes unless company_profile
-
-      if update_attributes.key?(:companies_vessel_id)
-        update_vessel_snapshot!(manifest, update_attributes, company_profile)
-      end
-      update_captain_snapshot!(manifest, update_attributes, company_profile) if update_attributes.key?(:captain_crew_id)
-      if update_attributes.key?(:support_vessel_id)
-        update_support_vessel_snapshot!(manifest, update_attributes, company_profile)
-      end
+      update_port_snapshot!(update_attributes)
+      update_company_scoped_snapshots!(manifest, update_attributes, company_profile) if company_profile
       update_attributes
+    end
+
+    def update_company_scoped_snapshots!(manifest, attributes, company_profile)
+      update_vessel_snapshot!(manifest, attributes, company_profile) if attributes.key?(:companies_vessel_id)
+      update_captain_snapshot!(manifest, attributes, company_profile) if attributes.key?(:captain_crew_id)
+      update_support_vessel_snapshot!(manifest, attributes, company_profile) if attributes.key?(:support_vessel_id)
+    end
+
+    def update_port_snapshot!(attributes)
+      { port_out_id: :port_out_name, port_in_id: :port_in_name }.each do |id_key, name_key|
+        attributes[name_key] = Port.find_by(id: attributes[id_key])&.port_name if attributes.key?(id_key)
+      end
     end
 
     def update_vessel_snapshot!(manifest, attributes, company_profile)

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_06_070002) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_06_071816) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -124,7 +124,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_070002) do
     t.uuid "company_profile_id", null: false
     t.datetime "created_at", null: false
     t.datetime "discarded_at"
+    t.decimal "fishing_gear_fee", precision: 10, scale: 2
     t.uuid "fishing_gear_id", null: false
+    t.string "fishing_gear_name"
+    t.string "fishing_gear_type"
     t.string "local_name"
     t.integer "quantity"
     t.datetime "updated_at", null: false
@@ -367,12 +370,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_06_070002) do
     t.string "port_in_area"
     t.datetime "port_in_datetime"
     t.uuid "port_in_id"
+    t.string "port_in_name"
     t.string "port_in_status", default: "draft", null: false
     t.string "port_out_area"
     t.datetime "port_out_datetime"
     t.uuid "port_out_id"
+    t.string "port_out_name"
     t.string "port_out_status", default: "draft", null: false
     t.uuid "skip_reason_id"
+    t.string "skip_reason_name"
     t.text "skip_reason_remarks"
     t.uuid "support_vessel_id"
     t.string "support_vessel_name"

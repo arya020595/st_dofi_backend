@@ -46,7 +46,9 @@ module Manifests
       captain = find_captain(company_profile, attributes[:captain_crew_id])
       support_vessel = find_support_vessel(company_profile, attributes[:support_vessel_id])
 
-      vessel_snapshot(vessel).merge(captain_snapshot(captain)).merge(support_vessel_snapshot(support_vessel))
+      vessel_snapshot(vessel).merge(captain_snapshot(captain))
+                             .merge(support_vessel_snapshot(support_vessel))
+                             .merge(port_snapshot(attributes))
     end
 
     def sanitized_attributes(attributes)
@@ -76,6 +78,11 @@ module Manifests
 
     def support_vessel_snapshot(vessel)
       { support_vessel: vessel, support_vessel_name: vessel&.vessel_name, support_vessel_no: vessel&.boat_number }
+    end
+
+    def port_snapshot(attributes)
+      { port_out_name: Port.find_by(id: attributes[:port_out_id])&.port_name,
+        port_in_name: Port.find_by(id: attributes[:port_in_id])&.port_name }
     end
 
     def vessel_valid?(manifest)

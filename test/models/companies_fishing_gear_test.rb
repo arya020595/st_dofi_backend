@@ -32,6 +32,9 @@ end
 #  approval_status     :string           default("pending"), not null
 #  approved_at         :datetime
 #  discarded_at        :datetime
+#  fishing_gear_fee    :decimal(10, 2)
+#  fishing_gear_name   :string
+#  fishing_gear_type   :string
 #  local_name          :string
 #  quantity            :integer
 #  usage_value         :decimal(10, 2)

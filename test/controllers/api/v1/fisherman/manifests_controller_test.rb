@@ -274,6 +274,21 @@ module Api
           assert_equal "completed", manifest.reload.manifest_status
         end
 
+        test "skip_capture_report snapshots the skip reason name" do
+          manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
+          manifest.submit_port_out!
+          manifest.approve_port_out!
+          reason = create(:manifest_skip_reason, name: "Engine failure")
+
+          post "/api/v1/fisherman/manifests/#{manifest.id}/skip_capture_report",
+               params: { manifest: { skip_reason_id: reason.id, skip_reason_remarks: "Engine issue" } },
+               headers: @fisherman_headers, as: :json
+
+          assert_response :ok
+          assert_equal [reason.id, "Engine failure"],
+                       manifest.reload.values_at(:skip_reason_id, :skip_reason_name)
+        end
+
         test "submit_port_in resets all capture reports to pending_verification" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
           manifest.submit_port_out!
@@ -307,6 +322,19 @@ module Api
                        [first_report.reload.capture_report_status, second_report.reload.capture_report_status]
         end
 
+        test "update snapshots the port_out name while the manifest is a draft" do
+          manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
+          port = create(:port, port_name: "Muara Port")
+
+          patch "/api/v1/fisherman/manifests/#{manifest.id}",
+                params: { manifest: { port_out_id: port.id, port_out_area: "Muara Port" } },
+                headers: @fisherman_headers, as: :json
+
+          assert_response :ok
+          assert_equal [port.id, "Muara Port"],
+                       manifest.reload.values_at(:port_out_id, :port_out_name)
+        end
+
         test "update allows a fisherman to fill port-in details while the manifest is at sea" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
           manifest.submit_port_out!
@@ -320,8 +348,8 @@ module Api
                 headers: @fisherman_headers, as: :json
 
           assert_response :ok
-          assert_equal [port.id, "Lumut Port"],
-                       manifest.reload.values_at(:port_in_id, :port_in_area)
+          assert_equal [port.id, "Lumut Port", "Lumut Port"],
+                       manifest.reload.values_at(:port_in_id, :port_in_area, :port_in_name)
         end
 
         test "update allows manifest changes while a capture report amendment is outstanding" do

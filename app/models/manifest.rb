@@ -199,10 +199,13 @@ end
 #  manifest_status        :string           default("draft"), not null
 #  port_in_area           :string
 #  port_in_datetime       :datetime
+#  port_in_name           :string
 #  port_in_status         :string           default("draft"), not null
 #  port_out_area          :string
 #  port_out_datetime      :datetime
+#  port_out_name          :string
 #  port_out_status        :string           default("draft"), not null
+#  skip_reason_name       :string
 #  skip_reason_remarks    :text
 #  support_vessel_name    :string
 #  support_vessel_no      :string

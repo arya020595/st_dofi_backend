@@ -68,6 +68,25 @@ module Api
             assert_equal "pending", @vessel.reload.approval_status
           end
 
+          test "update re-snapshots fishing gear details when fishing_gear_id changes" do
+            @vessel.approve!
+            gear = create(:companies_fishing_gear, :approved,
+                          company_profile: @company_profile,
+                          companies_vessel: @vessel)
+            new_fishing_gear = create(:fishing_gear, name: "Trawl Net", gear_type: "Net", fee: 25.0)
+
+            patch fishing_gear_path(gear),
+                  params: { fishing_gear: { fishing_gear_id: new_fishing_gear.id } },
+                  headers: @admin_headers, as: :json
+
+            assert_response :ok
+            data = response.parsed_body["data"]
+
+            assert_equal [new_fishing_gear.id, "Trawl Net", "Net", "25.0"],
+                         data.values_at("fishing_gear_id", "fishing_gear_name", "fishing_gear_type",
+                                        "fishing_gear_fee")
+          end
+
           test "destroy soft-deletes the vessel's fishing gear link" do
             @vessel.approve!
             gear = create(:companies_fishing_gear, company_profile: @company_profile, companies_vessel: @vessel)
