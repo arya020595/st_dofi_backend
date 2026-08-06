@@ -33,6 +33,16 @@ module Api
             assert_response :ok
             assert_equal "Zone 2B", report.reload.zone_area
           end
+
+          test "show includes reviewed_by details" do
+            reviewer = create(:user, unit: "Lumut Port", position: "Jetty Supervisor")
+            report = create(:capture_report, manifest: @manifest, reviewed_by: reviewer, reviewed_at: Time.current)
+
+            get "/api/v1/fisherman/manifests/#{@manifest.id}/capture_reports/#{report.id}", headers: @headers
+
+            assert_response :ok
+            assert_equal reviewer.id, response.parsed_body.dig("data", "reviewed_by", "id")
+          end
         end
       end
     end
