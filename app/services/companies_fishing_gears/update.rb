@@ -20,13 +20,7 @@ module CompaniesFishingGears
     def attributes_for_update(attributes)
       return attributes unless attributes.key?(:fishing_gear_id)
 
-      attributes.merge(fishing_gear_snapshot(attributes[:fishing_gear_id]))
-    end
-
-    def fishing_gear_snapshot(fishing_gear_id)
-      fishing_gear = FishingGear.find_by(id: fishing_gear_id)
-      { fishing_gear_name: fishing_gear&.name, fishing_gear_type: fishing_gear&.gear_type,
-        fishing_gear_fee: fishing_gear&.fee }
+      attributes.merge(Snapshots.fishing_gear(attributes[:fishing_gear_id]))
     end
   end
 end
