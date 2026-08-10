@@ -97,6 +97,38 @@ module Api
           assert_response :unprocessable_content
           assert_predicate response.parsed_body["errors"], :present?
         end
+
+        test "create re-registers a rejected fisherman by updating the existing record back to pending" do
+          contact = create(:company_profile_contact, ic_no: "01-777777", designation: "Owner",
+                                                     company_profile: create(:company_profile, :individual))
+          rejected_user = create(:user, role: @fisherman_role, status: "rejected", ic_number: "01-777777",
+                                        name: "Old Name", registration_type: "Small - Scale (Part-Time)",
+                                        rejection_reason: "Incomplete profile")
+
+          assert_no_difference("User.count") do
+            post "/api/v1/registrations/fisherman",
+                 params: { user: { name: "Updated Fisherman", ic_number: "01-777777",
+                                   registration_type: "Small - Scale (Full-Time)" } }, as: :json
+          end
+
+          assert_response :created
+          rejected_user.reload
+
+          assert_reregistered_fisherman(rejected_user, contact)
+        end
+
+        private
+
+        def assert_reregistered_fisherman(user, contact)
+          assert_equal "pending", user.status
+          assert_nil user.rejection_reason
+          assert_equal "Owner", user.designation
+
+          assert_equal ["Updated Fisherman", "Small - Scale (Full-Time)"],
+                       [user.name, user.registration_type]
+          assert_equal [contact.company_profile, contact],
+                       [user.company_profile, user.company_profile_contact]
+        end
       end
     end
   end

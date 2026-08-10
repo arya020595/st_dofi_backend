@@ -32,16 +32,27 @@ class CaptureReport < ApplicationRecord
     event(:verify) do
       transitions from: :pending_verification, to: :verified, success: :stamp_review_and_maybe_complete!
     end
-    event(:request_amendment) { transitions from: :pending_verification, to: :needs_amendment, after: :stamp_review! }
+    event(:request_amendment) do
+      transitions from: :pending_verification, to: :needs_amendment,
+                  after: %i[stamp_review! sync_manifest_amendment_snapshot_on_amendment!]
+    end
     event(:resubmit) { transitions from: :needs_amendment, to: :pending_verification, after: :clear_review! }
 
-    after_all_transitions :record_catch_history
+    after_all_transitions :record_catch_history, :sync_manifest_amendment_snapshot
   end
 
   private
 
   def record_catch_history(actor: nil, remarks: nil, **)
     record_history!("capture_report_status", actor: actor, remarks: remarks)
+  end
+
+  def sync_manifest_amendment_snapshot(*, **)
+    manifest.sync_capture_report_amendment_snapshot!
+  end
+
+  def sync_manifest_amendment_snapshot_on_amendment!(*, **)
+    manifest.update!(capture_report_amendment_remarks: capture_report_remarks)
   end
 
   def stamp_review!(*, actor: nil, remarks: nil, **)

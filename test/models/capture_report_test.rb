@@ -25,9 +25,7 @@ class CaptureReportTest < ActiveSupport::TestCase
 
     report.request_amendment!(remarks: "Fishing gear section invalid for this zone")
 
-    assert_equal "needs_amendment", report.capture_report_status
-    assert_equal "Fishing gear section invalid for this zone", report.capture_report_remarks
-    assert_predicate report, :editable?
+    assert_amended_report(report)
   end
 
   test "resubmit! returns an amended report to pending_verification" do
@@ -76,6 +74,14 @@ class CaptureReportTest < ActiveSupport::TestCase
     assert_nil report.capture_report_remarks
     assert_nil report.reviewed_by_id
     assert_nil report.reviewed_at
+    assert_nil report.manifest.reload.capture_report_amendment_remarks
+  end
+
+  def assert_amended_report(report)
+    assert_equal "needs_amendment", report.capture_report_status
+    assert_equal "Fishing gear section invalid for this zone", report.capture_report_remarks
+    assert_equal "Fishing gear section invalid for this zone", report.manifest.reload.capture_report_amendment_remarks
+    assert_predicate report, :editable?
   end
 end
 

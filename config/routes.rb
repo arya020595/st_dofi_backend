@@ -166,6 +166,13 @@ Rails.application.routes.draw do
 
       # ==================== fisherman/ : Fisherman PWA ====================
       namespace :fisherman, defaults: { audience: "fisherman" } do
+        namespace :dashboard do
+          get :summary, to: "/api/v1/fisherman/dashboard#summary"
+          get :top_fishes, to: "/api/v1/fisherman/dashboard#top_fishes"
+          get :fishing_gear_analytics, to: "/api/v1/fisherman/dashboard#fishing_gear_analytics"
+          get :zone_analytics, to: "/api/v1/fisherman/dashboard#zone_analytics"
+        end
+
         resources :manifests, only: %i[index show create update destroy] do
           collection do
             get :tab_counts
