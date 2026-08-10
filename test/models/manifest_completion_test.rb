@@ -1,5 +1,6 @@
 require "test_helper"
 
+# rubocop:disable Metrics/ClassLength
 class ManifestCompletionTest < ActiveSupport::TestCase
   test "submit_port_in lands on capture_report_submitted while a report is still pending verification" do
     manifest = create(:manifest, fisherman_category: "commercial")
@@ -38,6 +39,27 @@ class ManifestCompletionTest < ActiveSupport::TestCase
     assert_equal "completed", manifest.reload.manifest_status
   end
 
+  test "complete_manifest increments usage_value from capture report fishing gear quantities" do
+    manifest = create(:manifest, fisherman_category: "commercial")
+    manifest.submit_port_out!
+    manifest.approve_port_out!
+    report_one = create(:capture_report, manifest: manifest)
+    report_two = create(:capture_report, manifest: manifest)
+    company_gear = create(:companies_fishing_gear, :approved,
+                          company_profile: manifest.company_profile,
+                          companies_vessel: manifest.companies_vessel,
+                          usage_value: 5)
+    create(:fishing_gear_detail, capture_report: report_one, companies_fishing_gear: company_gear, quantity: 2)
+    create(:fishing_gear_detail, capture_report: report_two, companies_fishing_gear: company_gear, quantity: 3)
+
+    manifest.submit_port_in!
+    report_one.verify!
+    report_two.verify!
+    manifest.approve_port_in!
+
+    assert_equal BigDecimal("10"), company_gear.reload.usage_value
+  end
+
   test "skipped manifest auto-completes on submit_port_in!, with no capture report" do
     manifest = create(:manifest, fisherman_category: "commercial")
     manifest.submit_port_out!
@@ -58,6 +80,23 @@ class ManifestCompletionTest < ActiveSupport::TestCase
 
     assert_equal "submitted", manifest.port_in_status
     assert_equal "completed", manifest.manifest_status
+  end
+
+  test "small-scale completion increments usage_value after final capture report verification" do
+    manifest = create(:manifest, :small_scale)
+    manifest.submit_port_out!
+    report = create(:capture_report, manifest: manifest)
+    company_gear = create(:companies_fishing_gear, :approved,
+                          company_profile: manifest.company_profile,
+                          companies_vessel: manifest.companies_vessel,
+                          usage_value: nil)
+    create(:fishing_gear_detail, capture_report: report, companies_fishing_gear: company_gear, quantity: 4)
+
+    manifest.submit_port_in!
+    report.verify!
+
+    assert_equal "completed", manifest.reload.manifest_status
+    assert_equal BigDecimal("4"), company_gear.reload.usage_value
   end
 
   test "capture_report_overview_status is not_initiated with no reports and not skipped" do
@@ -102,3 +141,4 @@ class ManifestCompletionTest < ActiveSupport::TestCase
                  [history.status_type, history.from_state, history.to_state]
   end
 end
+# rubocop:enable Metrics/ClassLength

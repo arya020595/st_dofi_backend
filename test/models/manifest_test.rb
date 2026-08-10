@@ -44,6 +44,7 @@ class ManifestTest < ActiveSupport::TestCase
     manifest.request_amendment_port_out!(remarks: "Fix the date")
 
     assert_equal "amendment_required", manifest.port_out_status
+    assert_equal "Fix the date", manifest.port_out_amendment_remarks
     assert_predicate manifest, :editable?
   end
 
@@ -55,6 +56,24 @@ class ManifestTest < ActiveSupport::TestCase
     manifest.resubmit_port_out!
 
     assert_equal "pending", manifest.port_out_status
+    assert_nil manifest.port_out_amendment_remarks
+  end
+
+  test "request_amendment_port_in! stores remarks and resubmit_port_in! clears them" do
+    manifest = create(:manifest, fisherman_category: "commercial")
+    report = create(:capture_report, manifest: manifest)
+    manifest.submit_port_out!
+    manifest.approve_port_out!
+    manifest.submit_port_in!
+    report.verify!
+
+    manifest.request_amendment_port_in!(remarks: "Fix port-in time")
+
+    assert_equal "Fix port-in time", manifest.port_in_amendment_remarks
+
+    manifest.resubmit_port_in!
+
+    assert_nil manifest.port_in_amendment_remarks
   end
 
   test "may_submit_port_in? is false with no capture report and not skipped" do
@@ -125,46 +144,49 @@ end
 # Table name: manifests
 # Database name: primary
 #
-#  id                     :uuid             not null, primary key
-#  ais_tracking           :boolean          default(FALSE), not null
-#  captain_ic_number      :string
-#  captain_name           :string
-#  capture_report_skipped :boolean          default(FALSE), not null
-#  company_name           :string
-#  discarded_at           :datetime
-#  fisherman_category     :string           not null
-#  has_minor_fishermen    :boolean          default(FALSE), not null
-#  has_support_vessel     :boolean          default(FALSE), not null
-#  latitude               :decimal(10, 8)
-#  longitude              :decimal(11, 8)
-#  manifest_number        :string           not null
-#  manifest_status        :string           default("draft"), not null
-#  port_in_area           :string
-#  port_in_datetime       :datetime
-#  port_in_name           :string
-#  port_in_status         :string           default("draft"), not null
-#  port_out_area          :string
-#  port_out_datetime      :datetime
-#  port_out_name          :string
-#  port_out_status        :string           default("draft"), not null
-#  skip_reason_name       :string
-#  skip_reason_remarks    :text
-#  support_vessel_name    :string
-#  support_vessel_no      :string
-#  vessel_boat_name       :string
-#  vessel_boat_no         :string
-#  zone_area              :string
-#  created_at             :datetime         not null
-#  updated_at             :datetime         not null
-#  captain_crew_id        :uuid
-#  companies_vessel_id    :uuid             not null
-#  company_profile_id     :uuid             not null
-#  created_by_id          :uuid
-#  port_in_id             :uuid
-#  port_out_id            :uuid
-#  skip_reason_id         :uuid
-#  support_vessel_id      :uuid
-#  zone_id                :uuid
+#  id                               :uuid             not null, primary key
+#  ais_tracking                     :boolean          default(FALSE), not null
+#  captain_ic_number                :string
+#  captain_name                     :string
+#  capture_report_amendment_remarks :text
+#  capture_report_skipped           :boolean          default(FALSE), not null
+#  company_name                     :string
+#  discarded_at                     :datetime
+#  fisherman_category               :string           not null
+#  has_minor_fishermen              :boolean          default(FALSE), not null
+#  has_support_vessel               :boolean          default(FALSE), not null
+#  latitude                         :decimal(10, 8)
+#  longitude                        :decimal(11, 8)
+#  manifest_number                  :string           not null
+#  manifest_status                  :string           default("draft"), not null
+#  port_in_amendment_remarks        :text
+#  port_in_area                     :string
+#  port_in_datetime                 :datetime
+#  port_in_name                     :string
+#  port_in_status                   :string           default("draft"), not null
+#  port_out_amendment_remarks       :text
+#  port_out_area                    :string
+#  port_out_datetime                :datetime
+#  port_out_name                    :string
+#  port_out_status                  :string           default("draft"), not null
+#  skip_reason_name                 :string
+#  skip_reason_remarks              :text
+#  support_vessel_name              :string
+#  support_vessel_no                :string
+#  vessel_boat_name                 :string
+#  vessel_boat_no                   :string
+#  zone_area                        :string
+#  created_at                       :datetime         not null
+#  updated_at                       :datetime         not null
+#  captain_crew_id                  :uuid
+#  companies_vessel_id              :uuid             not null
+#  company_profile_id               :uuid             not null
+#  created_by_id                    :uuid
+#  port_in_id                       :uuid
+#  port_out_id                      :uuid
+#  skip_reason_id                   :uuid
+#  support_vessel_id                :uuid
+#  zone_id                          :uuid
 #
 # Indexes
 #

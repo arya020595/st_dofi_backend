@@ -72,9 +72,15 @@ class Manifest < ApplicationRecord
       transitions from: :draft, to: :pending,   guard: :commercial?,  after: :begin_port_out_review!
       transitions from: :draft, to: :submitted, guard: :small_scale?, after: :advance_to_sea!
     end
-    event(:approve_port_out)           { transitions from: :pending, to: :approved, after: :advance_to_sea! }
-    event(:request_amendment_port_out) { transitions from: :pending, to: :amendment_required }
-    event(:resubmit_port_out)          { transitions from: :amendment_required, to: :pending }
+    event(:approve_port_out) do
+      transitions from: :pending, to: :approved, after: %i[advance_to_sea! clear_port_out_amendment_snapshot!]
+    end
+    event(:request_amendment_port_out) do
+      transitions from: :pending, to: :amendment_required, after: :store_port_out_amendment_snapshot!
+    end
+    event(:resubmit_port_out) do
+      transitions from: :amendment_required, to: :pending, after: :clear_port_out_amendment_snapshot!
+    end
 
     after_all_transitions :record_port_out_history
   end
@@ -92,9 +98,15 @@ class Manifest < ApplicationRecord
       transitions from: :draft, to: :submitted, guard: %i[small_scale? capture_report_ready?],
                   after: :complete_capture_report!
     end
-    event(:approve_port_in)           { transitions from: :pending, to: :approved, after: :complete_manifest! }
-    event(:request_amendment_port_in) { transitions from: :pending, to: :amendment_required }
-    event(:resubmit_port_in)          { transitions from: :amendment_required, to: :pending }
+    event(:approve_port_in) do
+      transitions from: :pending, to: :approved, after: %i[clear_port_in_amendment_snapshot! complete_manifest!]
+    end
+    event(:request_amendment_port_in) do
+      transitions from: :pending, to: :amendment_required, after: :store_port_in_amendment_snapshot!
+    end
+    event(:resubmit_port_in) do
+      transitions from: :amendment_required, to: :pending, after: :clear_port_in_amendment_snapshot!
+    end
 
     after_all_transitions :record_port_in_history
   end
@@ -123,7 +135,8 @@ class Manifest < ApplicationRecord
                   success: :auto_complete_if_skipped!
     end
     event(:complete_manifest) do
-      transitions from: %i[capture_report_submitted awaiting_port_in_approval], to: :completed
+      transitions from: %i[capture_report_submitted awaiting_port_in_approval], to: :completed,
+                  success: %i[record_fishing_gear_usage! clear_capture_report_amendment_snapshot!]
     end
 
     after_all_transitions :record_manifest_history
@@ -171,10 +184,77 @@ class Manifest < ApplicationRecord
     record_history!("manifest_status", aasm_name: :manifest, actor: actor, remarks: remarks)
   end
 
+  def store_port_out_amendment_snapshot!(*, remarks: nil, **)
+    update!(port_out_amendment_remarks: remarks)
+  end
+
+  def clear_port_out_amendment_snapshot!(*, **)
+    update!(port_out_amendment_remarks: nil)
+  end
+
+  def store_port_in_amendment_snapshot!(*, remarks: nil, **)
+    update!(port_in_amendment_remarks: remarks)
+  end
+
+  def clear_port_in_amendment_snapshot!(*, **)
+    update!(port_in_amendment_remarks: nil)
+  end
+
+  public
+
+  def sync_capture_report_amendment_snapshot!
+    update!(capture_report_amendment_remarks: latest_capture_report_amendment_remarks)
+  end
+
+  def clear_capture_report_amendment_snapshot!(*, **)
+    update!(capture_report_amendment_remarks: nil)
+  end
+
+  def refresh_amendment_snapshots!
+    update!(
+      port_out_amendment_remarks: latest_manifest_amendment_remarks_for(
+        "port_out_status", port_out_amendment_required?
+      ),
+      port_in_amendment_remarks: latest_manifest_amendment_remarks_for("port_in_status", port_in_amendment_required?),
+      capture_report_amendment_remarks: latest_capture_report_amendment_remarks
+    )
+  end
+
+  private
+
   # Skipped-report manifests have no CaptureReport to verify — finalize immediately instead of
   # waiting on a verify event that will never come.
   def auto_complete_if_skipped!(actor: nil, **)
     complete_manifest!(actor: actor) if capture_report_skipped? && may_complete_manifest?
+  end
+
+  def record_fishing_gear_usage!(*, **)
+    usage_totals = FishingGearDetail.joins(:capture_report)
+                                    .where(capture_reports: { manifest_id: id })
+                                    .where.not(companies_fishing_gear_id: nil)
+                                    .group(:companies_fishing_gear_id)
+                                    .sum(:quantity)
+
+    usage_totals.each do |gear_id, quantity|
+      CompaniesFishingGear.where(id: gear_id)
+                          .update_all(["usage_value = COALESCE(usage_value, 0) + ?", quantity]) # rubocop:disable Rails/SkipsModelValidations
+    end
+  end
+
+  def latest_manifest_amendment_remarks_for(status_type, active)
+    return nil unless active
+
+    manifest_histories.where(status_type: status_type, to_state: "amendment_required")
+                      .order(created_at: :desc)
+                      .limit(1)
+                      .pick(:remarks)
+  end
+
+  def latest_capture_report_amendment_remarks
+    capture_reports.where(capture_report_status: "needs_amendment")
+                   .order(reviewed_at: :desc, updated_at: :desc)
+                   .limit(1)
+                   .pick(:capture_report_remarks)
   end
 end
 
@@ -183,46 +263,49 @@ end
 # Table name: manifests
 # Database name: primary
 #
-#  id                     :uuid             not null, primary key
-#  ais_tracking           :boolean          default(FALSE), not null
-#  captain_ic_number      :string
-#  captain_name           :string
-#  capture_report_skipped :boolean          default(FALSE), not null
-#  company_name           :string
-#  discarded_at           :datetime
-#  fisherman_category     :string           not null
-#  has_minor_fishermen    :boolean          default(FALSE), not null
-#  has_support_vessel     :boolean          default(FALSE), not null
-#  latitude               :decimal(10, 8)
-#  longitude              :decimal(11, 8)
-#  manifest_number        :string           not null
-#  manifest_status        :string           default("draft"), not null
-#  port_in_area           :string
-#  port_in_datetime       :datetime
-#  port_in_name           :string
-#  port_in_status         :string           default("draft"), not null
-#  port_out_area          :string
-#  port_out_datetime      :datetime
-#  port_out_name          :string
-#  port_out_status        :string           default("draft"), not null
-#  skip_reason_name       :string
-#  skip_reason_remarks    :text
-#  support_vessel_name    :string
-#  support_vessel_no      :string
-#  vessel_boat_name       :string
-#  vessel_boat_no         :string
-#  zone_area              :string
-#  created_at             :datetime         not null
-#  updated_at             :datetime         not null
-#  captain_crew_id        :uuid
-#  companies_vessel_id    :uuid             not null
-#  company_profile_id     :uuid             not null
-#  created_by_id          :uuid
-#  port_in_id             :uuid
-#  port_out_id            :uuid
-#  skip_reason_id         :uuid
-#  support_vessel_id      :uuid
-#  zone_id                :uuid
+#  id                               :uuid             not null, primary key
+#  ais_tracking                     :boolean          default(FALSE), not null
+#  captain_ic_number                :string
+#  captain_name                     :string
+#  capture_report_amendment_remarks :text
+#  capture_report_skipped           :boolean          default(FALSE), not null
+#  company_name                     :string
+#  discarded_at                     :datetime
+#  fisherman_category               :string           not null
+#  has_minor_fishermen              :boolean          default(FALSE), not null
+#  has_support_vessel               :boolean          default(FALSE), not null
+#  latitude                         :decimal(10, 8)
+#  longitude                        :decimal(11, 8)
+#  manifest_number                  :string           not null
+#  manifest_status                  :string           default("draft"), not null
+#  port_in_amendment_remarks        :text
+#  port_in_area                     :string
+#  port_in_datetime                 :datetime
+#  port_in_name                     :string
+#  port_in_status                   :string           default("draft"), not null
+#  port_out_amendment_remarks       :text
+#  port_out_area                    :string
+#  port_out_datetime                :datetime
+#  port_out_name                    :string
+#  port_out_status                  :string           default("draft"), not null
+#  skip_reason_name                 :string
+#  skip_reason_remarks              :text
+#  support_vessel_name              :string
+#  support_vessel_no                :string
+#  vessel_boat_name                 :string
+#  vessel_boat_no                   :string
+#  zone_area                        :string
+#  created_at                       :datetime         not null
+#  updated_at                       :datetime         not null
+#  captain_crew_id                  :uuid
+#  companies_vessel_id              :uuid             not null
+#  company_profile_id               :uuid             not null
+#  created_by_id                    :uuid
+#  port_in_id                       :uuid
+#  port_out_id                      :uuid
+#  skip_reason_id                   :uuid
+#  support_vessel_id                :uuid
+#  zone_id                          :uuid
 #
 # Indexes
 #
