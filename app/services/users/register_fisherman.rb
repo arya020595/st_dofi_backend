@@ -15,7 +15,8 @@ module Users
       contact = matched_contact(attributes)
       return Failure(:contact_not_found) if contact.nil? && valid_registration_type?(attributes)
 
-      user = User.new(build_attributes(attributes, contact))
+      user = rejected_user(attributes[:ic_number]) || User.new
+      user.assign_attributes(build_attributes(attributes, contact, user: user))
       return Success(user) if user.save
 
       Failure(user)
@@ -36,13 +37,18 @@ module Users
       CompanyProfileContact.kept.find_by(ic_no: attributes[:ic_number])
     end
 
-    def build_attributes(attributes, contact)
-      base = attributes.merge(role: fisherman_role, password: SecureRandom.base64(24), status: "pending",
-                              brunei_id_verified_at: Time.current)
+    def build_attributes(attributes, contact, user:)
+      base = attributes.merge(status: "pending", brunei_id_verified_at: Time.current, rejection_reason: nil)
+      base[:role] ||= fisherman_role if user.new_record?
+      base[:password] ||= SecureRandom.base64(24) if user.new_record?
       return base if contact.nil?
 
       base.merge(company_profile: contact.company_profile, company_profile_contact: contact,
                  designation: contact.designation)
+    end
+
+    def rejected_user(ic_number)
+      User.kept.find_by(ic_number: ic_number, status: "rejected", role: fisherman_role)
     end
 
     def fisherman_role
