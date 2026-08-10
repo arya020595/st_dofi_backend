@@ -61,7 +61,12 @@ class ActionDispatch::IntegrationTest
 
   def create_role_with_permissions(kind:, permission_codes:, name: nil)
     permissions = permission_codes.map { |code| Permission.find_or_create_by!(code: code) { |p| p.name = code } }
-    create(:role, kind: kind, name: name || kind, permissions: permissions)
+    role = Role.find_or_initialize_by(kind: kind)
+    role.name = name || role.name || "#{kind.to_s.humanize} Role"
+    role.description ||= "A test role"
+    role.save! if role.new_record? || role.changed?
+    role.permissions = permissions
+    role
   end
 
   def fisherman_headers_for(manifest, permission_codes:)
