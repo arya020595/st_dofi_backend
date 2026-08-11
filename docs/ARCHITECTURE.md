@@ -164,8 +164,8 @@ Source: [`app/controllers/api/v1/fisherman/manifests_controller.rb`](../app/cont
 
 ### A recurring pattern: create → approve → resubmit
 
-Five resource families — `CompaniesVessels`, `CompaniesCrews`, `CompaniesCaptains`,
-`CompaniesFishingGears`, and `Manifests` — each go through an identical lifecycle, serviced by
+Four resource families — `CompaniesVessels`, `CompaniesCrews`, `CompaniesFishingGears`, and
+`Manifests` — each go through an identical lifecycle, serviced by
 near-identical service classes (`create`/`update`/`approve`/`request_amendment`/`resubmit`):
 
 ```mermaid
@@ -190,17 +190,17 @@ truth for exact columns; this is for orientation.
 erDiagram
     Role ||--o{ User : "has"
     Role }o--o{ Permission : "granted via PermissionRole"
+    CompanyProfile ||--o{ Role : "owns (fisherman-platform roles)"
     CompanyProfile ||--o{ User : "registers"
     CompanyProfile ||--o{ CompanyProfileContact : "Owner / Admin"
     CompanyProfile ||--o{ CompaniesVessel : "owns"
-    CompanyProfile ||--o{ CompaniesCaptain : "employs"
     CompanyProfile ||--o{ CompaniesCrew : "employs"
     CompanyProfile ||--o{ CompaniesFishingGear : "owns"
     CompanyProfile ||--o{ Manifest : "files"
 
     User ||--o{ Manifest : "created_by"
     Manifest }o--|| CompaniesVessel : "uses"
-    Manifest }o--o| CompaniesCaptain : "uses"
+    Manifest }o--o| CompaniesCrew : "captain"
     Manifest }o--o{ CrewManifest : "crew aboard"
     Manifest ||--o| ManifestExpense : "has"
     Manifest ||--o{ CaptureReport : "has"
@@ -224,6 +224,8 @@ fields that matter onto their own rows rather than only holding the foreign key 
 
 ## Where to go deeper
 
+- [`docs/rbac/`](rbac/) — role-based access control: platform/company isolation, authorization vs.
+  isolation, permissions model
 - [`docs/registration/`](registration/) — actors, roles, registration & approval flow
 - [`docs/api/`](api/) — frontend-facing request/response contracts
 - [`docs/data-model/`](data-model/) — denormalized historical snapshots vs. live master-data references
