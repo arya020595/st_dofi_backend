@@ -106,6 +106,7 @@ module Api
 
             assert_equal ["pending", @fishing_gear.id, @vessel.id],
                          [data["approval_status"], data["fishing_gear_id"], data["companies_vessel_id"]]
+            assert_equal "0.0", data["usage_value"]
 
             assert_equal "pending", @vessel.reload.approval_status
           end

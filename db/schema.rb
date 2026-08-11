@@ -353,6 +353,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_11_110000) do
     t.uuid "captain_crew_id"
     t.string "captain_ic_number"
     t.string "captain_name"
+    t.text "capture_report_amendment_remarks"
     t.boolean "capture_report_skipped", default: false, null: false
     t.uuid "companies_vessel_id", null: false
     t.string "company_name"
@@ -367,11 +368,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_11_110000) do
     t.decimal "longitude", precision: 11, scale: 8
     t.string "manifest_number", null: false
     t.string "manifest_status", default: "draft", null: false
+    t.text "port_in_amendment_remarks"
     t.string "port_in_area"
     t.datetime "port_in_datetime"
     t.uuid "port_in_id"
     t.string "port_in_name"
     t.string "port_in_status", default: "draft", null: false
+    t.text "port_out_amendment_remarks"
     t.string "port_out_area"
     t.datetime "port_out_datetime"
     t.uuid "port_out_id"

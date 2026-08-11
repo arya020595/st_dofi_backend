@@ -477,6 +477,10 @@ if manifest10.may_submit_port_in?
   manifest10.approve_port_in!(actor: admin)
 end
 
+[manifest1, manifest2, manifest3, manifest4, manifest5, manifest6, manifest7, manifest8, manifest10]
+  .compact
+  .each(&:refresh_amendment_snapshots!)
+
 puts "Seeded #{Manifest.count} manifests (#{Manifest.where(manifest_status: 'completed').count} completed), " \
      "#{CrewManifest.count} crew manifest entries, #{ManifestMinorFisherman.count} minor fishermen, " \
      "#{CaptureReport.count} capture reports, #{FishCaptureDetail.count} fish capture details, " \

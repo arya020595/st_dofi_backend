@@ -68,6 +68,35 @@ module Api
           assert_response :unprocessable_content
           assert_predicate response.parsed_body["errors"], :present?
         end
+
+        test "create re-registers a rejected jetty manager by updating the existing record back to pending" do
+          rejected_user = create(:user, role: @jetty_manager_role, status: "rejected", ic_number: "01-8888888",
+                                        name: "Old Jetty Manager", unit: "Old Unit", position: "Old Position",
+                                        contact_no: "79999999", rejection_reason: "Incomplete data")
+
+          assert_no_difference("User.count") do
+            post "/api/v1/registrations/jetty_manager",
+                 params: { user: { name: "Updated Jetty Manager", ic_number: "01-8888888", unit: "Lumut Port",
+                                   position: "Jetty Supervisor", contact_no: "71112222" } }, as: :json
+          end
+
+          assert_response :created
+          rejected_user.reload
+
+          assert_reregistered_jetty_manager(rejected_user)
+        end
+
+        private
+
+        def assert_reregistered_jetty_manager(user)
+          assert_equal "pending", user.status
+          assert_nil user.rejection_reason
+
+          assert_equal ["Updated Jetty Manager", "Lumut Port"],
+                       [user.name, user.unit]
+          assert_equal ["Jetty Supervisor", "71112222"],
+                       [user.position, user.contact_no]
+        end
       end
     end
   end

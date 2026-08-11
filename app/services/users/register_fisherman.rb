@@ -23,7 +23,8 @@ module Users
       contact = matched_contact(attributes)
       return Failure(:contact_not_found) if contact.nil?
 
-      user = User.new(build_attributes(attributes, contact))
+      user = rejected_user(attributes[:ic_number]) || User.new
+      user.assign_attributes(build_attributes(attributes, contact, user: user))
       return Success(user) if user.save
 
       Failure(user)

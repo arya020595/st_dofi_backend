@@ -18,9 +18,10 @@ module CompaniesFishingGears
     private
 
     def attributes_for_update(attributes)
-      return attributes unless attributes.key?(:fishing_gear_id)
+      sanitized = attributes.except(:usage_value)
+      return sanitized unless sanitized.key?(:fishing_gear_id)
 
-      attributes.merge(Snapshots.fishing_gear(attributes[:fishing_gear_id]))
+      sanitized.merge(Snapshots.fishing_gear(sanitized[:fishing_gear_id]))
     end
   end
 end
