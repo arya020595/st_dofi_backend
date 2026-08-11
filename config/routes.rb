@@ -171,7 +171,7 @@ Rails.application.routes.draw do
         # UserPolicy/RolePolicy, and Role::PLATFORM_SCOPES.
         resources :users, only: %i[index show create update destroy]
         resources :roles, only: %i[index show create update destroy]
-        
+
         namespace :dashboard do
           get :summary, to: "/api/v1/fisherman/dashboard#summary"
           get :top_fishes, to: "/api/v1/fisherman/dashboard#top_fishes"

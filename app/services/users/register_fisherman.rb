@@ -46,11 +46,20 @@ module Users
       CompanyProfileContact.kept.find_by(ic_no: attributes[:ic_number])
     end
 
-    def build_attributes(attributes, contact)
-      attributes.merge(role: Roles::EnsureFishermanOwnerRole.call(contact.company_profile),
-                       password: SecureRandom.base64(24), status: "pending", brunei_id_verified_at: Time.current,
-                       company_profile: contact.company_profile, company_profile_contact: contact,
-                       designation: contact.designation)
+    # Role/password are only (re-)assigned for a brand-new user — a re-registering rejected user
+    # keeps their prior role/company binding rather than having it silently reset, while their
+    # personal info, status, and contact match are refreshed from this submission either way.
+    def build_attributes(attributes, contact, user:)
+      base = attributes.merge(status: "pending", brunei_id_verified_at: Time.current, rejection_reason: nil,
+                              company_profile: contact.company_profile, company_profile_contact: contact,
+                              designation: contact.designation)
+      base[:role] ||= Roles::EnsureFishermanOwnerRole.call(contact.company_profile) if user.new_record?
+      base[:password] ||= SecureRandom.base64(24) if user.new_record?
+      base
+    end
+
+    def rejected_user(ic_number)
+      User.kept.find_by(ic_number: ic_number, status: "rejected")
     end
   end
 end
