@@ -9,9 +9,10 @@ module RequireAudience
   # precedence over query parameters in the merged params hash. Routes with no :audience default
   # (profile/locale, permissions, attachments) are a no-op here by design.
   #
-  # Admin allowlists officer?/jetty_manager? explicitly rather than checking "not fisherman?" — a
-  # future custom role (Role#kind is nullable by design, see CLAUDE.md) must not default into
-  # admin-shaped access just because it isn't a fisherman.
+  # Gates on Role#platform_scope (every role has one — dofi_officer or fisherman, see Role) rather
+  # than checking "not fisherman?" — a future custom dofi_officer-platform role must land in the
+  # admin audience by the same construction that already makes officer?/jetty_manager? land there,
+  # not by exclusion.
   included do
     before_action :require_correct_audience
   end
@@ -21,7 +22,7 @@ module RequireAudience
   def require_correct_audience
     case params[:audience]
     when "admin"
-      deny_wrong_audience("admin") unless current_user.officer? || current_user.jetty_manager?
+      deny_wrong_audience("admin") unless current_user.dofi_officer_platform?
     when "fisherman"
       deny_wrong_audience("fisherman") unless current_user.fisherman?
     end
@@ -31,8 +32,9 @@ module RequireAudience
   # by Lograge's per-request line, but a wrong-audience attempt is the same kind of signal worth
   # seeing on its own that Api::V1::AttachmentsController already logs for document access.
   def deny_wrong_audience(required_audience)
+    platform_scope = current_user.role&.platform_scope || "none"
     Rails.logger.warn(
-      "Audience access denied: user=#{current_user.id} role=#{current_user.role&.kind || 'none'} " \
+      "Audience access denied: user=#{current_user.id} role_platform_scope=#{platform_scope} " \
       "required_audience=#{required_audience} path=#{request.path}"
     )
     render_forbidden

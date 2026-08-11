@@ -12,7 +12,7 @@ module Api
 
         officer_role = create(:role, kind: Role::DOFI_OFFICER, permissions: profiling_permissions)
         jetty_manager_role = create(:role, kind: Role::JETTY_MANAGER, permissions: profiling_permissions)
-        fisherman_role = create(:role, kind: Role::FISHERMAN, permissions: profiling_permissions)
+        fisherman_role = create(:role, :fisherman, permissions: profiling_permissions)
 
         officer = create(:user, :officer_shaped, role: officer_role, password: @password,
                                                  password_confirmation: @password)

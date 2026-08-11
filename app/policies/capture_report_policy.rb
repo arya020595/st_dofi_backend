@@ -16,7 +16,7 @@ class CaptureReportPolicy < ApplicationPolicy
 
   class Scope < Scope
     def resolve
-      return scope if user.officer? || user.jetty_manager?
+      return scope if user.dofi_officer_platform?
 
       scope.joins(:manifest).where(manifests: { company_profile_id: user.company_profile_id })
     end

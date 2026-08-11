@@ -1,15 +1,38 @@
 class RolePolicy < ApplicationPolicy
-  RESOURCE = "roles".freeze
+  include PlatformScopedResource
 
-  def index? = user.permission?("#{RESOURCE}.list", "#{RESOURCE}.view")
-  def show? = user.permission?("#{RESOURCE}.view")
-  def create? = user.permission?("#{RESOURCE}.create")
-  def update? = user.permission?("#{RESOURCE}.update")
-  def destroy? = user.permission?("#{RESOURCE}.delete")
+  RESOURCE = "roles".freeze
+  FISHERMAN_RESOURCE = "fisherman_roles".freeze
+
+  def index?   = user.permission?("#{resource}.list", "#{resource}.view")
+  def show?    = user.permission?("#{resource}.view") && owns_record?
+  def create?  = user.permission?("#{resource}.create")
+  def update?  = user.permission?("#{resource}.update") && owns_record?
+  def destroy? = user.permission?("#{resource}.delete") && owns_record? && !record.is_default?
 
   class Scope < Scope
     def resolve
-      scope.all
+      return scope.where(platform_scope: Role::DOFI_OFFICER_PLATFORM) if user.dofi_officer_platform?
+      return fisherman_scope if user.fisherman?
+
+      scope.none
     end
+
+    private
+
+    def fisherman_scope
+      scope.where(platform_scope: Role::FISHERMAN_PLATFORM, company_profile_id: user.company_profile_id)
+    end
+  end
+
+  private
+
+  # A DoFi Officer sees/manages every dofi_officer-platform role (unchanged from today's behavior).
+  # A fisherman only ever owns their own company's fisherman-platform roles — this is the
+  # record-level check RolePolicy never had before platform/company scoping existed.
+  def owns_record?
+    return true if user.dofi_officer_platform?
+
+    record.platform_scope == Role::FISHERMAN_PLATFORM && record.company_profile_id == user.company_profile_id
   end
 end

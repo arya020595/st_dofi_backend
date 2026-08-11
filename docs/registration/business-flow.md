@@ -9,11 +9,11 @@ get an account, who approves what, and why were the non-obvious decisions made t
 
 ## 1. The three actors
 
-| Actor | Role (`kind`) | How they get an account | How they log in |
+| Actor | Role | How they get an account | How they log in |
 |---|---|---|---|
-| **DoFi Officer / Administrator** | `"DoFi Officer"` | Created by another officer via **User Management → Add User** (internal, authenticated) | `username` + password (real credential check) |
-| **Jetty Manager** | `"Jetty Manager"` | Self-registers via the public registration form (BruneiID-verified) | BruneiID QR re-scan (mocked today) |
-| **Fisherman** | `"Fisherman"` | Self-registers via the public registration form (BruneiID-verified), one of 3 sub-types | BruneiID QR re-scan (mocked today) |
+| **DoFi Officer / Administrator** | `kind: "DoFi Officer"` | Created by another officer via **User Management → Add User** (internal, authenticated) | `username` + password (real credential check) |
+| **Jetty Manager** | `kind: "Jetty Manager"` | Self-registers via the public registration form (BruneiID-verified) | BruneiID QR re-scan (mocked today) |
+| **Fisherman** | `platform_scope: "fisherman"` — a per-*company* "Owner" role, not a single global row (see §2) | Self-registers via the public registration form (BruneiID-verified), one of 3 sub-types | BruneiID QR re-scan (mocked today) |
 
 **The one thing that explains most of this system's design**: officers are an *internal, trusted*
 population managed by other officers, so they get a real credential (`username`/password) chosen by
@@ -45,19 +45,57 @@ Role (e.g. "DoFi Officer") ──has many──> Permission (e.g. "dofi_officer_
 - `Role`/`Permission`/`Users::Create` intentionally have no concept of "this role needs X field" —
   that logic lives on `User` itself (`officer?`/`jetty_manager?`/`fisherman?` predicates gate
   presence validations). Roles are just a name + a permission set; they don't carry business rules.
-- The three fixed system roles are identified by `Role#kind` (`Role::DOFI_OFFICER`/`JETTY_MANAGER`/
-  `FISHERMAN`), a nullable string column — nullable so a custom role created via the Roles API isn't
-  forced into one of these three buckets. **`kind` is never accepted by `RolesController#role_params`**
-  — it can only be set via `db/seeds/roles.rb` or the console. `User#officer?/jetty_manager?/
-  fisherman?`, the approval policies' scopes, and which role `Users::RegisterJettyManager`/
-  `RegisterFisherman` assign all key off `kind` — see §9 for why this is a dedicated column rather
-  than reusing a display code.
-- `Role::EXTERNAL_KINDS` (Jetty Manager, Fisherman) marks the two roles that only ever come from
-  self-registration. `Users::Create` (the admin "Add User" endpoint) rejects any `role_id` whose role
-  is `external?` — the admin portal can create DoFi Officers and any future custom (non-external)
-  internal role, but never a Jetty Manager/Fisherman account. This makes "created via admin portal" a
-  real guarantee rather than convention, and also means a user created this way can never disappear
-  from `UserPolicy::Scope`'s index (which excludes the same `EXTERNAL_KINDS`).
+
+### `kind` vs `platform_scope` — two deliberately separate discriminators
+
+`Role` carries two different columns that both look like "what kind of role is this," and they
+answer different questions on purpose:
+
+- **`kind`** (nullable, globally unique) identifies the small, *fixed* set of canonical singleton
+  roles: `Role::DOFI_OFFICER` / `Role::JETTY_MANAGER` (`Role::SYSTEM_KINDS`) — exactly one row each,
+  seeded once via `db/seeds/roles.rb`, never created through the API. **`kind` is never accepted by
+  `RolesController#role_params`** on either the admin or fisherman controller. `User#officer?/
+  jetty_manager?`, the approval policies' scopes, and which role `Users::RegisterJettyManager`
+  assigns all key off `kind` — see §9 for why this is a dedicated column rather than reusing a
+  display code.
+- **`platform_scope`** (`Role::DOFI_OFFICER_PLATFORM`/`FISHERMAN_PLATFORM`, required on every role —
+  `Role::PLATFORM_SCOPES`) identifies which platform a role belongs to — not just the 2 fixed `kind`
+  rows, but *every* role, including the many per-company Fisherman roles below. A role can have a
+  `platform_scope` without a `kind` (every custom role does); it can never have neither.
+- `Permission#platform_scope` adds a third value, `Permission::SHARED_PLATFORM`, for permissions
+  usable by both platforms (e.g. `manifest_form.create`) — `Role`s don't get a "shared" option
+  because a role's own platform is never ambiguous, only which permissions it's allowed to hold are.
+
+**There is no single global `Role` row for "Fisherman" anymore.** Each company gets its own
+`platform_scope: "fisherman"` roles, scoped by `company_profile_id`:
+
+- The first person to self-register for a company triggers `Roles::EnsureFishermanOwnerRole`, which
+  `find_or_create_by!`s a role keyed on `(company_profile_id, is_default: true)` — named "Owner",
+  granted every fisherman-platform permission on first creation only. Every subsequent teammate who
+  registers for the same company reuses that same row; the lookup is idempotent and does **not** key
+  on `name`, specifically so the company renaming their Owner role later (via the fisherman-side
+  Roles UI) can't cause a second "default" role to be silently created — the exact same class of bug
+  the `reference_id` incident in §9 caused with a different column.
+- A company can also create additional custom fisherman-platform roles for its teammates via
+  `POST /api/v1/fisherman/roles` (`Fisherman::RolesController`) — `platform_scope: "fisherman"` and
+  `company_profile_id` are always forced from the acting user server-side (`Roles::Create`/`Update`),
+  never accepted from the request body, so a company can never create a role on another platform or
+  under another company's `company_profile_id`. `RolePolicy`/`UserPolicy#owns_record?` additionally
+  gate `show`/`update`/`destroy` on the record actually belonging to the caller's own company —
+  reaching for another company's role/user id 404s (via `policy_scope(...).find`, not a raw `find` +
+  `authorize`), the same as a nonexistent id, rather than 403ing in a way that would confirm the id
+  exists at all.
+- Exactly one `is_default: true` role per `company_profile_id` is a DB-level guarantee (a partial
+  unique index on `roles.company_profile_id where is_default = true`), not just an application-level
+  convention — `RolePolicy#destroy?` additionally refuses to let that default Owner role be deleted.
+- `Role#external?`/`Role.external` (`kind == JETTY_MANAGER || fisherman_platform?`) marks every role
+  that only ever comes from self-registration — replaces what used to be a `Role::EXTERNAL_KINDS`
+  constant back when Fisherman was still a single `kind`. `Users::Create` (the admin "Add User"
+  endpoint) rejects any `role_id` whose role is `external?` via `Role.assignable_by_admin` — the admin
+  portal can create DoFi Officers and any future custom (non-external) internal role, but never a
+  Jetty Manager or Fisherman account. `Role.assignable_by_fisherman(company_profile_id)` is the
+  fisherman-side mirror, restricting a company's own user-management to that company's own
+  fisherman-platform roles only.
 
 ---
 
@@ -246,8 +284,20 @@ A few choices made along the way that aren't obvious just from reading the code:
   for `Role`, with the dedicated `kind` column described in §2, which the Roles API can never write
   to. **Do not reintroduce a client-writable field as an internal type/role discriminator** — if new
   business logic needs to key off "which role is this," it must go through `kind`
-  (`Role::DOFI_OFFICER`/`JETTY_MANAGER`/`FISHERMAN`/`EXTERNAL_KINDS`), not `name` or a new display
-  code (both remain officer-editable).
+  (`Role::DOFI_OFFICER`/`JETTY_MANAGER`), never `name` or a new display code (both remain
+  officer-editable). Fisherman-side discrimination is a different axis entirely and goes through
+  `platform_scope`/`company_profile_id` instead, per the next bullet — there is deliberately no
+  `Role::FISHERMAN` kind (see §2).
+- **`platform_scope` and `company_profile_id` on `Role` are always server-derived, never
+  client-writable** — the same rule as `kind` above, applied to the newer columns.
+  `Fisherman::RolesController#role_params`/`Admin::RolesController#role_params` only ever permit
+  `%i[name description]`; `platform_scope`/`company_profile_id` are passed as explicit keyword
+  arguments from the controller (`Role::FISHERMAN_PLATFORM` + `current_user.company_profile_id` on
+  the fisherman side, `Role::DOFI_OFFICER_PLATFORM` + `nil` on the admin side) and `Roles::Create`/
+  `Update` re-force them into `attributes` on every call — a request body that actively sends its own
+  `platform_scope`/`company_profile_id` is silently overridden, not merely ignored-if-absent. Without
+  this, a company could mint a role that reaches into another company's data or onto the DoFi Officer
+  platform simply by including those keys in a `POST`/`PATCH` body.
 - **Single role for every DoFi Officer/Administrator, "Administrator" is a Position label** — avoids
   a second permission tier that would need its own maintenance the moment the two ever needed to
   diverge; if they never diverge, a second role would only have been ceremony.

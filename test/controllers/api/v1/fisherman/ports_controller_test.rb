@@ -7,13 +7,14 @@ module Api
         setup do
           @password = "Password123!"
 
-          # ports.view is required for #show — beyond the ports.list the seeded Fisherman role
-          # actually carries today (db/seeds/roles.rb); included here to exercise the policy itself.
+          # ports.view is required for #show, ports.list for #index — granted directly here (rather
+          # than relying on Roles::EnsureFishermanOwnerRole's broader grant) to exercise the policy
+          # itself in isolation.
           fisherman_permissions = %w[ports.list ports.view].map do |code|
             Permission.find_or_create_by!(code: code) { |p| p.name = code }
           end
 
-          @fisherman_role = create(:role, kind: Role::FISHERMAN, name: "Fisherman", permissions: fisherman_permissions)
+          @fisherman_role = create(:role, :fisherman, name: "Fisherman", permissions: fisherman_permissions)
           @no_access_role = create(:role)
 
           @fisherman = create(:user, role: @fisherman_role, ic_number: "01-800100", registration_type: "Commercial",

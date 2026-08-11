@@ -282,6 +282,18 @@
       "key": "manifest_commercial_amendment_demo_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "fisherman_role_id",
+      "value": ""
+    },
+    {
+      "key": "fisherman_owner_role_id",
+      "value": ""
+    },
+    {
+      "key": "fisherman_user_id",
+      "value": ""
     }
   ],
   "item": [
@@ -2314,6 +2326,386 @@
               "body": "{\n  \"status\": \"success\",\n  \"message\": \"Role removed.\"\n}"
             }
           ]
+        },
+        {
+          "name": "Fisherman",
+          "item": [
+            {
+              "name": "List Roles (Fisherman)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/roles",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "roles"
+                  ]
+                },
+                "description": "Company-scoped equivalent of List Roles above — RolePolicy::Scope#fisherman_scope restricts this to platform_scope: fisherman roles belonging to the signed-in user's own company_profile_id only. Requires fisherman_roles.list or .view. Run \"BruneiID Login - Active\" in Auth first to populate fisherman_jwt_token."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create Role (Fisherman)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/roles",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "roles"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"role\": {\n    \"name\": \"Postman Fisherman Role\",\n    \"description\": \"Created from the Postman collection\"\n  },\n  \"permission_codes\": [\n    \"dashboard.view\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Creates a role owned by the caller's own company. platform_scope and company_profile_id are always server-derived (Role::FISHERMAN_PLATFORM, current_user.company_profile_id) — never read from the request body, even if sent (see Create Role (Fisherman) - Cross-Platform Permission (422) below for the permission-side equivalent of this guarantee). Requires fisherman_roles.create. The response's data.id is auto-saved to the fisherman_role_id collection variable."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                      "const resData = pm.response.json().data;",
+                      "if (resData && resData.id) { pm.collectionVariables.set('fisherman_role_id', resData.id); }",
+                      "pm.test('platform_scope and company_profile_id are server-derived, not client input', () => {",
+                      "  pm.expect(resData.platform_scope).to.eql('fisherman');",
+                      "  pm.expect(resData.company_profile_id).to.be.a('string').and.not.empty;",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Show Role (Fisherman)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/roles/{{fisherman_role_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "roles",
+                    "{{fisherman_role_id}}"
+                  ]
+                },
+                "description": "Fetches the role created above. Requires fisherman_roles.view; RolePolicy#owns_record? also requires it to belong to the caller's own company (see the 404 example below for what happens when it doesn't)."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update Role (Fisherman)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/roles/{{fisherman_role_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "roles",
+                    "{{fisherman_role_id}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"role\": {\n    \"description\": \"Updated from the Postman collection\"\n  },\n  \"permission_codes\": [\n    \"dashboard.view\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Updates the role created above; permission_codes is a full replace, not a merge. Requires fisherman_roles.update."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create Role (Fisherman) - Cross-Platform Permission (422)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/roles",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "roles"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"role\": {\n    \"name\": \"Sneaky Role\"\n  },\n  \"permission_codes\": [\n    \"roles.create\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "roles.create is seeded dofi_officer-platform-only (see DOFI_OFFICER_ONLY_GROUPS in db/seeds/permissions.rb). Roles::PermissionPlatformValidation rejects assigning any permission outside the role's own platform, so this 422s rather than silently creating a fisherman role that can reach an officer-only permission."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                      "pm.test('Error explains the platform mismatch', () => {",
+                      "  pm.expect(pm.response.json().errors.join(' ')).to.include('not available to the fisherman platform');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Show Role (Fisherman) - Another Company (404)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/roles/00000000-0000-0000-0000-000000000000",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "roles",
+                    "00000000-0000-0000-0000-000000000000"
+                  ]
+                },
+                "description": "set_role resolves through policy_scope(Role).find(...), so a role id outside the caller's own company 404s exactly like a nonexistent one — RecordNotFound either way, never a 403 that would confirm the id exists on another company. The placeholder id here is simply nonexistent, which exercises the identical code path as a real foreign-company role id would; substitute a genuine one (e.g. another company's fisherman_role_id from a second BruneiID identity) to see the same 404 against real data."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Destroy Role (Fisherman)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/roles/{{fisherman_role_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "roles",
+                    "{{fisherman_role_id}}"
+                  ]
+                },
+                "description": "Deletes the role created by Create Role (Fisherman) above. Requires fisherman_roles.delete; the company's is_default Owner role specifically cannot be destroyed this way (RolePolicy#destroy? checks !record.is_default?)."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ],
+          "description": "Company-scoped mirror of the requests above, via Fisherman::RolesController. Same Roles::Create/Update services; every call forces platform_scope: fisherman and the caller's own company_profile_id server-side. See RolePolicy and Role::PLATFORM_SCOPES."
         }
       ],
       "description": "CRUD for roles and their permission assignments. Creating/updating a role accepts a `permission_codes` array referencing `Permission#code` values from the Permissions folder."
@@ -3313,6 +3705,443 @@
               "body": "{\n  \"status\": \"fail\",\n  \"message\": \"Resource not found.\"\n}"
             }
           ]
+        },
+        {
+          "name": "Fisherman",
+          "item": [
+            {
+              "name": "List Users (Fisherman)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/users",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "users"
+                  ]
+                },
+                "description": "Company-scoped equivalent of List Users above — returns only teammates belonging to the signed-in user's own company_profile_id (UserPolicy::Scope#fisherman_scope). Requires fisherman_users.list or .view. Run \"BruneiID Login - Active\" in Auth first to populate fisherman_jwt_token."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Setup - Get Fisherman Owner Role (Fisherman)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/roles?q[is_default_eq]=true&limit=1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "roles"
+                  ],
+                  "query": [
+                    {
+                      "key": "q[is_default_eq]",
+                      "value": "true"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "1"
+                    }
+                  ]
+                },
+                "description": "Looks up the caller's own company's seeded default Owner role and saves it to the fisherman_owner_role_id collection variable, used by Create User (Fisherman) below. Requires fisherman_roles.list/.view."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "const match = pm.response.json().data[0];",
+                      "if (match) { pm.collectionVariables.set('fisherman_owner_role_id', match.id); }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create User (Fisherman)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/users",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "users"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user\": {\n    \"name\": \"Postman Test Teammate\",\n    \"ic_number\": \"00PRTMN01\",\n    \"registration_type\": \"Commercial\",\n    \"role_id\": \"{{fisherman_owner_role_id}}\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Creates a teammate under the caller's own company — company_profile is always server-derived from current_user (create_params merges it in), never a client param. Requires fisherman_users.create. password/password_confirmation are optional here too; omitted, so the server auto-generates one returned once as data.temporary_password. The response's data.id is auto-saved to the fisherman_user_id collection variable. Re-running this without changing ic_number will 422 on a persistent environment (e.g. staging) since a prior run's user already exists — change the body or clean up the previous test user first."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                      "const body = pm.response.json();",
+                      "const id = body.data && body.data.id;",
+                      "if (id) { pm.collectionVariables.set('fisherman_user_id', id); }",
+                      "pm.test('Returns a one-time temporary_password', () => pm.expect(body.data.temporary_password).to.be.a('string'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Show User (Fisherman)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/users/{{fisherman_user_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "users",
+                    "{{fisherman_user_id}}"
+                  ]
+                },
+                "description": "Fetches the teammate created above. Requires fisherman_users.view; UserPolicy#owns_record? also requires them to belong to the caller's own company (see the 404 example below for what happens when they don't)."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update User (Fisherman)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/users/{{fisherman_user_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "users",
+                    "{{fisherman_user_id}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user\": {\n    \"name\": \"Postman Test Teammate (Updated)\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Updates the teammate created above. Requires fisherman_users.update."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update User (Fisherman) - Foreign Role (422)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/users/{{fisherman_user_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "users",
+                    "{{fisherman_user_id}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user\": {\n    \"role_id\": \"00000000-0000-0000-0000-000000000000\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Users::RoleAssignmentValidation checks the target role_id against Role.assignable_by_fisherman(company_profile_id) — this company's own fisherman-platform roles only — via assignable_roles.exists?(id:). A nonexistent id fails that check exactly like a real role belonging to another company would (both simply aren't in the assignable set), so this exercises the identical rejection path without needing a second company's real role id."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                      "pm.test('Error explains the role is not assignable', () => {",
+                      "  pm.expect(pm.response.json().errors.join(' ')).to.include('is not a role available to you');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Show User (Fisherman) - Another Company (404)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/users/00000000-0000-0000-0000-000000000000",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "users",
+                    "00000000-0000-0000-0000-000000000000"
+                  ]
+                },
+                "description": "set_user resolves through policy_scope(User).find(...), so a user id outside the caller's own company 404s exactly like a nonexistent one, never a 403 that would confirm the id exists on another company. The placeholder id here is simply nonexistent, which exercises the identical code path as a real foreign-company user id would; substitute a genuine one to see the same 404 against real data."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Destroy User (Fisherman - soft)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/users/{{fisherman_user_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "users",
+                    "{{fisherman_user_id}}"
+                  ]
+                },
+                "description": "Soft-deletes the teammate created above via Discard. Requires fisherman_users.delete."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ],
+          "description": "Company-scoped mirror of the requests above, via Fisherman::UsersController — a company managing its own teammates. company_profile is always server-derived from current_user, never a client param; only this company's own fisherman-platform roles are assignable (Role.assignable_by_fisherman). See UserPolicy."
         }
       ],
       "description": "CRUD for DoFi officer users. Each user belongs to a Role (assigned via `role_id` on create/update, omitted defaults apply). `DELETE` soft-deletes via Discard rather than removing the row."

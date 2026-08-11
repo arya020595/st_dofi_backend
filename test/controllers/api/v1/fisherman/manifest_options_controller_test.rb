@@ -9,9 +9,10 @@ module Api
           permission = Permission.find_or_create_by!(code: "manifest_form.create") do |record|
             record.name = "Manifest form - Create"
           end
-          @fisherman_role = create(:role, kind: Role::FISHERMAN, name: "Fisherman", permissions: [permission])
           @no_access_role = create(:role)
           @company_profile = create(:company_profile)
+          @fisherman_role = create(:role, :fisherman, name: "Fisherman", company_profile: @company_profile,
+                                                      permissions: [permission])
           @fisherman = create(:user, role: @fisherman_role, company_profile: @company_profile,
                                      ic_number: "01-800100", registration_type: "Commercial",
                                      password: @password, password_confirmation: @password)

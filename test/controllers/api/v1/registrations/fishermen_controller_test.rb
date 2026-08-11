@@ -4,10 +4,6 @@ module Api
   module V1
     module Registrations
       class FishermenControllerTest < ActionDispatch::IntegrationTest
-        setup do
-          @fisherman_role = create(:role, kind: Role::FISHERMAN, name: "Fisherman")
-        end
-
         test "create registers a commercial fisherman linked to the matching company profile" do
           contact = create(:company_profile_contact, ic_no: "01-192839",
                                                      company_profile: create(:company_profile,
@@ -26,9 +22,10 @@ module Api
           assert_equal contact.company_profile, user.company_profile
         end
 
-        test "create sets status to pending and assigns the fisherman role" do
-          create(:company_profile_contact, ic_no: "01-192839",
-                                           company_profile: create(:company_profile, registration_type: "Commercial"))
+        test "create sets status to pending and assigns the company's fisherman Owner role" do
+          contact = create(:company_profile_contact, ic_no: "01-192839",
+                                                     company_profile: create(:company_profile,
+                                                                             registration_type: "Commercial"))
 
           post "/api/v1/registrations/fisherman", params: { user: { name: "Muhammad Shahrizan Bin Haji Said",
                                                                     ic_number: "01-192839",
@@ -36,8 +33,26 @@ module Api
                                                                     designation: "Owner" } }, as: :json
           user = User.last
 
-          assert_equal "pending", user.status
-          assert_equal @fisherman_role, user.role
+          assert_equal ["pending", "Owner", contact.company_profile],
+                       [user.status, user.role.name, user.role.company_profile]
+          assert_predicate user.role, :is_default?
+        end
+
+        test "create reuses the same company Owner role for a second registrant" do
+          company_profile = create(:company_profile, registration_type: "Commercial")
+          create(:company_profile_contact, ic_no: "01-192839", designation: "Owner", company_profile: company_profile)
+          create(:company_profile_contact, ic_no: "01-192840", designation: "Admin", company_profile: company_profile)
+
+          post "/api/v1/registrations/fisherman", params: { user: { name: "First", ic_number: "01-192839",
+                                                                    registration_type: "Commercial",
+                                                                    designation: "Owner" } }, as: :json
+          post "/api/v1/registrations/fisherman", params: { user: { name: "Second", ic_number: "01-192840",
+                                                                    registration_type: "Commercial",
+                                                                    designation: "Admin" } }, as: :json
+
+          roles = User.where(ic_number: %w[01-192839 01-192840]).map(&:role)
+
+          assert_equal 1, roles.uniq.size
         end
 
         test "create derives designation from the matched company profile, ignoring the submitted value" do

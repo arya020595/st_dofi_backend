@@ -59,18 +59,17 @@ class ActionDispatch::IntegrationTest
   # manifests/ for usage.
   MANIFEST_SUB_RESOURCE_TEST_PASSWORD = "Password123!".freeze
 
+  def find_or_create_permissions(codes)
+    codes.map { |code| Permission.find_or_create_by!(code: code) { |p| p.name = code } }
+  end
+
   def create_role_with_permissions(kind:, permission_codes:, name: nil)
-    permissions = permission_codes.map { |code| Permission.find_or_create_by!(code: code) { |p| p.name = code } }
-    role = Role.find_or_initialize_by(kind: kind)
-    role.name = name || role.name || "#{kind.to_s.humanize} Role"
-    role.description ||= "A test role"
-    role.save! if role.new_record? || role.changed?
-    role.permissions = permissions
-    role
+    create(:role, kind: kind, name: name || kind, permissions: find_or_create_permissions(permission_codes))
   end
 
   def fisherman_headers_for(manifest, permission_codes:)
-    role = create_role_with_permissions(kind: Role::FISHERMAN, permission_codes: permission_codes)
+    role = create(:role, :fisherman, company_profile: manifest.company_profile,
+                                     permissions: find_or_create_permissions(permission_codes))
     user = create(:user, role: role, company_profile: manifest.company_profile, ic_number: SecureRandom.hex(5),
                          registration_type: "Commercial", password: MANIFEST_SUB_RESOURCE_TEST_PASSWORD,
                          password_confirmation: MANIFEST_SUB_RESOURCE_TEST_PASSWORD)

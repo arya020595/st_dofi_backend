@@ -1,4 +1,3 @@
-fisherman_role = Role.find_by!(kind: Role::FISHERMAN)
 jetty_manager_role = Role.find_by!(kind: Role::JETTY_MANAGER)
 default_password = ENV.fetch("ADMIN_DEFAULT_PASSWORD", "ChangeMe123!")
 
@@ -16,9 +15,14 @@ FISHERMAN_USERS = [
 FISHERMAN_USERS.each do |attrs|
   contact = CompanyProfileContact.find_by!(ic_no: attrs[:ic_number])
 
+  # Each fixture user belongs to a different company_profile (see db/seeds/company_profiles.rb), so
+  # each needs its own company-scoped Owner role, found-or-created the same way production
+  # self-registration does — not a single shared role like the old global Fisherman kind row.
+  owner_role = Roles::EnsureFishermanOwnerRole.call(contact.company_profile)
+
   User.find_or_create_by!(ic_number: attrs[:ic_number]) do |user|
     user.name = attrs[:name]
-    user.role = fisherman_role
+    user.role = owner_role
     user.registration_type = attrs[:registration_type]
     user.company_profile = contact.company_profile
     user.company_profile_contact = contact
@@ -51,5 +55,6 @@ JETTY_MANAGER_USERS.each do |attrs|
   end
 end
 
-puts "Seeded #{User.where(role: fisherman_role).count} fisherman users and " \
+fisherman_count = User.joins(:role).where(roles: { platform_scope: Role::FISHERMAN_PLATFORM }).count
+puts "Seeded #{fisherman_count} fisherman users and " \
      "#{User.where(role: jetty_manager_role).count} jetty manager users"

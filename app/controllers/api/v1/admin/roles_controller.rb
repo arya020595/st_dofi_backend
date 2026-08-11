@@ -21,7 +21,8 @@ module Api
         def create
           authorize Role
 
-          case Roles::Create.call(role_params, permission_codes: params[:permission_codes])
+          case Roles::Create.call(role_params, platform_scope: Role::DOFI_OFFICER_PLATFORM,
+                                               permission_codes: params[:permission_codes])
           in Success(role)
             render json: { status: "success", data: RoleBlueprint.render_as_hash(role) }, status: :created
           in Failure(role)
@@ -32,7 +33,8 @@ module Api
         def update
           authorize @role
 
-          case Roles::Update.call(@role, role_params, permission_codes: params[:permission_codes])
+          case Roles::Update.call(@role, role_params, platform_scope: Role::DOFI_OFFICER_PLATFORM,
+                                                      permission_codes: params[:permission_codes])
           in Success(role)
             render json: { status: "success", data: RoleBlueprint.render_as_hash(role) }
           in Failure(role)
@@ -53,7 +55,7 @@ module Api
         private
 
         def set_role
-          @role = Role.find(params.expect(:id))
+          @role = policy_scope(Role).find(params.expect(:id))
         end
 
         def role_params

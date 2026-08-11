@@ -9,10 +9,12 @@ module Api
 
           @view_permission = Permission.find_or_create_by!(code: "manifest_list.view") do |permission|
             permission.name = "Manifest list - View"
+            permission.platform_scope = Permission::SHARED_PLATFORM
           end
           role_permissions = %w[list view create update delete].map do |action|
             Permission.find_or_create_by!(code: "roles.#{action}") do |permission|
               permission.name = "Roles - #{action.capitalize}"
+              permission.platform_scope = Permission::DOFI_OFFICER_PLATFORM
             end
           end
           @admin_role = create(:role, kind: Role::DOFI_OFFICER, permissions: role_permissions)
@@ -85,6 +87,33 @@ module Api
                                       headers: @plain_headers, as: :json
 
           assert_response :forbidden
+        end
+
+        test "create rejects a permission code belonging to the fisherman platform" do
+          fisherman_only = create(:permission, code: "fisherman_users.create",
+                                               platform_scope: Permission::FISHERMAN_PLATFORM)
+
+          assert_no_difference("Role.count") do
+            post "/api/v1/admin/roles", params: { role: { name: "Sneaky Role" },
+                                                  permission_codes: [fisherman_only.code] },
+                                        headers: @admin_headers, as: :json
+          end
+
+          assert_response :unprocessable_content
+          assert_includes response.parsed_body["errors"].join, "not available to the dofi_officer platform"
+        end
+
+        test "created roles are always dofi_officer platform, never client-settable, even when actively sent" do
+          foreign_company = create(:company_profile)
+
+          post "/api/v1/admin/roles",
+               params: { role: { name: "New Role", platform_scope: "fisherman",
+                                 company_profile_id: foreign_company.id } },
+               headers: @admin_headers, as: :json
+
+          assert_response :created
+          assert_equal ["dofi_officer", nil],
+                       response.parsed_body["data"].values_at("platform_scope", "company_profile_id")
         end
 
         test "update replaces the permission set" do

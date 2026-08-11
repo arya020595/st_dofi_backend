@@ -74,3 +74,6 @@ Metrics/ClassLength:
     # Same reasoning: index/show/ransack-filter/create/update/destroy plus owner+admin contact
     # variants, each its own focused test block.
     - "test/controllers/api/v1/company_profiles_controller_test.rb"
+    # Same reasoning: commercial/small-scale registration, role reuse, designation derivation,
+    # rejection paths, and re-registration, each its own focused test block.
+    - "test/controllers/api/v1/registrations/fishermen_controller_test.rb"

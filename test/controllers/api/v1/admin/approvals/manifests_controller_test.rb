@@ -22,13 +22,14 @@ module Api
           end
           officer_permissions = jetty_permissions + [update_permission]
 
-          @fisherman_role = create(:role, kind: Role::FISHERMAN, name: "Fisherman", permissions: fisherman_permissions)
           @jetty_role = create(:role, kind: Role::JETTY_MANAGER, name: "Jetty Manager", permissions: jetty_permissions)
           @officer_role = create(:role, kind: Role::DOFI_OFFICER, name: "DoFi Officer",
                                         permissions: officer_permissions)
           @no_access_role = create(:role)
 
           @company_profile = create(:company_profile)
+          @fisherman_role = create(:role, :fisherman, name: "Fisherman", company_profile: @company_profile,
+                                                      permissions: fisherman_permissions)
           @fisherman = create(:user, role: @fisherman_role, company_profile: @company_profile,
                                      ic_number: "01-800100", registration_type: "Commercial",
                                      password: @password, password_confirmation: @password)

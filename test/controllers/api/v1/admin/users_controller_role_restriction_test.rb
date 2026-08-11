@@ -24,17 +24,25 @@ module Api
                                       headers: @admin_headers, as: :json
 
           assert_response :unprocessable_content
-          assert_includes response.parsed_body["errors"].join, "self-registration-only role"
+          assert_includes response.parsed_body["errors"].join, "is not a role available to you"
         end
 
         test "create rejects a Fisherman role_id" do
-          fisherman_role = create(:role, kind: Role::FISHERMAN, name: "Fisherman")
+          fisherman_role = create(:role, :fisherman, name: "Fisherman")
 
           post "/api/v1/admin/users", params: { user: { name: "Blocked", role_id: fisherman_role.id } },
                                       headers: @admin_headers, as: :json
 
           assert_response :unprocessable_content
-          assert_includes response.parsed_body["errors"].join, "self-registration-only role"
+          assert_includes response.parsed_body["errors"].join, "is not a role available to you"
+        end
+
+        test "create rejects an unassignable custom role_id (a nonexistent id)" do
+          post "/api/v1/admin/users", params: { user: { name: "Blocked", role_id: SecureRandom.uuid } },
+                                      headers: @admin_headers, as: :json
+
+          assert_response :unprocessable_content
+          assert_includes response.parsed_body["errors"].join, "is not a role available to you"
         end
 
         test "create allows a DoFi Officer role_id" do

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_10_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_11_110000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -432,8 +432,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_10_090000) do
     t.string "code", null: false
     t.datetime "created_at", null: false
     t.string "name", null: false
+    t.string "platform_scope", default: "shared", null: false
     t.datetime "updated_at", null: false
     t.index ["code"], name: "index_permissions_on_code", unique: true
+    t.check_constraint "platform_scope::text = ANY (ARRAY['fisherman'::character varying, 'dofi_officer'::character varying, 'shared'::character varying]::text[])", name: "check_permissions_platform_scope"
   end
 
   create_table "ports", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -454,13 +456,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_10_090000) do
   end
 
   create_table "roles", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "company_profile_id"
     t.datetime "created_at", null: false
     t.text "description"
+    t.boolean "is_default", default: false, null: false
     t.string "kind"
     t.string "name", null: false
+    t.string "platform_scope", null: false
     t.datetime "updated_at", null: false
+    t.index ["company_profile_id", "name"], name: "index_roles_on_company_profile_id_and_name", unique: true, nulls_not_distinct: true
+    t.index ["company_profile_id"], name: "index_roles_on_company_profile_id"
+    t.index ["company_profile_id"], name: "index_roles_on_company_profile_id_and_is_default", unique: true, where: "(is_default = true)"
     t.index ["kind"], name: "index_roles_on_kind", unique: true
-    t.index ["name"], name: "index_roles_on_name", unique: true
+    t.check_constraint "platform_scope::text = 'fisherman'::text AND company_profile_id IS NOT NULL OR platform_scope::text = 'dofi_officer'::text AND company_profile_id IS NULL", name: "check_roles_company_profile_matches_platform_scope"
+    t.check_constraint "platform_scope::text = ANY (ARRAY['fisherman'::character varying, 'dofi_officer'::character varying]::text[])", name: "check_roles_platform_scope"
   end
 
   create_table "sequence_counters", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -561,6 +570,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_10_090000) do
   add_foreign_key "manifests", "zones"
   add_foreign_key "permission_roles", "permissions"
   add_foreign_key "permission_roles", "roles"
+  add_foreign_key "roles", "company_profiles"
   add_foreign_key "users", "company_profile_contacts"
   add_foreign_key "users", "company_profiles"
   add_foreign_key "users", "roles"

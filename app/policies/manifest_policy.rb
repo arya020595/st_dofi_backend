@@ -26,7 +26,7 @@ class ManifestPolicy < ApplicationPolicy
 
   class Scope < Scope
     def resolve
-      return scope.kept if user.officer? || user.jetty_manager?
+      return scope.kept if user.dofi_officer_platform?
 
       scope.kept.where(company_profile_id: user.company_profile_id)
     end

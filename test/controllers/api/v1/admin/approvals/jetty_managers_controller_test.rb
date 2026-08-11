@@ -14,7 +14,7 @@ module Api
           end
           @admin_role = create(:role, kind: Role::DOFI_OFFICER, permissions: admin_permissions)
           @no_access_role = create(:role)
-          @fisherman_role = create(:role, kind: Role::FISHERMAN, name: "Fisherman")
+          @fisherman_role = create(:role, :fisherman, name: "Fisherman")
           @jetty_manager_role = create(:role, kind: Role::JETTY_MANAGER, name: "Jetty Manager")
 
           @admin = create(:user, role: @admin_role, position: "Administrator", unit: "HQ",

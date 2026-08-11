@@ -12,8 +12,9 @@ module Api
                                                                   manifest_minor_fishermen.create
                                                                   manifest_minor_fishermen.delete])
 
-            # A plain (no-kind) role rather than a second Role::FISHERMAN — kind has a unique index,
-            # and fisherman_headers_for above already claimed it for this test.
+            # A plain dofi_officer-platform role (the factory default) rather than a second
+            # fisherman-platform role for this company — deliberately fails the fisherman? audience
+            # check, so this user is rejected before Pundit's own permission check even runs.
             plain_user = create(:user, role: create(:role), company_profile: @manifest.company_profile,
                                        ic_number: SecureRandom.hex(5), registration_type: "Commercial",
                                        password: MANIFEST_SUB_RESOURCE_TEST_PASSWORD,

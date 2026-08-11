@@ -166,6 +166,12 @@ Rails.application.routes.draw do
 
       # ==================== fisherman/ : Fisherman PWA ====================
       namespace :fisherman, defaults: { audience: "fisherman" } do
+        # A company's own self-management of its users/roles — company-scoped mirror of
+        # admin/users and admin/roles above. See Fisherman::UsersController/RolesController,
+        # UserPolicy/RolePolicy, and Role::PLATFORM_SCOPES.
+        resources :users, only: %i[index show create update destroy]
+        resources :roles, only: %i[index show create update destroy]
+
         namespace :dashboard do
           get :summary, to: "/api/v1/fisherman/dashboard#summary"
           get :top_fishes, to: "/api/v1/fisherman/dashboard#top_fishes"
