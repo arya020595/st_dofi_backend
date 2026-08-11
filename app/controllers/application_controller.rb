@@ -8,8 +8,10 @@ class ApplicationController < ActionController::API
   include ActiveStorage::SetCurrent
 
   before_action :authenticate_user!
+  before_action :set_current_context
   before_action :set_locale
   before_action :set_active_storage_url_options
+  around_action :log_inbound_api_request
   include RequireAudience # after authenticate_user! — needs current_user to already be set
 
   rescue_from Pundit::NotAuthorizedError, with: :render_forbidden
@@ -30,6 +32,11 @@ class ApplicationController < ActionController::API
     request.headers["Accept-Language"]
   end
 
+  def set_current_context
+    Current.request_id = request.request_id
+    Current.user_id = current_user&.id
+  end
+
   # Only the local Disk service (used in development/test) needs this — it serves files through a
   # Rails route, so generating a URL requires a host. This is an ActionController::API app, which
   # (unlike ActionController::Base) never auto-populates ActiveStorage::Current.url_options from the
@@ -45,6 +52,18 @@ class ApplicationController < ActionController::API
     super
     payload[:request_id] = request.request_id
     payload[:user_id] = current_user&.id
+  end
+
+  def log_inbound_api_request
+    exception = nil
+    yield
+  rescue StandardError => e
+    exception = e
+    raise
+  ensure
+    ApiRequestLogs::Recorder.log_inbound(request:, response:, current_user: current_user,
+                                         controller_name: "#{self.class.name}##{action_name}", exception:)
+    Current.reset
   end
 
   def render_error(message, status)
