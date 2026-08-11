@@ -1,10 +1,15 @@
 module Users
   class Create
     include Dry::Monads[:result]
+    include Users::RoleAssignmentValidation
 
     def self.call(...) = new.call(...)
 
-    def call(attributes)
+    # assignable_roles is required, never defaulted — the controller derives it from the acting
+    # user's own context (Admin::UsersController passes Role.assignable_by_admin,
+    # Fisherman::UsersController passes Role.assignable_by_fisherman(current_user.company_profile_id)),
+    # so this service never has to know which platform it's being called from.
+    def call(attributes, assignable_roles:)
       client_password = attributes[:password].presence
       password = client_password || SecureRandom.base64(24)
       password_confirmation = client_password ? attributes[:password_confirmation] : password
@@ -12,16 +17,9 @@ module Users
       user = User.new(attributes.except(:employee_id, :password, :password_confirmation)
                                  .merge(employee_id: SecureRandom.uuid, password: password,
                                         password_confirmation: password_confirmation))
-      return external_role_failure(user) if user.role&.external?
+      return Failure(user) unless role_assignable?(user, user.role_id, assignable_roles)
       return Success(user) if user.save
 
-      Failure(user)
-    end
-
-    private
-
-    def external_role_failure(user)
-      user.errors.add(:role_id, "cannot be a self-registration-only role (Jetty Manager or Fisherman)")
       Failure(user)
     end
   end

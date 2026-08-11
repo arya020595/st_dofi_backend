@@ -8,13 +8,7 @@ class FishermanApprovalPolicy < ApplicationPolicy
 
   class Scope < Scope
     def resolve
-      scope.kept.where(role_id: fisherman_role&.id)
-    end
-
-    private
-
-    def fisherman_role
-      Role.find_by(kind: Role::FISHERMAN)
+      scope.kept.where(role_id: Role.where(platform_scope: Role::FISHERMAN_PLATFORM).select(:id))
     end
   end
 end

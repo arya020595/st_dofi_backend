@@ -17,12 +17,11 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
       Permission.find_or_create_by!(code: code) { |p| p.name = code }
     end
 
-    fisherman_role = create(:role, kind: Role::FISHERMAN, name: "Fisherman", permissions: fisherman_permissions)
     officer_role = create(:role, kind: Role::DOFI_OFFICER, name: "DoFi Officer", permissions: officer_permissions)
     @officer = create(:user, role: officer_role, position: "Administrator", unit: "HQ", username: "officer1",
                              password: @password, password_confirmation: @password)
     @officer_headers = auth_headers_for(@officer, password: @password)
-    @fisherman_role = fisherman_role
+    @fisherman_permissions = fisherman_permissions
   end
 
   test "a small-scale full-time fisherman completes the full manifest lifecycle with no Jetty approval" do
@@ -177,8 +176,10 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
     jetty_headers = auth_headers_for(jetty_manager, password: @password)
 
     company_profile = create(:company_profile, registration_type: "Commercial")
+    fisherman_role = create(:role, :fisherman, name: "Fisherman", company_profile: company_profile,
+                                               permissions: @fisherman_permissions)
     vessel = create(:companies_vessel, :approved, company_profile: company_profile)
-    fisherman = create(:user, role: @fisherman_role, company_profile: company_profile, ic_number: "01-999102",
+    fisherman = create(:user, role: fisherman_role, company_profile: company_profile, ic_number: "01-999102",
                               registration_type: "Commercial", password: @password,
                               password_confirmation: @password)
     fisherman_headers = auth_headers_for(fisherman, password: @password)

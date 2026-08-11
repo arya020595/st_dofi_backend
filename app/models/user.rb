@@ -63,9 +63,14 @@ class User < ApplicationRecord
     role.permissions.exists?(code: codes)
   end
 
+  # officer?/jetty_manager? stay narrow (kind-based) — "is this literally the one canonical
+  # singleton row." fisherman?/dofi_officer_platform? are broad (platform_scope-based) — "is this
+  # user's role anywhere on this platform," true for every company's Owner/custom role too, not just
+  # a single fixed row. See Role's own kind vs platform_scope comment for the full rationale.
   def jetty_manager? = role&.kind == Role::JETTY_MANAGER
-  def fisherman? = role&.kind == Role::FISHERMAN
   def officer? = role&.kind == Role::DOFI_OFFICER
+  def fisherman? = role&.fisherman_platform? || false
+  def dofi_officer_platform? = role&.dofi_officer_platform? || false
   def approval_status_label = APPROVAL_STATUS_LABELS.fetch(status, status.humanize)
 
   # No role in this system requires a real email: DoFi Officers authenticate by `username`,

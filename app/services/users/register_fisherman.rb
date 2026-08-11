@@ -11,9 +11,17 @@ module Users
     # that profile requires — the person-level match still goes through CompanyProfileContact like
     # every other type). Both are pre-created the same way, via POST /api/v1/admin/company_profiles —
     # see docs/registration/registration-flow.md section 5 "Officer Profiling".
+    #
+    # registration_type is checked before the contact lookup, not left to User's own conditional
+    # validation (validates :registration_type, if: :fisherman?) — that gate depends on a role being
+    # assigned, and a role can only be assigned once a company is known via a matched contact, so an
+    # unrecognized type with no matching contact would otherwise skip validation entirely instead of
+    # surfacing a 422.
     def call(attributes)
+      return invalid_registration_type_failure(attributes) unless valid_registration_type?(attributes)
+
       contact = matched_contact(attributes)
-      return Failure(:contact_not_found) if contact.nil? && valid_registration_type?(attributes)
+      return Failure(:contact_not_found) if contact.nil?
 
       user = User.new(build_attributes(attributes, contact))
       return Success(user) if user.save
@@ -23,30 +31,25 @@ module Users
 
     private
 
-    # Only attempt the IC match for a recognized type — an unrecognized registration_type should
-    # surface the model's own inclusion-validation error (422), not a misleading "no contact
-    # matches" (404).
     def valid_registration_type?(attributes)
       User::VALID_REGISTRATION_TYPES.include?(attributes[:registration_type])
     end
 
-    def matched_contact(attributes)
-      return nil unless valid_registration_type?(attributes)
+    def invalid_registration_type_failure(attributes)
+      user = User.new(attributes)
+      user.errors.add(:registration_type, :inclusion, value: attributes[:registration_type])
+      Failure(user)
+    end
 
+    def matched_contact(attributes)
       CompanyProfileContact.kept.find_by(ic_no: attributes[:ic_number])
     end
 
     def build_attributes(attributes, contact)
-      base = attributes.merge(role: fisherman_role, password: SecureRandom.base64(24), status: "pending",
-                              brunei_id_verified_at: Time.current)
-      return base if contact.nil?
-
-      base.merge(company_profile: contact.company_profile, company_profile_contact: contact,
-                 designation: contact.designation)
-    end
-
-    def fisherman_role
-      Role.find_by!(kind: Role::FISHERMAN)
+      attributes.merge(role: Roles::EnsureFishermanOwnerRole.call(contact.company_profile),
+                       password: SecureRandom.base64(24), status: "pending", brunei_id_verified_at: Time.current,
+                       company_profile: contact.company_profile, company_profile_contact: contact,
+                       designation: contact.designation)
     end
   end
 end

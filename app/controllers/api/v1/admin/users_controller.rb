@@ -21,7 +21,7 @@ module Api
         def create
           authorize User
 
-          case Users::Create.call(user_params)
+          case Users::Create.call(user_params, assignable_roles: Role.assignable_by_admin)
           in Success(user)
             data = UserBlueprint.render_as_hash(user)
             data = data.merge(temporary_password: user.password) if user_params[:password].blank?
@@ -34,7 +34,7 @@ module Api
         def update
           authorize @user
 
-          case Users::Update.call(@user, user_params)
+          case Users::Update.call(@user, user_params, assignable_roles: Role.assignable_by_admin)
           in Success(user)
             render json: { status: "success", data: UserBlueprint.render_as_hash(user) }
           in Failure(user)

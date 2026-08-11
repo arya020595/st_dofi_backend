@@ -18,6 +18,7 @@ class CompanyProfile < ApplicationRecord
   has_many :companies_fishing_gears, dependent: :restrict_with_error
   has_many :companies_documents, dependent: :restrict_with_error
   has_many :manifests, dependent: :restrict_with_error
+  has_many :roles, dependent: :restrict_with_error
 
   validates :registration_type, presence: true
   validates :company_name, :company_address, :contact_no, :district, :mukim, :village,

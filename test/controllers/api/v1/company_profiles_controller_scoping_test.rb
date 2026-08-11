@@ -26,7 +26,7 @@ module Api
 
       def viewer_headers_for(company_profile)
         view_permission = Permission.find_or_create_by!(code: "profiling.view") { |p| p.name = "Profiling - View" }
-        viewer_role = create(:role, kind: Role::FISHERMAN, permissions: [view_permission])
+        viewer_role = create(:role, :fisherman, company_profile: company_profile, permissions: [view_permission])
         viewer = create(:user, role: viewer_role, company_profile: company_profile,
                                ic_number: SecureRandom.hex(5), registration_type: "Commercial",
                                password: @password, password_confirmation: @password)

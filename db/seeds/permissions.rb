@@ -27,15 +27,59 @@ PERMISSION_GROUPS = {
   "capture_reports" => %w[view list create update],
   "capture_report_verifications" => %w[view list verify amendment],
   "manifest_minor_fishermen" => %w[view create delete],
-  "manifest_expenses" => %w[view create update]
+  "manifest_expenses" => %w[view create update],
+  # Fisherman-platform equivalents of "roles"/"dofi_officer_users" above — a company's own
+  # self-management of its users/roles, entirely separate from DoFi Officer's admin-wide ones.
+  "fisherman_users" => %w[view list create update delete],
+  "fisherman_roles" => %w[view list create update delete]
 }.freeze
+
+# Every resource group above is either entirely one platform's, or "shared" (used identically by
+# both platforms — e.g. companies_crews.create, checked by both a fisherman's own self-service form
+# and an officer profiling on their behalf via the same dual-mounted controller). A handful of
+# groups are shared for most actions but keep one specific action DoFi-Officer-only:
+#   - ports/zones/fishing_gears/positions: browsing (view/list) is shared with the Fisherman app's
+#     own pickers; curating the master data itself (create/update/delete) is DoFi-Officer-only.
+#   - profiling (CompanyProfilePolicy): view/create/update are shared (a fisherman manages their own
+#     company profile), but destroy is DoFi-Officer-only — a company must never be able to delete
+#     its own profile record via a broad permission grant.
+#   - manifest_list (ManifestPolicy#update?): the generic admin-side manifest update action, checked
+#     by ManifestPolicy#update? — deliberately distinct from the fisherman-side
+#     ManifestPolicy#fisherman_update?, which checks manifest_form.create instead. Fisherman roles
+#     must never get manifest_list.update.
+DOFI_OFFICER_ONLY_GROUPS = %w[
+  dictionaries nationalities roles dofi_officer_users fisherman_approvals jetty_manager_approvals
+  skip_reasons approval_remarks manifest_approvals companies_vessel_approvals companies_crew_approvals
+  companies_fishing_gear_approvals companies_document_approvals capture_report_verifications
+].freeze
+FISHERMAN_ONLY_GROUPS = %w[fisherman_users fisherman_roles].freeze
+DOFI_OFFICER_ONLY_ACTIONS = {
+  "ports" => %w[create update delete],
+  "zones" => %w[create update delete],
+  "fishing_gears" => %w[create update delete],
+  "positions" => %w[create update delete],
+  "profiling" => %w[delete],
+  "manifest_list" => %w[update]
+}.freeze
+
+def platform_scope_for(resource, action)
+  return Permission::FISHERMAN_PLATFORM if FISHERMAN_ONLY_GROUPS.include?(resource)
+  return Permission::DOFI_OFFICER_PLATFORM if DOFI_OFFICER_ONLY_GROUPS.include?(resource)
+  return Permission::DOFI_OFFICER_PLATFORM if DOFI_OFFICER_ONLY_ACTIONS[resource]&.include?(action)
+
+  Permission::SHARED_PLATFORM
+end
 
 PERMISSION_GROUPS.each do |resource, actions|
   actions.each do |action|
     code = "#{resource}.#{action}"
-    Permission.find_or_create_by!(code: code) do |permission|
-      permission.name = "#{resource.humanize} - #{action.humanize}"
+    platform_scope = platform_scope_for(resource, action)
+
+    permission = Permission.find_or_create_by!(code: code) do |record|
+      record.name = "#{resource.humanize} - #{action.humanize}"
+      record.platform_scope = platform_scope
     end
+    permission.update!(platform_scope: platform_scope) if permission.platform_scope != platform_scope
   end
 end
 
