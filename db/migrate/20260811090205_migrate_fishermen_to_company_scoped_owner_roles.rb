@@ -24,7 +24,9 @@ class MigrateFishermenToCompanyScopedOwnerRoles < ActiveRecord::Migration[8.1]
 
     legacy_permission_ids = legacy_role.permission_roles.pluck(:permission_id)
 
-    MigrationUser.where(role_id: legacy_role.id).distinct.pluck(:company_profile_id).each do |company_profile_id|
+    company_ids = MigrationUser.where(role_id: legacy_role.id).where.not(company_profile_id: nil)
+                               .distinct.pluck(:company_profile_id)
+    company_ids.each do |company_profile_id|
       owner_role = MigrationRole.create!(
         name: "Owner", description: "Full access to this company's fisherman-platform data.",
         platform_scope: "fisherman", company_profile_id: company_profile_id, is_default: true

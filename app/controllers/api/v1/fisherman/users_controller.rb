@@ -26,7 +26,7 @@ module Api
         def create
           authorize User
 
-          case Users::Create.call(create_params, assignable_roles: assignable_roles)
+          case Users::Create.call(create_params, assignable_roles: assignable_roles, require_role: true)
           in Success(user)
             data = UserBlueprint.render_as_hash(user)
             data = data.merge(temporary_password: user.password) if create_params[:password].blank?

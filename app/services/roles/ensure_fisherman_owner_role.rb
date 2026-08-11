@@ -18,6 +18,8 @@ module Roles
         role.platform_scope = Role::FISHERMAN_PLATFORM
         role.permissions = Permission.assignable_to(Role::FISHERMAN_PLATFORM)
       end
+    rescue ActiveRecord::RecordNotUnique
+      Role.find_by!(company_profile_id: company_profile.id, is_default: true)
     end
   end
 end

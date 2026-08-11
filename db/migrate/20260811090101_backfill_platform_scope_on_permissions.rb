@@ -14,6 +14,8 @@ class BackfillPlatformScopeOnPermissions < ActiveRecord::Migration[8.1]
     companies_fishing_gear_approvals companies_document_approvals capture_report_verifications
   ].freeze
 
+  FISHERMAN_ONLY_GROUPS = %w[fisherman_users fisherman_roles].freeze
+
   DOFI_OFFICER_ONLY_ACTIONS = {
     "ports" => %w[create update delete],
     "zones" => %w[create update delete],
@@ -38,6 +40,7 @@ class BackfillPlatformScopeOnPermissions < ActiveRecord::Migration[8.1]
   private
 
   def platform_scope_for(resource, action)
+    return "fisherman" if FISHERMAN_ONLY_GROUPS.include?(resource)
     return "dofi_officer" if DOFI_OFFICER_ONLY_GROUPS.include?(resource)
     return "dofi_officer" if DOFI_OFFICER_ONLY_ACTIONS[resource]&.include?(action)
 

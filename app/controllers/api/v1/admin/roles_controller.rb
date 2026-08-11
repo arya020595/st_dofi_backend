@@ -55,7 +55,7 @@ module Api
         private
 
         def set_role
-          @role = Role.find(params.expect(:id))
+          @role = policy_scope(Role).find(params.expect(:id))
         end
 
         def role_params

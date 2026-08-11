@@ -6,8 +6,15 @@ module Users
   module RoleAssignmentValidation
     private
 
-    def role_assignable?(user, role_id, assignable_roles)
-      return true if role_id.blank? || assignable_roles.exists?(id: role_id)
+    def role_assignable?(user, role_id, assignable_roles, require_role: false)
+      if role_id.blank?
+        return true unless require_role
+
+        user.errors.add(:role_id, "can't be blank")
+        return false
+      end
+
+      return true if assignable_roles.exists?(id: role_id)
 
       user.errors.add(:role_id, "is not a role available to you")
       false
