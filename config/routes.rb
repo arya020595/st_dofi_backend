@@ -26,6 +26,7 @@ Rails.application.routes.draw do
         patch :locale
       end
       post "auth/brunei_id", to: "brunei_id_sessions#create"
+      post "auth/brunei_id/callback", to: "brunei_id_sessions#callback"
 
       namespace :registrations do
         resource :jetty_manager, only: %i[create], controller: "jetty_managers"
