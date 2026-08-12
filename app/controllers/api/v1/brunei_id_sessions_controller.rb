@@ -191,6 +191,8 @@ module Api
         {
           full_name: brunei_id_full_name,
           brunei_id_profile: brunei_id_profile_payload(verified_ic_number),
+          brunei_id_userinfo: Current.brunei_id_userinfo || {},
+          brunei_id_token_response: Current.brunei_id_token_response || {},
           brunei_id_token_metadata: (Current.brunei_id_token_metadata || {}).merge(
             "response_keys" => Current.brunei_id_token_response_keys || []
           )
@@ -198,21 +200,33 @@ module Api
       end
 
       def brunei_id_full_name
-        claims = Current.brunei_id_claims || {}
-        claims["full_name"].presence || claims["name"].presence || claims["fullname"].presence
+        claims_full_name || userinfo_full_name
       end
 
       def brunei_id_profile_payload(verified_ic_number)
         claims = Current.brunei_id_claims || {}
+        userinfo = Current.brunei_id_userinfo || {}
 
         {
           ic_number: verified_ic_number,
           full_name: brunei_id_full_name,
-          given_name: claims["given_name"],
-          family_name: claims["family_name"],
-          preferred_username: claims["preferred_username"],
+          given_name: claims["given_name"] || userinfo["given_name"],
+          family_name: claims["family_name"] || userinfo["family_name"],
+          preferred_username: claims["preferred_username"] || userinfo["preferred_username"],
           subject: claims["sub"]
         }.compact
+      end
+
+      def claims_full_name
+        lookup_full_name(Current.brunei_id_claims || {})
+      end
+
+      def userinfo_full_name
+        lookup_full_name(Current.brunei_id_userinfo || {})
+      end
+
+      def lookup_full_name(payload)
+        payload["full_name"].presence || payload["name"].presence || payload["fullname"].presence
       end
 
       # rubocop:disable Metrics/MethodLength

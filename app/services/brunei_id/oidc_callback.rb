@@ -52,9 +52,11 @@ module BruneiId
       token_response = exchange_code(discovery.fetch("token_endpoint"), code:, code_verifier:, redirect_uri:)
       Current.brunei_id_token_response_keys = token_response.keys
       Current.brunei_id_token_metadata = token_metadata(token_response)
+      Current.brunei_id_token_response = public_token_response(token_response)
 
       claims = validate_id_token(token_response.fetch("id_token"), discovery:, nonce:)
       Current.brunei_id_claims = claims
+      Current.brunei_id_userinfo = fetch_userinfo(discovery:, access_token: token_response["access_token"])
       claims
     end
 
@@ -104,6 +106,20 @@ module BruneiId
       perform_request(method: :get, url: jwks_uri, endpoint: "jwks")
     end
 
+    def fetch_userinfo(discovery:, access_token:)
+      userinfo_endpoint = discovery["userinfo_endpoint"]
+      return {} if userinfo_endpoint.blank? || access_token.blank?
+
+      perform_request(
+        method: :get,
+        url: userinfo_endpoint,
+        endpoint: "userinfo",
+        headers: { "Authorization" => "Bearer #{access_token}" }
+      )
+    rescue Faraday::Error
+      {}
+    end
+
     def parse_json(body)
       JSON.parse(body)
     end
@@ -120,8 +136,9 @@ module BruneiId
     end
 
     # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
-    def perform_request(method:, url:, endpoint:, body: nil)
+    def perform_request(method:, url:, endpoint:, body: nil, headers: {})
       response = connection.public_send(method, url) do |request|
+        headers.each { |key, value| request.headers[key] = value }
         if body.present?
           request.headers["Content-Type"] = "application/x-www-form-urlencoded"
           request.body = body
@@ -177,6 +194,12 @@ module BruneiId
       return {} unless token_response.is_a?(Hash)
 
       token_response.slice("token_type", "expires_in", "scope")
+    end
+
+    def public_token_response(token_response)
+      return {} unless token_response.is_a?(Hash)
+
+      token_response.except("access_token", "id_token", "refresh_token")
     end
 
     def base_url
