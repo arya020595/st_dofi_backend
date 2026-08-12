@@ -15,11 +15,12 @@ module Api
       end
 
       def callback
-        return render_invalid_audience unless callback_params[:audience] == "fisherman"
+        audience = callback_params[:audience]
+        return render_invalid_audience unless supported_callback_audience?(audience)
 
         case BruneiId::OidcCallback.call(**callback_params.except(:audience).symbolize_keys)
         in Success(verified_ic_number)
-          render_callback_for(fisherman_user_for(verified_ic_number), verified_ic_number:)
+          render_callback_for(user_for_callback_audience(verified_ic_number, audience), verified_ic_number:)
         in Failure(error)
           render_callback_error(error)
         end
@@ -120,8 +121,25 @@ module Api
         }
       end
 
+      def supported_callback_audience?(audience)
+        %w[fisherman jetty_manager].include?(audience)
+      end
+
+      def user_for_callback_audience(ic_number, audience)
+        case audience
+        when "fisherman"
+          fisherman_user_for(ic_number)
+        when "jetty_manager"
+          jetty_manager_user_for(ic_number)
+        end
+      end
+
       def fisherman_user_for(ic_number)
-        User.kept.joins(:role).find_by(ic_number: ic_number, roles: { kind: Role::FISHERMAN })
+        User.kept.joins(:role).find_by(ic_number: ic_number, roles: { platform_scope: Role::FISHERMAN_PLATFORM })
+      end
+
+      def jetty_manager_user_for(ic_number)
+        User.kept.joins(:role).find_by(ic_number: ic_number, roles: { kind: Role::JETTY_MANAGER })
       end
 
       def render_callback_dashboard(user, verified_ic_number)
