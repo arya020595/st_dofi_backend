@@ -27,6 +27,11 @@ passwords, why User Management needed its own password story) follows from this 
 
 ## 2. Roles & Permissions model
 
+For the full architecture behind this — migrations, services, policies, diagrams, security
+invariants, and how to extend it — see
+[`docs/rbac/platform-company-isolation.md`](../rbac/platform-company-isolation.md). This section
+stays focused on what a new registrant needs to know; that doc is the canonical deep reference.
+
 ```
 Role (e.g. "DoFi Officer") ──has many──> Permission (e.g. "dofi_officer_users.create")
 ```

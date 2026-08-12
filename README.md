@@ -226,12 +226,17 @@ list:
 ```
 docs/
 ├── ARCHITECTURE.md  system context, deployment topology, layers, domain model — start here
+├── rbac/            role-based access control: platform/company isolation & authorization
 ├── registration/    actors, roles, self-registration & login flow
 ├── api/             frontend-facing request/response contracts
 ├── minio/           MinIO/file-storage architecture & setup
 ├── ci-cd/           CI/CD & deployment
 └── incidents/       postmortems and dated test reports
 ```
+
+### [`docs/rbac/`](docs/rbac/) — role-based access control
+
+- [RBAC: Platform & Company Isolation](docs/rbac/platform-company-isolation.md) — how authorization (`platform_scope`) and multi-tenant isolation (`company_profile_id`) work across the DoFi Officer and Fisherman platforms: architecture, diagrams, request flows, security invariants, and how to extend the system with a new permission, role, or platform.
 
 ### [`docs/registration/`](docs/registration/) — actors, roles & registration flow
 
