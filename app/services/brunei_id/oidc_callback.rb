@@ -51,8 +51,11 @@ module BruneiId
       discovery = fetch_discovery_document
       token_response = exchange_code(discovery.fetch("token_endpoint"), code:, code_verifier:, redirect_uri:)
       Current.brunei_id_token_response_keys = token_response.keys
+      Current.brunei_id_token_metadata = token_metadata(token_response)
 
-      validate_id_token(token_response.fetch("id_token"), discovery:, nonce:)
+      claims = validate_id_token(token_response.fetch("id_token"), discovery:, nonce:)
+      Current.brunei_id_claims = claims
+      claims
     end
 
     def fetch_discovery_document
@@ -168,6 +171,12 @@ module BruneiId
           token_response_keys: response_body.is_a?(Hash) ? response_body.keys : []
         }.to_json
       )
+    end
+
+    def token_metadata(token_response)
+      return {} unless token_response.is_a?(Hash)
+
+      token_response.slice("token_type", "expires_in", "scope")
     end
 
     def base_url

@@ -70,14 +70,17 @@ module Api
           resolved_ic_number: verified_ic_number,
           registration_status: "not_found"
         )
-        render json: {
+        payload = {
           status: "success",
           data: {
             next_action: "registration",
             ic_number: verified_ic_number,
             registration_status: "not_found"
           }
-        }, status: :ok
+        }
+        payload[:data].merge!(brunei_id_debug_payload(verified_ic_number))
+
+        render json: payload, status: :ok
       end
       # rubocop:enable Metrics/MethodLength
 
@@ -181,7 +184,35 @@ module Api
           user: UserBlueprint.render_as_hash(user),
           ic_number: verified_ic_number,
           registration_status: user.status
-        }
+        }.merge(brunei_id_debug_payload(verified_ic_number))
+      end
+
+      def brunei_id_debug_payload(verified_ic_number)
+        {
+          full_name: brunei_id_full_name,
+          brunei_id_profile: brunei_id_profile_payload(verified_ic_number),
+          brunei_id_token_metadata: (Current.brunei_id_token_metadata || {}).merge(
+            "response_keys" => Current.brunei_id_token_response_keys || []
+          )
+        }.compact
+      end
+
+      def brunei_id_full_name
+        claims = Current.brunei_id_claims || {}
+        claims["full_name"].presence || claims["name"].presence || claims["fullname"].presence
+      end
+
+      def brunei_id_profile_payload(verified_ic_number)
+        claims = Current.brunei_id_claims || {}
+
+        {
+          ic_number: verified_ic_number,
+          full_name: brunei_id_full_name,
+          given_name: claims["given_name"],
+          family_name: claims["family_name"],
+          preferred_username: claims["preferred_username"],
+          subject: claims["sub"]
+        }.compact
       end
 
       # rubocop:disable Metrics/MethodLength
