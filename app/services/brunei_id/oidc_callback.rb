@@ -171,8 +171,10 @@ module BruneiId
     # rubocop:enable Metrics/ParameterLists
 
     def parse_response_body(body)
+      return {} if body.blank?
+
       parse_json(body)
-    rescue JSON::ParserError
+    rescue JSON::ParserError, TypeError
       { raw_body: body }
     end
 

@@ -20,7 +20,8 @@ module Api
 
         case BruneiId::OidcCallback.call(**callback_params.except(:audience).symbolize_keys)
         in Success(verified_ic_number)
-          render_callback_for(user_for_callback_audience(verified_ic_number, audience), verified_ic_number:)
+          render_callback_for(user_for_callback_audience(verified_ic_number, audience),
+                              verified_ic_number:, audience:)
         in Failure(error)
           render_callback_error(error)
         end
@@ -42,8 +43,8 @@ module Api
         render json: { status: "success", data: UserBlueprint.render_as_hash(user) }, status: :ok
       end
 
-      def render_callback_for(user, verified_ic_number:)
-        return render_callback_not_found(verified_ic_number) unless user
+      def render_callback_for(user, verified_ic_number:, audience:)
+        return render_callback_registration(verified_ic_number, audience) unless user
         return render_inactive_registration(user, verified_ic_number) if user.inactive? || user.suspended?
 
         return render_callback_dashboard(user, verified_ic_number) if user.active?
@@ -64,24 +65,23 @@ module Api
       end
 
       # rubocop:disable Metrics/MethodLength
-      def render_callback_not_found(verified_ic_number)
+      def render_callback_registration(verified_ic_number, audience)
         log_brunei_id_callback_result(
           next_action: "registration",
           resolved_ic_number: verified_ic_number,
           registration_status: "not_found"
         )
         payload = {
-          status: "fail",
-          message: "Profiling data not found.",
-          code: "profiling_not_found",
+          status: "success",
           data: {
             next_action: "registration",
+            ic_number: verified_ic_number,
             registration_status: "not_found"
           }
         }
-        payload[:data].merge!(brunei_id_profile_response(verified_ic_number))
+        payload[:data].merge!(registration_callback_extras(verified_ic_number, audience))
 
-        render json: payload, status: :not_found
+        render json: payload, status: :ok
       end
       # rubocop:enable Metrics/MethodLength
 
@@ -186,6 +186,13 @@ module Api
           ic_number: verified_ic_number,
           registration_status: user.status
         }.merge(brunei_id_profile_response(verified_ic_number))
+      end
+
+      def registration_callback_extras(verified_ic_number, audience)
+        extras = brunei_id_profile_response(verified_ic_number)
+        return extras unless audience == "fisherman"
+
+        extras.merge(lookup_token: Registrations::FishermanCompanyProfileLookupToken.generate(verified_ic_number))
       end
 
       def brunei_id_profile_response(verified_ic_number)
