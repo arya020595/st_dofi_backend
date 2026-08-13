@@ -6,7 +6,12 @@ module CompaniesVessels
 
     def call(company_profile, attributes)
       vessel = company_profile.companies_vessels.new(attributes)
-      return Failure(vessel) unless vessel.save
+
+      ActiveRecord::Base.transaction do
+        return Failure(vessel) unless vessel.save
+
+        CompanyProfiles::SyncApprovalStatus.mark_pending!(company_profile)
+      end
 
       Success(vessel)
     end

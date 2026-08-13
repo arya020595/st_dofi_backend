@@ -6,7 +6,12 @@ module CompaniesCrews
 
     def call(company_profile, attributes)
       crew = company_profile.companies_crews.new(attributes)
-      return Failure(crew) unless crew.save
+
+      ActiveRecord::Base.transaction do
+        return Failure(crew) unless crew.save
+
+        CompanyProfiles::SyncApprovalStatus.mark_pending!(company_profile)
+      end
 
       Success(crew)
     end

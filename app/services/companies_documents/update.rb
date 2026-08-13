@@ -31,9 +31,13 @@ module CompaniesDocuments
     end
 
     def persist(document)
-      return Failure(document) unless document.save
+      ActiveRecord::Base.transaction do
+        return Failure(document) unless document.save
 
-      document.revert_to_pending_for_edit!
+        document.revert_to_pending_for_edit!
+        CompanyProfiles::SyncApprovalStatus.mark_pending!(document.company_profile)
+      end
+
       Success(document)
     end
 
