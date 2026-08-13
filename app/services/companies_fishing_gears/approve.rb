@@ -7,7 +7,11 @@ module CompaniesFishingGears
     def call(gear, actor:)
       return Failure(gear) unless gear.may_approve?
 
-      gear.approve!(actor: actor)
+      ActiveRecord::Base.transaction do
+        gear.approve!(actor: actor)
+        CompanyProfiles::SyncApprovalStatus.refresh_after_review!(gear.company_profile, actor: actor)
+      end
+
       Success(gear)
     end
   end

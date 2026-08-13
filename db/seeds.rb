@@ -18,6 +18,7 @@ SEED_FILES = %w[
   companies_vessels
   companies_crews
   companies_fishing_gears
+  companies_documents
   profiled_users
   manifests
 ].freeze

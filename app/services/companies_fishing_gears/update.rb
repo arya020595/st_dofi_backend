@@ -10,6 +10,7 @@ module CompaniesFishingGears
 
         gear.revert_to_pending_for_edit!
         gear.companies_vessel.revert_to_pending_for_edit!
+        CompanyProfiles::SyncApprovalStatus.mark_pending!(gear.company_profile)
       end
 
       Success(gear)

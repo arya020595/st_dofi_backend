@@ -10,6 +10,7 @@ module CompaniesVessels
       ActiveRecord::Base.transaction do
         vessel.approve!(actor: actor)
         approve_fishing_gears!(vessel, actor)
+        CompanyProfiles::SyncApprovalStatus.refresh_after_review!(vessel.company_profile, actor: actor)
       end
 
       Success(vessel)

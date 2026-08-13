@@ -38,8 +38,9 @@ PERMISSION_GROUPS = {
 # both platforms — e.g. companies_crews.create, checked by both a fisherman's own self-service form
 # and an officer profiling on their behalf via the same dual-mounted controller). A handful of
 # groups are shared for most actions but keep one specific action DoFi-Officer-only:
-#   - ports/zones/fishing_gears/positions: browsing (view/list) is shared with the Fisherman app's
-#     own pickers; curating the master data itself (create/update/delete) is DoFi-Officer-only.
+#   - ports/zones/fishing_gears/nationalities/positions: browsing (view/list) is shared with the
+#     Fisherman app's own pickers; curating the master data itself (create/update/delete) is
+#     DoFi-Officer-only.
 #   - profiling (CompanyProfilePolicy): view/create/update are shared (a fisherman manages their own
 #     company profile), but destroy is DoFi-Officer-only — a company must never be able to delete
 #     its own profile record via a broad permission grant.
@@ -48,7 +49,7 @@ PERMISSION_GROUPS = {
 #     ManifestPolicy#fisherman_update?, which checks manifest_form.create instead. Fisherman roles
 #     must never get manifest_list.update.
 DOFI_OFFICER_ONLY_GROUPS = %w[
-  dictionaries nationalities roles dofi_officer_users fisherman_approvals jetty_manager_approvals
+  dictionaries roles dofi_officer_users fisherman_approvals jetty_manager_approvals
   skip_reasons approval_remarks manifest_approvals companies_vessel_approvals companies_crew_approvals
   companies_fishing_gear_approvals companies_document_approvals capture_report_verifications
 ].freeze
@@ -57,6 +58,7 @@ DOFI_OFFICER_ONLY_ACTIONS = {
   "ports" => %w[create update delete],
   "zones" => %w[create update delete],
   "fishing_gears" => %w[create update delete],
+  "nationalities" => %w[create update delete],
   "positions" => %w[create update delete],
   "profiling" => %w[delete],
   "manifest_list" => %w[update]

@@ -5,9 +5,13 @@ module CompaniesVessels
     def self.call(...) = new.call(...)
 
     def call(vessel, attributes)
-      return Failure(vessel) unless vessel.update(attributes)
+      ActiveRecord::Base.transaction do
+        return Failure(vessel) unless vessel.update(attributes)
 
-      vessel.revert_to_pending_for_edit!
+        vessel.revert_to_pending_for_edit!
+        CompanyProfiles::SyncApprovalStatus.mark_pending!(vessel.company_profile)
+      end
+
       Success(vessel)
     end
   end

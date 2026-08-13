@@ -7,7 +7,11 @@ module CompaniesCrews
     def call(crew, actor:)
       return Failure(crew) unless crew.may_approve?
 
-      crew.approve!(actor: actor)
+      ActiveRecord::Base.transaction do
+        crew.approve!(actor: actor)
+        CompanyProfiles::SyncApprovalStatus.refresh_after_review!(crew.company_profile, actor: actor)
+      end
+
       Success(crew)
     end
   end
