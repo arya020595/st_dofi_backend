@@ -192,7 +192,7 @@ module Api
         extras = brunei_id_profile_response(verified_ic_number)
         return extras unless audience == "fisherman"
 
-        extras.merge(lookup_token: Registrations::FishermanCompanyProfileLookupToken.generate(verified_ic_number))
+        extras.merge(lookup_token: ::Registrations::FishermanCompanyProfileLookupToken.generate(verified_ic_number))
       end
 
       def brunei_id_profile_response(verified_ic_number)
