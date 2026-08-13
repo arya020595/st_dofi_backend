@@ -49,7 +49,6 @@ module BruneiId
 
     def oidc_claims_for(code:, code_verifier:, redirect_uri:, nonce:)
       discovery = fetch_discovery_document
-      Current.brunei_id_discovery = public_discovery(discovery)
       token_response = exchange_code(discovery.fetch("token_endpoint"), code:, code_verifier:, redirect_uri:)
       store_token_response_context(token_response)
 
@@ -195,59 +194,9 @@ module BruneiId
       token_response.slice("token_type", "expires_in", "scope")
     end
 
-    def public_token_response(token_response)
-      return {} unless token_response.is_a?(Hash)
-
-      token_response.except("access_token", "id_token", "refresh_token")
-    end
-
-    def public_discovery(discovery)
-      return {} unless discovery.is_a?(Hash)
-
-      discovery.slice("userinfo_endpoint", "scopes_supported", "claims_supported")
-    end
-
     def store_token_response_context(token_response)
       Current.brunei_id_token_response_keys = token_response.keys
       Current.brunei_id_token_metadata = token_metadata(token_response)
-      Current.brunei_id_token_response = public_token_response(token_response)
-      Current.brunei_id_decoded_tokens = decoded_tokens(token_response)
-    end
-
-    def decoded_tokens(token_response)
-      return {} unless token_response.is_a?(Hash)
-
-      {
-        access_token: decode_token(token_response["access_token"]),
-        id_token: decode_token(token_response["id_token"])
-      }.compact
-    end
-
-    def decode_token(token)
-      return if token.blank?
-
-      segments = token.to_s.split(".")
-      return { format: "opaque" } unless segments.length >= 2
-
-      jwt_payload(segments)
-    end
-
-    def decode_jwt_segment(segment)
-      padded = segment.to_s
-      padding = (4 - (padded.length % 4)) % 4
-      padded = "#{padded}#{'=' * padding}"
-
-      JSON.parse(Base64.urlsafe_decode64(padded))
-    rescue ArgumentError, JSON::ParserError
-      nil
-    end
-
-    def jwt_payload(segments)
-      header = decode_jwt_segment(segments[0])
-      payload = decode_jwt_segment(segments[1])
-      return { format: "opaque" } if header.nil? || payload.nil?
-
-      { format: "jwt", header: header, payload: payload }
     end
 
     def base_url

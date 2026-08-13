@@ -71,16 +71,17 @@ module Api
           registration_status: "not_found"
         )
         payload = {
-          status: "success",
+          status: "fail",
+          message: "Profiling data not found.",
+          code: "profiling_not_found",
           data: {
             next_action: "registration",
-            ic_number: verified_ic_number,
             registration_status: "not_found"
           }
         }
-        payload[:data].merge!(brunei_id_debug_payload(verified_ic_number))
+        payload[:data].merge!(brunei_id_profile_response(verified_ic_number))
 
-        render json: payload, status: :ok
+        render json: payload, status: :not_found
       end
       # rubocop:enable Metrics/MethodLength
 
@@ -184,17 +185,13 @@ module Api
           user: UserBlueprint.render_as_hash(user),
           ic_number: verified_ic_number,
           registration_status: user.status
-        }.merge(brunei_id_debug_payload(verified_ic_number))
+        }.merge(brunei_id_profile_response(verified_ic_number))
       end
 
-      def brunei_id_debug_payload(verified_ic_number)
+      def brunei_id_profile_response(verified_ic_number)
         {
           full_name: brunei_id_full_name,
           brunei_id_profile: brunei_id_profile_payload(verified_ic_number),
-          brunei_id_discovery: brunei_id_discovery_payload,
-          brunei_id_userinfo: brunei_id_userinfo_payload,
-          brunei_id_token_response: brunei_id_token_response_payload,
-          brunei_id_decoded_tokens: brunei_id_decoded_tokens_payload,
           brunei_id_token_metadata: brunei_id_token_metadata_payload
         }.compact
       end
@@ -227,22 +224,6 @@ module Api
 
       def lookup_full_name(payload)
         payload["full_name"].presence || payload["name"].presence || payload["fullname"].presence
-      end
-
-      def brunei_id_discovery_payload
-        Current.brunei_id_discovery || {}
-      end
-
-      def brunei_id_userinfo_payload
-        Current.brunei_id_userinfo || {}
-      end
-
-      def brunei_id_token_response_payload
-        Current.brunei_id_token_response || {}
-      end
-
-      def brunei_id_decoded_tokens_payload
-        Current.brunei_id_decoded_tokens || {}
       end
 
       def brunei_id_token_metadata_payload
