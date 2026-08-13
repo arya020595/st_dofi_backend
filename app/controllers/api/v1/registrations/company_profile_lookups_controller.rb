@@ -14,7 +14,7 @@ module Api
         private
 
         def verified_ic_no
-          Registrations::FishermanCompanyProfileLookupToken.verify!(params.expect(:lookup_token))
+          ::Registrations::FishermanCompanyProfileLookupToken.verify!(params.expect(:lookup_token))
         end
 
         def render_invalid_lookup_token
