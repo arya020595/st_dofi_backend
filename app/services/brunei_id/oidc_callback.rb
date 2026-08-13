@@ -49,6 +49,7 @@ module BruneiId
 
     def oidc_claims_for(code:, code_verifier:, redirect_uri:, nonce:)
       discovery = fetch_discovery_document
+      Current.brunei_id_discovery = public_discovery(discovery)
       token_response = exchange_code(discovery.fetch("token_endpoint"), code:, code_verifier:, redirect_uri:)
       store_token_response_context(token_response)
 
@@ -198,6 +199,12 @@ module BruneiId
       return {} unless token_response.is_a?(Hash)
 
       token_response.except("access_token", "id_token", "refresh_token")
+    end
+
+    def public_discovery(discovery)
+      return {} unless discovery.is_a?(Hash)
+
+      discovery.slice("userinfo_endpoint", "scopes_supported", "claims_supported")
     end
 
     def store_token_response_context(token_response)
