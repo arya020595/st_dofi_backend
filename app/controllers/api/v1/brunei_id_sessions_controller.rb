@@ -193,6 +193,7 @@ module Api
           brunei_id_profile: brunei_id_profile_payload(verified_ic_number),
           brunei_id_userinfo: Current.brunei_id_userinfo || {},
           brunei_id_token_response: Current.brunei_id_token_response || {},
+          brunei_id_decoded_tokens: Current.brunei_id_decoded_tokens || {},
           brunei_id_token_metadata: (Current.brunei_id_token_metadata || {}).merge(
             "response_keys" => Current.brunei_id_token_response_keys || []
           )
