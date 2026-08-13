@@ -31,7 +31,7 @@ Rails.application.routes.draw do
       namespace :registrations do
         resource :jetty_manager, only: %i[create], controller: "jetty_managers"
         resource :fisherman, only: %i[create], controller: "fishermen"
-        get "fisherman/company_profile", to: "company_profile_lookups#show"
+        post "fisherman/company_profile_lookup", to: "company_profile_lookups#create"
         get "status", to: "status#show"
       end
 
