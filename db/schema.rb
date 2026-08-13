@@ -435,7 +435,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_11_110000) do
     t.string "platform_scope", default: "shared", null: false
     t.datetime "updated_at", null: false
     t.index ["code"], name: "index_permissions_on_code", unique: true
-    t.check_constraint "platform_scope::text = ANY (ARRAY['fisherman'::character varying, 'dofi_officer'::character varying, 'shared'::character varying]::text[])", name: "check_permissions_platform_scope"
+    t.check_constraint "platform_scope::text = ANY (ARRAY['fisherman'::character varying::text, 'dofi_officer'::character varying::text, 'shared'::character varying::text])", name: "check_permissions_platform_scope"
   end
 
   create_table "ports", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -469,7 +469,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_11_110000) do
     t.index ["company_profile_id"], name: "index_roles_on_company_profile_id_and_is_default", unique: true, where: "(is_default = true)"
     t.index ["kind"], name: "index_roles_on_kind", unique: true
     t.check_constraint "platform_scope::text = 'fisherman'::text AND company_profile_id IS NOT NULL OR platform_scope::text = 'dofi_officer'::text AND company_profile_id IS NULL", name: "check_roles_company_profile_matches_platform_scope"
-    t.check_constraint "platform_scope::text = ANY (ARRAY['fisherman'::character varying, 'dofi_officer'::character varying]::text[])", name: "check_roles_platform_scope"
+    t.check_constraint "platform_scope::text = ANY (ARRAY['fisherman'::character varying::text, 'dofi_officer'::character varying::text])", name: "check_roles_platform_scope"
   end
 
   create_table "sequence_counters", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
