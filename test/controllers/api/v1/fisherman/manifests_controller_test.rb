@@ -259,19 +259,18 @@ module Api
           assert_response :unprocessable_content
         end
 
-        test "submit_port_in succeeds once the capture report has been skipped" do
+        test "skip_capture_report auto-approves port_in and completes the manifest" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
           manifest.submit_port_out!
           manifest.approve_port_out!
           reason = create(:manifest_skip_reason)
+
           post "/api/v1/fisherman/manifests/#{manifest.id}/skip_capture_report",
                params: { manifest: { skip_reason_id: reason.id, skip_reason_remarks: "Engine issue" } },
                headers: @fisherman_headers, as: :json
 
-          post "/api/v1/fisherman/manifests/#{manifest.id}/submit_port_in", headers: @fisherman_headers
-
           assert_response :ok
-          assert_equal "pending", manifest.reload.port_in_status
+          assert_equal "approved", manifest.reload.port_in_status
           assert_equal "completed", manifest.reload.manifest_status
         end
 

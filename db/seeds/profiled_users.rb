@@ -19,7 +19,7 @@ FISHERMAN_USERS.each do |attrs|
   # each needs its own company-scoped Owner role, found-or-created the same way production
   # self-registration does — not a single shared role like the old global Fisherman kind row.
   owner_role = Roles::EnsureFishermanOwnerRole.call(contact.company_profile)
-  owner_role.permissions = Permission.assignable_to(Role::FISHERMAN_PLATFORM) if owner_role.is_default?
+  owner_role.permissions = Permission.assignable_to(Role::FISHERMAN_PLATFORM)
 
   User.find_or_create_by!(ic_number: attrs[:ic_number]) do |user|
     user.name = attrs[:name]

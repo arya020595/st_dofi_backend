@@ -220,6 +220,7 @@ Rails.application.routes.draw do
           resources :ports, only: %i[index show], controller: "/api/v1/fisherman/ports"
           resources :zones, only: %i[index show], controller: "/api/v1/fisherman/zones"
           resources :fishing_gears, only: %i[index show], controller: "/api/v1/fisherman/fishing_gears"
+          resources :reasons, only: %i[index show], controller: "/api/v1/fisherman/reasons"
           resources :nationalities, only: %i[index show], controller: "/api/v1/fisherman/nationalities"
           resources :positions, only: %i[index show], controller: "/api/v1/fisherman/positions"
         end
