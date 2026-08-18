@@ -28,7 +28,8 @@ module FishermanManifestTransitions
   def skip_capture_report
     authorize @manifest
     result = ::Manifests::SkipCaptureReport.call(@manifest, skip_reason_id: skip_params[:skip_reason_id],
-                                                            remarks: skip_params[:skip_reason_remarks])
+                                                            remarks: skip_params[:skip_reason_remarks],
+                                                            actor: current_user)
     render_transition(result)
   end
 
