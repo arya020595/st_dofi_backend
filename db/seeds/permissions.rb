@@ -50,7 +50,7 @@ PERMISSION_GROUPS = {
 #     must never get manifest_list.update.
 DOFI_OFFICER_ONLY_GROUPS = %w[
   dictionaries roles dofi_officer_users fisherman_approvals jetty_manager_approvals
-  skip_reasons approval_remarks manifest_approvals companies_vessel_approvals companies_crew_approvals
+  approval_remarks manifest_approvals companies_vessel_approvals companies_crew_approvals
   companies_fishing_gear_approvals companies_document_approvals capture_report_verifications
 ].freeze
 FISHERMAN_ONLY_GROUPS = %w[fisherman_users fisherman_roles].freeze
@@ -60,6 +60,7 @@ DOFI_OFFICER_ONLY_ACTIONS = {
   "fishing_gears" => %w[create update delete],
   "nationalities" => %w[create update delete],
   "positions" => %w[create update delete],
+  "skip_reasons" => %w[create update delete],
   "profiling" => %w[delete],
   "manifest_list" => %w[update]
 }.freeze
