@@ -10,12 +10,10 @@ ROLE_DEFINITIONS = {
   },
   Role::JETTY_MANAGER => {
     name: "Jetty Manager",
-    description: "Port-level authority: manifest port-in/out approval, fisherman approval.",
+    description: "Port-level authority: manifest list/detail and port-in/out approval actions only.",
     permission_codes: %w[
-      dashboard.view
       manifest_list.view manifest_list.list
       manifest_approvals.view manifest_approvals.list manifest_approvals.approve manifest_approvals.amendment
-      fisherman_approvals.view fisherman_approvals.list fisherman_approvals.approve fisherman_approvals.amendment
     ]
   }
 }.freeze

@@ -30,7 +30,13 @@ module Api
       end
 
       def me
-        render json: { status: "success", data: { user: UserBlueprint.render_as_hash(current_user) } }, status: :ok
+        render json: {
+          status: "success",
+          data: {
+            user: UserBlueprint.render_as_hash(current_user),
+            permissions: PermissionBlueprint.render_as_hash(current_user.role&.permissions&.order(:code) || [])
+          }
+        }, status: :ok
       end
     end
   end
