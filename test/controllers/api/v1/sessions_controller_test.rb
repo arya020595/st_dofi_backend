@@ -5,7 +5,9 @@ module Api
     class SessionsControllerTest < ActionDispatch::IntegrationTest
       setup do
         @password = "Password123!"
-        @user = create(:user, password: @password, password_confirmation: @password)
+        @permission = create(:permission, code: "manifest_list.view", name: "Manifest List - View")
+        @role = create(:role, permissions: [@permission])
+        @user = create(:user, role: @role, password: @password, password_confirmation: @password)
       end
 
       test "sign in with valid credentials returns a JWT and the user payload" do
@@ -38,11 +40,13 @@ module Api
         assert_response :unauthorized
       end
 
-      test "me returns the current user when authenticated" do
+      test "me returns the current user and permission list when authenticated" do
         get "/api/v1/auth/me", headers: auth_headers_for(@user, password: @password)
 
         assert_response :ok
         assert_equal @user.email, response.parsed_body.dig("data", "user", "email")
+        permissions = response.parsed_body.fetch("data").fetch("permissions").map { |permission| permission.fetch("code") }
+        assert_equal ["manifest_list.view"], permissions
       end
 
       test "sign out revokes the token" do
