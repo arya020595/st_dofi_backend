@@ -45,7 +45,12 @@ module Api
 
         assert_response :ok
         assert_equal @user.email, response.parsed_body.dig("data", "user", "email")
-        permissions = response.parsed_body.fetch("data").fetch("permissions").map { |permission| permission.fetch("code") }
+
+        permissions = response.parsed_body
+                              .fetch("data")
+                              .fetch("permissions")
+                              .map { |permission| permission.fetch("code") }
+
         assert_equal ["manifest_list.view"], permissions
       end
 
