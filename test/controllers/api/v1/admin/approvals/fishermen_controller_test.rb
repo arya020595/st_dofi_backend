@@ -65,8 +65,8 @@ module Api
           assert_response :ok
           data = response.parsed_body["data"]
 
-          assert_equal owner_contact.full_name, data.dig("owner_profile", "full_name")
-          assert_equal admin_contact.full_name, data.dig("admin_profile", "full_name")
+          assert_company_profile_payload(data, company_profile)
+          assert_contact_profiles_payload(data, owner_contact, admin_contact)
         end
 
         test "approve transitions the fisherman from pending to active" do
@@ -110,6 +110,19 @@ module Api
           get "/api/v1/admin/approvals/fishermen/#{jetty_manager.id}", headers: @admin_headers
 
           assert_response :not_found
+        end
+
+        private
+
+        def assert_company_profile_payload(data, company_profile)
+          assert_equal company_profile.id, data.dig("company_profile", "id")
+          assert_equal company_profile.company_name, data.dig("company_profile", "company_name")
+          assert_equal company_profile.rocbn_no, data.dig("company_profile", "rocbn_no")
+        end
+
+        def assert_contact_profiles_payload(data, owner_contact, admin_contact)
+          assert_equal owner_contact.full_name, data.dig("owner_profile", "full_name")
+          assert_equal admin_contact.full_name, data.dig("admin_profile", "full_name")
         end
       end
     end
