@@ -20,6 +20,7 @@ SEED_FILES = %w[
   companies_fishing_gears
   companies_documents
   profiled_users
+  brunei_id_sandbox
   manifests
 ].freeze
 

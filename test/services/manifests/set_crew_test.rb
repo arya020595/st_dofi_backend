@@ -40,5 +40,20 @@ module Manifests
 
       assert_equal [second_crew.id], manifest.crew_manifests.pluck(:companies_crew_id)
     end
+
+    test "crew manifest blueprint falls back to the companies_crew position name for legacy bad snapshots" do
+      manifest = create(:manifest)
+      position = create(:position, name: "Deckhand", category: "Crew")
+      crew = create(:companies_crew, :approved, company_profile: manifest.company_profile, position: position)
+      snapshot = manifest.crew_manifests.create!(
+        companies_crew: crew,
+        crew_name: crew.crew_name,
+        position: "#<Position:0x123>"
+      )
+
+      data = CrewManifestBlueprint.render_as_hash(snapshot)
+
+      assert_equal "Deckhand", data[:position]
+    end
   end
 end
