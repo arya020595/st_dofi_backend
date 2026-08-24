@@ -100,6 +100,18 @@ class UserTest < ActiveSupport::TestCase
     assert_not owner_user("suspended").current_fisherman_owner?
   end
 
+  test "FINS governed fisherman requires system role and Company Profiling source" do
+    owner = owner_user("pending_approval")
+    owner.provisioning_source = Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE
+
+    assert_predicate owner, :fins_governed_fisherman?
+    assert_predicate owner, :fins_approval_required_fisherman?
+
+    owner.provisioning_source = Fisherman::ProvisionUser::FISHERMAN_OWNER
+
+    assert_not owner.fins_governed_fisherman?
+  end
+
   private
 
   def owner_user(fisherman_status)

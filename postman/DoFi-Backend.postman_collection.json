@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "DoFi Backend API",
-    "description": "# DoFi Backend API\n\nCovers JWT authentication (sign in/me/sign out), DoFi officer user management, role management with permission assignment, the permissions catalog, public self-registration for Jetty Managers and Fishermen, officer Profiling (pre-registering a Company Profile a fisherman later matches by IC number), FINS Approval (the Fisherman/Jetty Manager registration review queues), the full Manifest module (Vessel self-service + approval, the port-out/capture-report/port-in lifecycle, Capture Reports and their nested resources), master reference data, and the fish species Dictionary.\n\n## Environments\n\nSelect one of these Postman environments before running anything — they provide `base_url` and the seeded admin credentials:\n\n| Environment | base_url | Notes |\n|---|---|---|\n| **DoFi Backend - Local** | `http://localhost:3000` | Local Docker dev stack (`docker compose up`). Safe to use freely. |\n| **DoFi Backend - Staging** | `http://46.202.163.155:3012` | Shared staging server, no TLS yet. Shared with other testers — be considerate with writes/deletes. |\n\n## Authentication flow\n\n1. Run **Auth → Sign In**. On success the response includes the JWT both as `data.access_token` in the JSON body and in the `Authorization` response header (`Bearer <token>`) — pick whichever your client finds easier. A test script automatically saves it into the `jwt_token` **environment** variable (Local and Staging each keep their own value, so switching environments never sends a token signed for the other one).\n2. Every other request in this collection uses collection-level Bearer auth (`{{jwt_token}}`) by default — no need to copy/paste tokens manually between requests. The **Manifest** folder is the one exception; see its own section below.\n3. Run **Z - Sign Out (run last) → Sign Out** when you're done. This revokes the JWT (devise-jwt JTI denylist) and clears `jwt_token`. Anything run after Sign Out needs a fresh Sign In first.\n\n## Roles & permissions model\n\nEach `User` belongs to one `Role` (e.g. the seeded `DoFi Officer`), and each `Role` has many `Permission`s identified by a `code` (e.g. `roles.create`, `dofi_officer_users.update`). Endpoints are authorized via Pundit policies that check the signed-in user's role permissions:\n\n- **Roles**: `roles.list`/`roles.view`, `roles.create`, `roles.update`, `roles.delete`\n- **Users**: `dofi_officer_users.list`/`.view`, `.create`, `.update`, `.delete`\n- **Permissions**: read-only catalog, available to any authenticated user\n\nA failing permission check returns `401` (no/invalid session) or `403` (authenticated but not allowed), depending on the failure mode.\n\n## Manifest module: two extra tokens, per-request auth\n\nThe **Manifest** folder is the one place in this collection that needs more than one authenticated identity in the same run: officer Profiling/approval steps use the collection default (`{{jwt_token}}`), but vessel/manifest creation and lifecycle submission (`submit_port_out`, `submit_port_in`, ...) must run as the fisherman — `Manifests::Create` derives `company_profile` from `current_user`, so an officer token can't be used for those calls. Requests that need the fisherman's identity override `request.auth` (Bearer, one of `{{manifest_fisherman_jwt_token}}` / `{{manifest_commercial_fisherman_jwt_token}}` / `{{manifest_skip_demo_jwt_token}}`, all environment variables like `jwt_token`) instead of inheriting the collection default — look for a request-level Authorization tab that differs from its folder/collection parent if you're browsing in the Postman UI. The folder demonstrates both `fisherman_category` guard paths side by side (Small-Scale (Full-Time) skips Jetty/officer approval at port-out/port-in; Commercial requires it, including a full request-amendment → resubmit → approve cycle), plus the Skip Capture Report path and the draft-only delete guard. Like the rest of this collection's demo flows, it uses hardcoded IC numbers/boat numbers — re-running the whole folder a second time against a database that already has a prior run's data will 422 on \"IC number has already been taken\" partway through (same caveat as **Users → Create User**).\n\n## List endpoints: filter, sort & pagination\n\n`GET` index endpoints (`/api/v1/permissions`, `/api/v1/admin/roles`, `/api/v1/admin/users`) accept Ransack query params for filtering/sorting and Pagy params for pagination:\n\n- **Filter**: `q[<attribute>_<predicate>]=<value>`, e.g. `q[name_cont]=officer`, `q[status_eq]=active`.\n- **Sort**: `q[s]=<attribute> <asc|desc>`, or repeat `q[s][]=...` for multiple sort keys.\n- **Paginate**: `page` and `limit` query params (roles/users only — the permissions catalog is not paginated).\n- Non-whitelisted attributes (e.g. `encrypted_password`) are silently ignored rather than erroring or leaking data through the search index.\n\nFull contract: `docs/api/search-filter-sort-pagination.md` in the backend repo.\n\n## Soft delete\n\n`DELETE /api/v1/admin/users/:id` soft-deletes via the `Discard` gem — the record is excluded from default scopes (so a subsequent `GET` returns `404`) but stays in the database for audit purposes.\n\n## Manifest module: fisherman vs Web Admin paths\n\nBetween FINS Approval and Manifest sits a `Vessels` folder: it logs each demo fisherman in via BruneiID and creates/approves their vessel, kept separate from Manifest (per-folder scoping) but unable to live inside Auth or Profiling because it depends on FINS Approval having already approved the fisherman.\n\nManifest itself is split into `Manifest - Fisherman` and `Manifest - Web Admin`. The Web Admin folder can't just reuse the Fisherman folder's manifests for its Update/amendment-cycle demos (they're no longer in an editable/pending state by the time Web Admin runs), so it creates two small throwaway manifests of its own — the same self-contained-folder pattern as Auth and Vessels.\n\nManifest List/Show/Update/Tab Counts are split by audience: fisherman-facing endpoints live under `/api/v1/fisherman/manifests` (list/show/create/destroy/tab_counts + the port-out/port-in submit-resubmit-skip lifecycle, scoped to the signed-in fisherman's own company), while officer/jetty-manager-facing endpoints live under `/api/v1/admin/approvals/manifests` (list/show/update/tab_counts + the approve/request-amendment lifecycle, seeing every company). Nested resources (`capture_reports`, `expense`, `fish_capture_details`, `fishing_gear_details`, `minor_fishermen`) are mounted separately per namespace: `/api/v1/admin/manifests/:manifest_id/...` (officer: index/show, plus `verify`/`request_amendment` on capture reports) and `/api/v1/fisherman/manifests/:manifest_id/...` (fisherman: full create/update/destroy, plus `resubmit` on capture reports).\n",
+    "description": "# DoFi Backend API\n\nCovers JWT authentication, DoFI officer user management, company-scoped Fisherman role/user management, Jetty Manager public registration, Fisherman Flow B provisioning/claim login, officer Profiling, FINS Approval, Manifest, master reference data, and Dictionary endpoints.\n\n## Flow B onboarding context\n\nFisherman and Jetty Manager onboarding are intentionally different:\n\n- **Fisherman**: provision-before-login. QR + BruneiID resolves an eligible Fisherman account inside the Fisherman audience context. When no eligible Fisherman account is resolved for the verified IC, registration is never opened. Retired Fisherman public-registration endpoints and CompanyProfileContact auth fallback are not present in this collection.\n- **Jetty Manager**: QR-first registration remains available. QR + BruneiID resolves an existing user with the system Jetty Manager role in the Jetty/admin resource context. When no Jetty Manager user exists, the existing `POST /api/v1/registrations/jetty_manager` flow may open, and that registration still enforces global normalized IC uniqueness.\n\nQR identity resolution is audience-aware; create/provision/correction paths enforce the global IC invariant. `normalized_ic_number` is globally unique across all kept users. The same IC cannot be reused across Fisherman, Jetty Manager, another company, another platform, or another role.\n\n## FINS Approval context\n\nFINS Approval is the DoFI Officer governance module for Fisherman Owner/Admin users provisioned from Company Profiling, Jetty Manager registrations, and Approval Remarks used for reject/revoke reasons.\n\n- Fisherman FINS includes only kept Company Profiling-provisioned system Owner/Admin users (`provisioning_source: dofi_company_profile`). Approval changes `fisherman_status` from `pending_approval` to `claimable`; QR + BruneiID claim is still required before access becomes `active`.\n- Fisherman custom-role teammates created from Fisherman User Management start `claimable` and never enter FINS.\n- Jetty Manager FINS includes kept users with the system Jetty Manager role and continues using `users.status`.\n- Reject/deactivate/reactivate/revoke use separate permission codes and locked services. Revoke records revocation metadata; reject uses rejection audit/remark and does not populate `revoked_at`.\n\n## Authentication flow\n\n1. Run **Auth -> Sign In**. The test script saves the JWT to the `jwt_token` environment variable.\n2. Officer/admin requests inherit collection-level Bearer auth (`{{jwt_token}}`).\n3. Run **Auth -> BruneiID Login - Active** to save a seeded active Fisherman JWT to `fisherman_jwt_token` for Fisherman namespace requests.\n\n## User Management and Owner/Admin governance\n\nFisherman companies have system-managed `Owner` and `Admin` roles. Owner is the company superadmin. Admin has high permissions but cannot govern Owner accounts. Fisherman User Management may manage custom-role users only. Owner/Admin provisioning and Owner governance belong to DoFI Company Profiling/FINS.\n\n## Manifest module tokens\n\nThe **Manifest** folder needs officer and Fisherman identities in the same run. Officer Profiling/approval steps use `{{jwt_token}}`; Fisherman vessel/manifest actions use request-level Bearer tokens saved as `manifest_fisherman_jwt_token`, `manifest_commercial_fisherman_jwt_token`, and `manifest_skip_demo_jwt_token`.\n\n## List endpoints\n\n`GET` index endpoints accept Ransack query params (`q[...]`) and Pagy params (`page`, `limit`). See `docs/api/search-filter-sort-pagination.md`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -294,6 +294,11 @@
     {
       "key": "fisherman_user_id",
       "value": ""
+    },
+    {
+      "key": "fisherman_admin_role_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -737,7 +742,7 @@
                 }
               }
             },
-            "description": "Mock stand-in for the real BruneiID QR re-scan login used by Fishermen/Jetty Managers (no username/password for them, only registration). Trusts the given `ic_number` as already BruneiID-verified — same trust boundary registration itself relies on. Uses a pre-seeded, already-`active` fisherman (`db/seeds/profiled_users.rb` — Haji Ahmad bin Salleh) so this succeeds standalone against any seeded environment with no setup requests needed. Returns the same `access_token`/`Authorization` header shape as the officer `POST /api/v1/auth/sign_in`. This request's test script auto-saves the token to the `fisherman_jwt_token` environment variable — a standalone, always-available fisherman identity for ad-hoc testing, separate from the Manifest folder's own scripted-demo tokens (`manifest_fisherman_jwt_token` / `manifest_commercial_fisherman_jwt_token` / `manifest_skip_demo_jwt_token`). Also saves the fisherman's own company_profile.id to the fisherman_company_profile_id collection variable, for use by fisherman-namespace requests scoped to their own company (e.g. Companies - Crews / Fisherman)."
+            "description": "Mock stand-in for BruneiID QR login. Uses a pre-seeded active Fisherman, so this succeeds without setup. In Flow B, Fisherman users are provisioned before login; this request authenticates an existing active user and saves `fisherman_jwt_token` plus `fisherman_company_profile_id`."
           },
           "event": [
             {
@@ -790,7 +795,7 @@
                 }
               }
             },
-            "description": "Every registration_type — including Small - Scale (Full-Time) — requires the IC to already be profiled before self-registration (see registration-flow.md §5). Uses the officer's Bearer token set by 'Sign In' above."
+            "description": "Profiles and provisions a Small - Scale (Full-Time) Fisherman Owner through Source A. This creates a `User` immediately with `fisherman_status: pending_approval`; no public Fisherman registration request follows."
           },
           "event": [
             {
@@ -798,52 +803,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Status is 201', () => pm.response.to.have.status(201));"
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const data = pm.response.json().data;",
+                  "if (data && data.owner_user) { pm.collectionVariables.set('brunei_demo_pending_fisherman_id', data.owner_user.id); }",
+                  "pm.test('Source A Fisherman starts pending_approval', () => pm.expect(data.owner_user.fisherman_status).to.eql('pending_approval'));"
                 ]
               }
             }
           ]
-        },
-        {
-          "name": "Setup - Register a Fisherman (Pending, for BruneiID Login demo)",
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/registrations/fisherman",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "registrations",
-                "fisherman"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"user\": {\n    \"name\": \"Postman BruneiID Demo (Pending)\",\n    \"ic_number\": \"01-800202\",\n    \"registration_type\": \"Small - Scale (Full-Time)\"\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "description": "Deliberately left pending (not approved) to demonstrate the status-only login response below."
-          }
         },
         {
           "name": "BruneiID Login - Pending",
@@ -883,7 +850,7 @@
                 }
               }
             },
-            "description": "The fisherman registered just above is still `pending` (not approved). Returns 200 with the same status-only shape as `GET /api/v1/registrations/status` (no `access_token`) so the FE can reuse its existing pending status screen instead of a new error shape."
+            "description": "The Source A Fisherman provisioned just above is still `pending_approval`. Returns a status-only response with no `access_token`."
           },
           "event": [
             {
@@ -892,8 +859,9 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Status is pending', () => pm.expect(pm.response.json().data.status).to.eql('pending'));",
-                  "pm.test('No access_token for a non-active user', () => pm.expect(pm.response.json().data.access_token).to.be.undefined);"
+                  "const data = pm.response.json().data;",
+                  "pm.test('Fisherman status is pending_approval', () => pm.expect(data.fisherman_status).to.eql('pending_approval'));",
+                  "pm.test('No access_token for a non-active fisherman', () => pm.expect(data.access_token).to.be.undefined);"
                 ]
               }
             }
@@ -937,7 +905,7 @@
                 }
               }
             },
-            "description": "No registered user has this ic_number."
+            "description": "No kept user has this normalized IC. The legacy/mock endpoint returns generic account-not-found; the OIDC callback with `audience: fisherman` returns the Flow B-specific no-provisioned-account response."
           },
           "event": [
             {
@@ -2421,7 +2389,7 @@
                     }
                   }
                 },
-                "description": "Creates a role owned by the caller's own company. platform_scope and company_profile_id are always server-derived (Role::FISHERMAN_PLATFORM, current_user.company_profile_id) — never read from the request body, even if sent (see Create Role (Fisherman) - Cross-Platform Permission (422) below for the permission-side equivalent of this guarantee). Requires fisherman_roles.create. The response's data.id is auto-saved to the fisherman_role_id collection variable."
+                "description": "Creates a custom role owned by the caller's own company. `platform_scope` and `company_profile_id` are server-derived. Reserved system names `Owner` and `Admin` are rejected case-insensitively."
               },
               "event": [
                 {
@@ -2605,6 +2573,66 @@
                       "pm.test('Error explains the platform mismatch', () => {",
                       "  pm.expect(pm.response.json().errors.join(' ')).to.include('not available to the fisherman platform');",
                       "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create Role (Fisherman) - Reserved Owner Name (422)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/roles",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "roles"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"role\": {\n    \"name\": \"Owner\",\n    \"description\": \"This reserved name must be rejected\"\n  },\n  \"permission_codes\": [\n    \"dashboard.view\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Custom Fisherman roles cannot use reserved system names (`Owner` / `Admin`) in any casing. Role identity is not based on name alone, but names are reserved to prevent confusing collisions."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                      "pm.test('Reserved name is rejected', () => pm.expect(pm.response.json().errors.join(' ').toLowerCase()).to.include('reserved'));"
                     ]
                   }
                 }
@@ -3797,7 +3825,7 @@
                     }
                   ]
                 },
-                "description": "Looks up the caller's own company's seeded default Owner role and saves it to the fisherman_owner_role_id collection variable, used by Create User (Fisherman) below. Requires fisherman_roles.list/.view."
+                "description": "Looks up the caller's own company Owner role and saves it to `fisherman_owner_role_id` for blocked Owner-governance examples. Do not use this role for normal teammate creation."
               },
               "event": [
                 {
@@ -3808,6 +3836,183 @@
                       "pm.test('Status is 200', () => pm.response.to.have.status(200));",
                       "const match = pm.response.json().data[0];",
                       "if (match) { pm.collectionVariables.set('fisherman_owner_role_id', match.id); }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Setup - Get Fisherman Admin Role (Blocked Example)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/roles?q[is_default_admin_eq]=true&limit=1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "roles"
+                  ],
+                  "query": [
+                    {
+                      "key": "q[is_default_admin_eq]",
+                      "value": "true"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "1"
+                    }
+                  ]
+                },
+                "description": "Looks up the caller's own company system Admin role and saves it to `fisherman_admin_role_id` for blocked system-role examples. Source B teammate provisioning may use custom roles only."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "const match = pm.response.json().data[0];",
+                      "if (match) { pm.collectionVariables.set('fisherman_admin_role_id', match.id); }"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create User (Fisherman) - Owner Role Blocked (422)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/users",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "users"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user\": {\n    \"name\": \"Blocked Owner Assignment\",\n    \"ic_number\": \"00PRTOWN1\",\n    \"registration_type\": \"Commercial\",\n    \"role_id\": \"{{fisherman_owner_role_id}}\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Fisherman User Management cannot create or assign Owner accounts, even when the actor is the current Owner. Owner governance is DoFI Profiling only."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                      "pm.test('Owner role assignment is blocked', () => pm.expect(pm.response.json().errors.join(' ').toLowerCase()).to.include('owner'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create User (Fisherman) - Admin Role Blocked (422)",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{fisherman_jwt_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/fisherman/users",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "fisherman",
+                    "users"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user\": {\n    \"name\": \"Blocked Admin Assignment\",\n    \"ic_number\": \"00PRTADM1\",\n    \"registration_type\": \"Commercial\",\n    \"role_id\": \"{{fisherman_admin_role_id}}\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Fisherman User Management cannot create or assign system Admin accounts. Admin is Company Profiling/FINS-governed, not Source B teammate provisioning."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 422', () => pm.response.to.have.status(422));"
                     ]
                   }
                 }
@@ -3851,14 +4056,14 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"user\": {\n    \"name\": \"Postman Test Teammate\",\n    \"ic_number\": \"00PRTMN01\",\n    \"registration_type\": \"Commercial\",\n    \"role_id\": \"{{fisherman_owner_role_id}}\"\n  }\n}",
+                  "raw": "{\n  \"user\": {\n    \"name\": \"Postman Test Teammate\",\n    \"ic_number\": \"00PRTMN01\",\n    \"registration_type\": \"Commercial\",\n    \"role_id\": \"{{fisherman_role_id}}\"\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
                     }
                   }
                 },
-                "description": "Creates a teammate under the caller's own company — company_profile is always server-derived from current_user (create_params merges it in), never a client param. Requires fisherman_users.create. password/password_confirmation are optional here too; omitted, so the server auto-generates one returned once as data.temporary_password. The response's data.id is auto-saved to the fisherman_user_id collection variable. Re-running this without changing ic_number will 422 on a persistent environment (e.g. staging) since a prior run's user already exists — change the body or clean up the previous test user first."
+                "description": "Source B provisioning: creates a custom-role teammate under the caller's own company. Run Fisherman Roles -> Create Role first so `fisherman_role_id` points to a custom role. The service derives `fisherman_status: claimable`; no DoFI approval is required."
               },
               "event": [
                 {
@@ -3870,7 +4075,7 @@
                       "const body = pm.response.json();",
                       "const id = body.data && body.data.id;",
                       "if (id) { pm.collectionVariables.set('fisherman_user_id', id); }",
-                      "pm.test('Returns a one-time temporary_password', () => pm.expect(body.data.temporary_password).to.be.a('string'));"
+                      "pm.test('Source B starts claimable', () => pm.expect(body.data.fisherman_status).to.eql('claimable'));"
                     ]
                   }
                 }
@@ -4148,7 +4353,7 @@
     },
     {
       "name": "Profiling",
-      "description": "Officer-facing CRUD for `CompanyProfile` (the \"Add Profiling\" screen). `CompanyProfile` is one row per **company** (or, for Small - Scale (Full-Time), one row per **individual** fisherman — see CompanyProfile#individual?, which just makes company-shape fields optional for that registration_type); person-level data (Owner/Admin) lives on separate `CompanyProfileContact` rows (`belongs_to :company_profile`). Officers pre-create a profile — an Owner contact (required) and optionally an Admin contact — before a fisherman of *any* registration_type, including Full-Time, can self-register and match against it by IC number (see Registrations → Fisherman - Company Profile Lookup / Register). Requires `profiling.*` permissions.\n\nThe \"Owner + Admin\"/\"Owner Only\" examples below deliberately use the same `ic_no` (`01-192839`), `company_name` (`Azri Fish Sdn Bhd`), and `rocbn_no` (`RC20390923`) as the Registrations folder's Commercial Fisherman example, and \"Create Profiling (Individual - Small-Scale Full-Time)\" uses the same `ic_no` (`01-555555`) as the Registrations folder's Full-Time example, so running this folder first makes those downstream requests resolve against real data instead of 404ing.",
+      "description": "Officer-facing CRUD for `CompanyProfile`. In Flow B, Company Profiling also provisions Source A Fisherman Owner/Admin users. Owner/Admin contacts create linked `owner_user`/`admin_user` rows with `fisherman_status: pending_approval`; DoFI approval then moves them to `claimable` before QR claim/login.",
       "item": [
         {
           "name": "List Profiling",
@@ -4240,7 +4445,10 @@
                   "    pm.expect(data.admin_profile.company_profile_id).to.eql(data.company_profile.id);",
                   "});",
                   "if (pm.response.json().data.company_profile) { pm.collectionVariables.set('company_profile_id', pm.response.json().data.company_profile.id); }",
-                  "if (pm.response.json().data.admin_profile) { pm.collectionVariables.set('admin_contact_id', pm.response.json().data.admin_profile.id); }"
+                  "if (pm.response.json().data.admin_profile) { pm.collectionVariables.set('admin_contact_id', pm.response.json().data.admin_profile.id); }",
+                  "const profileData = pm.response.json().data;",
+                  "pm.test('Owner user is provisioned pending_approval', () => pm.expect(profileData.owner_user.fisherman_status).to.eql('pending_approval'));",
+                  "if (profileData && profileData.owner_user) { pm.collectionVariables.set('commercial_fisherman_id', profileData.owner_user.id); }"
                 ]
               }
             }
@@ -4332,7 +4540,7 @@
                 }
               }
             },
-            "description": "Profiles a Small - Scale (Full-Time) fisherman as their own Owner CompanyProfileContact on an individual-shaped CompanyProfile — no company-shape fields (company_name, worker_quota, etc.) are submitted, since CompanyProfile#individual? makes them optional for this registration_type only.\n\nThis must run before 'Fisherman - Register (Small-Scale Full-Time)' in the Registrations folder (and before the BruneiID login demos in the Auth folder) — every registration_type, including Full-Time, requires the IC to already be profiled; there is no \"register first, profile later\" path for any type. Requires `profiling.create` (DoFi Officer has it via full access)."
+            "description": "Profiles and provisions a Small - Scale (Full-Time) Fisherman Owner through Source A. The created `owner_user` starts as `pending_approval` and must be approved before QR claim/login."
           },
           "event": [
             {
@@ -4342,7 +4550,10 @@
                 "exec": [
                   "pm.test('Status is 201', () => pm.response.to.have.status(201));",
                   "pm.test('registration_type is Small - Scale (Full-Time)', () => pm.expect(pm.response.json().data.company_profile.registration_type).to.eql('Small - Scale (Full-Time)'));",
-                  "if (pm.response.json().data.company_profile) { pm.collectionVariables.set('individual_company_profile_id', pm.response.json().data.company_profile.id); }"
+                  "if (pm.response.json().data.company_profile) { pm.collectionVariables.set('individual_company_profile_id', pm.response.json().data.company_profile.id); }",
+                  "const profileData = pm.response.json().data;",
+                  "pm.test('Owner user is provisioned pending_approval', () => pm.expect(profileData.owner_user.fisherman_status).to.eql('pending_approval'));",
+                  "if (profileData && profileData.owner_user) { pm.collectionVariables.set('individual_fisherman_user_id', profileData.owner_user.id); }"
                 ]
               }
             }
@@ -4383,7 +4594,7 @@
                 }
               }
             },
-            "description": "Profiles a Small - Scale (Part-Time) fisherman as their own Owner CompanyProfileContact on an individual-shaped CompanyProfile — no company-shape fields (company_name, worker_quota, etc.) are submitted, since CompanyProfile#individual? makes them optional for this registration_type too (same relaxation as Full-Time).\n\nThis must run before 'Fisherman - Register (Small-Scale Part-Time)' in the Registrations folder — every registration_type, including Part-Time, requires the IC to already be profiled; there is no \"register first, profile later\" path for any type. Requires `profiling.create` (DoFi Officer has it via full access)."
+            "description": "Profiles and provisions a Small - Scale (Part-Time) Fisherman Owner through Source A. The created `owner_user` starts as `pending_approval` and must be approved before QR claim/login."
           },
           "event": [
             {
@@ -4785,7 +4996,10 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 201', () => pm.response.to.have.status(201));",
-                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_company_profile_id', pm.response.json().data.company_profile.id); }"
+                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_company_profile_id', pm.response.json().data.company_profile.id); }",
+                  "const profileData = pm.response.json().data;",
+                  "pm.test('Owner user is provisioned pending_approval', () => pm.expect(profileData.owner_user.fisherman_status).to.eql('pending_approval'));",
+                  "if (profileData && profileData.owner_user) { pm.collectionVariables.set('manifest_fisherman_user_id', profileData.owner_user.id); }"
                 ]
               }
             }
@@ -4835,7 +5049,10 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 201', () => pm.response.to.have.status(201));",
-                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_commercial_company_profile_id', pm.response.json().data.company_profile.id); }"
+                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_commercial_company_profile_id', pm.response.json().data.company_profile.id); }",
+                  "const profileData = pm.response.json().data;",
+                  "pm.test('Owner user is provisioned pending_approval', () => pm.expect(profileData.owner_user.fisherman_status).to.eql('pending_approval'));",
+                  "if (profileData && profileData.owner_user) { pm.collectionVariables.set('manifest_commercial_fisherman_user_id', profileData.owner_user.id); }"
                 ]
               }
             }
@@ -4885,7 +5102,10 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status is 201', () => pm.response.to.have.status(201));",
-                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_skip_demo_company_profile_id', pm.response.json().data.company_profile.id); }"
+                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_skip_demo_company_profile_id', pm.response.json().data.company_profile.id); }",
+                  "const profileData = pm.response.json().data;",
+                  "pm.test('Owner user is provisioned pending_approval', () => pm.expect(profileData.owner_user.fisherman_status).to.eql('pending_approval'));",
+                  "if (profileData && profileData.owner_user) { pm.collectionVariables.set('manifest_skip_demo_fisherman_user_id', profileData.owner_user.id); }"
                 ]
               }
             }
@@ -6572,7 +6792,7 @@
     },
     {
       "name": "Registrations",
-      "description": "Public self-registration endpoints for Jetty Managers and Fishermen. No `Authorization` header is required — all four endpoints are unauthenticated. The expected flow before hitting these endpoints is: (1) user scans a BruneiID QR code, (2) BruneiID callback returns `ic_number` + `name` to the FE, (3) FE calls `GET /registrations/status` to check whether an account already exists for that IC, then routes to the appropriate register form or redirect.",
+      "description": "Public registration remains available for Jetty Manager only. Retired Fisherman public-registration and CompanyProfile lookup requests are not present in this collection; Fisherman accounts are provisioned by Company Profiling or Fisherman User Management before QR claim/login.",
       "item": [
         {
           "name": "Jetty Manager - Register",
@@ -6607,7 +6827,7 @@
               "mode": "raw",
               "raw": "{\n  \"user\": {\n    \"name\": \"Amiirul Azri Mizamuddin\",\n    \"ic_number\": \"01-1234567\",\n    \"unit\": \"Docks\",\n    \"position\": \"Jetty Supervisor\",\n    \"contact_no\": \"71111111\"\n  }\n}"
             },
-            "description": "Registers a new Jetty Manager account (role kind: Jetty Manager). All five fields are required. The account is created with `status: pending` — same as Fisherman registration, an officer must approve before the user can log in.\n\nThe `ic_number` and `name` are typically pre-filled from the BruneiID callback; `unit`, `position`, and `contact_no` are entered by the user on the registration form.\n\nA random secure password is generated server-side — the user never sets one. Future authentication is via BruneiID QR re-scan, not email/password."
+            "description": "Registers a new Jetty Manager account (role kind: Jetty Manager). All five fields are required. The account is created with `status: pending`; an officer must approve before the Jetty Manager can log in.\n\nThe `ic_number` and `name` are typically pre-filled from the BruneiID callback; `unit`, `position`, and `contact_no` are entered by the user on the registration form.\n\nA random secure password is generated server-side — the user never sets one. Future authentication is via BruneiID QR re-scan, not email/password."
           },
           "event": [
             {
@@ -6785,7 +7005,7 @@
                 }
               ]
             },
-            "description": "Checks whether a user account already exists for the given IC number. The FE calls this immediately after a successful BruneiID callback to decide which screen to show:\n\n| Response | `data.status` | FE action |\n|---|---|---|\n| 200 | `active` | Redirect to login |\n| 200 | `pending` | Show \"Registration Status: Pending\" screen |\n| 200 | `rejected` | Show \"Registration Status: Rejected\" screen (read `rejection_reason`) |\n| 404 | — | IC not found → show registration form |"
+            "description": "Checks whether a kept user exists for the normalized IC. Jetty Manager 404 may open registration. Fisherman 404 must stop with no registration redirect; QR + BruneiID never creates a Fisherman user. Registration/provisioning paths still enforce global normalized IC uniqueness."
           },
           "event": [
             {
@@ -6965,723 +7185,12 @@
               "body": "{\n  \"status\": \"fail\",\n  \"message\": \"Resource not found.\"\n}"
             }
           ]
-        },
-        {
-          "name": "Fisherman - Company Profile Lookup",
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/registrations/fisherman/company_profile?ic_no=01-192839",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "registrations",
-                "fisherman",
-                "company_profile"
-              ],
-              "query": [
-                {
-                  "key": "ic_no",
-                  "value": "01-192839"
-                }
-              ]
-            },
-            "description": "Looks up the `CompanyProfileContact` whose `ic_no` matches the fisherman's IC number (flattened with its parent company's fields in the response). Used by the FE to pre-fill Company Name and ROCBN No. on the registration form (read-only fields).\n\nOnly applies to `registration_type` = `\"Commercial\"` or `\"Small-Scale (Company)\"`. For `\"Small - Scale (Full-Time)\"` or `\"Small - Scale (Part-Time)\"` no lookup is needed.\n\nReturns 404 if no active contact matches — the FE should show dashes and disable the Register button in this case."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                  "pm.test('Response has company_name', () => pm.expect(pm.response.json().data).to.have.property('company_name'));"
-                ]
-              }
-            }
-          ],
-          "response": [
-            {
-              "name": "Company Profile Lookup - 200 Found",
-              "originalRequest": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/api/v1/registrations/fisherman/company_profile?ic_no=01-192839",
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "registrations",
-                    "fisherman",
-                    "company_profile"
-                  ],
-                  "query": [
-                    {
-                      "key": "ic_no",
-                      "value": "01-192839"
-                    }
-                  ]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "content-type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"cp000001-0001-0001-0001-000000000001\",\n    \"registration_type\": \"Commercial\",\n    \"company_name\": \"Azri Fish Sdn Bhd\",\n    \"rocbn_no\": \"RC20390923\",\n    \"full_name\": \"Muhammad Shahrizan Bin Haji Said\",\n    \"ic_no\": \"01-192839\",\n    \"designation\": \"Owner\"\n  }\n}"
-            },
-            {
-              "name": "Company Profile Lookup - 404 Not Found",
-              "originalRequest": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/api/v1/registrations/fisherman/company_profile?ic_no=00-000000",
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "registrations",
-                    "fisherman",
-                    "company_profile"
-                  ],
-                  "query": [
-                    {
-                      "key": "ic_no",
-                      "value": "00-000000"
-                    }
-                  ]
-                }
-              },
-              "status": "Not Found",
-              "code": 404,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "content-type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"status\": \"fail\",\n  \"message\": \"Resource not found.\"\n}"
-            }
-          ]
-        },
-        {
-          "name": "Fisherman - Register (Commercial)",
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/registrations/fisherman",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "registrations",
-                "fisherman"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"user\": {\n    \"name\": \"Muhammad Shahrizan Bin Haji Said\",\n    \"ic_number\": \"01-192839\",\n    \"registration_type\": \"Commercial\",\n    \"designation\": \"Owner\"\n  }\n}"
-            },
-            "description": "Registers a fisherman with `registration_type = \"Commercial\"`. The server looks up a `CompanyProfile` whose `ic_no` matches `ic_number` — if none is found, the request returns 404 (the IC lookup step above should have caught this first).\n\nThe account is created with `status: pending` and linked to the matched CompanyProfile. An officer must approve before the user can log in.\n\nValid `registration_type` values: `\"Commercial\"`, `\"Small-Scale (Company)\"`, `\"Small - Scale (Full-Time)\"`, `\"Small - Scale (Part-Time)\"`.\n\n`designation` (Owner or Admin) is only shown on the form for Commercial and Small-Scale (Company) types."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('User status is pending', () => pm.expect(pm.response.json().data.status).to.eql('pending'));",
-                  "pm.test('Has company_profile', () => pm.expect(pm.response.json().data.company_profile).to.not.be.null);",
-                  "if (pm.response.json().status === 'success') { pm.collectionVariables.set('commercial_fisherman_id', pm.response.json().data.id); }"
-                ]
-              }
-            }
-          ],
-          "response": [
-            {
-              "name": "Fisherman Register (Commercial) - 201 Created",
-              "originalRequest": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/api/v1/registrations/fisherman",
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "registrations",
-                    "fisherman"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"user\": {\n    \"name\": \"Muhammad Shahrizan Bin Haji Said\",\n    \"ic_number\": \"01-192839\",\n    \"registration_type\": \"Commercial\",\n    \"designation\": \"Owner\"\n  }\n}"
-                }
-              },
-              "status": "Created",
-              "code": 201,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "content-type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0002-0002-0002-000000000002\",\n    \"name\": \"Muhammad Shahrizan Bin Haji Said\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"pending\",\n    \"preferred_locale\": \"en\",\n    \"unit\": null,\n    \"position\": null,\n    \"contact_no\": null,\n    \"designation\": \"Owner\",\n    \"registration_type\": \"Commercial\",\n    \"created_at\": \"2026-06-30T09:00:00.000Z\",\n    \"updated_at\": \"2026-06-30T09:00:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0003-0003-0003-0003-000000000003\",\n      \"name\": \"Fisherman\",\n      \"kind\": \"Fisherman\",\n      \"description\": \"Fisherman role.\",\n      \"permissions\": []\n    },\n    \"company_profile\": {\n      \"id\": \"cp000001-0001-0001-0001-000000000001\",\n      \"registration_type\": \"Commercial\",\n      \"company_name\": \"Azri Fish Sdn Bhd\",\n      \"rocbn_no\": \"RC20390923\"\n    },\n    \"company_profile_contact\": {\n      \"id\": \"cc000001-0001-0001-0001-000000000001\",\n      \"full_name\": \"Muhammad Shahrizan Bin Haji Said\",\n      \"ic_no\": \"01-192839\",\n      \"ic_colour\": \"Yellow\",\n      \"gender\": \"Male\",\n      \"designation\": \"Owner\",\n      \"company_profile_id\": \"cp000001-0001-0001-0001-000000000001\"\n    }\n  }\n}"
-            },
-            {
-              "name": "Fisherman Register (Commercial) - 404 Company Profile Not Found",
-              "originalRequest": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/api/v1/registrations/fisherman",
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "registrations",
-                    "fisherman"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"user\": {\n    \"name\": \"No Match\",\n    \"ic_number\": \"00-000000\",\n    \"registration_type\": \"Commercial\",\n    \"designation\": \"Owner\"\n  }\n}"
-                }
-              },
-              "status": "Not Found",
-              "code": 404,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "content-type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"status\": \"fail\",\n  \"message\": \"Resource not found.\"\n}"
-            }
-          ]
-        },
-        {
-          "name": "Fisherman - Register (Small-Scale Company)",
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/registrations/fisherman",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "registrations",
-                "fisherman"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"user\": {\n    \"name\": \"Roslan Bin Mat\",\n    \"ic_number\": \"01-192840\",\n    \"registration_type\": \"Small-Scale (Company)\",\n    \"designation\": \"Admin\"\n  }\n}"
-            },
-            "description": "Same as the Commercial flow — the server looks up a CompanyProfile by `ic_number` and links the user to it. Returns 404 if no match is found."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('User status is pending', () => pm.expect(pm.response.json().data.status).to.eql('pending'));"
-                ]
-              }
-            }
-          ],
-          "response": [
-            {
-              "name": "Fisherman Register (Small-Scale Company) - 201 Created",
-              "originalRequest": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/api/v1/registrations/fisherman",
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "registrations",
-                    "fisherman"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"user\": {\n    \"name\": \"Roslan Bin Mat\",\n    \"ic_number\": \"01-192839\",\n    \"registration_type\": \"Small-Scale (Company)\",\n    \"designation\": \"Admin\"\n  }\n}"
-                }
-              },
-              "status": "Created",
-              "code": 201,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "content-type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0004-0004-0004-000000000004\",\n    \"name\": \"Roslan Bin Mat\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"pending\",\n    \"preferred_locale\": \"en\",\n    \"unit\": null,\n    \"position\": null,\n    \"contact_no\": null,\n    \"designation\": \"Admin\",\n    \"registration_type\": \"Small-Scale (Company)\",\n    \"created_at\": \"2026-06-30T09:30:00.000Z\",\n    \"updated_at\": \"2026-06-30T09:30:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0003-0003-0003-0003-000000000003\",\n      \"name\": \"Fisherman\",\n      \"kind\": \"Fisherman\",\n      \"description\": \"Fisherman role.\",\n      \"permissions\": []\n    },\n    \"company_profile\": {\n      \"id\": \"cp000001-0001-0001-0001-000000000001\",\n      \"registration_type\": \"Small-Scale (Company)\",\n      \"company_name\": \"Azri Fish Sdn Bhd\",\n      \"rocbn_no\": \"RC20390923\"\n    },\n    \"company_profile_contact\": {\n      \"id\": \"cc000001-0001-0001-0001-000000000001\",\n      \"full_name\": \"Muhammad Shahrizan Bin Haji Said\",\n      \"ic_no\": \"01-192839\",\n      \"ic_colour\": \"Yellow\",\n      \"gender\": \"Male\",\n      \"designation\": \"Admin\",\n      \"company_profile_id\": \"cp000001-0001-0001-0001-000000000001\"\n    }\n  }\n}"
-            }
-          ]
-        },
-        {
-          "name": "Fisherman - Register (Small-Scale Full-Time)",
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/registrations/fisherman",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "registrations",
-                "fisherman"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"user\": {\n    \"name\": \"Haji Sulaiman Bin Ahmad\",\n    \"ic_number\": \"01-555555\",\n    \"registration_type\": \"Small - Scale (Full-Time)\"\n  }\n}"
-            },
-            "description": "Registers the individual fisherman profiled in Profiling → 'Create Profiling (Individual - Small-Scale Full-Time)'. Every registration_type — including Full-Time — requires the IC to already match a CompanyProfileContact; the server looks it up and links company_profile/company_profile_contact automatically, deriving designation from the matched contact (here, \"Owner\", since the fisherman profiled themselves as their own Owner contact). If no profile has been created for this IC yet, this returns 404 — the same failure Commercial/Small-Scale (Company) already have when unmatched.\n\nNote the exact string: `\"Small - Scale (Full-Time)\"` (space before and after the hyphen)."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('User status is pending', () => pm.expect(pm.response.json().data.status).to.eql('pending'));",
-                  "pm.test('Has company_profile', () => pm.expect(pm.response.json().data.company_profile).to.not.be.null);",
-                  "pm.test('designation is Owner', () => pm.expect(pm.response.json().data.designation).to.eql('Owner'));"
-                ]
-              }
-            }
-          ],
-          "response": [
-            {
-              "name": "Fisherman Register (Full-Time) - 201 Created",
-              "originalRequest": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/api/v1/registrations/fisherman",
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "registrations",
-                    "fisherman"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"user\": {\n    \"name\": \"Haji Sulaiman Bin Ahmad\",\n    \"ic_number\": \"01-555555\",\n    \"registration_type\": \"Small - Scale (Full-Time)\"\n  }\n}"
-                }
-              },
-              "status": "Created",
-              "code": 201,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "content-type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"status\": \"success\",\n  \"data\": {\n    \"id\": \"b1e2f3a4-0005-0005-0005-000000000005\",\n    \"name\": \"Haji Sulaiman Bin Ahmad\",\n    \"email\": null,\n    \"employee_id\": null,\n    \"status\": \"pending\",\n    \"preferred_locale\": \"en\",\n    \"unit\": null,\n    \"position\": null,\n    \"contact_no\": null,\n    \"designation\": \"Owner\",\n    \"registration_type\": \"Small - Scale (Full-Time)\",\n    \"created_at\": \"2026-06-30T10:00:00.000Z\",\n    \"updated_at\": \"2026-06-30T10:00:00.000Z\",\n    \"role\": {\n      \"id\": \"r0le0003-0003-0003-0003-000000000003\",\n      \"name\": \"Fisherman\",\n      \"kind\": \"Fisherman\",\n      \"description\": \"Fisherman role.\",\n      \"permissions\": []\n    },\n    \"company_profile\": {\n      \"id\": \"c0mp0005-0005-0005-0005-000000000005\",\n      \"registration_type\": \"Small - Scale (Full-Time)\",\n      \"company_name\": null,\n      \"rocbn_no\": null\n    },\n    \"company_profile_contact\": {\n      \"id\": \"c0nt0005-0005-0005-0005-000000000005\",\n      \"full_name\": \"Haji Sulaiman Bin Ahmad\",\n      \"ic_no\": \"01-555555\",\n      \"ic_colour\": \"Yellow\",\n      \"gender\": \"Male\",\n      \"designation\": \"Owner\",\n      \"company_profile_id\": \"c0mp0005-0005-0005-0005-000000000005\"\n    }\n  }\n}"
-            },
-            {
-              "name": "Fisherman Register - 422 Invalid Registration Type",
-              "originalRequest": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/api/v1/registrations/fisherman",
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "registrations",
-                    "fisherman"
-                  ]
-                },
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"user\": {\n    \"name\": \"Bad Type\",\n    \"ic_number\": \"01-123123\",\n    \"registration_type\": \"Not A Real Type\"\n  }\n}"
-                }
-              },
-              "status": "Unprocessable Content",
-              "code": 422,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "content-type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"status\": \"fail\",\n  \"errors\": [\n    \"Registration type is not included in the list\"\n  ]\n}"
-            }
-          ]
-        },
-        {
-          "name": "Fisherman - Register (Small-Scale Part-Time)",
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/registrations/fisherman",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "registrations",
-                "fisherman"
-              ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"user\": {\n    \"name\": \"Osman Bin Haji Rosli\",\n    \"ic_number\": \"01-566666\",\n    \"registration_type\": \"Small - Scale (Part-Time)\"\n  }\n}"
-            },
-            "description": "Registers the individual fisherman profiled in Profiling → 'Create Profiling (Individual - Small-Scale Part-Time)'. Every registration_type — including Part-Time — requires the IC to already match a CompanyProfileContact; the server looks it up and links company_profile/company_profile_contact automatically, deriving designation from the matched contact (here, \"Owner\", since the fisherman profiled themselves as their own Owner contact). If no profile has been created for this IC yet, this returns 404 — the same failure Commercial/Small-Scale (Company)/Full-Time already have when unmatched.\n\nNote the exact string: `\"Small - Scale (Part-Time)\"` (space before and after the hyphen, matching Full-Time's convention). On the manifest side this maps to `fisherman_category: \"small_scale_part_time\"`, grouped under `Manifest.small_scale?` alongside Company/Full-Time (same no-Jetty-approval workflow)."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
-                  "pm.test('User status is pending', () => pm.expect(pm.response.json().data.status).to.eql('pending'));",
-                  "pm.test('Has company_profile', () => pm.expect(pm.response.json().data.company_profile).to.not.be.null);",
-                  "pm.test('designation is Owner', () => pm.expect(pm.response.json().data.designation).to.eql('Owner'));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Fisherman - Register (for Manifest Demo — Small-Scale Full-Time)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/registrations/fisherman",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "registrations",
-                "fisherman"
-              ]
-            },
-            "auth": {
-              "type": "noauth"
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"user\": {\n    \"name\": \"Manifest Demo Fisherman\",\n    \"ic_number\": \"01-710001\",\n    \"registration_type\": \"Small - Scale (Full-Time)\"\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "description": "Same shape as \"Fisherman - Register (Small-Scale Full-Time)\" above — feeds the Small-Scale scenario in Vessels/Manifest below."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
-                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_fisherman_user_id', pm.response.json().data.id); }"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Fisherman - Register (for Manifest Demo — Commercial)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/registrations/fisherman",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "registrations",
-                "fisherman"
-              ]
-            },
-            "auth": {
-              "type": "noauth"
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"user\": {\n    \"name\": \"Commercial Demo Fisherman\",\n    \"ic_number\": \"01-710002\",\n    \"registration_type\": \"Commercial\",\n    \"designation\": \"Owner\"\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "description": "Same shape as \"Fisherman - Register (Commercial)\" above — feeds the Commercial scenario in Vessels/Manifest below."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
-                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_commercial_fisherman_user_id', pm.response.json().data.id); }"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "Fisherman - Register (for Manifest Demo — Skip-Demo)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/api/v1/registrations/fisherman",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "registrations",
-                "fisherman"
-              ]
-            },
-            "auth": {
-              "type": "noauth"
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"user\": {\n    \"name\": \"Skip Demo Fisherman\",\n    \"ic_number\": \"01-710003\",\n    \"registration_type\": \"Small - Scale (Full-Time)\"\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "description": "Same shape as \"Fisherman - Register (Commercial)\" above — feeds the Skip-Demo scenario in Vessels/Manifest below."
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
-                  "if (pm.response.json().data) { pm.collectionVariables.set('manifest_skip_demo_fisherman_user_id', pm.response.json().data.id); }"
-                ]
-              }
-            }
-          ]
         }
       ]
     },
     {
       "name": "FINS Approval",
-      "description": "Officer review queues for BruneiID self-registered Fishermen and Jetty Managers (both now created with `status: pending`, requiring approval before they can log in), plus the predefined rejection-reason list used when rejecting either.",
+      "description": "Officer governance module for Approval Remarks, Company Profiling-provisioned Fisherman Owner/Admin users, and Jetty Manager users. Fisherman actions use `users.fisherman_status`; Jetty Manager actions use `users.status`. QR identity lookup remains audience-scoped, while create/provision/correction flows enforce global normalized IC uniqueness.",
       "item": [
         {
           "name": "Approval Remarks",
@@ -7756,7 +7265,7 @@
                     }
                   }
                 },
-                "description": "Creates a remark with `name` (required). Requires `approval_remarks.create`. Used to populate the `remarks`/`approval_remark_id` fields on Reject Fisherman/Jetty Manager and Request Amendment elsewhere in this collection."
+                "description": "Creates a remark with `name` (required) and optional `usage_scope` (`reject`, `revoke`, or `both`). Requires `approval_remarks.create`. Used to populate reject/revoke reason fields for Fisherman and Jetty Manager FINS actions and request-amendment flows elsewhere in this collection."
               },
               "event": [
                 {
@@ -7850,7 +7359,7 @@
                     }
                   }
                 },
-                "description": "Requires `approval_remarks.update`."
+                "description": "Updates remark name/status and optional `usage_scope` (`reject`, `revoke`, or `both`). Requires `approval_remarks.update`."
               }
             },
             {
@@ -7879,7 +7388,7 @@
         },
         {
           "name": "Fisherman Approvals",
-          "description": "Requires `fisherman_approvals.*`. Run the two \"Register Pending Fisherman\" setup requests first (each uses a fresh `ic_number` so they don't collide with the Registrations folder's own examples or each other).",
+          "description": "Requires `fisherman_approvals.*`. Lists and governs only kept, Company Profiling-provisioned Fisherman Owner/Admin users (`provisioning_source: dofi_company_profile`). Custom-role teammates created from Fisherman User Management never enter FINS and direct-ID actions must be rejected by policy/service checks.",
           "item": [
             {
               "name": "Get an Approval Remark (setup)",
@@ -7931,11 +7440,8 @@
               ]
             },
             {
-              "name": "Setup - Register Pending Fisherman (for Approve)",
+              "name": "Setup - Profile Pending Fisherman (for Approve)",
               "request": {
-                "auth": {
-                  "type": "noauth"
-                },
                 "method": "POST",
                 "header": [
                   {
@@ -7948,46 +7454,46 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/registrations/fisherman",
+                  "raw": "{{base_url}}/api/v1/admin/company_profiles",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
-                    "registrations",
-                    "fisherman"
+                    "admin",
+                    "company_profiles"
                   ]
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"user\": {\n    \"name\": \"Postman Approve-Me Fisherman\",\n    \"ic_number\": \"01-700001\",\n    \"registration_type\": \"Small - Scale (Full-Time)\"\n  }\n}",
+                  "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Small - Scale (Full-Time)\",\n    \"owner\": {\n      \"full_name\": \"Postman Approve-Me Fisherman\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-700001\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
                     }
                   }
                 },
-                "description": "Small-Scale (Full-Time) needs no CompanyProfile, so this works standalone regardless of what the Profiling/Registrations folders have run."
+                "description": "Profiles and provisions a Source A Fisherman Owner for approval testing. The created `owner_user` starts as `pending_approval` and is saved to `fisherman_to_approve_id`."
               },
               "event": [
                 {
                   "listen": "test",
                   "script": {
+                    "type": "text/javascript",
                     "exec": [
-                      "if (pm.response.json().status === 'success') { pm.collectionVariables.set('fisherman_to_approve_id', pm.response.json().data.id); }"
-                    ],
-                    "type": "text/javascript"
+                      "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                      "const data = pm.response.json().data;",
+                      "if (data && data.owner_user) { pm.collectionVariables.set('fisherman_to_approve_id', data.owner_user.id); }",
+                      "pm.test('Source A starts pending_approval', () => pm.expect(data.owner_user.fisherman_status).to.eql('pending_approval'));"
+                    ]
                   }
                 }
               ]
             },
             {
-              "name": "Setup - Register Pending Fisherman (for Reject)",
+              "name": "Setup - Profile Pending Fisherman (for Reject)",
               "request": {
-                "auth": {
-                  "type": "noauth"
-                },
                 "method": "POST",
                 "header": [
                   {
@@ -8000,36 +7506,39 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/registrations/fisherman",
+                  "raw": "{{base_url}}/api/v1/admin/company_profiles",
                   "host": [
                     "{{base_url}}"
                   ],
                   "path": [
                     "api",
                     "v1",
-                    "registrations",
-                    "fisherman"
+                    "admin",
+                    "company_profiles"
                   ]
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"user\": {\n    \"name\": \"Postman Reject-Me Fisherman\",\n    \"ic_number\": \"01-700002\",\n    \"registration_type\": \"Small - Scale (Full-Time)\"\n  }\n}",
+                  "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Small - Scale (Full-Time)\",\n    \"owner\": {\n      \"full_name\": \"Postman Reject-Me Fisherman\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-700002\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
                     }
                   }
                 },
-                "description": "Same shape as \"Setup - Register Pending Fisherman (for Approve)\" above — a second throwaway pending fisherman so Reject below doesn't collide with the one Approve already consumed."
+                "description": "Profiles and provisions a Source A Fisherman Owner for approval testing. The created `owner_user` starts as `pending_approval` and is saved to `fisherman_to_reject_id`."
               },
               "event": [
                 {
                   "listen": "test",
                   "script": {
+                    "type": "text/javascript",
                     "exec": [
-                      "if (pm.response.json().status === 'success') { pm.collectionVariables.set('fisherman_to_reject_id', pm.response.json().data.id); }"
-                    ],
-                    "type": "text/javascript"
+                      "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                      "const data = pm.response.json().data;",
+                      "if (data && data.owner_user) { pm.collectionVariables.set('fisherman_to_reject_id', data.owner_user.id); }",
+                      "pm.test('Source A starts pending_approval', () => pm.expect(data.owner_user.fisherman_status).to.eql('pending_approval'));"
+                    ]
                   }
                 }
               ]
@@ -8052,7 +7561,7 @@
                     "fishermen?page=1&limit=10"
                   ]
                 },
-                "description": "Requires `fisherman_approvals.list`. Officer/jetty manager see every company's pending fishermen."
+                "description": "Requires `fisherman_approvals.list`. Lists only kept Company Profiling-provisioned Fisherman Owner/Admin users (`provisioning_source: dofi_company_profile`). Custom-role teammates never appear in FINS."
               }
             },
             {
@@ -8061,7 +7570,7 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen?q[status_eq]=pending&q[s]=created_at desc&page=1&limit=10",
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen?q[fisherman_status_eq]=pending_approval&q[s]=created_at desc&page=1&limit=10",
                   "host": [
                     "{{base_url}}"
                   ],
@@ -8070,10 +7579,28 @@
                     "v1",
                     "admin",
                     "approvals",
-                    "fishermen?q[status_eq]=pending&q[s]=created_at desc&page=1&limit=10"
+                    "fishermen"
+                  ],
+                  "query": [
+                    {
+                      "key": "q[fisherman_status_eq]",
+                      "value": "pending_approval"
+                    },
+                    {
+                      "key": "q[s]",
+                      "value": "created_at desc"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
                   ]
                 },
-                "description": "Filter by raw AASM `status` (`pending`/`active`/`rejected`), not the display-only `approval_status` label."
+                "description": "Filter by Fisherman lifecycle state (`fisherman_status`), not Jetty/global `status`."
               }
             },
             {
@@ -8117,7 +7644,7 @@
                     "{{commercial_fisherman_id}}"
                   ]
                 },
-                "description": "`commercial_fisherman_id` is captured by Registrations → \"Fisherman - Register (Commercial)\". `data.owner_profile` and `data.admin_profile` should both be populated (via `CompanyProfile#owner_contact`/`#admin_contact`) if the Profiling folder's \"Create Profiling (Owner + Admin)\" ran earlier in this run."
+                "description": "`commercial_fisherman_id` is captured from Profiling -> \"Create Profiling (Owner + Admin)\" via `data.owner_user.id`. `data.owner_profile` and `data.admin_profile` should both be populated from the linked CompanyProfile contacts."
               },
               "event": [
                 {
@@ -8156,7 +7683,7 @@
                     "approve"
                   ]
                 },
-                "description": "Requires `fisherman_approvals.approve`. Transitions `pending` → `active`."
+                "description": "Requires `fisherman_approvals.approve`. Transitions `pending_approval` -> `claimable`; QR + BruneiID claim is still required before dashboard access."
               },
               "event": [
                 {
@@ -8165,7 +7692,7 @@
                     "type": "text/javascript",
                     "exec": [
                       "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                      "pm.test('Status is active', () => pm.expect(pm.response.json().data.status).to.eql('active'));"
+                      "pm.test('Fisherman is claimable', () => pm.expect(pm.response.json().data.fisherman_status).to.eql('claimable'));"
                     ]
                   }
                 }
@@ -8209,7 +7736,7 @@
                     }
                   }
                 },
-                "description": "Requires `fisherman_approvals.approve` (reject uses the same permission code as approve). Transitions `pending` → `rejected` and copies the remark's `name` into `rejection_reason`."
+                "description": "Requires `fisherman_approvals.reject`. Transitions `pending_approval` -> `revoked`, stores rejection reason, and does not populate revocation metadata."
               },
               "event": [
                 {
@@ -8306,7 +7833,7 @@
                     "approve"
                   ]
                 },
-                "description": "Requires `fisherman_approvals.approve`. Transitions `pending` → `active`, unblocking BruneiID login for the Small-Scale scenario in Vessels below."
+                "description": "Requires `fisherman_approvals.approve`. Transitions `pending_approval` -> `claimable`, unblocking BruneiID login for the Small-Scale scenario in Vessels below."
               },
               "event": [
                 {
@@ -8349,7 +7876,7 @@
                     "approve"
                   ]
                 },
-                "description": "Requires `fisherman_approvals.approve`. Transitions `pending` → `active`, unblocking BruneiID login for the Commercial scenario in Vessels below."
+                "description": "Requires `fisherman_approvals.approve`. Transitions `pending_approval` -> `claimable`, unblocking BruneiID login for the Commercial scenario in Vessels below."
               },
               "event": [
                 {
@@ -8392,7 +7919,7 @@
                     "approve"
                   ]
                 },
-                "description": "Requires `fisherman_approvals.approve`. Transitions `pending` → `active`, unblocking BruneiID login for the Skip-Demo scenario in Vessels below."
+                "description": "Requires `fisherman_approvals.approve`. Transitions `pending_approval` -> `claimable`, unblocking BruneiID login for the Skip-Demo scenario in Vessels below."
               },
               "event": [
                 {
@@ -8405,12 +7932,188 @@
                   }
                 }
               ]
+            },
+            {
+              "name": "Deactivate Fisherman",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen/{{active_fins_fisherman_id}}/deactivate",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "approvals",
+                    "fishermen",
+                    "{{active_fins_fisherman_id}}",
+                    "deactivate"
+                  ]
+                },
+                "description": "Requires `fisherman_approvals.deactivate`. Valid only for FINS-governed Fisherman Owner/Admin with `fisherman_status: active`; transitions to `suspended`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Temporary administrative deactivation\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Fisherman is suspended', () => pm.expect(pm.response.json().data.fisherman_status).to.eql('suspended'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Reactivate Fisherman",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen/{{suspended_fins_fisherman_id}}/reactivate",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "approvals",
+                    "fishermen",
+                    "{{suspended_fins_fisherman_id}}",
+                    "reactivate"
+                  ]
+                },
+                "description": "Requires `fisherman_approvals.reactivate`. Valid only for FINS-governed Fisherman Owner/Admin with `fisherman_status: suspended`; transitions to `active`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Administrative reactivation\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Fisherman is active', () => pm.expect(pm.response.json().data.fisherman_status).to.eql('active'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Revoke Fisherman",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen/{{fisherman_to_approve_id}}/revoke",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "approvals",
+                    "fishermen",
+                    "{{fisherman_to_approve_id}}",
+                    "revoke"
+                  ]
+                },
+                "description": "Requires `fisherman_approvals.revoke`. Valid for FINS-governed Fisherman Owner/Admin in `claimable`, `active`, or `suspended`; sets `fisherman_status: revoked` and revocation metadata. Use Reject for `pending_approval`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"approval_remark_id\": \"{{approval_remark_id}}\",\n  \"reason\": \"Access revoked by DoFI Officer\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Fisherman is revoked', () => pm.expect(pm.response.json().data.fisherman_status).to.eql('revoked'));",
+                      "pm.test('Revocation metadata is present', () => pm.expect(pm.response.json().data.revoked_at).to.exist);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Revoke Fisherman - Pending Approval Invalid (422)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/approvals/fishermen/{{fisherman_to_reject_id}}/revoke",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "approvals",
+                    "fishermen",
+                    "{{fisherman_to_reject_id}}",
+                    "revoke"
+                  ]
+                },
+                "description": "Pending Fisherman Owner/Admin must be rejected, not revoked. This protects reject-vs-revoke audit semantics.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"approval_remark_id\": \"{{approval_remark_id}}\",\n  \"reason\": \"Should be rejected instead\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 422', () => pm.response.to.have.status(422));"
+                    ]
+                  }
+                }
+              ]
             }
           ]
         },
         {
           "name": "Jetty Manager Approvals",
-          "description": "Requires `jetty_manager_approvals.*`.",
+          "description": "Requires `jetty_manager_approvals.*`. Lists and governs kept users with the system Jetty Manager role. Jetty QR lookup is Jetty-role scoped; if no Jetty Manager user exists the existing registration flow may open, but registration still enforces global normalized IC uniqueness.",
           "item": [
             {
               "name": "Setup - Register Pending Jetty Manager (for Approve)",
@@ -8450,7 +8153,7 @@
                     }
                   }
                 },
-                "description": "Throwaway pending Jetty Manager registration, self-contained the same way \"Setup - Register Pending Fisherman (for Approve)\" is above."
+                "description": "Throwaway pending Jetty Manager registration, self-contained and intentionally still using Jetty Manager public registration."
               },
               "event": [
                 {
@@ -8534,7 +8237,7 @@
                     "jetty_managers?page=1&limit=10"
                   ]
                 },
-                "description": "Requires `jetty_manager_approvals.list`."
+                "description": "Requires `jetty_manager_approvals.list`. Lists kept users with the system Jetty Manager role and uses the existing `users.status` lifecycle."
               }
             },
             {
@@ -8579,7 +8282,7 @@
                     "approve"
                   ]
                 },
-                "description": "Requires `jetty_manager_approvals.approve`. Transitions `pending` → `active`, the same `Users::ApproveRegistration` service Approve Fisherman uses."
+                "description": "Requires `jetty_manager_approvals.approve`. Transitions `pending` → `active`, the existing Jetty Manager approval lifecycle."
               },
               "event": [
                 {
@@ -8632,7 +8335,7 @@
                     }
                   }
                 },
-                "description": "Requires `jetty_manager_approvals.approve` (reject uses the same permission code as approve, like Reject Fisherman). Transitions `pending` → `rejected` and copies the remark's `name` into `rejection_reason`."
+                "description": "Requires `jetty_manager_approvals.reject`. Transitions `pending` → `rejected` and copies the remark's `name` into `rejection_reason`."
               },
               "event": [
                 {
@@ -8642,6 +8345,139 @@
                     "exec": [
                       "pm.test('Status is 200', () => pm.response.to.have.status(200));",
                       "pm.test('Status is rejected', () => pm.expect(pm.response.json().data.status).to.eql('rejected'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Deactivate Jetty Manager",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/approvals/jetty_managers/{{jetty_manager_to_approve_id}}/deactivate",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "approvals",
+                    "jetty_managers",
+                    "{{jetty_manager_to_approve_id}}",
+                    "deactivate"
+                  ]
+                },
+                "description": "Requires `jetty_manager_approvals.deactivate`. Valid for active/suspended Jetty Manager users; transitions `status` to `inactive`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Temporary administrative deactivation\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Jetty Manager is inactive', () => pm.expect(pm.response.json().data.status).to.eql('inactive'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Reactivate Jetty Manager",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/approvals/jetty_managers/{{jetty_manager_to_approve_id}}/reactivate",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "approvals",
+                    "jetty_managers",
+                    "{{jetty_manager_to_approve_id}}",
+                    "reactivate"
+                  ]
+                },
+                "description": "Requires `jetty_manager_approvals.reactivate`. Valid for inactive/suspended Jetty Manager users without revocation metadata; transitions `status` to `active`.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Administrative reactivation\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Jetty Manager is active', () => pm.expect(pm.response.json().data.status).to.eql('active'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Revoke Jetty Manager",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/approvals/jetty_managers/{{jetty_manager_to_approve_id}}/revoke",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "approvals",
+                    "jetty_managers",
+                    "{{jetty_manager_to_approve_id}}",
+                    "revoke"
+                  ]
+                },
+                "description": "Requires `jetty_manager_approvals.revoke`. Keeps Jetty Manager on existing `users.status` lifecycle by setting `inactive`, and records revocation metadata to block normal reactivation.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"approval_remark_id\": \"{{approval_remark_id}}\",\n  \"reason\": \"Access revoked by DoFI Officer\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Jetty Manager is inactive', () => pm.expect(pm.response.json().data.status).to.eql('inactive'));",
+                      "pm.test('Revocation metadata is present', () => pm.expect(pm.response.json().data.revoked_at).to.exist);"
                     ]
                   }
                 }
@@ -8692,7 +8528,7 @@
                 }
               }
             },
-            "description": "Saves the fisherman's own token separately from the officer's `jwt_token` — this folder needs both at once (officer for profiling/approvals, fisherman for manifest/vessel self-service), so requests below explicitly select which one to use.\n\nAssumes the fisherman for this scenario was already profiled (Profiling), registered (Registrations), and approved (FINS Approval → Fisherman Approvals) earlier in this collection run."
+            "description": "Saves the fisherman's own token separately from the officer's `jwt_token` — this folder needs both at once (officer for profiling/approvals, fisherman for manifest/vessel self-service), so requests below explicitly select which one to use.\n\nAssumes the fisherman for this scenario was already provisioned through Profiling and approved (FINS Approval → Fisherman Approvals) earlier in this collection run."
           },
           "event": [
             {
@@ -8852,7 +8688,7 @@
                 }
               }
             },
-            "description": "Assumes the fisherman for this scenario was already profiled (Profiling), registered (Registrations), and approved (FINS Approval → Fisherman Approvals) earlier in this collection run."
+            "description": "Assumes the fisherman for this scenario was already provisioned through Profiling and approved (FINS Approval → Fisherman Approvals) earlier in this collection run."
           },
           "event": [
             {
@@ -9011,7 +8847,7 @@
                 }
               }
             },
-            "description": "Assumes the fisherman for this scenario was already profiled (Profiling), registered (Registrations), and approved (FINS Approval → Fisherman Approvals) earlier in this collection run."
+            "description": "Assumes the fisherman for this scenario was already provisioned through Profiling and approved (FINS Approval → Fisherman Approvals) earlier in this collection run."
           },
           "event": [
             {

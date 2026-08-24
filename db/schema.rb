@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_24_090400) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_24_090500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -49,6 +49,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_24_090400) do
     t.datetime "discarded_at"
     t.string "name", null: false
     t.datetime "updated_at", null: false
+    t.string "usage_scope", default: "both", null: false
     t.index ["discarded_at"], name: "index_approval_remarks_on_discarded_at"
     t.index ["name"], name: "index_approval_remarks_on_name", unique: true
   end
@@ -533,6 +534,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_24_090400) do
     t.datetime "remember_created_at"
     t.datetime "reset_password_sent_at"
     t.string "reset_password_token"
+    t.datetime "revoked_at"
+    t.uuid "revoked_by_id"
+    t.text "revocation_comment"
+    t.uuid "revocation_remark_id"
     t.uuid "role_id"
     t.string "status", default: "active", null: false
     t.string "unit"
@@ -548,6 +553,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_24_090400) do
     t.index ["jti"], name: "index_users_on_jti", unique: true
     t.index ["normalized_ic_number"], name: "index_users_on_normalized_ic_number_kept_unique", unique: true, where: "((normalized_ic_number IS NOT NULL) AND (discarded_at IS NULL))"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
+    t.index ["revocation_remark_id"], name: "index_users_on_revocation_remark_id"
+    t.index ["revoked_by_id"], name: "index_users_on_revoked_by_id"
     t.index ["role_id"], name: "index_users_on_role_id"
     t.index ["username"], name: "index_users_on_username", unique: true
     t.check_constraint "preferred_locale::text = ANY (ARRAY['en'::character varying::text, 'ms'::character varying::text])", name: "check_users_preferred_locale"
@@ -606,7 +613,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_24_090400) do
   add_foreign_key "roles", "company_profiles"
   add_foreign_key "users", "company_profile_contacts"
   add_foreign_key "users", "company_profiles"
+  add_foreign_key "users", "approval_remarks", column: "revocation_remark_id", validate: false
   add_foreign_key "users", "roles"
   add_foreign_key "users", "users", column: "approved_by_id", validate: false
   add_foreign_key "users", "users", column: "created_by_id", validate: false
+  add_foreign_key "users", "users", column: "revoked_by_id", validate: false
 end

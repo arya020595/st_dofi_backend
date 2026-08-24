@@ -61,7 +61,7 @@ module Api
           end
 
           def approval_remark_params
-            params.expect(approval_remark: %i[name])
+            params.expect(approval_remark: %i[name usage_scope])
           end
         end
       end

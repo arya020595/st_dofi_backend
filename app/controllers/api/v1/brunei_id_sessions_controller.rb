@@ -14,7 +14,7 @@ module Api
       def create
         case BruneiId::Client.call(ic_number: params.expect(:ic_number))
         in Success(verified_ic_number)
-          render_for(user_for_verified_ic(verified_ic_number), verified_ic_number: verified_ic_number)
+          render_brunei_id_success(verified_ic_number)
         in Failure(_reason)
           render json: { status: "fail", message: "Identity verification failed." }, status: :unauthorized
         end
@@ -33,6 +33,15 @@ module Api
       end
 
       private
+
+      def render_brunei_id_success(verified_ic_number)
+        case params[:audience]
+        when "fisherman" then render_fisherman_callback(verified_ic_number)
+        when "jetty_manager" then render_callback_for(jetty_manager_user_for(verified_ic_number),
+                                                      verified_ic_number:, audience: "jetty_manager")
+        else render_for(user_for_verified_ic(verified_ic_number), verified_ic_number: verified_ic_number)
+        end
+      end
 
       def render_callback_success(verified_ic_number, audience)
         return render_fisherman_callback(verified_ic_number) if audience == "fisherman"

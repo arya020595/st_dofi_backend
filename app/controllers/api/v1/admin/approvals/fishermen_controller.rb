@@ -5,7 +5,7 @@ module Api
         class FishermenController < ApplicationController
           include RansackSearchable
 
-          before_action :set_fisherman, only: %i[show approve reject]
+          before_action :set_fisherman, only: %i[show approve reject deactivate reactivate revoke]
 
           def index
             authorize User, policy_class: FishermanApprovalPolicy
@@ -27,8 +27,8 @@ module Api
                                                           reason: params[:reason])
             in Success(user)
               render json: { status: "success", data: FishermanApprovalBlueprint.render_as_hash(user) }
-            in Failure(user)
-              render json: { status: "fail", errors: user.errors.full_messages }, status: :unprocessable_content
+            in Failure(failure)
+              render_failure(failure)
             end
           end
 
@@ -38,9 +38,28 @@ module Api
             case reject_fisherman
             in Success(user)
               render json: { status: "success", data: FishermanApprovalBlueprint.render_as_hash(user) }
-            in Failure(user)
-              render json: { status: "fail", errors: user.errors.full_messages }, status: :unprocessable_content
+            in Failure(failure)
+              render_failure(failure)
             end
+          end
+
+          def deactivate
+            authorize @fisherman, policy_class: FishermanApprovalPolicy
+            render_fisherman_result(::Fisherman::DeactivateUser.call(user: @fisherman, actor: current_user,
+                                                                     reason: params[:reason]))
+          end
+
+          def reactivate
+            authorize @fisherman, policy_class: FishermanApprovalPolicy
+            render_fisherman_result(::Fisherman::ReactivateUser.call(user: @fisherman, actor: current_user,
+                                                                     reason: params[:reason]))
+          end
+
+          def revoke
+            authorize @fisherman, policy_class: FishermanApprovalPolicy
+            render_fisherman_result(::Fisherman::RevokeUser.call(user: @fisherman, actor: current_user,
+                                                                 approval_remark_id: params.expect(:approval_remark_id),
+                                                                 reason: params[:reason]))
           end
 
           private
@@ -49,8 +68,12 @@ module Api
             policy_scope(User, policy_scope_class: FishermanApprovalPolicy::Scope)
           end
 
+          def fisherman_lookup_scope
+            User.kept.joins(:role).where(roles: { platform_scope: Role::FISHERMAN_PLATFORM })
+          end
+
           def set_fisherman
-            @fisherman = fisherman_scope.find(params.expect(:id))
+            @fisherman = fisherman_lookup_scope.find(params.expect(:id))
           end
 
           def reject_fisherman
@@ -60,6 +83,20 @@ module Api
               approval_remark_id: params.expect(:approval_remark_id),
               reason: params[:reason]
             )
+          end
+
+          def render_fisherman_result(result)
+            case result
+            in Success(user)
+              render json: { status: "success", data: FishermanApprovalBlueprint.render_as_hash(user) }
+            in Failure(failure)
+              render_failure(failure)
+            end
+          end
+
+          def render_failure(failure)
+            errors = failure.respond_to?(:errors) ? failure.errors.full_messages : [failure.to_s]
+            render json: { status: "fail", errors: errors }, status: :unprocessable_content
           end
         end
       end

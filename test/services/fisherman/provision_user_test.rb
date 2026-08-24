@@ -58,6 +58,20 @@ module Fisherman
       assert_equal :role_company_mismatch, result.failure
     end
 
+    test "source B rejects system-managed Admin role" do
+      admin_role = create(:role, :fisherman, company_profile: @company_profile, name: "Admin",
+                                             is_default_admin: true)
+
+      result = ProvisionUser.call(company_profile: @company_profile,
+                                  provisioning_source: ProvisionUser::FISHERMAN_OWNER,
+                                  created_by: @actor,
+                                  name: "Teammate",
+                                  ic_number: "01-333444",
+                                  role: admin_role)
+
+      assert_equal :cannot_assign_admin_role, result.failure
+    end
+
     test "global normalized ic conflict crosses audiences" do
       jetty_role = create(:role, kind: Role::JETTY_MANAGER, name: "Jetty Manager")
       create(:user, :jetty_manager_shaped, role: jetty_role, ic_number: "01-444444")

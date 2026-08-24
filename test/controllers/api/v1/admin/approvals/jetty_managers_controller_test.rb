@@ -7,7 +7,7 @@ module Api
         setup do
           @password = "Password123!"
 
-          admin_permissions = %w[list view approve].map do |action|
+          admin_permissions = %w[list view approve reject deactivate reactivate revoke].map do |action|
             Permission.find_or_create_by!(code: "jetty_manager_approvals.#{action}") do |permission|
               permission.name = "Jetty manager approvals - #{action.capitalize}"
             end
@@ -64,7 +64,7 @@ module Api
         end
 
         test "reject requires an approval_remark_id and persists its name as the rejection reason" do
-          remark = create(:approval_remark)
+          remark = create(:approval_remark, usage_scope: "reject")
 
           post "/api/v1/admin/approvals/jetty_managers/#{@jetty_manager.id}/reject",
                params: { approval_remark_id: remark.id }, headers: @admin_headers

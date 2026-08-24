@@ -46,12 +46,14 @@ module Api
 
         test "create persists a new remark" do
           assert_difference("ApprovalRemark.count", 1) do
-            post "/api/v1/admin/approvals/approval_remarks", params: { approval_remark: { name: "New remark" } },
-                                                             headers: @admin_headers, as: :json
+            post "/api/v1/admin/approvals/approval_remarks",
+                 params: { approval_remark: { name: "New remark", usage_scope: "reject" } },
+                 headers: @admin_headers, as: :json
           end
 
           assert_response :created
-          assert_equal "New remark", response.parsed_body.dig("data", "name")
+          assert_equal ["New remark", "reject"],
+                       response.parsed_body.fetch("data").values_at("name", "usage_scope")
         end
 
         test "create without permission is forbidden" do
@@ -71,10 +73,12 @@ module Api
 
         test "update renames the target remark" do
           patch "/api/v1/admin/approvals/approval_remarks/#{@target.id}",
-                params: { approval_remark: { name: "Renamed" } }, headers: @admin_headers, as: :json
+                params: { approval_remark: { name: "Renamed", usage_scope: "revoke" } },
+                headers: @admin_headers, as: :json
 
           assert_response :ok
           assert_equal "Renamed", @target.reload.name
+          assert_equal "revoke", @target.usage_scope
         end
 
         test "destroy soft-deletes the target remark" do

@@ -38,7 +38,23 @@ module User::FishermanLifecycle
     occupies_fisherman_owner_slot? && fisherman_status == "active"
   end
 
+  def fins_governed_fisherman?
+    kept? && fisherman? && dofi_company_profile_source? && system_managed_fisherman_role?
+  end
+
+  def fins_approval_required_fisherman?
+    fins_governed_fisherman? && fisherman_status == "pending_approval"
+  end
+
   private
+
+  def dofi_company_profile_source?
+    provisioning_source == Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE
+  end
+
+  def system_managed_fisherman_role?
+    role&.system_managed_fisherman_role? || false
+  end
 
   def active_fisherman_identity_must_be_claimed
     return unless fisherman_status == "active"

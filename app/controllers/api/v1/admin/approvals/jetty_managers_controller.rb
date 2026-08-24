@@ -5,7 +5,7 @@ module Api
         class JettyManagersController < ApplicationController
           include RansackSearchable
 
-          before_action :set_jetty_manager, only: %i[show approve reject]
+          before_action :set_jetty_manager, only: %i[show approve reject deactivate reactivate revoke]
 
           def index
             authorize User, policy_class: JettyManagerApprovalPolicy
@@ -22,26 +22,29 @@ module Api
 
           def approve
             authorize @jetty_manager, policy_class: JettyManagerApprovalPolicy
-
-            case Users::ApproveRegistration.call(@jetty_manager)
-            in Success(user)
-              render json: { status: "success", data: JettyManagerApprovalBlueprint.render_as_hash(user) }
-            in Failure(user)
-              render json: { status: "fail", errors: user.errors.full_messages }, status: :unprocessable_content
-            end
+            render_jetty_manager_result(approve_registration)
           end
 
           def reject
             authorize @jetty_manager, policy_class: JettyManagerApprovalPolicy
+            render_jetty_manager_result(reject_registration)
+          end
 
-            result = Users::RejectRegistration.call(@jetty_manager,
-                                                    approval_remark_id: params.expect(:approval_remark_id))
-            case result
-            in Success(user)
-              render json: { status: "success", data: JettyManagerApprovalBlueprint.render_as_hash(user) }
-            in Failure(user)
-              render json: { status: "fail", errors: user.errors.full_messages }, status: :unprocessable_content
-            end
+          def deactivate
+            authorize @jetty_manager, policy_class: JettyManagerApprovalPolicy
+            render_jetty_manager_result(Users::DeactivateRegistration.call(user: @jetty_manager, actor: current_user,
+                                                                           reason: params[:reason]))
+          end
+
+          def reactivate
+            authorize @jetty_manager, policy_class: JettyManagerApprovalPolicy
+            render_jetty_manager_result(Users::ReactivateRegistration.call(user: @jetty_manager, actor: current_user,
+                                                                           reason: params[:reason]))
+          end
+
+          def revoke
+            authorize @jetty_manager, policy_class: JettyManagerApprovalPolicy
+            render_jetty_manager_result(Users::RevokeRegistration.call(**revoke_attributes))
           end
 
           private
@@ -52,6 +55,38 @@ module Api
 
           def set_jetty_manager
             @jetty_manager = jetty_manager_scope.find(params.expect(:id))
+          end
+
+          def approve_registration
+            Users::ApproveRegistration.call(user: @jetty_manager, actor: current_user, reason: params[:reason])
+          end
+
+          def reject_registration
+            Users::RejectRegistration.call(@jetty_manager, approval_remark_id: params.expect(:approval_remark_id),
+                                                           actor: current_user, reason: params[:reason])
+          end
+
+          def revoke_attributes
+            {
+              user: @jetty_manager,
+              actor: current_user,
+              approval_remark_id: params.expect(:approval_remark_id),
+              reason: params[:reason]
+            }
+          end
+
+          def render_jetty_manager_result(result)
+            case result
+            in Success(user)
+              render json: { status: "success", data: JettyManagerApprovalBlueprint.render_as_hash(user) }
+            in Failure(failure)
+              render_failure(failure)
+            end
+          end
+
+          def render_failure(failure)
+            errors = failure.respond_to?(:errors) ? failure.errors.full_messages : [failure.to_s]
+            render json: { status: "fail", errors: errors }, status: :unprocessable_content
           end
         end
       end

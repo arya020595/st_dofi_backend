@@ -36,6 +36,21 @@ module Api
         assert_equal "registration", response.parsed_body.dig("data", "next_action")
       end
 
+      test "jetty manager QR ignores fisherman account in audience-scoped lookup" do
+        company_profile = create(:company_profile)
+        role = create(:role, :fisherman, company_profile: company_profile)
+        create(:user, role: role, company_profile: company_profile, ic_number: "01-223344",
+                      registration_type: "Commercial", fisherman_status: "claimable")
+
+        with_oidc_success("01223344") do
+          post "/api/v1/auth/brunei_id/callback",
+               params: CALLBACK_PARAMS.merge(audience: "jetty_manager"), as: :json
+        end
+
+        assert_response :ok
+        assert_equal "registration", response.parsed_body.dig("data", "next_action")
+      end
+
       test "pending fisherman uses fisherman_status, not raw status" do
         company_profile = create(:company_profile)
         role = create(:role, :fisherman, company_profile: company_profile)

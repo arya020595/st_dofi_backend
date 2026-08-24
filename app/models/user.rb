@@ -10,6 +10,8 @@ class User < ApplicationRecord
   belongs_to :company_profile_contact, optional: true
   belongs_to :approved_by, class_name: "User", optional: true, inverse_of: false
   belongs_to :created_by, class_name: "User", optional: true, inverse_of: false
+  belongs_to :revoked_by, class_name: "User", optional: true, inverse_of: false
+  belongs_to :revocation_remark, class_name: "ApprovalRemark", optional: true, inverse_of: false
 
   include AASM
   include User::FishermanLifecycle
@@ -17,7 +19,8 @@ class User < ApplicationRecord
   audited only: %i[
     name ic_number normalized_ic_number status fisherman_status provisioning_source claimed_at
     brunei_id_verified_at approved_at approved_by_id created_by_id company_profile_id
-    company_profile_contact_id role_id rejection_reason discarded_at
+    company_profile_contact_id role_id rejection_reason revoked_at revoked_by_id revocation_remark_id
+    revocation_comment discarded_at
   ]
 
   VALID_LOCALES = %w[en ms].freeze
@@ -82,6 +85,7 @@ class User < ApplicationRecord
   def officer? = role&.kind == Role::DOFI_OFFICER
   def fisherman? = role&.fisherman_platform? || false
   def dofi_officer_platform? = role&.dofi_officer_platform? || false
+  def fins_governed_jetty_manager? = kept? && jetty_manager?
   def approval_status_label = APPROVAL_STATUS_LABELS.fetch(status, status.humanize)
 
   def fisherman_approval_status_label
@@ -102,7 +106,8 @@ class User < ApplicationRecord
 
   def self.ransackable_attributes(_auth_object = nil)
     %w[id name email employee_id status fisherman_status normalized_ic_number preferred_locale unit position contact_no
-       role_id doft_registration_no ic_number registration_type username discarded_at created_at updated_at]
+       role_id doft_registration_no ic_number registration_type username revoked_at revoked_by_id
+       revocation_remark_id discarded_at created_at updated_at]
   end
 
   def self.ransackable_associations(_auth_object = nil)

@@ -70,6 +70,9 @@ Rails.application.routes.draw do
             member do
               post :approve
               post :reject
+              post :deactivate
+              post :reactivate
+              post :revoke
             end
           end
 
@@ -77,6 +80,9 @@ Rails.application.routes.draw do
             member do
               post :approve
               post :reject
+              post :deactivate
+              post :reactivate
+              post :revoke
             end
           end
 

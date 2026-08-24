@@ -56,8 +56,10 @@ module Fisherman
       return :role_required if request.role.blank?
       return :role_company_mismatch if request.role.company_profile_id != request.company_profile.id
       return :role_platform_mismatch unless request.role.fisherman_platform?
+      return :cannot_assign_owner_role if request.role.fisherman_owner_role?
+      return :cannot_assign_admin_role if request.role.fisherman_admin_role?
 
-      :cannot_assign_owner_role if request.role.fisherman_owner_role?
+      nil
     end
   end
 end

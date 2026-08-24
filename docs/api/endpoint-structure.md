@@ -53,10 +53,9 @@ GET    /api/v1/auth/me                        # api/v1/sessions#me
 PATCH  /api/v1/profile/locale                 # profiles#locale — current_user only
 
 POST   /api/v1/auth/brunei_id                 # brunei_id_sessions#create — mocked BruneiID login
+POST   /api/v1/auth/brunei_id/callback        # brunei_id_sessions#callback — audience-specific BruneiID OIDC callback
 
 POST   /api/v1/registrations/jetty_manager    # registrations/jetty_managers#create
-POST   /api/v1/registrations/fisherman        # registrations/fishermen#create
-GET    /api/v1/registrations/fisherman/company_profile   # registrations/company_profile_lookups#show
 GET    /api/v1/registrations/status           # registrations/status#show
 
 GET    /api/v1/permissions                    # permissions#index — full catalog, any authenticated user
@@ -105,10 +104,16 @@ admin's own internal organization (`config/routes.rb` comment, admin namespace).
 /api/v1/admin/approvals/fishermen              index show
   POST   .../:id/approve
   POST   .../:id/reject
+  POST   .../:id/deactivate
+  POST   .../:id/reactivate
+  POST   .../:id/revoke
 
 /api/v1/admin/approvals/jetty_managers         index show
   POST   .../:id/approve
   POST   .../:id/reject
+  POST   .../:id/deactivate
+  POST   .../:id/reactivate
+  POST   .../:id/revoke
 
 /api/v1/admin/approvals/approval_remarks       index show create update destroy
 
