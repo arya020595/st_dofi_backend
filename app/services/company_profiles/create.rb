@@ -67,9 +67,9 @@ module CompanyProfiles
     end
 
     def provisioning_result(company_profile, contact, created_by)
-      Fisherman::ProvisionUser.call(
+      ::Fisherman::ProvisionUser.call(
         company_profile: company_profile,
-        provisioning_source: Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE,
+        provisioning_source: ::Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE,
         created_by: created_by,
         name: contact.full_name,
         ic_number: contact.ic_no,

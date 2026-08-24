@@ -66,7 +66,7 @@ module Api
         def create_fisherman(status)
           create(:user, role: @owner_role, company_profile: @company_profile, status: "active",
                         fisherman_status: status, ic_number: "01-850001", registration_type: "Commercial",
-                        provisioning_source: Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE)
+                        provisioning_source: ::Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE)
         end
 
         def activate_fisherman!

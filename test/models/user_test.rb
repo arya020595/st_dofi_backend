@@ -102,12 +102,12 @@ class UserTest < ActiveSupport::TestCase
 
   test "FINS governed fisherman requires system role and Company Profiling source" do
     owner = owner_user("pending_approval")
-    owner.provisioning_source = Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE
+    owner.provisioning_source = ::Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE
 
     assert_predicate owner, :fins_governed_fisherman?
     assert_predicate owner, :fins_approval_required_fisherman?
 
-    owner.provisioning_source = Fisherman::ProvisionUser::FISHERMAN_OWNER
+    owner.provisioning_source = ::Fisherman::ProvisionUser::FISHERMAN_OWNER
 
     assert_not owner.fins_governed_fisherman?
   end

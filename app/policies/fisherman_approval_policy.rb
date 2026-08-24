@@ -13,7 +13,7 @@ class FishermanApprovalPolicy < ApplicationPolicy
     def resolve
       scope.kept
            .joins(:role)
-           .where(provisioning_source: Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE)
+           .where(provisioning_source: ::Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE)
            .where(roles: { platform_scope: Role::FISHERMAN_PLATFORM })
            .where("roles.is_default = TRUE OR roles.is_default_admin = TRUE")
     end

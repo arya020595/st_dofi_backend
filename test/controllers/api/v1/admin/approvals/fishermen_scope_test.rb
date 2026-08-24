@@ -18,9 +18,9 @@ module Api
 
         test "index includes only Company Profiling Owner/Admin fishermen" do
           governed = create_fisherman(@owner_role, "pending_approval", "01-830001",
-                                      Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE)
+                                      ::Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE)
           custom = create_fisherman(@custom_role, "claimable", "01-830002",
-                                    Fisherman::ProvisionUser::FISHERMAN_OWNER)
+                                    ::Fisherman::ProvisionUser::FISHERMAN_OWNER)
           jetty = create(:user, :jetty_manager_shaped, role: @jetty_role, status: "pending")
 
           get "/api/v1/admin/approvals/fishermen", headers: @headers
@@ -31,7 +31,7 @@ module Api
 
         test "direct custom fisherman id is forbidden for FINS actions" do
           custom = create_fisherman(@custom_role, "claimable", "01-830003",
-                                    Fisherman::ProvisionUser::FISHERMAN_OWNER)
+                                    ::Fisherman::ProvisionUser::FISHERMAN_OWNER)
 
           post "/api/v1/admin/approvals/fishermen/#{custom.id}/revoke",
                params: { approval_remark_id: create(:approval_remark, usage_scope: "revoke").id },

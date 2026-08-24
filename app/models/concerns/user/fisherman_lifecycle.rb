@@ -49,7 +49,7 @@ module User::FishermanLifecycle
   private
 
   def dofi_company_profile_source?
-    provisioning_source == Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE
+    provisioning_source == ::Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE
   end
 
   def system_managed_fisherman_role?

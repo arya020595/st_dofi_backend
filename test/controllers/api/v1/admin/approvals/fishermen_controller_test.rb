@@ -25,7 +25,7 @@ module Api
                                  password: @password, password_confirmation: @password)
           @plain_user = create(:user, role: @no_access_role, password: @password, password_confirmation: @password)
           @fisherman = create(:user, role: @fisherman_role, status: "active", fisherman_status: "pending_approval",
-                                     provisioning_source: Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE,
+                                     provisioning_source: ::Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE,
                                      company_profile: @company_profile, ic_number: "01-800001",
                                      registration_type: "Small - Scale (Full-Time)")
 

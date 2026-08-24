@@ -33,7 +33,7 @@ module Api
           role = create(:role, :fisherman, name: "Owner", company_profile: profile, is_default: true)
           create(:user, role: role, status: "active", fisherman_status: "pending_approval",
                         ic_number: contact.ic_no, registration_type: "Commercial", designation: "Owner",
-                        provisioning_source: Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE,
+                        provisioning_source: ::Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE,
                         company_profile: profile, company_profile_contact: contact)
         end
 
