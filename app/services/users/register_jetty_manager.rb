@@ -22,7 +22,8 @@ module Users
     end
 
     def rejected_user(ic_number)
-      User.kept.find_by(ic_number: ic_number, status: "rejected", role: jetty_manager_role)
+      User.kept.find_by(normalized_ic_number: IcNumbers::Normalize.call(ic_number),
+                        status: "rejected", role: jetty_manager_role)
     end
 
     def jetty_manager_role

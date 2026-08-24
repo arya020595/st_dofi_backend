@@ -1,7 +1,6 @@
 # The Fisherman role has no entry here — there is no global Fisherman role. Each company gets its
-# own "Owner" role, created on demand by Roles::EnsureFishermanOwnerRole the first time someone
-# self-registers for that company (see Users::RegisterFisherman). See db/seeds/profiled_users.rb for
-# how the dev fixture fisherman users get theirs.
+# own "Owner" role, created on demand by Flow B provisioning. See db/seeds/profiled_users.rb for how
+# the dev fixture fisherman users get theirs.
 ROLE_DEFINITIONS = {
   Role::DOFI_OFFICER => {
     name: "DoFi Officer",

@@ -1,14 +1,20 @@
 module Api
   module V1
-    # rubocop:disable Metrics/ClassLength
     class BruneiIdSessionsController < ApplicationController
+      include BruneiIdSessions::CallbackRendering
+      include BruneiIdSessions::LegacyRendering
+      include BruneiIdSessions::ProfilePayload
+      include BruneiIdSessions::ResponsePayloads
+      include BruneiIdSessions::ResponseRendering
+      include BruneiIdSessions::ResultLogging
+
       skip_before_action :authenticate_user!, only: %i[create callback]
       skip_before_action :require_correct_audience, only: %i[create callback]
 
       def create
         case BruneiId::Client.call(ic_number: params.expect(:ic_number))
         in Success(verified_ic_number)
-          render_for(User.kept.find_by(ic_number: verified_ic_number))
+          render_for(user_for_verified_ic(verified_ic_number), verified_ic_number: verified_ic_number)
         in Failure(_reason)
           render json: { status: "fail", message: "Identity verification failed." }, status: :unauthorized
         end
@@ -20,8 +26,7 @@ module Api
 
         case BruneiId::OidcCallback.call(**callback_params.except(:audience).symbolize_keys)
         in Success(verified_ic_number)
-          render_callback_for(user_for_callback_audience(verified_ic_number, audience),
-                              verified_ic_number:, audience:)
+          render_callback_success(verified_ic_number, audience)
         in Failure(error)
           render_callback_error(error)
         end
@@ -29,90 +34,10 @@ module Api
 
       private
 
-      def render_for(user)
-        return render_account_not_found unless user
-        return render_status_only(user) unless user.active?
+      def render_callback_success(verified_ic_number, audience)
+        return render_fisherman_callback(verified_ic_number) if audience == "fisherman"
 
-        sign_in(:user, user, store: false)
-        render json: { status: "success",
-                       data: { access_token: request.env["warden-jwt_auth.token"],
-                               user: UserBlueprint.render_as_hash(user) } }, status: :ok
-      end
-
-      def render_status_only(user)
-        render json: { status: "success", data: UserBlueprint.render_as_hash(user) }, status: :ok
-      end
-
-      def render_callback_for(user, verified_ic_number:, audience:)
-        return render_callback_registration(verified_ic_number, audience) unless user
-        return render_inactive_registration(user, verified_ic_number) if user.inactive? || user.suspended?
-
-        return render_callback_dashboard(user, verified_ic_number) if user.active?
-
-        render_callback_registration_status(user, verified_ic_number)
-      end
-
-      def render_callback_error(error)
-        log_brunei_id_callback_result(
-          next_action: nil,
-          resolved_ic_number: nil,
-          registration_status: nil,
-          error_code: error[:code],
-          error_message: error.fetch(:message)
-        )
-        render json: { status: "fail", message: error.fetch(:message), code: error[:code] },
-               status: error.fetch(:status)
-      end
-
-      # rubocop:disable Metrics/MethodLength
-      def render_callback_registration(verified_ic_number, audience)
-        log_brunei_id_callback_result(
-          next_action: "registration",
-          resolved_ic_number: verified_ic_number,
-          registration_status: "not_found"
-        )
-        payload = {
-          status: "success",
-          data: {
-            next_action: "registration",
-            ic_number: verified_ic_number,
-            registration_status: "not_found"
-          }
-        }
-        payload[:data].merge!(registration_callback_extras(verified_ic_number, audience))
-
-        render json: payload, status: :ok
-      end
-      # rubocop:enable Metrics/MethodLength
-
-      # rubocop:disable Metrics/MethodLength
-      def render_inactive_registration(user, verified_ic_number)
-        log_brunei_id_callback_result(
-          next_action: "registration_status",
-          resolved_ic_number: verified_ic_number,
-          registration_status: user.status,
-          error_code: "inactive_registration",
-          error_message: "Registration is not active."
-        )
-        render json: {
-          status: "fail",
-          message: "Registration is not active.",
-          code: "inactive_registration",
-          data: registration_status_payload(user, verified_ic_number)
-        }, status: :unprocessable_content
-      end
-      # rubocop:enable Metrics/MethodLength
-
-      def render_account_not_found
-        render json: { status: "fail", message: I18n.t("errors.account_not_found") }, status: :not_found
-      end
-
-      def render_invalid_audience
-        render json: {
-          status: "fail",
-          message: "Unsupported audience.",
-          code: "unsupported_audience"
-        }, status: :unprocessable_content
+        render_callback_for(jetty_manager_user_for(verified_ic_number), verified_ic_number:, audience:)
       end
 
       def callback_params
@@ -129,134 +54,16 @@ module Api
         %w[fisherman jetty_manager].include?(audience)
       end
 
-      def user_for_callback_audience(ic_number, audience)
-        case audience
-        when "fisherman"
-          fisherman_user_for(ic_number)
-        when "jetty_manager"
-          jetty_manager_user_for(ic_number)
-        end
-      end
-
-      def fisherman_user_for(ic_number)
-        User.kept.joins(:role).find_by(ic_number: ic_number, roles: { platform_scope: Role::FISHERMAN_PLATFORM })
+      def user_for_verified_ic(ic_number)
+        User.kept.find_by(normalized_ic_number: IcNumbers::Normalize.call(ic_number))
       end
 
       def jetty_manager_user_for(ic_number)
-        User.kept.joins(:role).find_by(ic_number: ic_number, roles: { kind: Role::JETTY_MANAGER })
-      end
-
-      def render_callback_dashboard(user, verified_ic_number)
-        sign_in(:user, user, store: false)
-        log_brunei_id_callback_result(
-          next_action: "dashboard",
-          resolved_ic_number: verified_ic_number,
-          registration_status: user.status
-        )
-
-        render json: {
-          status: "success",
-          data: dashboard_payload(user, verified_ic_number)
-        }, status: :ok
-      end
-
-      def render_callback_registration_status(user, verified_ic_number)
-        log_brunei_id_callback_result(
-          next_action: "registration_status",
-          resolved_ic_number: verified_ic_number,
-          registration_status: user.status
-        )
-        render json: {
-          status: "success",
-          data: registration_status_payload(user, verified_ic_number)
-        }, status: :ok
-      end
-
-      def dashboard_payload(user, verified_ic_number)
-        registration_status_payload(user, verified_ic_number).merge(
-          next_action: "dashboard",
-          access_token: request.env["warden-jwt_auth.token"]
+        User.kept.joins(:role).find_by(
+          normalized_ic_number: IcNumbers::Normalize.call(ic_number),
+          roles: { kind: Role::JETTY_MANAGER }
         )
       end
-
-      def registration_status_payload(user, verified_ic_number)
-        {
-          next_action: "registration_status",
-          user: UserBlueprint.render_as_hash(user),
-          ic_number: verified_ic_number,
-          registration_status: user.status
-        }.merge(brunei_id_profile_response(verified_ic_number))
-      end
-
-      def registration_callback_extras(verified_ic_number, audience)
-        extras = brunei_id_profile_response(verified_ic_number)
-        return extras unless audience == "fisherman"
-
-        extras.merge(lookup_token: ::Registrations::FishermanCompanyProfileLookupToken.generate(verified_ic_number))
-      end
-
-      def brunei_id_profile_response(verified_ic_number)
-        {
-          full_name: brunei_id_full_name,
-          brunei_id_profile: brunei_id_profile_payload(verified_ic_number),
-          brunei_id_token_metadata: brunei_id_token_metadata_payload
-        }.compact
-      end
-
-      def brunei_id_full_name
-        claims_full_name || userinfo_full_name
-      end
-
-      def brunei_id_profile_payload(verified_ic_number)
-        claims = Current.brunei_id_claims || {}
-        userinfo = Current.brunei_id_userinfo || {}
-
-        {
-          ic_number: verified_ic_number,
-          full_name: brunei_id_full_name,
-          given_name: claims["given_name"] || userinfo["given_name"],
-          family_name: claims["family_name"] || userinfo["family_name"],
-          preferred_username: claims["preferred_username"] || userinfo["preferred_username"],
-          subject: claims["sub"]
-        }.compact
-      end
-
-      def claims_full_name
-        lookup_full_name(Current.brunei_id_claims || {})
-      end
-
-      def userinfo_full_name
-        lookup_full_name(Current.brunei_id_userinfo || {})
-      end
-
-      def lookup_full_name(payload)
-        payload["full_name"].presence || payload["name"].presence || payload["fullname"].presence
-      end
-
-      def brunei_id_token_metadata_payload
-        (Current.brunei_id_token_metadata || {}).merge(
-          "response_keys" => Current.brunei_id_token_response_keys || []
-        )
-      end
-
-      # rubocop:disable Metrics/MethodLength
-      def log_brunei_id_callback_result(next_action:, resolved_ic_number:, registration_status:,
-                                        error_code: nil, error_message: nil)
-        Rails.logger.info(
-          {
-            provider: "brunei_id",
-            token_exchange_success: Current.brunei_id_token_response_keys.present?,
-            token_response_keys: Current.brunei_id_token_response_keys || [],
-            resolved_ic_number: ApiRequestLogs::Sanitizer.masked_ic_number(resolved_ic_number),
-            next_action: next_action,
-            registration_status: registration_status,
-            error_code: error_code,
-            error_message: error_message
-          }.compact.to_json
-        )
-      end
-      # rubocop:enable Metrics/MethodLength
     end
-    # rubocop:enable Metrics/ClassLength
   end
 end

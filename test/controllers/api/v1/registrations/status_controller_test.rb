@@ -17,17 +17,16 @@ module Api
           assert_equal user.id, response.parsed_body.dig("data", "id")
         end
 
-        test "show exposes the user status so FE can branch on pending, rejected, or active" do
-          create(:company_profile_contact, ic_no: "01-999999", designation: "Owner",
-                                           company_profile: create(:company_profile, :individual))
-          post "/api/v1/registrations/fisherman",
-               params: { user: { name: "Solo", ic_number: "01-999999",
-                                 registration_type: "Small - Scale (Full-Time)" } }, as: :json
+        test "show exposes the effective lifecycle status" do
+          company_profile = create(:company_profile, :individual)
+          role = create(:role, :fisherman, company_profile: company_profile)
+          create(:user, role: role, company_profile: company_profile, ic_number: "01-999999",
+                        registration_type: "Small - Scale (Full-Time)", fisherman_status: "pending_approval")
 
           get "/api/v1/registrations/status", params: { ic_number: "01-999999" }
 
           assert_response :ok
-          assert_equal "pending", response.parsed_body.dig("data", "status")
+          assert_equal "pending_approval", response.parsed_body.dig("data", "status")
         end
 
         test "show returns not found when no user has the given ic_number" do

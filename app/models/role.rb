@@ -43,7 +43,7 @@ class Role < ApplicationRecord
   end
 
   def self.ransackable_attributes(_auth_object = nil)
-    %w[id kind name description platform_scope company_profile_id is_default created_at updated_at]
+    %w[id kind name description platform_scope company_profile_id is_default is_default_admin created_at updated_at]
   end
 
   def self.ransackable_associations(_auth_object = nil)

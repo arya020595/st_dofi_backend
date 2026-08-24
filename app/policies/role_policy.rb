@@ -8,7 +8,10 @@ class RolePolicy < ApplicationPolicy
   def show?    = user.permission?("#{resource}.view") && owns_record?
   def create?  = user.permission?("#{resource}.create")
   def update?  = user.permission?("#{resource}.update") && owns_record?
-  def destroy? = user.permission?("#{resource}.delete") && owns_record? && !record.is_default?
+
+  def destroy?
+    user.permission?("#{resource}.delete") && owns_record? && !record.is_default? && !record.is_default_admin?
+  end
 
   class Scope < Scope
     def resolve

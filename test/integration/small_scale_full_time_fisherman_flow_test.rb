@@ -40,27 +40,24 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
     assert_response :created
     company_profile_id = response.parsed_body.dig("data", "company_profile", "id")
 
-    # 2. Self-register — matches the pre-profiled Owner contact by IC number, exactly like
-    # Commercial/Small-Scale (Company) (Users::RegisterFisherman).
-    post "/api/v1/registrations/fisherman",
-         params: { user: { name: "Solo Fisherman", ic_number: ic_number,
-                           registration_type: "Small - Scale (Full-Time)" } }, as: :json
-
-    assert_response :created
-    fisherman = User.find(response.parsed_body.dig("data", "id"))
+    # 2. Flow B provisions the Owner user during Company Profile creation; there is no Fisherman
+    # self-registration step.
+    fisherman = User.find(response.parsed_body.dig("data", "owner_user", "id"))
 
     assert_equal company_profile_id, fisherman.company_profile_id
+    assert_equal "pending_approval", fisherman.fisherman_status
 
     # 3. DoFi Officer approves the registration.
     post "/api/v1/admin/approvals/fishermen/#{fisherman.id}/approve", headers: @officer_headers
 
     assert_response :ok
-    assert_equal "active", fisherman.reload.status
+    assert_equal "claimable", fisherman.reload.fisherman_status
 
-    # 4. Fisherman "logs in" via the mocked BruneiID re-scan.
+    # 4. Fisherman claims and logs in via the mocked BruneiID re-scan.
     post "/api/v1/auth/brunei_id", params: { ic_number: ic_number }, as: :json
 
     assert_response :ok
+    assert_equal "active", fisherman.reload.fisherman_status
     fisherman_headers = { "Authorization" => response.headers["Authorization"] }
 
     # 5. Fisherman registers a vessel under their own (pre-profiled) company profile.
@@ -131,12 +128,7 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
 
     assert_response :created
 
-    post "/api/v1/registrations/fisherman",
-         params: { user: { name: "Part Time Fisherman", ic_number: ic_number,
-                           registration_type: "Small - Scale (Part-Time)" } }, as: :json
-
-    assert_response :created
-    fisherman = User.find(response.parsed_body.dig("data", "id"))
+    fisherman = User.find(response.parsed_body.dig("data", "owner_user", "id"))
 
     post "/api/v1/admin/approvals/fishermen/#{fisherman.id}/approve", headers: @officer_headers
 

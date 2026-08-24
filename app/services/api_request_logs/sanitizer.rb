@@ -21,22 +21,20 @@ module ApiRequestLogs
         @parameter_filter ||= ActiveSupport::ParameterFilter.new(Rails.application.config.filter_parameters)
       end
 
-      # rubocop:disable Metrics/MethodLength
       def normalize(payload)
         case payload
-        when ActionController::Parameters
-          payload.to_unsafe_h
-        when Hash
-          payload.deep_dup
-        when Array
-          payload.map { |item| normalize(item) }
-        when nil, ""
-          nil
+        when ActionController::Parameters then payload.to_unsafe_h
+        when Hash then payload.deep_dup
+        when Array then normalize_array(payload)
+        when nil, "" then nil
         else
           payload
         end
       end
-      # rubocop:enable Metrics/MethodLength
+
+      def normalize_array(payload)
+        payload.map { |item| normalize(item) }
+      end
     end
   end
 end

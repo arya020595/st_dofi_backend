@@ -1,9 +1,8 @@
 jetty_manager_role = Role.find_by!(kind: Role::JETTY_MANAGER)
 default_password = ENV.fetch("ADMIN_DEFAULT_PASSWORD", "ChangeMe123!")
 
-# Matched to the Owner/Admin CompanyProfileContact rows from company_profiles.rb by ic_number — same
-# match Users::RegisterFisherman performs — so these accounts are ready to log in via mock BruneiID
-# (see docs/registration/testing-mock-brunei-id-login.md) without going through self-registration first.
+# Matched to the Owner/Admin CompanyProfileContact rows from company_profiles.rb by ic_number so
+# these accounts are ready to log in via mock BruneiID without Fisherman self-registration.
 FISHERMAN_USERS = [
   { name: "Haji Ahmad bin Salleh", ic_number: "00123456", registration_type: "Commercial" },
   { name: "Siti Aminah binti Yusof", ic_number: "00234567", registration_type: "Commercial" },
@@ -16,10 +15,11 @@ FISHERMAN_USERS.each do |attrs|
   contact = CompanyProfileContact.find_by!(ic_no: attrs[:ic_number])
 
   # Each fixture user belongs to a different company_profile (see db/seeds/company_profiles.rb), so
-  # each needs its own company-scoped Owner role, found-or-created the same way production
-  # self-registration does — not a single shared role like the old global Fisherman kind row.
+  # each needs its own company-scoped Owner role, not a single shared role like the old global
+  # Fisherman kind row.
   owner_role = Roles::EnsureFishermanOwnerRole.call(contact.company_profile)
   owner_role.permissions = Permission.assignable_to(Role::FISHERMAN_PLATFORM)
+  seeded_at = Time.current
 
   User.find_or_create_by!(ic_number: attrs[:ic_number]) do |user|
     user.name = attrs[:name]
@@ -29,8 +29,13 @@ FISHERMAN_USERS.each do |attrs|
     user.company_profile_contact = contact
     user.designation = contact.designation
     user.status = "active"
+    user.fisherman_status = "active"
+    user.provisioning_source = Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE
+    user.approved_at = seeded_at
+    user.approved_by = User.find_by(role: Role.find_by(kind: Role::DOFI_OFFICER))
+    user.claimed_at = seeded_at
     user.preferred_locale = "en"
-    user.brunei_id_verified_at = Time.current
+    user.brunei_id_verified_at = seeded_at
     user.password = default_password
     user.password_confirmation = default_password
   end

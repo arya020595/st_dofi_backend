@@ -3,6 +3,7 @@ require "test_helper"
 module Api
   module V1
     module Approvals
+      # rubocop:disable Minitest/MultipleAssertions
       class FishermenControllerTest < ActionDispatch::IntegrationTest
         setup do
           @password = "Password123!"
@@ -20,8 +21,8 @@ module Api
           @admin = create(:user, role: @admin_role, position: "Administrator", unit: "HQ",
                                  password: @password, password_confirmation: @password)
           @plain_user = create(:user, role: @no_access_role, password: @password, password_confirmation: @password)
-          @fisherman = create(:user, role: @fisherman_role, status: "pending", ic_number: "01-800001",
-                                     registration_type: "Small - Scale (Full-Time)")
+          @fisherman = create(:user, role: @fisherman_role, status: "active", fisherman_status: "pending_approval",
+                                     ic_number: "01-800001", registration_type: "Small - Scale (Full-Time)")
 
           @admin_headers = auth_headers_for(@admin, password: @password)
           @plain_headers = auth_headers_for(@plain_user, password: @password)
@@ -56,7 +57,8 @@ module Api
                                                            designation: "Owner")
           admin_contact = create(:company_profile_contact, company_profile: company_profile, ic_no: "01-800004",
                                                            designation: "Admin")
-          commercial_fisherman = create(:user, role: @fisherman_role, status: "pending", ic_number: "01-800003",
+          commercial_fisherman = create(:user, role: @fisherman_role, status: "active",
+                                               fisherman_status: "pending_approval", ic_number: "01-800003",
                                                registration_type: "Commercial", designation: "Owner",
                                                company_profile: company_profile, company_profile_contact: owner_contact)
 
@@ -69,11 +71,15 @@ module Api
           assert_contact_profiles_payload(data, owner_contact, admin_contact)
         end
 
-        test "approve transitions the fisherman from pending to active" do
+        test "approve transitions the fisherman from pending approval to claimable" do
           post "/api/v1/admin/approvals/fishermen/#{@fisherman.id}/approve", headers: @admin_headers
 
           assert_response :ok
-          assert_equal "active", @fisherman.reload.status
+          @fisherman.reload
+
+          assert_equal "claimable", @fisherman.fisherman_status
+          assert_predicate @fisherman, :approved_at?
+          assert_equal @admin.id, @fisherman.approved_by_id
         end
 
         test "approve without permission is forbidden" do
@@ -91,7 +97,7 @@ module Api
           assert_response :ok
           @fisherman.reload
 
-          assert_equal "rejected", @fisherman.status
+          assert_equal "revoked", @fisherman.fisherman_status
           assert_equal remark.name, @fisherman.rejection_reason
         end
 
@@ -100,7 +106,7 @@ module Api
                params: { approval_remark_id: SecureRandom.uuid }, headers: @admin_headers
 
           assert_response :unprocessable_content
-          assert_equal "pending", @fisherman.reload.status
+          assert_equal "pending_approval", @fisherman.reload.fisherman_status
         end
 
         test "a jetty manager id 404s against the fishermen approval endpoints" do
@@ -125,6 +131,7 @@ module Api
           assert_equal admin_contact.full_name, data.dig("admin_profile", "full_name")
         end
       end
+      # rubocop:enable Minitest/MultipleAssertions
     end
   end
 end

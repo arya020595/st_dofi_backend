@@ -23,7 +23,8 @@ module Api
           def approve
             authorize @fisherman, policy_class: FishermanApprovalPolicy
 
-            case Users::ApproveRegistration.call(@fisherman)
+            case ::Fisherman::ApproveProvisionalUser.call(user: @fisherman, approved_by: current_user,
+                                                          reason: params[:reason])
             in Success(user)
               render json: { status: "success", data: FishermanApprovalBlueprint.render_as_hash(user) }
             in Failure(user)
@@ -34,8 +35,7 @@ module Api
           def reject
             authorize @fisherman, policy_class: FishermanApprovalPolicy
 
-            result = Users::RejectRegistration.call(@fisherman, approval_remark_id: params.expect(:approval_remark_id))
-            case result
+            case reject_fisherman
             in Success(user)
               render json: { status: "success", data: FishermanApprovalBlueprint.render_as_hash(user) }
             in Failure(user)
@@ -51,6 +51,15 @@ module Api
 
           def set_fisherman
             @fisherman = fisherman_scope.find(params.expect(:id))
+          end
+
+          def reject_fisherman
+            ::Fisherman::RejectProvisionalUser.call(
+              user: @fisherman,
+              rejected_by: current_user,
+              approval_remark_id: params.expect(:approval_remark_id),
+              reason: params[:reason]
+            )
           end
         end
       end

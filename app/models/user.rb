@@ -8,8 +8,17 @@ class User < ApplicationRecord
   belongs_to :role, optional: true
   belongs_to :company_profile, optional: true
   belongs_to :company_profile_contact, optional: true
+  belongs_to :approved_by, class_name: "User", optional: true, inverse_of: false
+  belongs_to :created_by, class_name: "User", optional: true, inverse_of: false
 
   include AASM
+  include User::FishermanLifecycle
+
+  audited only: %i[
+    name ic_number normalized_ic_number status fisherman_status provisioning_source claimed_at
+    brunei_id_verified_at approved_at approved_by_id created_by_id company_profile_id
+    company_profile_contact_id role_id rejection_reason discarded_at
+  ]
 
   VALID_LOCALES = %w[en ms].freeze
   VALID_REGISTRATION_TYPES = ["Commercial", "Small-Scale (Company)", "Small - Scale (Full-Time)",
@@ -47,9 +56,11 @@ class User < ApplicationRecord
   APPROVAL_STATUS_LABELS = { "pending" => "Pending", "active" => "Approved", "rejected" => "Rejected",
                              "inactive" => "Approved", "suspended" => "Approved" }.freeze
 
+  before_validation :normalize_ic_number
+
   validates :name, presence: true
   validates :preferred_locale, inclusion: { in: VALID_LOCALES }
-  validates :ic_number, uniqueness: true, allow_nil: true
+  validates :normalized_ic_number, uniqueness: { conditions: -> { where(discarded_at: nil) } }, allow_nil: true
   validates :employee_id, uniqueness: true, allow_nil: true
   validates :username, uniqueness: true, allow_nil: true
   validates :ic_number, :unit, :position, :contact_no, presence: true, if: :jetty_manager?
@@ -73,21 +84,35 @@ class User < ApplicationRecord
   def dofi_officer_platform? = role&.dofi_officer_platform? || false
   def approval_status_label = APPROVAL_STATUS_LABELS.fetch(status, status.humanize)
 
+  def fisherman_approval_status_label
+    Users::FishermanApprovalStatusLabel.call(fisherman_status)
+  end
+
+  def lifecycle_status
+    fisherman? && fisherman_status.present? ? fisherman_status : status
+  end
+
   # No role in this system requires a real email: DoFi Officers authenticate by `username`,
-  # Fisherman/Jetty Manager via BruneiID QR re-scan (see Users::RegisterJettyManager,
-  # Users::RegisterFisherman). `email` stays as an optional legacy/contact field (the seeded admin
+  # Fisherman/Jetty Manager via BruneiID QR re-scan. `email` stays as an optional legacy/contact
+  # field (the seeded admin
   # still has one) but is never required; email_changed? still gates Devise's format/uniqueness
   # checks so a *provided* email is still validated when one is set.
   def email_required? = false
   def email_changed? = brunei_id_verified_at.blank? && super
 
   def self.ransackable_attributes(_auth_object = nil)
-    %w[id name email employee_id status preferred_locale unit position contact_no role_id doft_registration_no
-       ic_number registration_type username discarded_at created_at updated_at]
+    %w[id name email employee_id status fisherman_status normalized_ic_number preferred_locale unit position contact_no
+       role_id doft_registration_no ic_number registration_type username discarded_at created_at updated_at]
   end
 
   def self.ransackable_associations(_auth_object = nil)
     []
+  end
+
+  private
+
+  def normalize_ic_number
+    self.normalized_ic_number = IcNumbers::Normalize.call(ic_number).presence if will_save_change_to_ic_number?
   end
 end
 

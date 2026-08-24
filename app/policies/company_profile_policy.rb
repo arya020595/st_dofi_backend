@@ -3,7 +3,7 @@ class CompanyProfilePolicy < ApplicationPolicy
 
   def index? = user.permission?("#{RESOURCE}.list", "#{RESOURCE}.view")
   def show? = user.permission?("#{RESOURCE}.view")
-  def create? = user.permission?("#{RESOURCE}.create")
+  def create? = user.dofi_officer_platform? && user.permission?("#{RESOURCE}.create")
   def update? = user.permission?("#{RESOURCE}.update")
   def destroy? = user.permission?("#{RESOURCE}.delete")
 

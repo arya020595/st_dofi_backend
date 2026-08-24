@@ -4,6 +4,8 @@ class CompanyProfileContact < ApplicationRecord
   belongs_to :company_profile
   has_many :users, dependent: :nullify
 
+  audited
+
   validates :full_name, :ic_no, :gender, :ic_colour, :designation, presence: true
 
   def self.ransackable_attributes(_auth_object = nil)

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_11_110000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_24_090400) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -51,6 +51,28 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_11_110000) do
     t.datetime "updated_at", null: false
     t.index ["discarded_at"], name: "index_approval_remarks_on_discarded_at"
     t.index ["name"], name: "index_approval_remarks_on_name", unique: true
+  end
+
+  create_table "audits", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "action"
+    t.uuid "associated_id"
+    t.string "associated_type"
+    t.uuid "auditable_id"
+    t.string "auditable_type"
+    t.jsonb "audited_changes"
+    t.string "comment"
+    t.datetime "created_at"
+    t.string "remote_address"
+    t.string "request_uuid"
+    t.uuid "user_id"
+    t.string "user_type"
+    t.string "username"
+    t.integer "version", default: 0
+    t.index ["associated_type", "associated_id"], name: "associated_index"
+    t.index ["auditable_type", "auditable_id", "version"], name: "auditable_index"
+    t.index ["created_at"], name: "index_audits_on_created_at"
+    t.index ["request_uuid"], name: "index_audits_on_request_uuid"
+    t.index ["user_id", "user_type"], name: "user_index"
   end
 
   create_table "capture_reports", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -460,6 +482,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_11_110000) do
     t.datetime "created_at", null: false
     t.text "description"
     t.boolean "is_default", default: false, null: false
+    t.boolean "is_default_admin", default: false, null: false
     t.string "kind"
     t.string "name", null: false
     t.string "platform_scope", null: false
@@ -467,6 +490,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_11_110000) do
     t.index ["company_profile_id", "name"], name: "index_roles_on_company_profile_id_and_name", unique: true, nulls_not_distinct: true
     t.index ["company_profile_id"], name: "index_roles_on_company_profile_id"
     t.index ["company_profile_id"], name: "index_roles_on_company_profile_id_and_is_default", unique: true, where: "(is_default = true)"
+    t.index ["company_profile_id"], name: "index_roles_on_company_profile_id_and_is_default_admin", unique: true, where: "(is_default_admin = true)"
     t.index ["kind"], name: "index_roles_on_kind", unique: true
     t.check_constraint "platform_scope::text = 'fisherman'::text AND company_profile_id IS NOT NULL OR platform_scope::text = 'dofi_officer'::text AND company_profile_id IS NULL", name: "check_roles_company_profile_matches_platform_scope"
     t.check_constraint "platform_scope::text = ANY (ARRAY['fisherman'::character varying::text, 'dofi_officer'::character varying::text])", name: "check_roles_platform_scope"
@@ -481,22 +505,29 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_11_110000) do
   end
 
   create_table "users", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "approved_at"
+    t.uuid "approved_by_id"
     t.datetime "brunei_id_verified_at"
+    t.datetime "claimed_at"
     t.uuid "company_profile_contact_id"
     t.uuid "company_profile_id"
     t.string "contact_no"
     t.datetime "created_at", null: false
+    t.uuid "created_by_id"
     t.string "designation"
     t.datetime "discarded_at"
     t.string "doft_registration_no"
     t.string "email", default: "", null: false
     t.string "employee_id"
     t.string "encrypted_password", default: "", null: false
+    t.string "fisherman_status"
     t.string "ic_number"
     t.string "jti", null: false
     t.string "name", null: false
+    t.string "normalized_ic_number"
     t.string "position"
     t.string "preferred_locale", default: "en", null: false
+    t.string "provisioning_source"
     t.string "registration_type"
     t.text "rejection_reason"
     t.datetime "remember_created_at"
@@ -508,12 +539,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_11_110000) do
     t.datetime "updated_at", null: false
     t.string "username"
     t.index ["company_profile_contact_id"], name: "index_users_on_company_profile_contact_id"
+    t.index ["company_profile_contact_id"], name: "index_users_on_company_profile_contact_id_kept_unique", unique: true, where: "((company_profile_contact_id IS NOT NULL) AND (discarded_at IS NULL))"
     t.index ["company_profile_id"], name: "index_users_on_company_profile_id"
     t.index ["discarded_at"], name: "index_users_on_discarded_at"
     t.index ["email"], name: "index_users_on_email", unique: true, where: "((email)::text <> ''::text)"
     t.index ["employee_id"], name: "index_users_on_employee_id", unique: true
-    t.index ["ic_number"], name: "index_users_on_ic_number", unique: true, where: "(ic_number IS NOT NULL)"
+    t.index ["ic_number"], name: "index_users_on_ic_number"
     t.index ["jti"], name: "index_users_on_jti", unique: true
+    t.index ["normalized_ic_number"], name: "index_users_on_normalized_ic_number_kept_unique", unique: true, where: "((normalized_ic_number IS NOT NULL) AND (discarded_at IS NULL))"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
     t.index ["role_id"], name: "index_users_on_role_id"
     t.index ["username"], name: "index_users_on_username", unique: true
@@ -574,4 +607,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_11_110000) do
   add_foreign_key "users", "company_profile_contacts"
   add_foreign_key "users", "company_profiles"
   add_foreign_key "users", "roles"
+  add_foreign_key "users", "users", column: "approved_by_id", validate: false
+  add_foreign_key "users", "users", column: "created_by_id", validate: false
 end

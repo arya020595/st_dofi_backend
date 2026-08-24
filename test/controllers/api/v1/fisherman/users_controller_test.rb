@@ -3,24 +3,34 @@ require "test_helper"
 module Api
   module V1
     module Fisherman
-      # rubocop:disable Metrics/ClassLength
-      class UsersControllerTest < ActionDispatch::IntegrationTest
-        setup do
+      module UsersControllerTestSetup
+        def setup
+          super
+
           @password = "Password123!"
+          create_roles
+          create_users
+          create_headers
+        end
 
-          owner_permissions = %w[list view create update delete].map do |action|
-            Permission.find_or_create_by!(code: "fisherman_users.#{action}") do |permission|
-              permission.name = "Fisherman users - #{action.capitalize}"
-              permission.platform_scope = Permission::FISHERMAN_PLATFORM
-            end
-          end
-
+        def create_roles
           @company_profile = create(:company_profile)
           @owner_role = create(:role, :fisherman, company_profile: @company_profile, is_default: true,
                                                   permissions: owner_permissions)
           @member_role = create(:role, :fisherman, company_profile: @company_profile)
           @no_access_role = create(:role, :fisherman, company_profile: @company_profile)
+        end
 
+        def owner_permissions
+          %w[list view create update delete].map do |action|
+            Permission.find_or_create_by!(code: "fisherman_users.#{action}") do |permission|
+              permission.name = "Fisherman users - #{action.capitalize}"
+              permission.platform_scope = Permission::FISHERMAN_PLATFORM
+            end
+          end
+        end
+
+        def create_users
           @owner = create(:user, role: @owner_role, company_profile: @company_profile, ic_number: SecureRandom.hex(5),
                                  registration_type: "Commercial", password: @password,
                                  password_confirmation: @password)
@@ -29,10 +39,16 @@ module Api
                                       password: @password, password_confirmation: @password)
           @target = create(:user, role: @member_role, company_profile: @company_profile,
                                   ic_number: SecureRandom.hex(5), registration_type: "Commercial")
+        end
 
+        def create_headers
           @owner_headers = auth_headers_for(@owner, password: @password)
           @plain_headers = auth_headers_for(@plain_user, password: @password)
         end
+      end
+
+      class UsersControllerTest < ActionDispatch::IntegrationTest
+        include UsersControllerTestSetup
 
         test "index requires the list/view permission" do
           get "/api/v1/fisherman/users", headers: @plain_headers
@@ -164,7 +180,6 @@ module Api
           assert_response :not_found
         end
       end
-      # rubocop:enable Metrics/ClassLength
     end
   end
 end
