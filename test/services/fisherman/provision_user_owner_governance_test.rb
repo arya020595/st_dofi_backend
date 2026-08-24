@@ -25,14 +25,22 @@ module Fisherman
       assert_predicate user.role, :fisherman_admin_role?
     end
 
-    test "source B derives claimable status for company Admin role without DoFI approval" do
-      role = create(:role, :fisherman, company_profile: @company_profile, name: "Admin", is_default_admin: true)
+    test "source B derives claimable status for custom company role without DoFI approval" do
+      role = create(:role, :fisherman, company_profile: @company_profile, name: "Crew")
 
       result = provision_owner_teammate(role, "01-222223")
       user = result.value!
 
       assert_equal "claimable", user.fisherman_status
       assert_nil user.approved_at
+    end
+
+    test "source B rejects assigning the company Admin role" do
+      role = create(:role, :fisherman, company_profile: @company_profile, name: "Admin", is_default_admin: true)
+
+      result = provision_owner_teammate(role, "01-222227")
+
+      assert_equal :cannot_assign_admin_role, result.failure
     end
 
     test "source B rejects assigning the company Owner role" do
