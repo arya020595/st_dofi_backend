@@ -15,8 +15,10 @@ module Api
 
         def create_roles
           @company_profile = create(:company_profile)
-          @owner_role = create(:role, :fisherman, company_profile: @company_profile, is_default: true,
-                                                  permissions: owner_permissions)
+          @owner_role = create(:role, :fisherman, company_profile: @company_profile, name: "Owner",
+                                                  is_default: true, permissions: owner_permissions)
+          @admin_role = create(:role, :fisherman, company_profile: @company_profile, name: "Admin",
+                                                  is_default_admin: true)
           @member_role = create(:role, :fisherman, company_profile: @company_profile)
           @no_access_role = create(:role, :fisherman, company_profile: @company_profile)
         end
@@ -31,12 +33,8 @@ module Api
         end
 
         def create_users
-          @owner = create(:user, role: @owner_role, company_profile: @company_profile, ic_number: SecureRandom.hex(5),
-                                 registration_type: "Commercial", password: @password,
-                                 password_confirmation: @password)
-          @plain_user = create(:user, role: @no_access_role, company_profile: @company_profile,
-                                      ic_number: SecureRandom.hex(5), registration_type: "Commercial",
-                                      password: @password, password_confirmation: @password)
+          @owner = create_active_fisherman(@owner_role)
+          @plain_user = create_password_fisherman(@no_access_role)
           @target = create(:user, role: @member_role, company_profile: @company_profile,
                                   ic_number: SecureRandom.hex(5), registration_type: "Commercial")
         end
@@ -44,6 +42,18 @@ module Api
         def create_headers
           @owner_headers = auth_headers_for(@owner, password: @password)
           @plain_headers = auth_headers_for(@plain_user, password: @password)
+        end
+
+        def create_active_fisherman(role)
+          timestamp = Time.current
+          create_password_fisherman(role, fisherman_status: "active", claimed_at: timestamp,
+                                          brunei_id_verified_at: timestamp)
+        end
+
+        def create_password_fisherman(role, extra_attributes = {})
+          create(:user, { role: role, company_profile: @company_profile, ic_number: SecureRandom.hex(5),
+                          registration_type: "Commercial", password: @password,
+                          password_confirmation: @password }.merge(extra_attributes))
         end
       end
 
@@ -134,12 +144,12 @@ module Api
           assert_response :not_found
         end
 
-        test "update reassigns this company's own user to another of this company's roles" do
-          patch "/api/v1/fisherman/users/#{@target.id}", params: { user: { role_id: @owner_role.id } },
+        test "update reassigns this company's own user to Admin role" do
+          patch "/api/v1/fisherman/users/#{@target.id}", params: { user: { role_id: @admin_role.id } },
                                                          headers: @owner_headers, as: :json
 
           assert_response :ok
-          assert_equal @owner_role.id, @target.reload.role_id
+          assert_equal @admin_role.id, @target.reload.role_id
         end
 
         test "update rejects reassigning to another company's role" do

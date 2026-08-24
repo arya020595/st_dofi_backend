@@ -24,8 +24,15 @@ module RequireAudience
     when "admin"
       deny_wrong_audience("admin") unless current_user.dofi_officer_platform?
     when "fisherman"
-      deny_wrong_audience("fisherman") unless current_user.fisherman?
+      deny_wrong_audience("fisherman") unless allowed_fisherman_audience?
     end
+  end
+
+  def allowed_fisherman_audience?
+    return false unless current_user.fisherman?
+    return current_user.current_fisherman_owner? if current_user.has_fisherman_owner_role?
+
+    true
   end
 
   # Denial is logged deliberately: an ordinary grant here is just normal traffic already captured

@@ -2,6 +2,7 @@ module User::FishermanLifecycle
   extend ActiveSupport::Concern
 
   FISHERMAN_STATUSES = %w[pending_approval claimable active suspended revoked].freeze
+  OWNER_SLOT_STATUSES = %w[pending_approval claimable active suspended].freeze
 
   included do
     aasm(:fisherman, column: :fisherman_status, namespace: :fisherman) do
@@ -22,6 +23,19 @@ module User::FishermanLifecycle
 
     validates :fisherman_status, inclusion: { in: FISHERMAN_STATUSES }, allow_nil: true
     validate :active_fisherman_identity_must_be_claimed
+  end
+
+  def fisherman_owner_role_holder?
+    role&.fisherman_owner_role? || false
+  end
+  alias has_fisherman_owner_role? fisherman_owner_role_holder?
+
+  def occupies_fisherman_owner_slot?
+    kept? && fisherman_owner_role_holder? && OWNER_SLOT_STATUSES.include?(fisherman_status)
+  end
+
+  def current_fisherman_owner?
+    occupies_fisherman_owner_slot? && fisherman_status == "active"
   end
 
   private

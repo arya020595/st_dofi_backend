@@ -40,10 +40,12 @@ module Fisherman
     end
 
     def replace_locked_contact
-      old_user.with_lock do
-        old_contact.with_lock do
-          release_old_identity
-          provision_replacement(new_contact)
+      old_contact.company_profile.with_lock do
+        old_user.with_lock do
+          old_contact.with_lock do
+            release_old_identity
+            provision_replacement(new_contact)
+          end
         end
       end
     end

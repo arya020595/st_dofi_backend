@@ -29,10 +29,16 @@ module Fisherman
 
     def role_for_contact(company_profile, contact)
       case contact.designation
-      when "Owner" then Success(Roles::EnsureFishermanOwnerRole.call(company_profile))
+      when "Owner" then owner_role_result(company_profile)
       when "Admin" then Success(Roles::EnsureFishermanAdminRole.call(company_profile))
       else Failure(:invalid_contact_designation)
       end
+    end
+
+    def owner_role_result(company_profile)
+      return Failure(:owner_slot_occupied) if Owners::CurrentOwnerQuery.call(company_profile)
+
+      Success(Roles::EnsureFishermanOwnerRole.call(company_profile))
     end
 
     def build_source_a_context(contact, role)
@@ -40,11 +46,18 @@ module Fisherman
     end
 
     def source_b_context(request)
-      return Failure(:role_required) if request.role.blank?
-      return Failure(:role_company_mismatch) if request.role.company_profile_id != request.company_profile.id
-      return Failure(:role_platform_mismatch) unless request.role.fisherman_platform?
+      failure = source_b_role_failure(request)
+      return Failure(failure) if failure
 
       Success(Context.new("claimable", request.role, request.name, request.ic_number, nil, nil))
+    end
+
+    def source_b_role_failure(request)
+      return :role_required if request.role.blank?
+      return :role_company_mismatch if request.role.company_profile_id != request.company_profile.id
+      return :role_platform_mismatch unless request.role.fisherman_platform?
+
+      :cannot_assign_owner_role if request.role.fisherman_owner_role?
     end
   end
 end

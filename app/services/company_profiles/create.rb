@@ -33,12 +33,26 @@ module CompanyProfiles
       company_profile = CompanyProfile.create!(
         attributes.except(:owner, :admin).merge(dofi_registration_no: SecureRandom.uuid)
       )
-      owner = create_contact!(company_profile, attributes[:owner], designation: "Owner")
-      owner_user = provision_user!(company_profile, owner, created_by: created_by)
-      admin = create_contact!(company_profile, attributes[:admin], designation: "Admin") if admin_submitted?(attributes)
-      admin_user = provision_user!(company_profile, admin, created_by: created_by) if admin
+      owner, owner_user, admin, admin_user = locked_contact_provisioning(company_profile, attributes, created_by)
 
       Result.new(company_profile, owner, admin, owner_user, admin_user)
+    end
+
+    def locked_contact_provisioning(company_profile, attributes, created_by)
+      owner = owner_user = admin = admin_user = nil
+      company_profile.with_lock do
+        owner = create_contact!(company_profile, attributes[:owner], designation: "Owner")
+        owner_user = provision_user!(company_profile, owner, created_by: created_by)
+        admin = create_admin_contact(company_profile, attributes)
+        admin_user = provision_user!(company_profile, admin, created_by: created_by) if admin
+      end
+      [owner, owner_user, admin, admin_user]
+    end
+
+    def create_admin_contact(company_profile, attributes)
+      return unless admin_submitted?(attributes)
+
+      create_contact!(company_profile, attributes[:admin], designation: "Admin")
     end
 
     def create_contact!(company_profile, contact_attributes, designation:)

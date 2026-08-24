@@ -35,7 +35,7 @@ module Api
         def update
           authorize @user
 
-          case Users::Update.call(@user, user_params, assignable_roles: assignable_roles)
+          case Users::Update.call(@user, user_params, assignable_roles: assignable_roles, actor: current_user)
           in Success(user)
             render json: { status: "success", data: UserBlueprint.render_as_hash(user) }
           in Failure(user)

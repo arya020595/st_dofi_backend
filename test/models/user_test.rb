@@ -84,6 +84,37 @@ class UserTest < ActiveSupport::TestCase
 
     assert_predicate user, :valid?
   end
+
+  test "has_fisherman_owner_role remains true for revoked historical owner" do
+    assert_predicate owner_user("revoked"), :has_fisherman_owner_role?
+  end
+
+  test "owner slot occupancy uses explicit assignment statuses" do
+    assert_predicate owner_user("active"), :occupies_fisherman_owner_slot?
+    assert_predicate owner_user("suspended"), :occupies_fisherman_owner_slot?
+    assert_not owner_user("revoked").occupies_fisherman_owner_slot?
+  end
+
+  test "current_fisherman_owner is true only for active owner authorization" do
+    assert_predicate owner_user("active"), :current_fisherman_owner?
+    assert_not owner_user("suspended").current_fisherman_owner?
+  end
+
+  private
+
+  def owner_user(fisherman_status)
+    company_profile = create(:company_profile)
+    owner_role = create(:role, :fisherman, company_profile: company_profile, name: "Owner", is_default: true)
+    attributes = { role: owner_role, company_profile: company_profile, ic_number: SecureRandom.hex(5),
+                   registration_type: "Commercial", fisherman_status: fisherman_status }
+    attributes.merge!(claimed_identity_attributes) if fisherman_status == "active"
+    build(:user, attributes)
+  end
+
+  def claimed_identity_attributes
+    timestamp = Time.current
+    { claimed_at: timestamp, brunei_id_verified_at: timestamp }
+  end
 end
 
 # == Schema Information

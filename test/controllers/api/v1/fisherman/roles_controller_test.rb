@@ -19,14 +19,16 @@ module Api
           end
 
           @company_profile = create(:company_profile)
-          @owner_role = create(:role, :fisherman, company_profile: @company_profile, is_default: true,
-                                                  permissions: role_permissions)
+          @owner_role = create(:role, :fisherman, company_profile: @company_profile, name: "Owner",
+                                                  is_default: true, permissions: role_permissions)
           @no_access_role = create(:role, :fisherman, company_profile: @company_profile)
           @target = create(:role, :fisherman, company_profile: @company_profile, permissions: [@view_permission])
 
+          timestamp = Time.current
           @owner = create(:user, role: @owner_role, company_profile: @company_profile, ic_number: SecureRandom.hex(5),
                                  registration_type: "Commercial", password: @password,
-                                 password_confirmation: @password)
+                                 password_confirmation: @password, fisherman_status: "active",
+                                 claimed_at: timestamp, brunei_id_verified_at: timestamp)
           @plain_user = create(:user, role: @no_access_role, company_profile: @company_profile,
                                       ic_number: SecureRandom.hex(5), registration_type: "Commercial",
                                       password: @password, password_confirmation: @password)
