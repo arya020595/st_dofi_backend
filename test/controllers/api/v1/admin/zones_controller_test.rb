@@ -29,7 +29,7 @@ module Api
         test "create persists a zone" do
           assert_difference("Zone.count", 1) do
             post "/api/v1/admin/master_data/zones",
-                 params: { zone: { name: "New Zone", zone_type: "offshore", start_range: "0 nm", end_range: "12 nm" } },
+                 params: { zone: { name: "New Zone", zone_type: "offshore", start_range: 0, end_range: 12 } },
                  headers: @headers, as: :json
           end
 

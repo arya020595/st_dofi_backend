@@ -1,8 +1,8 @@
 ZONES = [
-  { name: "Zone 1A Keatas", zone_type: "Inshore", start_range: "0 Nm", end_range: "3 Nm" },
-  { name: "Zone 2 Keatas", zone_type: "Inshore", start_range: "3 Nm", end_range: "20 Nm" },
-  { name: "Zone 3", zone_type: "Offshore", start_range: "20 Nm", end_range: "45 Nm" },
-  { name: "Zone 4", zone_type: "Deep Sea", start_range: "45 Nm", end_range: "200 Nm" }
+  { name: "Zone 1A Keatas", zone_type: "Inshore", start_range: 0, end_range: 3 },
+  { name: "Zone 2 Keatas", zone_type: "Inshore", start_range: 3, end_range: 20 },
+  { name: "Zone 3", zone_type: "Offshore", start_range: 20, end_range: 45 },
+  { name: "Zone 4", zone_type: "Deep Sea", start_range: 45, end_range: 200 }
 ].freeze
 
 ZONES.each do |attrs|

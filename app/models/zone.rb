@@ -2,6 +2,8 @@ class Zone < ApplicationRecord
   validates :name, presence: true
   validates :start_range, presence: true
   validates :end_range, presence: true
+  validates :start_range, numericality: { only_integer: true }
+  validates :end_range, numericality: { only_integer: true }
 
   def self.ransackable_attributes(_auth_object = nil)
     %w[id name zone_type start_range end_range created_at updated_at]
