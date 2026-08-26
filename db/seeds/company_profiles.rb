@@ -32,8 +32,8 @@ SEED_COMPANY_PROFILES = [
     issue_date: years_ago_date(2),
     license_expiry_date: years_from_now_date(1),
     worker_quota: 25,
-    owner: { full_name: "Haji Ahmad bin Salleh", gender: "Male", ic_no: "00123456", ic_colour: "Yellow" },
-    admin: { full_name: "Siti Aminah binti Yusof", gender: "Female", ic_no: "00234567", ic_colour: "Yellow" }
+    owner: { full_name: "Haji Ahmad bin Salleh", gender: "Male", ic_no: "01-123456", ic_colour: "Yellow" },
+    admin: { full_name: "Siti Aminah binti Yusof", gender: "Female", ic_no: "01-234567", ic_colour: "Yellow" }
   },
   {
     code: "commercial_2",
@@ -50,8 +50,8 @@ SEED_COMPANY_PROFILES = [
     issue_date: months_ago_date(20),
     license_expiry_date: months_from_now_date(14),
     worker_quota: 18,
-    owner: { full_name: "Awang Hafeez bin Abdullah", gender: "Male", ic_no: "10123456", ic_colour: "Yellow" },
-    admin: { full_name: "Nur Diyana binti Salleh", gender: "Female", ic_no: "10234567", ic_colour: "Yellow" }
+    owner: { full_name: "Awang Hafeez bin Abdullah", gender: "Male", ic_no: "01-123457", ic_colour: "Yellow" },
+    admin: { full_name: "Nur Diyana binti Salleh", gender: "Female", ic_no: "01-234568", ic_colour: "Yellow" }
   },
   {
     code: "commercial_3",
@@ -68,8 +68,8 @@ SEED_COMPANY_PROFILES = [
     issue_date: months_ago_date(16),
     license_expiry_date: months_from_now_date(18),
     worker_quota: 14,
-    owner: { full_name: "Mohammad Aiman bin Tahir", gender: "Male", ic_no: "10345678", ic_colour: "Yellow" },
-    admin: { full_name: "Siti Hajar binti Manaf", gender: "Female", ic_no: "10456789", ic_colour: "Yellow" }
+    owner: { full_name: "Mohammad Aiman bin Tahir", gender: "Male", ic_no: "01-134567", ic_colour: "Yellow" },
+    admin: { full_name: "Siti Hajar binti Manaf", gender: "Female", ic_no: "01-245678", ic_colour: "Yellow" }
   },
   {
     code: "commercial_4",
@@ -86,8 +86,8 @@ SEED_COMPANY_PROFILES = [
     issue_date: months_ago_date(15),
     license_expiry_date: months_from_now_date(20),
     worker_quota: 12,
-    owner: { full_name: "Awang Shahiran bin Karim", gender: "Male", ic_no: "10567890", ic_colour: "Yellow" },
-    admin: { full_name: "Liyana binti Hamzah", gender: "Female", ic_no: "10678901", ic_colour: "Yellow" }
+    owner: { full_name: "Awang Shahiran bin Karim", gender: "Male", ic_no: "01-145678", ic_colour: "Yellow" },
+    admin: { full_name: "Liyana binti Hamzah", gender: "Female", ic_no: "01-256789", ic_colour: "Yellow" }
   },
   {
     code: "small_company_1",
@@ -104,8 +104,8 @@ SEED_COMPANY_PROFILES = [
     issue_date: years_ago_date(1),
     license_expiry_date: years_from_now_date(2),
     worker_quota: 6,
-    owner: { full_name: "Awang Zulkifli bin Hashim", gender: "Male", ic_no: "00345678", ic_colour: "Green" },
-    admin: { full_name: "Dayang Raihanah binti Adi", gender: "Female", ic_no: "11234567", ic_colour: "Green" }
+    owner: { full_name: "Awang Zulkifli bin Hashim", gender: "Male", ic_no: "51-345678", ic_colour: "Green" },
+    admin: { full_name: "Dayang Raihanah binti Adi", gender: "Female", ic_no: "51-234567", ic_colour: "Green" }
   },
   {
     code: "small_company_2",
@@ -122,8 +122,8 @@ SEED_COMPANY_PROFILES = [
     issue_date: months_ago_date(14),
     license_expiry_date: months_from_now_date(22),
     worker_quota: 5,
-    owner: { full_name: "Pengiran Jalal bin Omar", gender: "Male", ic_no: "11345678", ic_colour: "Green" },
-    admin: { full_name: "Noor Fatin binti Idris", gender: "Female", ic_no: "11456789", ic_colour: "Green" }
+    owner: { full_name: "Pengiran Jalal bin Omar", gender: "Male", ic_no: "51-345679", ic_colour: "Green" },
+    admin: { full_name: "Noor Fatin binti Idris", gender: "Female", ic_no: "51-234568", ic_colour: "Green" }
   },
   {
     code: "small_company_3",
@@ -140,8 +140,8 @@ SEED_COMPANY_PROFILES = [
     issue_date: months_ago_date(10),
     license_expiry_date: months_from_now_date(24),
     worker_quota: 4,
-    owner: { full_name: "Hj Faiz bin Ahmad", gender: "Male", ic_no: "11567890", ic_colour: "Green" },
-    admin: { full_name: "Nurul Izzati binti Yusuf", gender: "Female", ic_no: "11678901", ic_colour: "Green" }
+    owner: { full_name: "Hj Faiz bin Ahmad", gender: "Male", ic_no: "51-356780", ic_colour: "Green" },
+    admin: { full_name: "Nurul Izzati binti Yusuf", gender: "Female", ic_no: "51-245679", ic_colour: "Green" }
   },
   {
     code: "small_company_4",
@@ -158,8 +158,8 @@ SEED_COMPANY_PROFILES = [
     issue_date: months_ago_date(9),
     license_expiry_date: months_from_now_date(26),
     worker_quota: 5,
-    owner: { full_name: "Md Saiful bin Arif", gender: "Male", ic_no: "11789012", ic_colour: "Green" },
-    admin: { full_name: "Aisyah binti Basri", gender: "Female", ic_no: "11890123", ic_colour: "Green" }
+    owner: { full_name: "Md Saiful bin Arif", gender: "Male", ic_no: "51-367801", ic_colour: "Green" },
+    admin: { full_name: "Aisyah binti Basri", gender: "Female", ic_no: "51-256780", ic_colour: "Green" }
   },
   {
     code: "full_time_1",
@@ -175,7 +175,7 @@ SEED_COMPANY_PROFILES = [
     issue_date: months_ago_date(8),
     license_expiry_date: months_from_now_date(20),
     worker_quota: 1,
-    owner: { full_name: "Dayang Norhayati binti Tuah", gender: "Female", ic_no: "00456789", ic_colour: "Green" }
+    owner: { full_name: "Dayang Norhayati binti Tuah", gender: "Female", ic_no: "51-456789", ic_colour: "Green" }
   },
   {
     code: "full_time_2",
@@ -191,7 +191,7 @@ SEED_COMPANY_PROFILES = [
     issue_date: months_ago_date(7),
     license_expiry_date: months_from_now_date(21),
     worker_quota: 1,
-    owner: { full_name: "Mohd Fikri bin Hamdan", gender: "Male", ic_no: "12456789", ic_colour: "Green" }
+    owner: { full_name: "Mohd Fikri bin Hamdan", gender: "Male", ic_no: "51-456790", ic_colour: "Green" }
   },
   {
     code: "full_time_3",
@@ -207,7 +207,7 @@ SEED_COMPANY_PROFILES = [
     issue_date: months_ago_date(6),
     license_expiry_date: months_from_now_date(22),
     worker_quota: 1,
-    owner: { full_name: "Sufian bin Ibrahim", gender: "Male", ic_no: "12567890", ic_colour: "Green" }
+    owner: { full_name: "Sufian bin Ibrahim", gender: "Male", ic_no: "51-467890", ic_colour: "Green" }
   },
   {
     code: "full_time_4",
@@ -223,7 +223,7 @@ SEED_COMPANY_PROFILES = [
     issue_date: months_ago_date(5),
     license_expiry_date: months_from_now_date(23),
     worker_quota: 1,
-    owner: { full_name: "Nur Aisyah binti Karim", gender: "Female", ic_no: "12678901", ic_colour: "Green" }
+    owner: { full_name: "Nur Aisyah binti Karim", gender: "Female", ic_no: "51-478901", ic_colour: "Green" }
   },
   {
     code: "part_time_1",
@@ -239,7 +239,7 @@ SEED_COMPANY_PROFILES = [
     issue_date: months_ago_date(8),
     license_expiry_date: months_from_now_date(18),
     worker_quota: 1,
-    owner: { full_name: "Osman bin Haji Rosli", gender: "Male", ic_no: "00567892", ic_colour: "Green" }
+    owner: { full_name: "Osman bin Haji Rosli", gender: "Male", ic_no: "51-567892", ic_colour: "Green" }
   },
   {
     code: "part_time_2",
@@ -255,7 +255,7 @@ SEED_COMPANY_PROFILES = [
     issue_date: months_ago_date(7),
     license_expiry_date: months_from_now_date(19),
     worker_quota: 1,
-    owner: { full_name: "Abdul Qayyum bin Salleh", gender: "Male", ic_no: "13456789", ic_colour: "Green" }
+    owner: { full_name: "Abdul Qayyum bin Salleh", gender: "Male", ic_no: "51-567893", ic_colour: "Green" }
   },
   {
     code: "part_time_3",
@@ -271,7 +271,7 @@ SEED_COMPANY_PROFILES = [
     issue_date: months_ago_date(6),
     license_expiry_date: months_from_now_date(20),
     worker_quota: 1,
-    owner: { full_name: "Hjh Maria binti Hassan", gender: "Female", ic_no: "13567890", ic_colour: "Green" }
+    owner: { full_name: "Hjh Maria binti Hassan", gender: "Female", ic_no: "51-578904", ic_colour: "Green" }
   },
   {
     code: "part_time_4",
@@ -287,7 +287,7 @@ SEED_COMPANY_PROFILES = [
     issue_date: months_ago_date(5),
     license_expiry_date: months_from_now_date(21),
     worker_quota: 1,
-    owner: { full_name: "Alihan bin Mat Salleh", gender: "Male", ic_no: "13678901", ic_colour: "Green" }
+    owner: { full_name: "Alihan bin Mat Salleh", gender: "Male", ic_no: "51-589015", ic_colour: "Green" }
   }
 ].freeze
 
