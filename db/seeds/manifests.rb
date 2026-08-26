@@ -9,11 +9,11 @@ admin = User.find_by!(email: "admin@dofi.gov.bn")
 
 commercial_profile = CompanyProfile.find_by!(company_name: "Sinar Jaya Fisheries Sdn Bhd")
 small_scale_company_profile = CompanyProfile.find_by!(company_name: "Pantai Emas Enterprise")
-full_time_profile = CompanyProfileContact.find_by!(ic_no: "00456789").company_profile
+full_time_profile = CompanyProfileContact.find_by!(ic_no: "51-456789").company_profile
 
-commercial_owner = User.find_by!(ic_number: "00123456")
-small_scale_owner = User.find_by!(ic_number: "00345678")
-full_time_owner = User.find_by!(ic_number: "00456789")
+commercial_owner = User.find_by!(ic_number: "01-123456")
+small_scale_owner = User.find_by!(ic_number: "51-345678")
+full_time_owner = User.find_by!(ic_number: "51-456789")
 
 serasa_port = Port.find_by!(port_name: "Serasa Port")
 mifl_port = Port.find_by!(port_name: "Muara International Fish Landing (MIFL)")
@@ -35,7 +35,7 @@ FISHERMAN_CATEGORY_BY_REGISTRATION_TYPE = {
 
 # --- Manifest 1: Commercial, full lifecycle through to completed -----------------------------------
 vessel1 = commercial_profile.companies_vessels.approved.find_by!(boat_number: "BSB-1001")
-captain1 = commercial_profile.companies_crews.approved.find_by!(ic_number: "00567890")
+captain1 = commercial_profile.companies_crews.approved.find_by!(ic_number: "01-567890")
 
 manifest1 = Manifest.find_or_create_by!(manifest_number: "DOF-SEED-0001") do |m|
   m.company_profile = commercial_profile
@@ -58,13 +58,13 @@ manifest1 = Manifest.find_or_create_by!(manifest_number: "DOF-SEED-0001") do |m|
 end
 
 if manifest1.crew_manifests.none?
-  crew1 = commercial_profile.companies_crews.approved.find_by!(ic_number: "00789012")
+  crew1 = commercial_profile.companies_crews.approved.find_by!(ic_number: "01-789012")
   manifest1.crew_manifests.create!(companies_crew: crew1, crew_name: crew1.crew_name, ic_number: crew1.ic_number,
                                    passport_number: crew1.passport_number, date_of_birth: crew1.date_of_birth,
-                                   position: crew1.position, nationality: crew1.nationality)
+                                   position: crew1.position.name, nationality: crew1.nationality)
   # Ad-hoc crew entry not tied to any CompaniesCrew roster row — CrewManifest#companies_crew is
   # optional for exactly this case (see Manifests::SetCrew).
-  manifest1.crew_manifests.create!(crew_name: "Amir bin Zainal", ic_number: "01123456", position: "Deckhand",
+  manifest1.crew_manifests.create!(crew_name: "Amir bin Zainal", ic_number: "01-123456", position: "Deckhand",
                                    nationality: "Bruneian", date_of_birth: Date.new(1997, 8, 19))
 end
 
@@ -124,10 +124,10 @@ manifest2 = Manifest.find_or_create_by!(manifest_number: "DOF-SEED-0002") do |m|
 end
 
 if manifest2.crew_manifests.none?
-  crew2 = small_scale_company_profile.companies_crews.approved.find_by!(ic_number: "01012345")
+  crew2 = small_scale_company_profile.companies_crews.approved.find_by!(ic_number: "01-112345")
   manifest2.crew_manifests.create!(companies_crew: crew2, crew_name: crew2.crew_name, ic_number: crew2.ic_number,
                                    passport_number: crew2.passport_number, date_of_birth: crew2.date_of_birth,
-                                   position: crew2.position, nationality: crew2.nationality)
+                                   position: crew2.position.name, nationality: crew2.nationality)
 end
 
 # Small-scale skips Jetty Manager approval at port-out — submit_port_out! jumps straight to :submitted.
@@ -189,10 +189,10 @@ manifest4 = Manifest.find_or_create_by!(manifest_number: "DOF-SEED-0004") do |m|
 end
 
 if manifest4.crew_manifests.none?
-  crew_aliff = commercial_profile.companies_crews.approved.find_by!(ic_number: "00890123")
+  crew_aliff = commercial_profile.companies_crews.approved.find_by!(ic_number: "01-890123")
   manifest4.crew_manifests.create!(companies_crew: crew_aliff, crew_name: crew_aliff.crew_name,
                                    ic_number: crew_aliff.ic_number, passport_number: crew_aliff.passport_number,
-                                   date_of_birth: crew_aliff.date_of_birth, position: crew_aliff.position,
+                                   date_of_birth: crew_aliff.date_of_birth, position: crew_aliff.position.name,
                                    nationality: crew_aliff.nationality)
 end
 
@@ -218,10 +218,10 @@ manifest5 = Manifest.find_or_create_by!(manifest_number: "DOF-SEED-0005") do |m|
 end
 
 if manifest5.crew_manifests.none?
-  crew_aliff = commercial_profile.companies_crews.approved.find_by!(ic_number: "00890123")
+  crew_aliff = commercial_profile.companies_crews.approved.find_by!(ic_number: "01-890123")
   manifest5.crew_manifests.create!(companies_crew: crew_aliff, crew_name: crew_aliff.crew_name,
                                    ic_number: crew_aliff.ic_number, passport_number: crew_aliff.passport_number,
-                                   date_of_birth: crew_aliff.date_of_birth, position: crew_aliff.position,
+                                   date_of_birth: crew_aliff.date_of_birth, position: crew_aliff.position.name,
                                    nationality: crew_aliff.nationality)
 end
 
@@ -252,10 +252,10 @@ manifest6 = Manifest.find_or_create_by!(manifest_number: "DOF-SEED-0006") do |m|
 end
 
 if manifest6.crew_manifests.none?
-  crew_jefri = commercial_profile.companies_crews.approved.find_by!(ic_number: "00789012")
+  crew_jefri = commercial_profile.companies_crews.approved.find_by!(ic_number: "01-789012")
   manifest6.crew_manifests.create!(companies_crew: crew_jefri, crew_name: crew_jefri.crew_name,
                                    ic_number: crew_jefri.ic_number, passport_number: crew_jefri.passport_number,
-                                   date_of_birth: crew_jefri.date_of_birth, position: crew_jefri.position,
+                                   date_of_birth: crew_jefri.date_of_birth, position: crew_jefri.position.name,
                                    nationality: crew_jefri.nationality)
 end
 
@@ -312,10 +312,10 @@ manifest7 = Manifest.find_or_create_by!(manifest_number: "DOF-SEED-0007") do |m|
 end
 
 if manifest7.crew_manifests.none?
-  crew_jefri = commercial_profile.companies_crews.approved.find_by!(ic_number: "00789012")
+  crew_jefri = commercial_profile.companies_crews.approved.find_by!(ic_number: "01-789012")
   manifest7.crew_manifests.create!(companies_crew: crew_jefri, crew_name: crew_jefri.crew_name,
                                    ic_number: crew_jefri.ic_number, passport_number: crew_jefri.passport_number,
-                                   date_of_birth: crew_jefri.date_of_birth, position: crew_jefri.position,
+                                   date_of_birth: crew_jefri.date_of_birth, position: crew_jefri.position.name,
                                    nationality: crew_jefri.nationality)
 end
 
@@ -367,10 +367,10 @@ manifest8 = Manifest.find_or_create_by!(manifest_number: "DOF-SEED-0008") do |m|
 end
 
 if manifest8.crew_manifests.none?
-  crew_hafiz = small_scale_company_profile.companies_crews.approved.find_by!(ic_number: "01012345")
+  crew_hafiz = small_scale_company_profile.companies_crews.approved.find_by!(ic_number: "01-112345")
   manifest8.crew_manifests.create!(companies_crew: crew_hafiz, crew_name: crew_hafiz.crew_name,
                                    ic_number: crew_hafiz.ic_number, passport_number: crew_hafiz.passport_number,
-                                   date_of_birth: crew_hafiz.date_of_birth, position: crew_hafiz.position,
+                                   date_of_birth: crew_hafiz.date_of_birth, position: crew_hafiz.position.name,
                                    nationality: crew_hafiz.nationality)
 end
 
@@ -440,10 +440,10 @@ manifest10 = Manifest.find_or_create_by!(manifest_number: "DOF-SEED-0010") do |m
 end
 
 if manifest10.crew_manifests.none?
-  crew_jefri = commercial_profile.companies_crews.approved.find_by!(ic_number: "00789012")
+  crew_jefri = commercial_profile.companies_crews.approved.find_by!(ic_number: "01-789012")
   manifest10.crew_manifests.create!(companies_crew: crew_jefri, crew_name: crew_jefri.crew_name,
                                     ic_number: crew_jefri.ic_number, passport_number: crew_jefri.passport_number,
-                                    date_of_birth: crew_jefri.date_of_birth, position: crew_jefri.position,
+                                    date_of_birth: crew_jefri.date_of_birth, position: crew_jefri.position.name,
                                     nationality: crew_jefri.nationality)
 end
 

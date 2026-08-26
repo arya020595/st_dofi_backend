@@ -1,5 +1,5 @@
 class NationalityBlueprint < Blueprinter::Base
   identifier :id
 
-  fields :name, :code, :created_at, :updated_at
+  fields :name, :code, :is_local_citizenship, :created_at, :updated_at
 end
