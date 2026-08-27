@@ -1,5 +1,6 @@
 jetty_manager_role = Role.find_by!(kind: Role::JETTY_MANAGER)
 default_password = ENV.fetch("ADMIN_DEFAULT_PASSWORD", "ChangeMe123!")
+dofi_officer = User.find_by(role: Role.find_by(kind: Role::DOFI_OFFICER))
 
 # Matched to the Owner/Admin CompanyProfileContact rows from company_profiles.rb by ic_number so
 # these accounts are ready to log in via mock BruneiID without Fisherman self-registration.
@@ -32,12 +33,86 @@ FISHERMAN_USERS.each do |attrs|
     user.fisherman_status = "active"
     user.provisioning_source = Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE
     user.approved_at = seeded_at
-    user.approved_by = User.find_by(role: Role.find_by(kind: Role::DOFI_OFFICER))
+    user.approved_by = dofi_officer
     user.claimed_at = seeded_at
     user.preferred_locale = "en"
     user.brunei_id_verified_at = seeded_at
     user.password = default_password
     user.password_confirmation = default_password
+  end
+end
+
+def pending_review_state?(review_state)
+  review_state != :approved
+end
+
+def pending_fisherman_role_for(contact)
+  case contact.designation
+  when "Owner" then Roles::EnsureFishermanOwnerRole.call(contact.company_profile)
+  when "Admin" then Roles::EnsureFishermanAdminRole.call(contact.company_profile)
+  end
+end
+
+def active_fisherman_user?(user)
+  user.persisted? && user.fisherman_status == "active"
+end
+
+def pending_profile_identity_attributes(contact, role)
+  {
+    name: contact.full_name,
+    role: role,
+    registration_type: contact.company_profile.registration_type,
+    company_profile: contact.company_profile,
+    company_profile_contact: contact,
+    designation: contact.designation
+  }
+end
+
+def pending_profile_status_attributes
+  {
+    status: "active",
+    fisherman_status: "pending_approval",
+    provisioning_source: Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE,
+    approved_at: nil,
+    approved_by: nil,
+    claimed_at: nil,
+    preferred_locale: "en",
+    brunei_id_verified_at: nil
+  }
+end
+
+def pending_profile_user_attributes(contact, role)
+  pending_profile_identity_attributes(contact, role).merge(pending_profile_status_attributes)
+end
+
+def assign_seed_password!(user, default_password)
+  return unless user.new_record?
+
+  user.password = default_password
+  user.password_confirmation = default_password
+end
+
+def seed_pending_profile_contact_user!(contact, default_password)
+  role = pending_fisherman_role_for(contact)
+  return if role.blank?
+
+  role.permissions = Permission.assignable_to(Role::FISHERMAN_PLATFORM)
+  user = User.find_or_initialize_by(ic_number: contact.ic_no)
+  return if active_fisherman_user?(user)
+
+  user.assign_attributes(pending_profile_user_attributes(contact, role))
+  assign_seed_password!(user, default_password)
+  user.save!
+end
+
+SEED_COMPANY_PROFILES.select { |definition| pending_review_state?(definition[:review_state]) }.each do |definition|
+  profile = CompanyProfile.find_by!(
+    registration_type: definition[:registration_type],
+    fisherman_card_no: definition[:fisherman_card_no]
+  )
+
+  profile.contacts.kept.find_each do |contact|
+    seed_pending_profile_contact_user!(contact, default_password)
   end
 end
 
