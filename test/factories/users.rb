@@ -75,20 +75,14 @@ end
 # Indexes
 #
 #  index_users_on_company_profile_contact_id              (company_profile_contact_id)
-#  index_users_on_company_profile_contact_id_kept_unique  (company_profile_contact_id)
-#                                                          UNIQUE WHERE
-#                                                          ((company_profile_contact_id IS NOT NULL) AND
-#                                                          (discarded_at IS NULL))
+#  index_users_on_company_profile_contact_id_kept_unique  (company_profile_contact_id) UNIQUE WHERE ((company_profile_contact_id IS NOT NULL) AND (discarded_at IS NULL))
 #  index_users_on_company_profile_id                      (company_profile_id)
 #  index_users_on_discarded_at                            (discarded_at)
 #  index_users_on_email                                   (email) UNIQUE WHERE ((email)::text <> ''::text)
 #  index_users_on_employee_id                             (employee_id) UNIQUE
 #  index_users_on_ic_number                               (ic_number)
 #  index_users_on_jti                                     (jti) UNIQUE
-#  index_users_on_normalized_ic_number_kept_unique        (normalized_ic_number)
-#                                                          UNIQUE WHERE
-#                                                          ((normalized_ic_number IS NOT NULL) AND
-#                                                          (discarded_at IS NULL))
+#  index_users_on_normalized_ic_number_kept_unique        (normalized_ic_number) UNIQUE WHERE ((normalized_ic_number IS NOT NULL) AND (discarded_at IS NULL))
 #  index_users_on_reset_password_token                    (reset_password_token) UNIQUE
 #  index_users_on_revocation_remark_id                    (revocation_remark_id)
 #  index_users_on_revoked_by_id                           (revoked_by_id)
