@@ -2,7 +2,7 @@ class CompanyProfile < ApplicationRecord
   include Discard::Model
 
   # Small-Scale (Full-Time) and (Part-Time) profiles are still officer-profiled via
-  # POST /api/v1/admin/company_profiles like any other type (see Users::RegisterFisherman) — they just
+  # POST /api/v1/admin/company_profiles like any other type — they just
   # represent one person rather than a company, so they're profiled with only an Owner
   # CompanyProfileContact (the fisherman themselves) and no company-shape fields. Company-shape
   # fields (company_name, worker_quota, district, fisherman_card_no, ...) stay optional for these

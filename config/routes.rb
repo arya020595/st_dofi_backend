@@ -30,8 +30,6 @@ Rails.application.routes.draw do
 
       namespace :registrations do
         resource :jetty_manager, only: %i[create], controller: "jetty_managers"
-        resource :fisherman, only: %i[create], controller: "fishermen"
-        post "fisherman/company_profile_lookup", to: "company_profile_lookups#create"
         get "status", to: "status#show"
       end
 
@@ -72,6 +70,9 @@ Rails.application.routes.draw do
             member do
               post :approve
               post :reject
+              post :deactivate
+              post :reactivate
+              post :revoke
             end
           end
 
@@ -79,6 +80,9 @@ Rails.application.routes.draw do
             member do
               post :approve
               post :reject
+              post :deactivate
+              post :reactivate
+              post :revoke
             end
           end
 
@@ -228,7 +232,7 @@ Rails.application.routes.draw do
         resources :captains, only: %i[index]
         resources :crews, only: %i[index]
         resources :dictionaries, only: %i[index]
-        resources :company_profiles, only: %i[index show create update destroy],
+        resources :company_profiles, only: %i[index show update destroy],
                                      controller: "/api/v1/company_profiles" do
           resources :contacts, only: %i[create update destroy], controller: "/api/v1/company_profiles/contacts"
           resources :vessels, controller: "/api/v1/company_profiles/vessels" do

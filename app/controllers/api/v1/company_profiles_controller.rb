@@ -21,11 +21,13 @@ module Api
       def create
         authorize CompanyProfile
 
-        case ::CompanyProfiles::Create.call(create_params)
+        case ::CompanyProfiles::Create.call(create_params, created_by: current_user)
         in Success(result)
           render json: { status: "success", data: create_response_data(result) }, status: :created
-        in Failure(profile)
+        in Failure(profile) if profile.respond_to?(:errors)
           render json: { status: "fail", errors: profile.errors.full_messages }, status: :unprocessable_content
+        in Failure(reason)
+          render json: { status: "fail", errors: [reason.to_s.humanize] }, status: :unprocessable_content
         end
       end
 
@@ -56,7 +58,9 @@ module Api
       def create_response_data(result)
         { company_profile: CompanyProfileDetailBlueprint.render_as_hash(result.company_profile),
           owner_profile: CompanyProfileContactBlueprint.render_as_hash(result.owner),
-          admin_profile: result.admin && CompanyProfileContactBlueprint.render_as_hash(result.admin) }
+          admin_profile: result.admin && CompanyProfileContactBlueprint.render_as_hash(result.admin),
+          owner_user: UserBlueprint.render_as_hash(result.owner_user),
+          admin_user: result.admin_user && UserBlueprint.render_as_hash(result.admin_user) }
       end
 
       def set_company_profile

@@ -13,15 +13,16 @@ get an account, who approves what, and why were the non-obvious decisions made t
 |---|---|---|---|
 | **DoFi Officer / Administrator** | `kind: "DoFi Officer"` | Created by another officer via **User Management → Add User** (internal, authenticated) | `username` + password (real credential check) |
 | **Jetty Manager** | `kind: "Jetty Manager"` | Self-registers via the public registration form (BruneiID-verified) | BruneiID QR re-scan (mocked today) |
-| **Fisherman** | `platform_scope: "fisherman"` — a per-*company* "Owner" role, not a single global row (see §2) | Self-registers via the public registration form (BruneiID-verified), one of 3 sub-types | BruneiID QR re-scan (mocked today) |
+| **Fisherman** | `platform_scope: "fisherman"` — company-scoped Owner/Admin/custom roles (see §2) | Provisioned before first login by DoFI Company Profiling or Fisherman Owner User Management | BruneiID QR claim/login (mocked today) |
 
 **The one thing that explains most of this system's design**: officers are an *internal, trusted*
 population managed by other officers, so they get a real credential (`username`/password) chosen by
-the system, no external identity check. Jetty Managers and Fishermen are an *external, self-service*
-population whose identity is established once, externally, by BruneiID at registration time — so
-they never set a password at all, and "logging in" later is just re-proving the same BruneiID
-identity, not a fresh credential check. Every other decision below (no email requirement, no manual
-passwords, why User Management needed its own password story) follows from this split.
+the system, no external identity check. Jetty Managers remain an external QR-first population that
+can self-register when no account exists. Fishermen are also BruneiID-authenticated, but they are no
+longer self-service for account creation: a Fisherman `User` must already be provisioned before the
+first QR scan can claim/login. Every other decision below (no email requirement, no manual
+passwords, separate lifecycle fields, and no Fisherman registration fallback) follows from this
+split.
 
 ---
 
@@ -71,16 +72,17 @@ answer different questions on purpose:
   usable by both platforms (e.g. `manifest_form.create`) — `Role`s don't get a "shared" option
   because a role's own platform is never ambiguous, only which permissions it's allowed to hold are.
 
-**There is no single global `Role` row for "Fisherman" anymore.** Each company gets its own
+**There is no single global `Role` row for "Fisherman".** Each company gets its own
 `platform_scope: "fisherman"` roles, scoped by `company_profile_id`:
 
-- The first person to self-register for a company triggers `Roles::EnsureFishermanOwnerRole`, which
-  `find_or_create_by!`s a role keyed on `(company_profile_id, is_default: true)` — named "Owner",
-  granted every fisherman-platform permission on first creation only. Every subsequent teammate who
-  registers for the same company reuses that same row; the lookup is idempotent and does **not** key
-  on `name`, specifically so the company renaming their Owner role later (via the fisherman-side
-  Roles UI) can't cause a second "default" role to be silently created — the exact same class of bug
-  the `reference_id` incident in §9 caused with a different column.
+- DoFI Company Profiling provisions the company's system-managed Owner/Admin users. Owner contacts
+  derive the company's default Owner role via `Roles::EnsureFishermanOwnerRole`; Admin contacts
+  derive the company's default Admin role via `Roles::EnsureFishermanAdminRole`. These users start
+  with `fisherman_status: "pending_approval"` because the provisioning source is
+  `dofi_company_profile`.
+- Fisherman Owner User Management provisions teammates using an explicit custom role from the same
+  company. These users start with `fisherman_status: "claimable"` because the provisioning
+  source is `fisherman_owner`. The Owner role cannot be assigned through Fisherman User Management.
 - A company can also create additional custom fisherman-platform roles for its teammates via
   `POST /api/v1/fisherman/roles` (`Fisherman::RolesController`) — `platform_scope: "fisherman"` and
   `company_profile_id` are always forced from the acting user server-side (`Roles::Create`/`Update`),
@@ -89,13 +91,15 @@ answer different questions on purpose:
   gate `show`/`update`/`destroy` on the record actually belonging to the caller's own company —
   reaching for another company's role/user id 404s (via `policy_scope(...).find`, not a raw `find` +
   `authorize`), the same as a nonexistent id, rather than 403ing in a way that would confirm the id
-  exists at all.
-- Exactly one `is_default: true` role per `company_profile_id` is a DB-level guarantee (a partial
-  unique index on `roles.company_profile_id where is_default = true`), not just an application-level
-  convention — `RolePolicy#destroy?` additionally refuses to let that default Owner role be deleted.
+  exists at all. Custom role names `Owner` and `Admin` are reserved case-insensitively, so system
+  role names cannot be recreated as custom roles.
+- Exactly one `is_default: true` Owner role per `company_profile_id` is a DB-level guarantee (a
+  partial unique index on `roles.company_profile_id where is_default = true`), not just an
+  application-level convention. A separate `is_default_admin` flag identifies the system Admin role.
+  System Owner/Admin roles cannot be renamed or deleted through Fisherman Role Management.
 - `Role#external?`/`Role.external` (`kind == JETTY_MANAGER || fisherman_platform?`) marks every role
-  that only ever comes from self-registration — replaces what used to be a `Role::EXTERNAL_KINDS`
-  constant back when Fisherman was still a single `kind`. `Users::Create` (the admin "Add User"
+  that is external to officer username/password creation — replaces what used to be a
+  `Role::EXTERNAL_KINDS` constant back when Fisherman was still a single `kind`. `Users::Create` (the admin "Add User"
   endpoint) rejects any `role_id` whose role is `external?` via `Role.assignable_by_admin` — the admin
   portal can create DoFi Officers and any future custom (non-external) internal role, but never a
   Jetty Manager or Fisherman account. `Role.assignable_by_fisherman(company_profile_id)` is the
@@ -142,7 +146,7 @@ stateDiagram-v2
     [*] --> pending: Self-register (BruneiID-verified)\nname, ic_number, unit, position, contact_no
     pending --> active: Officer approves
     pending --> rejected: Officer rejects (+ remark)
-    active --> inactive: Officer deactivates
+    active --> inactive: Officer deactivates/revokes access
     active --> suspended: Officer suspends
     inactive --> active: Officer reactivates
     suspended --> active: Officer reactivates
@@ -159,33 +163,94 @@ know it, since login is BruneiID re-scan, not this password.
 
 ## 5. Fisherman lifecycle
 
-Same `pending → active/rejected` shape as Jetty Manager, but registration branches on
-`registration_type`:
+Fisherman uses a separate lifecycle field, `users.fisherman_status`, so Flow B cannot accidentally
+reuse Jetty Manager's `users.status` semantics.
 
-| Registration Type | Needs a matching `CompanyProfile`? | `designation` |
+```mermaid
+stateDiagram-v2
+    [*] --> pending_approval: DoFI Company Profile provisioning
+    [*] --> claimable: Fisherman Owner User Management provisioning
+    pending_approval --> claimable: DoFI approves
+    pending_approval --> revoked: DoFI rejects
+    claimable --> active: QR + BruneiID claim
+    active --> suspended: administrative suspension
+    suspended --> active: administrative reactivation
+    claimable --> revoked: revoke/replacement
+    active --> revoked: revoke/replacement
+    suspended --> revoked: revoke/replacement
+```
+
+Provisioning source determines the initial state:
+
+| Source | Initial state | Approval |
 |---|---|---|
-| `"Commercial"` | Yes — IC must match a pre-profiled company (§6) | Server-derived from the matched profile |
-| `"Small-Scale (Company)"` | Yes — same as above | Server-derived from the matched profile |
-| `"Small - Scale (Full-Time)"` | Yes — IC must match a pre-profiled individual profile (§6), where the fisherman is their own Owner contact | Server-derived from the matched profile |
+| `dofi_company_profile` | `pending_approval` | DoFI approval required |
+| `fisherman_owner` | `claimable` | No DoFI approval; custom-role teammates only |
 
-**Why `designation` is server-derived, not client-submitted, for every registration type**: the
-officer already recorded, during Profiling (§6), which specific person is the Owner and which is the
-Admin of a given company (or, for Small - Scale (Full-Time), that the fisherman is their own Owner).
-If the registering fisherman could just *claim* "Owner" on the register form, that claim would never
-be checked against what the officer actually profiled. Matching by `ic_number` against the
-pre-created `CompanyProfile`'s contact and copying *that* row's `designation` closes this gap — the
-registrant can't self-declare a designation.
+QR + BruneiID verification is shared infrastructure, but identity resolution is audience-aware.
+Fisherman QR resolves only eligible Fisherman accounts and never falls through to Jetty Manager
+registration or CompanyProfileContact lookup. Jetty Manager QR resolves only users with the system
+Jetty Manager role; if none exists, the existing Jetty Manager registration flow may open.
 
----
+Unknown Fisherman IC is terminal:
 
-## 6. Officer Profiling — the prerequisite step for every fisherman
+```text
+No Fisherman account has been provisioned for this IC number. Please contact DoFI or your company administrator.
+```
 
-Before any fisherman — Commercial, Small-Scale (Company), or Small - Scale (Full-Time) — can
-self-register, an officer must have already profiled them. For the first two, that means their
-company; for Small - Scale (Full-Time), the fisherman is profiled as their own Owner contact on a
-`CompanyProfile` with `registration_type: "Small - Scale (Full-Time)"` and every company-shape
-field (company_name, worker_quota, ...) left blank — `CompanyProfile#individual?` makes those
-fields optional for that one registration_type, nothing else about the flow changes.
+There is no Fisherman registration redirect, no `Users::RegisterFisherman`, and no
+`CompanyProfileContact` authentication fallback in Flow B.
+
+`normalized_ic_number` is globally unique across all kept `users` rows. This is not per company,
+platform, or role: the same normalized IC cannot belong to both a Fisherman and a Jetty Manager.
+Application-level checks catch normal conflicts; the kept-row unique index remains the final
+authority and `ActiveRecord::RecordNotUnique` is converted back into deterministic domain conflict
+symbols.
+
+### Owner/Admin governance
+
+Fisherman companies have system-managed Owner/Admin roles:
+
+- Owner is the company superadmin.
+- Admin has high company permissions but cannot govern Owner accounts.
+- Fisherman User Management may manage custom-role users, not system-managed Owner/Admin users.
+- Owner governance belongs to DoFI Company Profiling.
+
+The domain separates three concepts:
+
+```text
+Owner role != current Owner assignment != actual Fisherman access
+```
+
+`has_fisherman_owner_role?` identifies historical/current Owner role assignment.
+`occupies_fisherman_owner_slot?` identifies the current Owner slot occupant using an allowlist:
+
+```text
+pending_approval
+claimable
+active
+suspended
+```
+
+`current_fisherman_owner?` is the authorization predicate and is true only for an active current
+Owner. A suspended Owner still occupies the Owner slot, so another Owner cannot be provisioned until
+DoFI revokes/replaces that assignment. A revoked Owner remains kept for audit but no longer occupies
+the slot.
+
+## 6. Officer Profiling - Source A provisioning
+
+Company Profiling is now the prerequisite provisioning step for DoFI-created Fisherman Owner/Admin
+users. Creating a Company Profile creates:
+
+- one `CompanyProfile` row;
+- one required Owner `CompanyProfileContact`;
+- one optional Admin `CompanyProfileContact`;
+- one provisioned Owner `User`;
+- one provisioned Admin `User` when an Admin contact is submitted.
+
+For Small - Scale (Full-Time), the fisherman is profiled as their own Owner contact on a
+`CompanyProfile` with `registration_type: "Small - Scale (Full-Time)"`; company-shape fields
+remain optional through `CompanyProfile#individual?`.
 
 `CompanyProfile` and its sub-resources are dual-mounted — the same controllers, reachable at
 `/api/v1/admin/company_profiles/...` (DoFi Officer, Jetty Manager) and
@@ -208,11 +273,17 @@ sequenceDiagram
     API->>DB: New CompanyProfileContact row on the existing CompanyProfile
     DB-->>API: contact
 
-    Note over Officer: Later still — the actual Owner (or Admin) self-registers
+    Note over Officer: During create — Owner/Admin Users are provisioned
+    API->>DB: Fisherman::ProvisionUser for Owner contact
+    API->>DB: Fisherman::ProvisionUser for Admin contact if submitted
+    DB-->>API: owner_user/admin_user with fisherman_status: pending_approval
+
+    Note over Fisherman: Later — QR + BruneiID claims an approved provisioned user
     participant Fisherman
-    Fisherman->>API: POST /api/v1/registrations/fisherman {ic_number, registration_type: "Commercial", ...}
-    API->>DB: CompanyProfileContact.kept.find_by!(ic_no: ic_number)
-    DB-->>API: matched contact → designation copied from it, company_profile_id + company_profile_contact_id linked
+    Fisherman->>API: POST /api/v1/auth/brunei_id or /auth/brunei_id/callback
+    API->>DB: lookup kept Fisherman User by normalized_ic_number
+    DB-->>API: claimable user
+    API->>DB: Fisherman::ClaimAccount -> fisherman_status: active
 ```
 
 `CompanyProfile` is one row per **company**; `CompanyProfileContact` is one row per **person**
@@ -225,11 +296,9 @@ one transaction (`CompanyProfiles::Destroy`); removing a single contact without 
 is `DELETE /api/v1/admin/company_profiles/:company_profile_id/contacts/:id`.
 
 The list endpoint (`GET /api/v1/admin/company_profiles`, searchable by company name/ROCBN No.) exists
-specifically so the FE's "Select & Search Company" flow can find an existing company when profiling a
-second person — that's now the real `POST .../contacts` call above, not a resubmission through
-`create` (which previously duplicated the Owner every time). `index` and `show` both render one entry
-per company, with `owner_profile`/`admin_profile` nested from `CompanyProfile#owner_contact`/
-`#admin_contact`.
+so the FE's "Select & Search Company" flow can find an existing company when profiling a second
+person. `index` and `show` both render one entry per company, with `owner_profile`/`admin_profile`
+nested from `CompanyProfile#owner_contact`/`#admin_contact`.
 
 **Migration note**: this replaced an earlier design where `CompanyProfile` held both company- and
 person-level fields directly (one row per person, Owner+Admin linked only by matching `rocbn_no` +
@@ -239,33 +308,44 @@ migration for how existing data was reconciled.
 
 ---
 
-## 7. FINS Approval — the shared approve/reject engine
+## 7. FINS Approval
 
-One workflow, two queues (Fisherman, Jetty Manager) — same shape for both:
+FINS Approval is a governance module, not a generic registration fallback. It has Fisherman,
+Jetty Manager, and Approval Remarks submodules, but the two user audiences still transition
+different lifecycle fields.
 
-- **List/Show**: officer sees `pending`-and-beyond registrations for that actor type
-  (`fisherman_approvals.list/.view` or `jetty_manager_approvals.list/.view`).
-- **Approve** (`*_approvals.approve`): `pending → active`. No reason needed.
-- **Reject** (`*_approvals.approve` — same permission code, rejecting is still "acting on an
-  approval queue"): `pending → rejected`, requires an `approval_remark_id` from the **Approval
-  Remarks** master-data list (`"Incomplete account information"`, `"Information mismatch"`, ...) —
-  copied onto the user's `rejection_reason` so the FE can show *why* without a free-text field the
-  officer has to type every time.
-- Both queues run through the same `AASM` state machine on `User` (§4's diagram) — `approve!`/
-  `reject!` are the same two events regardless of which actor type is being reviewed; only the
-  *scope* (which role's users show up in which queue) differs, via `FishermanApprovalPolicy::Scope`
-  / `JettyManagerApprovalPolicy::Scope`.
+- **Fisherman List/Show**: officer sees Company Profiling-provisioned Owner/Admin users only
+  (`provisioning_source: dofi_company_profile`, system-managed Owner/Admin role).
+- **Jetty Manager List/Show**: officer sees kept users with the system Jetty Manager role
+  (`jetty_manager_approvals.list/.view`).
+- **Fisherman approve/reject** uses `users.fisherman_status`: `pending_approval -> claimable` or
+  `pending_approval -> revoked`. Approval makes the user `claimable`; QR + BruneiID claim is still
+  required before access becomes `active`.
+- **Jetty Manager approve/reject** keeps using `users.status`: `pending -> active` or
+  `pending -> rejected`. Approval directly allows login.
+- **Deactivate/reactivate/revoke** are explicit FINS actions with separate permission codes.
+  Fisherman deactivate/reactivate uses `active <-> suspended`; Fisherman revoke moves
+  `claimable/active/suspended -> revoked`. Jetty deactivate uses `active/suspended -> inactive`,
+  reactivation restores `inactive/suspended -> active` unless revocation metadata is present, and
+  revoke stores revocation metadata while leaving Jetty on the existing `users.status` lifecycle.
+- Reject uses rejection audit/remark and does not set `revoked_at`. Revoke sets `revoked_at`,
+  `revoked_by_id`, `revocation_remark_id`, and `revocation_comment`.
+- Reject/revoke require an applicable kept `approval_remark_id` from **Approval Remarks**.
+- Security-sensitive FINS services lock the user row, recheck target and lifecycle eligibility
+  inside the lock, transition lifecycle state, and audit actor/reason. Owner rejection/revocation
+  releases the current Owner slot atomically; suspended Owner still occupies the slot.
 
 ---
 
 ## 8. Login: two genuinely different mechanisms
 
-| | DoFi Officer / Administrator | Jetty Manager / Fisherman |
-|---|---|---|
-| Endpoint | `POST /api/v1/auth/sign_in` | `POST /api/v1/auth/brunei_id` |
-| Credential | `username` + real password | `ic_number` only (BruneiID-verified externally) |
-| Gates on status? | No (Devise handles active-session concerns separately) | Yes — only `active` gets a token; `pending`/`rejected` get the same status payload as the registration-status check, so the FE reuses its existing status screens |
-| Today's implementation | Real (`encrypted_password` check via Devise) | **Mock** — trusts the given `ic_number` as pre-verified, same trust boundary registration itself already relies on |
+| | DoFi Officer / Administrator | Jetty Manager | Fisherman |
+|---|---|---|---|
+| Endpoint | `POST /api/v1/auth/sign_in` | `POST /api/v1/auth/brunei_id` or callback | `POST /api/v1/auth/brunei_id` or callback |
+| Credential | `username` + real password | `ic_number` only (BruneiID-verified externally) | `ic_number` only (BruneiID-verified externally) |
+| Lifecycle gate | Devise credential success | `users.status` | `users.fisherman_status` |
+| Missing IC behavior | N/A | registration is allowed only after Jetty-scoped lookup misses | terminal no-provisioned-account response |
+| Today's implementation | Real (`encrypted_password` check via Devise) | Mock/callback plumbing | Mock/callback plumbing plus claim for `claimable` users |
 
 The mock exists behind one small class (`app/services/brunei_id/client.rb`) specifically so swapping
 in a real BruneiID integration later only touches that one file, not every place that currently calls

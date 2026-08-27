@@ -26,20 +26,16 @@ module Api
         def create
           authorize User
 
-          case Users::Create.call(create_params, assignable_roles: assignable_roles, require_role: true)
-          in Success(user)
-            data = UserBlueprint.render_as_hash(user)
-            data = data.merge(temporary_password: user.password) if create_params[:password].blank?
-            render json: { status: "success", data: data }, status: :created
-          in Failure(user)
-            render json: { status: "fail", errors: user.errors.full_messages }, status: :unprocessable_content
-          end
+          role = role_for_create
+          return render_unassignable_role if user_params[:role_id].present? && role.nil?
+
+          render_provision_result(provision_user(role))
         end
 
         def update
           authorize @user
 
-          case Users::Update.call(@user, user_params, assignable_roles: assignable_roles)
+          case Users::Update.call(@user, user_params, assignable_roles: assignable_roles, actor: current_user)
           in Success(user)
             render json: { status: "success", data: UserBlueprint.render_as_hash(user) }
           in Failure(user)
@@ -65,8 +61,33 @@ module Api
 
         def assignable_roles = Role.assignable_by_fisherman(current_user.company_profile_id)
 
-        def create_params
-          user_params.merge(company_profile: current_user.company_profile)
+        def role_for_create = assignable_roles.find_by(id: user_params[:role_id])
+
+        def render_unassignable_role
+          render json: { status: "fail", errors: ["Role is not a role available to you"] },
+                 status: :unprocessable_content
+        end
+
+        def render_provision_result(result)
+          case result
+          in Success(user)
+            render json: { status: "success", data: UserBlueprint.render_as_hash(user) }, status: :created
+          in Failure(user) if user.respond_to?(:errors)
+            render json: { status: "fail", errors: user.errors.full_messages }, status: :unprocessable_content
+          in Failure(reason)
+            render json: { status: "fail", errors: [reason.to_s.humanize] }, status: :unprocessable_content
+          end
+        end
+
+        def provision_user(role)
+          ::Fisherman::ProvisionUser.call(
+            company_profile: current_user.company_profile,
+            provisioning_source: ::Fisherman::ProvisionUser::FISHERMAN_OWNER,
+            created_by: current_user,
+            name: user_params[:name],
+            ic_number: user_params[:ic_number],
+            role: role
+          )
         end
 
         def user_params

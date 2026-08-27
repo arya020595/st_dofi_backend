@@ -49,8 +49,9 @@ graph LR
 ```
 
 BruneiID is dashed because it's not a real integration yet — `app/services/brunei_id/client.rb`
-trusts the frontend-supplied IC number as already verified (the same trust boundary
-self-registration already relies on). The `faraday`/`jwt` gems and `BRUNEIID_*` env vars are
+trusts the frontend-supplied IC number as already verified. That is the same verified-IC trust
+boundary used by Jetty Manager registration and Fisherman claim/login; Fisherman account creation
+itself is provision-before-login in Flow B. The `faraday`/`jwt` gems and `BRUNEIID_*` env vars are
 reserved for when it becomes real; the swap only touches that one class. See
 [`docs/registration/business-flow.md`](registration/business-flow.md) §10 for the full mocked-vs-real
 breakdown across the app.
@@ -180,6 +181,40 @@ This is the same shape as the Fisherman/Jetty Manager registration approval queu
 [`docs/registration/business-flow.md`](registration/business-flow.md) §7 — one recurring engine, applied
 independently per resource type via each resource's own policy/service pair rather than one shared
 conditional (Open/Closed — see `CLAUDE.md`'s SOLID section).
+
+### FINS Approval and audience-aware QR
+
+FINS Approval is the DoFI Officer governance module for two user audiences that intentionally keep
+different lifecycle columns:
+
+```mermaid
+graph TB
+    FINS["FINS Approval<br/>DoFI Officer governance"]
+    FISH["Fisherman<br/>Company Profiling Owner/Admin only"]
+    JETTY["Jetty Manager<br/>QR-first registrations"]
+    REMARKS["Approval Remarks<br/>reject/revoke reasons"]
+
+    FINS --> FISH
+    FINS --> JETTY
+    FINS --> REMARKS
+    FISH -->|"users.fisherman_status"| FISHSTATE["pending_approval -> claimable<br/>active/suspended/revoked"]
+    JETTY -->|"users.status"| JETTYSTATE["pending -> active/rejected<br/>inactive/revocation metadata"]
+```
+
+Fisherman FINS targets are kept users with a Fisherman system Owner/Admin role that were provisioned
+from Company Profiling (`provisioning_source: dofi_company_profile`). Fisherman custom-role teammates
+created from Fisherman User Management start `claimable` and never enter FINS. Jetty Manager FINS
+targets are kept users with the system Jetty Manager role and continue to use the existing
+`users.status` lifecycle.
+
+QR + BruneiID is shared infrastructure, but identity resolution is audience-aware:
+
+- Fisherman QR resolves only eligible Fisherman accounts; when no eligible Fisherman account is
+  resolved for the verified IC, registration is never opened.
+- Jetty Manager QR resolves only users with the system Jetty Manager role in the Jetty/admin resource
+  context; when none exists, the existing Jetty Manager registration flow opens.
+- Create/provision/correction paths still enforce global `normalized_ic_number` uniqueness across all
+  kept users. That invariant is not used as a global login router.
 
 ## 4. Domain / entity overview
 

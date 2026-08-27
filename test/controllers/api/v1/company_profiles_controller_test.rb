@@ -2,6 +2,7 @@ require "test_helper"
 
 module Api
   module V1
+    # rubocop:disable Minitest/MultipleAssertions
     class CompanyProfilesControllerTest < ActionDispatch::IntegrationTest
       setup do
         @password = "Password123!"
@@ -81,8 +82,8 @@ module Api
         assert_nil response.parsed_body["data"].first["admin_profile"]
       end
 
-      test "create with only an owner persists one company profile and one contact" do
-        assert_difference({ "CompanyProfile.count" => 1, "CompanyProfileContact.count" => 1 }) do
+      test "create with only an owner persists one company profile, one contact, and one pending user" do
+        assert_difference({ "CompanyProfile.count" => 1, "CompanyProfileContact.count" => 1, "User.count" => 1 }) do
           post "/api/v1/admin/company_profiles", params: valid_params, headers: @admin_headers, as: :json
         end
 
@@ -90,13 +91,14 @@ module Api
 
         assert_equal "Owner Person", data.dig("owner_profile", "full_name")
         assert_nil data["admin_profile"]
+        assert_equal "pending_approval", data.dig("owner_user", "status")
       end
 
-      test "create with both owner and admin persists one company profile and two contacts" do
+      test "create with both owner and admin persists one company profile, two contacts, and two pending users" do
         params = valid_params(admin: { full_name: "Admin Person", gender: "Female", ic_no: "01-700011",
                                        ic_colour: "Green" })
 
-        assert_difference({ "CompanyProfile.count" => 1, "CompanyProfileContact.count" => 2 }) do
+        assert_difference({ "CompanyProfile.count" => 1, "CompanyProfileContact.count" => 2, "User.count" => 2 }) do
           post "/api/v1/admin/company_profiles", params: params, headers: @admin_headers, as: :json
         end
 
@@ -104,6 +106,7 @@ module Api
 
         assert_equal "Admin Person", data.dig("admin_profile", "full_name")
         assert_equal data.dig("company_profile", "id"), data.dig("owner_profile", "company_profile_id")
+        assert_equal "pending_approval", data.dig("admin_user", "status")
       end
 
       test "create without permission is forbidden" do
@@ -113,7 +116,7 @@ module Api
       end
 
       test "create with a missing required field rolls back and returns errors" do
-        assert_no_difference(["CompanyProfile.count", "CompanyProfileContact.count"]) do
+        assert_no_difference(["CompanyProfile.count", "CompanyProfileContact.count", "User.count"]) do
           post "/api/v1/admin/company_profiles", params: valid_params(company_name: ""), headers: @admin_headers,
                                                  as: :json
         end
@@ -140,5 +143,6 @@ module Api
         assert_predicate contact.reload, :discarded?
       end
     end
+    # rubocop:enable Minitest/MultipleAssertions
   end
 end

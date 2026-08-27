@@ -591,32 +591,50 @@ Full source: [`config/routes.rb`](../../config/routes.rb).
 
 ## 5. Request flows
 
-### 5.1 Fisherman self-registration → Owner role created or reused
+### 5.1 Fisherman provisioning before login
 
 ```mermaid
 sequenceDiagram
-    participant F as Fisherman (registrant)
-    participant API as POST /api/v1/registrations/fisherman
-    participant Reg as Users::RegisterFisherman
-    participant Ensure as Roles::EnsureFishermanOwnerRole
+    participant Officer as DoFI Officer
+    participant Profile as Company Profiling
+    participant Provision as Fisherman::ProvisionUser
+    participant Approval as Fisherman Approvals
+    participant BID as QR + BruneiID
     participant DB
 
-    F->>API: ic_number, registration_type, ...
-    API->>Reg: call(attributes)
-    Reg->>DB: find matching CompanyProfileContact by ic_number
-    DB-->>Reg: contact (company_profile, designation)
-    Reg->>Ensure: call(contact.company_profile)
-    Ensure->>DB: find_or_create_by!(company_profile_id:, is_default: true)
-    alt first person to register for this company
-        DB-->>Ensure: created — "Owner", every fisherman-platform permission
-    else company already has an Owner role
-        DB-->>Ensure: existing row returned as-is — never reset
-    end
-    Ensure-->>Reg: role
-    Reg->>DB: User.create!(..., role:, status: "pending")
-    DB-->>API: user
-    API-->>F: 201 Created (pending officer approval)
+    Officer->>Profile: POST /admin/company_profiles with Owner/Admin contacts
+    Profile->>Provision: provisioning_source: dofi_company_profile
+    Provision->>DB: derive Owner/Admin role, global normalized IC check
+    DB-->>Profile: User(fisherman_status: pending_approval)
+    Officer->>Approval: approve
+    Approval->>DB: pending_approval -> claimable
+    BID->>DB: lookup kept Fisherman User by normalized_ic_number
+    BID->>DB: Fisherman::ClaimAccount, claimable -> active
+    DB-->>BID: dashboard token
 ```
+
+Source B uses the same provisioning boundary from Fisherman User Management:
+
+```mermaid
+sequenceDiagram
+    participant Owner as Active Fisherman Owner
+    participant Users as Fisherman::UsersController#create
+    participant Provision as Fisherman::ProvisionUser
+    participant BID as QR + BruneiID
+    participant DB
+
+    Owner->>Users: POST /fisherman/users with custom role_id
+    Users->>Provision: provisioning_source: fisherman_owner
+    Provision->>DB: validate same-company custom Fisherman role, global normalized IC check
+    DB-->>Users: User(fisherman_status: claimable)
+    BID->>DB: Fisherman::ClaimAccount, claimable -> active
+    DB-->>BID: dashboard token
+```
+
+There is no Fisherman self-registration in Flow B. `POST /api/v1/registrations/fisherman`,
+`Users::RegisterFisherman`, and `CompanyProfileContact` authentication fallback are retired runtime
+paths. Missing Fisherman IC stops with the no-provisioned-account response; Jetty Manager missing IC
+still goes to registration.
 
 ### 5.2 A company creates a custom role
 
@@ -727,7 +745,14 @@ mechanism can be checked/tested and an intent can't.
 | Client cannot choose `company_profile_id` on create/update | Same — explicit keyword argument, never in `role_params` | Controller |
 | A user can only be assigned a role from their own assignable set | `Users::RoleAssignmentValidation#role_assignable?` against `Role.assignable_by_admin` / `assignable_by_fisherman(company_profile_id)` | Service |
 | Exactly one `is_default: true` Owner role per company | Partial unique index — `add_index :roles, :company_profile_id, unique: true, where: "is_default = true"` (`db/migrate/20260811110000_add_unique_default_role_per_company.rb`) | Database |
-| The default Owner role can never be deleted | `RolePolicy#destroy?` includes `&& !record.is_default?` | Policy |
+| Exactly one current Owner assignment per company | `Fisherman::Owners::CurrentOwnerQuery` uses `User::FishermanLifecycle::OWNER_SLOT_STATUSES`; Owner-slot mutations serialize through `CompanyProfile.with_lock` | Service |
+| Historical revoked Owner users do not block replacement | `occupies_fisherman_owner_slot?` is false for `fisherman_status: "revoked"` while `has_fisherman_owner_role?` stays true for audit/history | Model + Service |
+| The default Owner/Admin roles cannot be renamed or deleted | `Role#system_managed?` / role policy/service validations reject modifying system-managed Fisherman roles | Model + Policy + Service |
+| Custom roles cannot be named Owner/Admin | `Role` validates reserved Fisherman role names case-insensitively for non-system roles | Model |
+| Fisherman User Management cannot manage Owner users | `UserPolicy` plus `Fisherman::OwnerManagementGuard` block Owner targets and Owner role assignment | Policy + Service |
+| Source A requires approval, Source B does not | `Fisherman::ProvisioningContext` derives `pending_approval` for `dofi_company_profile` and `claimable` for `fisherman_owner` | Service |
+| Normalized IC uniqueness is global across kept users | `users.normalized_ic_number` kept-row unique index; `Fisherman::CheckIcAvailability` checks `User.kept` globally, not per company/platform/role | Model + Database + Service |
+| Provisioning races become domain conflicts | `Fisherman::ProvisionUser` rescues `ActiveRecord::RecordNotUnique`, rechecks normalized IC, and returns deterministic conflict symbols | Service |
 | Reaching for another company's role/user by id never confirms it exists | `policy_scope(...).find` raises `RecordNotFound` (404), not `Pundit::NotAuthorizedError` (403) | Controller + Policy |
 | Role creation/update is atomic — never a saved role with a dropped permission set | `Roles::Create`/`Update` wrap `role.save!` + permission assignment in `ActiveRecord::Base.transaction` | Service |
 
@@ -735,9 +760,9 @@ mechanism can be checked/tested and an intent can't.
 
 ## 7. Business flow — actors & permissions
 
-Focused on *post-registration* role/user management — the self-registration flow itself (how an
-account first comes to exist) is documented in
-[`business-flow.md` §1/§5](../registration/business-flow.md), not repeated here.
+Focused on company-scoped role/user management. Fisherman accounts first come to exist through
+provisioning, not self-registration; see
+[`business-flow.md` §1/§5](../registration/business-flow.md).
 
 ### 7.1 DoFi Officer
 
@@ -749,20 +774,24 @@ endpoint that even queries fisherman-platform rows.
 
 ### 7.2 Company Owner
 
-The user holding a company's `is_default: true` "Owner" role (auto-created on first registration,
-§5.1). By default holds every fisherman-platform permission — including `fisherman_roles.*` and
-`fisherman_users.*` — so they can create custom roles for their company and invite/manage teammates,
-all transparently scoped to their own `company_profile_id` server-side. Cannot reach another
-company's roles/users (404, §5.4) and cannot reach any dofi_officer-platform resource
-(403 via `RequireAudience` before Pundit is even consulted).
+An active user holding the company's current `is_default: true` "Owner" role. By default holds every
+fisherman-platform permission — including `fisherman_roles.*` and `fisherman_users.*` — so they can
+create custom roles for their company and invite/manage custom-role teammates, all scoped to
+their own `company_profile_id` server-side. They cannot create, assign, revoke, delete, disable, or
+change Owner accounts through Fisherman User Management. Owner governance belongs to DoFI Company
+Profiling. Cannot reach another company's roles/users (404, §5.4) and cannot reach any
+dofi_officer-platform resource (403 via `RequireAudience` before Pundit is even consulted).
 
 ### 7.3 Company Teammate
 
-A user assigned to one of the company's *custom* (non-default) roles by the Owner (or another
-teammate who holds `fisherman_users.update`). Their permissions are exactly whatever that custom role
-was granted — anywhere from full `fisherman_roles`/`fisherman_users` access down to zero permissions
-(a role created with no `permission_codes` is valid and the existing behavior, not a bug). Same
-company-isolation guarantees apply regardless of how few permissions they hold.
+A user assigned to one of the company's custom roles by the Owner (or another teammate who holds the
+relevant permission). Source B teammate provisioning starts directly as
+`fisherman_status: "claimable"` and does not enter DoFI approval. System-managed Owner/Admin roles
+are Company Profiling/FINS-governed, not assignable from Fisherman User Management. Their
+permissions are exactly
+whatever that role was granted — anywhere from full `fisherman_roles`/`fisherman_users` access down
+to zero permissions. Same company-isolation and Owner-protection guarantees apply regardless of how
+few permissions they hold.
 
 ---
 

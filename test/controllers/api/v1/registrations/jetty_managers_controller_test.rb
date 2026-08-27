@@ -28,6 +28,7 @@ module Api
 
           assert_equal @jetty_manager_role, user.role
           assert_predicate user, :brunei_id_verified_at?
+          assert_equal "011234567", user.normalized_ic_number
         end
 
         test "create sets status to pending, requiring officer approval" do
@@ -47,16 +48,31 @@ module Api
           assert_response :created
         end
 
-        test "create rejects a duplicate ic_number" do
+        test "create rejects a duplicate normalized ic_number" do
           post "/api/v1/registrations/jetty_manager", params: { user: { name: "First", ic_number: "01-9999999",
                                                                         unit: "Docks", position: "Jetty Supervisor",
                                                                         contact_no: "71111111" } }, as: :json
 
           assert_no_difference("User.count") do
-            post "/api/v1/registrations/jetty_manager", params: { user: { name: "Second", ic_number: "01-9999999",
+            post "/api/v1/registrations/jetty_manager", params: { user: { name: "Second", ic_number: "019999999",
                                                                           unit: "Docks",
                                                                           position: "Jetty Supervisor",
                                                                           contact_no: "71111112" } }, as: :json
+          end
+
+          assert_response :unprocessable_content
+        end
+
+        test "create rejects normalized ic owned by another audience" do
+          company_profile = create(:company_profile)
+          fisherman_role = create(:role, :fisherman, company_profile: company_profile)
+          create(:user, role: fisherman_role, company_profile: company_profile, ic_number: "01-222333",
+                        registration_type: "Commercial", fisherman_status: "claimable")
+
+          assert_no_difference("User.count") do
+            post "/api/v1/registrations/jetty_manager",
+                 params: { user: { name: "Jetty Duplicate", ic_number: "01222333", unit: "Docks",
+                                   position: "Jetty Supervisor", contact_no: "71111112" } }, as: :json
           end
 
           assert_response :unprocessable_content

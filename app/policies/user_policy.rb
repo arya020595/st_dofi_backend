@@ -7,8 +7,8 @@ class UserPolicy < ApplicationPolicy
   def index?   = user.permission?("#{resource}.list", "#{resource}.view")
   def show?    = user.permission?("#{resource}.view") && owns_record?
   def create?  = user.permission?("#{resource}.create")
-  def update?  = user.permission?("#{resource}.update") && owns_record?
-  def destroy? = user.permission?("#{resource}.delete") && owns_record?
+  def update?  = user.permission?("#{resource}.update") && owns_record? && manageable_fisherman_target?
+  def destroy? = user.permission?("#{resource}.delete") && owns_record? && manageable_fisherman_target?
 
   class Scope < Scope
     def resolve
@@ -37,5 +37,11 @@ class UserPolicy < ApplicationPolicy
     return true if user.dofi_officer_platform?
 
     record.company_profile_id == user.company_profile_id
+  end
+
+  def manageable_fisherman_target?
+    return true unless user.fisherman?
+
+    !record.has_fisherman_owner_role?
   end
 end

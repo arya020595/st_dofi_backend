@@ -44,56 +44,93 @@ generic_vessel = lambda do |definition, company_profile, suffix|
   }
 end
 
-# rubocop:disable Metrics/AbcSize, Metrics/MethodLength
-def vessel_rows_for(definition, company_profile, generic_vessel, zone_inshore_1a, zone_inshore_two)
+def vessel_rows_for(definition, context)
   case definition[:code]
-  when "commercial_1"
-    [
-      { company_profile:, vessel_name: "Sinar Bahari 1", boat_number: "BSB-1001", capacity: 12,
-        license_reg_date: 2.years.ago.to_date, license_expiry_date: 1.year.from_now.to_date, status: "active",
-        category: "mother_boat", zone: zone_inshore_two, registration_no: "REG-BSB-1001", max_crew: 25,
-        approve: true },
-      { company_profile:, vessel_name: "Sinar Bahari 2", boat_number: "BSB-1002", capacity: 10,
-        license_reg_date: 1.year.ago.to_date, license_expiry_date: 2.years.from_now.to_date, status: "active",
-        category: "support_vessel", zone: zone_inshore_two, registration_no: "REG-BSB-1002", max_crew: 15,
-        approve: true },
-      { company_profile:, vessel_name: "Sinar Bahari 3", boat_number: "BSB-1003", capacity: 16,
-        license_reg_date: 18.months.ago.to_date, license_expiry_date: 18.months.from_now.to_date,
-        status: "active", category: "mother_boat", zone: zone_inshore_two, registration_no: "REG-BSB-1003",
-        max_crew: 22, gross_tonnage: 18.75, length: 17.5, horse_power: 280, engine_count: 2,
-        year_built: 2021, draft: 2.2, material: "steel", is_powered: true, charter_type: "own",
-        boat_type: "permanent", approve: true }
-    ]
-  when "small_company_1"
-    [
-      { company_profile:, vessel_name: "Emas Laut", boat_number: "TUT-2001", capacity: 4,
-        license_reg_date: 1.year.ago.to_date, license_expiry_date: 2.years.from_now.to_date, status: "active",
-        category: "mother_boat", zone: zone_inshore_1a, registration_no: "REG-TUT-2001", max_crew: 6, approve: true },
-      { company_profile:, vessel_name: "Emas Laut 2", boat_number: "TUT-2002", capacity: 3,
-        license_reg_date: 8.months.ago.to_date, license_expiry_date: 28.months.from_now.to_date,
-        status: "active", category: "mother_boat", zone: zone_inshore_1a, registration_no: "REG-TUT-2002",
-        max_crew: 4, length: 8.5, horse_power: 85, engine_count: 1, year_built: 2023, material: "carbon_fiber",
-        is_powered: true, charter_type: "charter", boat_type: "temporary", approve: true }
-    ]
-  when "full_time_1"
-    [
-      { company_profile:, vessel_name: "Perahu Norhayati", boat_number: "TUT-3001", capacity: 1,
-        license_reg_date: 6.months.ago.to_date, license_expiry_date: 18.months.from_now.to_date,
-        status: "active", category: "support_vessel", zone: zone_inshore_1a, registration_no: "REG-TUT-3001",
-        max_crew: 1, approve: true }
-    ]
-  else
-    [
-      generic_vessel.call(definition, company_profile, "01")
-                    .merge(approve: definition[:review_state] != :pending_vessel)
-    ]
+  when "commercial_1" then commercial_vessel_rows(context)
+  when "small_company_1" then small_company_vessel_rows(context)
+  when "full_time_1" then full_time_vessel_rows(context)
+  else [generic_vessel_row(definition, context)]
   end
 end
-# rubocop:enable Metrics/AbcSize, Metrics/MethodLength
+
+def commercial_vessel_rows(context)
+  [sinar_bahari_one(context), sinar_bahari_two(context), sinar_bahari_three(context)]
+end
+
+def small_company_vessel_rows(context)
+  [emas_laut_one(context), emas_laut_two(context)]
+end
+
+def full_time_vessel_rows(context)
+  [perahu_norhayati(context)]
+end
+
+def sinar_bahari_one(context)
+  vessel_row(context, vessel_name: "Sinar Bahari 1", boat_number: "BSB-1001", capacity: 12,
+                      license_reg_date: 2.years.ago.to_date, license_expiry_date: 1.year.from_now.to_date,
+                      category: "mother_boat", zone: :zone_inshore_two, registration_no: "REG-BSB-1001",
+                      max_crew: 25)
+end
+
+def sinar_bahari_two(context)
+  vessel_row(context, vessel_name: "Sinar Bahari 2", boat_number: "BSB-1002", capacity: 10,
+                      license_reg_date: 1.year.ago.to_date, license_expiry_date: 2.years.from_now.to_date,
+                      category: "support_vessel", zone: :zone_inshore_two, registration_no: "REG-BSB-1002",
+                      max_crew: 15)
+end
+
+def sinar_bahari_three(context)
+  vessel_row(context, sinar_bahari_three_attributes)
+end
+
+def sinar_bahari_three_attributes
+  { vessel_name: "Sinar Bahari 3", boat_number: "BSB-1003", capacity: 16,
+    license_reg_date: 18.months.ago.to_date, license_expiry_date: 18.months.from_now.to_date,
+    category: "mother_boat", zone: :zone_inshore_two, registration_no: "REG-BSB-1003",
+    max_crew: 22, gross_tonnage: 18.75, length: 17.5, horse_power: 280, engine_count: 2,
+    year_built: 2021, draft: 2.2, material: "steel", is_powered: true, charter_type: "own",
+    boat_type: "permanent" }
+end
+
+def emas_laut_one(context)
+  vessel_row(context, vessel_name: "Emas Laut", boat_number: "TUT-2001", capacity: 4,
+                      license_reg_date: 1.year.ago.to_date, license_expiry_date: 2.years.from_now.to_date,
+                      category: "mother_boat", zone: :zone_inshore_1a, registration_no: "REG-TUT-2001", max_crew: 6)
+end
+
+def emas_laut_two(context)
+  vessel_row(context, emas_laut_two_attributes)
+end
+
+def emas_laut_two_attributes
+  { vessel_name: "Emas Laut 2", boat_number: "TUT-2002", capacity: 3,
+    license_reg_date: 8.months.ago.to_date, license_expiry_date: 28.months.from_now.to_date,
+    category: "mother_boat", zone: :zone_inshore_1a, registration_no: "REG-TUT-2002",
+    max_crew: 4, length: 8.5, horse_power: 85, engine_count: 1, year_built: 2023,
+    material: "carbon_fiber", is_powered: true, charter_type: "charter", boat_type: "temporary" }
+end
+
+def perahu_norhayati(context)
+  vessel_row(context, vessel_name: "Perahu Norhayati", boat_number: "TUT-3001", capacity: 1,
+                      license_reg_date: 6.months.ago.to_date, license_expiry_date: 18.months.from_now.to_date,
+                      category: "support_vessel", zone: :zone_inshore_1a, registration_no: "REG-TUT-3001",
+                      max_crew: 1)
+end
+
+def generic_vessel_row(definition, context)
+  context.fetch(:generic_vessel).call(definition, context.fetch(:company_profile), "01")
+         .merge(approve: definition[:review_state] != :pending_vessel)
+end
+
+def vessel_row(context, attributes)
+  attributes.merge(company_profile: context.fetch(:company_profile), status: "active", approve: true,
+                   zone: context.fetch(attributes.fetch(:zone)))
+end
 
 vessels_for = lambda do |definition|
   company_profile = profiles_by_code.fetch(definition[:code])
-  vessel_rows_for(definition, company_profile, generic_vessel, zone_inshore_1a, zone_inshore_two)
+  vessel_rows_for(definition, company_profile: company_profile, generic_vessel: generic_vessel,
+                              zone_inshore_1a: zone_inshore_1a, zone_inshore_two: zone_inshore_two)
 end
 
 companies_vessels = []

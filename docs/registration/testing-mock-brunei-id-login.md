@@ -1,57 +1,40 @@
 # Testing Fisherman / Jetty Manager Login via Mock BruneiID
 
-A practical, copy-pasteable walkthrough for exercising the Fisherman/Jetty Manager "login" flow
-locally or on staging. For the full request/response contract, see
-[`registration-flow.md`](registration-flow.md) section 6 ("Mock BruneiID Login") — this doc is the
-step-by-step companion to it.
+A practical walkthrough for exercising the audience-specific BruneiID login behavior locally or
+on staging. For contracts, see [`registration-flow.md`](registration-flow.md).
 
 ## Why a mock
 
-Fishermen and Jetty Managers have no username/password login screen — only a registration form.
-In production, "logging in" again is a BruneiID QR re-scan on the frontend, an external system DoFi
-doesn't control. There's no real BruneiID integration or test credentials available yet, so
-`POST /api/v1/auth/brunei_id` (`app/services/brunei_id/client.rb`) stands in for it: given an
-`ic_number`, it trusts the identity as already verified — the same trust boundary registration
-itself already relies on — and looks up the matching `User`. This lets FE/QA exercise the full
-register → approve → login loop today, without waiting on the real BruneiID integration.
+Fishermen and Jetty Managers authenticate with BruneiID QR re-scan, not username/password. There
+is no real BruneiID integration or test credential set yet, so `POST /api/v1/auth/brunei_id`
+stands in for verified BruneiID identity.
 
-DoFi Officer/Administrator accounts are unaffected by any of this — they keep logging in with
-`POST /api/v1/auth/sign_in` and a real `username`/`password`.
+The onboarding models are intentionally different:
+
+- Fisherman: provision-before-login; QR + BruneiID only claims/authenticates an existing user.
+- Jetty Manager: QR-first; if no Jetty Manager user exists, registration is still allowed, while
+  registration still enforces global normalized IC uniqueness.
+
+DoFI Officer accounts are unaffected and keep using `POST /api/v1/auth/sign_in`.
 
 ## Prerequisites
 
 ```bash
-BASE_URL=http://localhost:3000   # or the staging base_url from postman/DoFi-Backend-Staging.postman_environment.json
+BASE_URL=http://localhost:3000
 ```
 
-`jq` is used below to pull fields out of responses — install it (`apt install jq` / `brew install
-jq`) or just read the raw JSON by eye instead.
-
-You'll need an authenticated **officer** session first, since approving/rejecting registrations is
-an officer-only action (`fisherman_approvals.approve` / `jetty_manager_approvals.approve`
-permission — the seeded admin has both via full access):
+Get an officer token first:
 
 ```bash
 OFFICER_TOKEN=$(curl -s -D - -o /dev/null -X POST "$BASE_URL/api/v1/auth/sign_in" \
   -H "Content-Type: application/json" \
   -d '{"user": {"username": "mprt/dof-001", "password": "ChangeMe123!"}}' \
   | grep -i '^Authorization:' | tr -d '\r' | cut -d' ' -f2-)
-
-echo $OFFICER_TOKEN   # should start with "Bearer "
 ```
 
-(`mprt/dof-001` / `ChangeMe123!` are the seeded defaults — see `db/seeds/admin_user.rb` — swap in
-whatever `ADMIN_DEFAULT_USERNAME`/`ADMIN_DEFAULT_PASSWORD` was actually deployed for that
-environment.)
+## Part A - Fisherman Source A: DoFI Profile -> Approval -> Claim
 
----
-
-## Part A — Fisherman: full happy path (`active`)
-
-**1. Profile, as the officer.** Every registration type — including Small - Scale (Full-Time) —
-must already be profiled before the fisherman can register (see `registration-flow.md` §5). For
-Full-Time, that means an individual-shaped `CompanyProfile` with just an Owner contact (the
-fisherman themselves) and no company-shape fields:
+**1. Profile and provision the Fisherman Owner.**
 
 ```bash
 curl -s -X POST "$BASE_URL/api/v1/admin/company_profiles" \
@@ -59,40 +42,42 @@ curl -s -X POST "$BASE_URL/api/v1/admin/company_profiles" \
   -d '{
     "company_profile": {
       "registration_type": "Small - Scale (Full-Time)",
-      "owner": { "full_name": "Test Fisherman (Active)", "gender": "Male",
-                 "ic_no": "01-800201", "ic_colour": "Yellow" }
+      "owner": {
+        "full_name": "Test Fisherman (Flow B)",
+        "gender": "Male",
+        "ic_no": "01-800201",
+        "ic_colour": "Yellow"
+      }
     }
-  }' | jq .
+  }' | tee /tmp/fisherman_profile.json | jq .
+
+FISHERMAN_ID=$(jq -r '.data.owner_user.id' /tmp/fisherman_profile.json)
 ```
 
-**2. Register.**
+The user exists immediately with `fisherman_status = "pending_approval"`.
+
+**2. Attempt login before approval.**
 
 ```bash
-curl -s -X POST "$BASE_URL/api/v1/registrations/fisherman" \
+curl -s -X POST "$BASE_URL/api/v1/auth/brunei_id" \
   -H "Content-Type: application/json" \
-  -d '{
-    "user": {
-      "name": "Test Fisherman (Active)",
-      "ic_number": "01-800201",
-      "registration_type": "Small - Scale (Full-Time)"
-    }
-  }' | tee /tmp/fisherman.json | jq .
-
-FISHERMAN_ID=$(jq -r '.data.id' /tmp/fisherman.json)
+  -d '{"ic_number": "01-800201"}' | jq .
 ```
 
-Status is `pending` at this point — the fisherman cannot log in yet.
+This returns a status-only response. No access token is issued.
 
-**3. Approve, as the officer.**
+**3. Approve as DoFI.**
 
 ```bash
 curl -s -X POST "$BASE_URL/api/v1/admin/approvals/fishermen/$FISHERMAN_ID/approve" \
-  -H "Authorization: $OFFICER_TOKEN" | jq .
+  -H "Authorization: $OFFICER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "Flow B test approval"}' | jq .
 ```
 
-Response `data.status` is now `"active"`.
+The user is now `claimable`.
 
-**3. "Log in" via mock BruneiID.**
+**4. Claim/login with BruneiID.**
 
 ```bash
 curl -s -D - -X POST "$BASE_URL/api/v1/auth/brunei_id" \
@@ -100,38 +85,60 @@ curl -s -D - -X POST "$BASE_URL/api/v1/auth/brunei_id" \
   -d '{"ic_number": "01-800201"}'
 ```
 
-For an `active` user this returns the same shape as the officer sign-in: `data.access_token` is
-present, and the `Authorization` response header carries the same token. Capture it the same way as
-the officer token above:
+`Fisherman::ClaimAccount` locks the user, verifies the IC again, sets `claimed_at` and
+`brunei_id_verified_at`, transitions `fisherman_status` to `active`, and returns a JWT.
+
+## Part B - Fisherman Unknown IC Stops
 
 ```bash
-FISHERMAN_TOKEN=$(curl -s -D - -o /dev/null -X POST "$BASE_URL/api/v1/auth/brunei_id" \
-  -H "Content-Type: application/json" -d '{"ic_number": "01-800201"}' \
-  | grep -i '^Authorization:' | tr -d '\r' | cut -d' ' -f2-)
+curl -s -X POST "$BASE_URL/api/v1/auth/brunei_id" \
+  -H "Content-Type: application/json" \
+  -d '{"ic_number": "00-000000"}' | jq .
 ```
 
-**4. Use it — confirm it's really a working session.**
+Legacy/mock `/auth/brunei_id` returns the generic account-not-found response. The OIDC callback
+path with `audience = "fisherman"` returns the Flow B-specific response:
+
+```json
+{
+  "status": "fail",
+  "message": "No Fisherman account has been provisioned for this IC number. Please contact DoFI or your company administrator.",
+  "code": "fisherman_account_not_provisioned"
+}
+```
+
+There is no Fisherman registration redirect and no `CompanyProfileContact` fallback.
+
+## Part C - Fisherman Source B: Owner-Created Teammate
+
+After an Owner is active, Fisherman User Management can provision custom-role teammates:
 
 ```bash
-curl -s "$BASE_URL/api/v1/auth/me" -H "Authorization: $FISHERMAN_TOKEN" | jq .
+curl -s -X POST "$BASE_URL/api/v1/fisherman/users" \
+  -H "Authorization: $FISHERMAN_TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "user": {
+      "name": "Test Fisherman Admin",
+      "ic_number": "01-800211",
+      "registration_type": "Commercial",
+      "role_id": "admin-or-custom-role-id"
+    }
+  }' | jq .
 ```
 
-Returns the fisherman's own `User` record. Any endpoint the Fisherman role has permission for
-works the same way — just send `Authorization: $FISHERMAN_TOKEN`.
+Source B users start as `claimable` and do not require DoFI approval. System Owner/Admin role
+assignment is blocked through Fisherman User Management.
 
----
+## Part D - Jetty Manager Still Registers
 
-## Part B — Jetty Manager: full happy path (`active`)
-
-Same shape, different registration endpoint and required fields (`unit`/`position`/`contact_no`
-instead of `registration_type`):
+Jetty Manager missing-user behavior is unchanged:
 
 ```bash
 curl -s -X POST "$BASE_URL/api/v1/registrations/jetty_manager" \
   -H "Content-Type: application/json" \
   -d '{
     "user": {
-      "name": "Test Jetty Manager (Active)",
+      "name": "Test Jetty Manager",
       "ic_number": "01-800301",
       "unit": "Docks",
       "position": "Jetty Supervisor",
@@ -149,90 +156,25 @@ curl -s -D - -X POST "$BASE_URL/api/v1/auth/brunei_id" \
   -d '{"ic_number": "01-800301"}'
 ```
 
----
+Jetty Manager uses `users.status`, not `fisherman_status`.
 
-## Testing the other outcomes
+## Testing via Postman
 
-**Pending** — profile, register, but skip the approve step, then hit the login endpoint anyway:
+Use these folders in `postman/DoFi-Backend.postman_collection.json`:
 
-```bash
-curl -s -X POST "$BASE_URL/api/v1/admin/company_profiles" \
-  -H "Authorization: $OFFICER_TOKEN" -H "Content-Type: application/json" \
-  -d '{
-    "company_profile": {
-      "registration_type": "Small - Scale (Full-Time)",
-      "owner": { "full_name": "Test Fisherman (Pending)", "gender": "Male",
-                 "ic_no": "01-800202", "ic_colour": "Yellow" }
-    }
-  }' | jq .
-
-curl -s -X POST "$BASE_URL/api/v1/registrations/fisherman" \
-  -H "Content-Type: application/json" \
-  -d '{"user": {"name": "Test Fisherman (Pending)", "ic_number": "01-800202",
-                 "registration_type": "Small - Scale (Full-Time)"}}' | jq .
-
-curl -s -X POST "$BASE_URL/api/v1/auth/brunei_id" \
-  -H "Content-Type: application/json" -d '{"ic_number": "01-800202"}' | jq .
-```
-
-Returns **200 OK**, `data.status: "pending"`, **no** `access_token` — same shape as
-`GET /api/v1/registrations/status`, so the FE can reuse its existing pending-status screen.
-
-**Rejected** — register, then reject instead of approve. Rejecting needs an `approval_remark_id`
-(a real row's `id`) — look one up first:
-
-```bash
-REMARK_ID=$(curl -s "$BASE_URL/api/v1/admin/approvals/approval_remarks" \
-  -H "Authorization: $OFFICER_TOKEN" | jq -r '.data[0].id')
-
-curl -s -X POST "$BASE_URL/api/v1/admin/approvals/fishermen/$FISHERMAN_ID/reject" \
-  -H "Authorization: $OFFICER_TOKEN" -H "Content-Type: application/json" \
-  -d "{\"approval_remark_id\": \"$REMARK_ID\"}" | jq .
-
-curl -s -X POST "$BASE_URL/api/v1/auth/brunei_id" \
-  -H "Content-Type: application/json" -d '{"ic_number": "01-800201"}' | jq .
-```
-
-Returns 200, `data.status: "rejected"`, `data.rejection_reason` present, no `access_token`.
-
-**Not found** — any `ic_number` nobody registered:
-
-```bash
-curl -s -X POST "$BASE_URL/api/v1/auth/brunei_id" \
-  -H "Content-Type: application/json" -d '{"ic_number": "00-000000"}'
-```
-
-Returns **404 Not Found**, `{"status": "fail", "message": "Resource not found."}`.
-
----
-
-## Testing via Postman instead
-
-`postman/DoFi-Backend.postman_collection.json`'s **Auth** folder has this entire Fisherman flow
-pre-built and runnable end-to-end: `Setup - Profile Individual (for BruneiID Login demo)` →
-`Setup - Register a Fisherman (for BruneiID Login demo)` →
-`Setup - Approve the Fisherman (for BruneiID Login demo)` → `BruneiID Login - Active`, plus
-standalone `Setup - Profile Individual (Pending, ...)` → `Setup - Register a Fisherman (Pending, ...)`
-→ `BruneiID Login - Pending` and `BruneiID Login - Not Found (404)` requests. The two `Setup -
-Profile Individual` requests pre-create the Small - Scale (Full-Time) `CompanyProfile` each demo
-fisherman registers against (§5/registration-flow.md) — they run using the officer's Bearer token
-set by **Sign In** earlier in the same folder. Run the **Auth** folder (or the whole collection)
-with the `DoFi Backend - Local` or `DoFi Backend - Staging` environment selected — no manual token
-copying needed, each request chains off the last via collection variables
-(`brunei_demo_fisherman_id`, `jwt_token`, etc.).
-
-There's no pre-built Jetty Manager equivalent in the collection today — use Part B above, or copy
-the Fisherman requests and swap the endpoint/body per the registration-flow.md section 1 shape.
-
----
+- **Auth**: officer sign-in, seeded active Fisherman login, pending Fisherman login, and unknown IC.
+- **Profiling**: Company Profile creation that provisions Source A Owner/Admin users.
+- **FINS Approval -> Fisherman Approvals**: approve/reject/deactivate/reactivate/revoke Source A
+  Owner/Admin Fisherman users.
+- **Users -> Fisherman**: Source B teammate provisioning and Owner-governance negative examples.
+- **Registrations**: Jetty Manager registration only; Fisherman self-registration is retired.
 
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `brunei_id` login returns 404 for an `ic_number` you just registered | Typo, or registered on a different environment than you're testing against | Re-check `BASE_URL` and the exact `ic_number` string (must match byte-for-byte, no normalization happens) |
-| `brunei_id` login returns 200 but no `access_token`, and you expected one | User is not `active` yet | Approve it first via `POST /api/v1/admin/approvals/{fishermen,jetty_managers}/:id/approve` as an officer |
-| Approve/reject call returns 401/403 | Missing or expired `OFFICER_TOKEN`, or the officer's role lacks the `*_approvals.approve` permission | Re-run the officer sign-in step; confirm the role via `GET /api/v1/admin/roles` |
-| Officer sign-in itself fails with "Invalid username or password" | Using `email` instead of `username`, or wrong casing expectations | Officers authenticate by `username`, not `email` (see registration-flow.md's "DoFi Officer/Administrator login" note). Username is stored lowercase regardless of how it was typed/seeded. |
-| Same `ic_number` reused across test runs hits a uniqueness error on register | A prior test run already created that IC | Pick a fresh `ic_number`, or look up/reuse the existing record instead of re-registering |
-| Register call 500s with `PG::UniqueViolation` on `index_users_on_email` | Known pre-existing gap: Devise's email uniqueness check uses `allow_blank: true`, so it never catches a second blank-email row at the validation layer — the DB's plain unique index does, as a raw 500 instead of a 422. Registration always submits a blank email (Fisherman/Jetty Manager have none), so this fires as soon as **any** blank-email row already exists | Not something to work around per-request — find and clear the stale blank-email row(s) first (`User.where(email: [nil, ""])`), or fix the underlying validation (out of scope for this doc) |
+| Fisherman login returns no token | User is still `pending_approval`, `suspended`, or `revoked` | Approve or resolve lifecycle state first |
+| Fisherman unknown IC does not open registration | Expected Flow B behavior | Ask DoFI/company admin to provision the account |
+| Jetty Manager unknown IC opens registration | Expected Jetty behavior | Continue with Jetty Manager registration |
+| Duplicate IC errors | `normalized_ic_number` is globally unique across kept users | Use a fresh IC or release an unclaimed erroneous user through admin procedure |
+| Fisherman User Management cannot assign Owner role | Expected governance rule | Owner governance is DoFI Profiling only |

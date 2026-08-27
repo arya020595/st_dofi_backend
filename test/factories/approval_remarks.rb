@@ -1,6 +1,7 @@
 FactoryBot.define do
   factory :approval_remark do
     sequence(:name) { |n| "Test Remark #{n}" }
+    usage_scope { "both" }
   end
 end
 
@@ -12,6 +13,7 @@ end
 #  id           :uuid             not null, primary key
 #  discarded_at :datetime
 #  name         :string           not null
+#  usage_scope  :string           default("both"), not null
 #  created_at   :datetime         not null
 #  updated_at   :datetime         not null
 #
