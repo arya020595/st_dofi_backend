@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_24_090500) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_26_103000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -435,6 +435,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_24_090500) do
   create_table "nationalities", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.string "code"
     t.datetime "created_at", null: false
+    t.boolean "is_local_citizenship", default: false, null: false
     t.string "name", null: false
     t.datetime "updated_at", null: false
     t.index ["code"], name: "index_nationalities_on_code"
@@ -534,10 +535,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_24_090500) do
     t.datetime "remember_created_at"
     t.datetime "reset_password_sent_at"
     t.string "reset_password_token"
-    t.datetime "revoked_at"
-    t.uuid "revoked_by_id"
     t.text "revocation_comment"
     t.uuid "revocation_remark_id"
+    t.datetime "revoked_at"
+    t.uuid "revoked_by_id"
     t.uuid "role_id"
     t.string "status", default: "active", null: false
     t.string "unit"
@@ -611,9 +612,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_24_090500) do
   add_foreign_key "permission_roles", "permissions"
   add_foreign_key "permission_roles", "roles"
   add_foreign_key "roles", "company_profiles"
+  add_foreign_key "users", "approval_remarks", column: "revocation_remark_id", validate: false
   add_foreign_key "users", "company_profile_contacts"
   add_foreign_key "users", "company_profiles"
-  add_foreign_key "users", "approval_remarks", column: "revocation_remark_id", validate: false
   add_foreign_key "users", "roles"
   add_foreign_key "users", "users", column: "approved_by_id", validate: false
   add_foreign_key "users", "users", column: "created_by_id", validate: false

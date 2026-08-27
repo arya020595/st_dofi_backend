@@ -4,11 +4,11 @@ default_password = ENV.fetch("ADMIN_DEFAULT_PASSWORD", "ChangeMe123!")
 # Matched to the Owner/Admin CompanyProfileContact rows from company_profiles.rb by ic_number so
 # these accounts are ready to log in via mock BruneiID without Fisherman self-registration.
 FISHERMAN_USERS = [
-  { name: "Haji Ahmad bin Salleh", ic_number: "00123456", registration_type: "Commercial" },
-  { name: "Siti Aminah binti Yusof", ic_number: "00234567", registration_type: "Commercial" },
-  { name: "Awang Zulkifli bin Hashim", ic_number: "00345678", registration_type: "Small-Scale (Company)" },
-  { name: "Dayang Norhayati binti Tuah", ic_number: "00456789", registration_type: "Small - Scale (Full-Time)" },
-  { name: "Osman bin Haji Rosli", ic_number: "00567892", registration_type: "Small - Scale (Part-Time)" }
+  { name: "Haji Ahmad bin Salleh", ic_number: "01-123456", registration_type: "Commercial" },
+  { name: "Siti Aminah binti Yusof", ic_number: "01-234567", registration_type: "Commercial" },
+  { name: "Awang Zulkifli bin Hashim", ic_number: "51-345678", registration_type: "Small-Scale (Company)" },
+  { name: "Dayang Norhayati binti Tuah", ic_number: "51-456789", registration_type: "Small - Scale (Full-Time)" },
+  { name: "Osman bin Haji Rosli", ic_number: "51-567892", registration_type: "Small - Scale (Part-Time)" }
 ].freeze
 
 FISHERMAN_USERS.each do |attrs|
@@ -42,7 +42,7 @@ FISHERMAN_USERS.each do |attrs|
 end
 
 JETTY_MANAGER_USERS = [
-  { name: "Encik Mahmud bin Taha", ic_number: "00567891", unit: "Serasa Port", position: "Jetty Manager",
+  { name: "Encik Mahmud bin Taha", ic_number: "31-567891", unit: "Serasa Port", position: "Jetty Manager",
     contact_no: "+673 7123456" }
 ].freeze
 

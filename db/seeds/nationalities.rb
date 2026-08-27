@@ -1,5 +1,7 @@
+Nationality.reset_column_information
+
 NATIONALITIES = [
-  { code: "BN", name: "Bruneian" },
+  { code: "BN", name: "Bruneian", is_local_citizenship: true },
   { code: "MY", name: "Malaysian" },
   { code: "CN", name: "Chinese" },
   { code: "PH", name: "Filipino" },
@@ -10,9 +12,10 @@ NATIONALITIES = [
 ].freeze
 
 NATIONALITIES.each do |attrs|
-  Nationality.find_or_create_by!(code: attrs[:code]) do |nationality|
-    nationality.name = attrs[:name]
-  end
+  nationality = Nationality.find_or_initialize_by(code: attrs[:code])
+  nationality.name = attrs[:name]
+  nationality.is_local_citizenship = attrs.fetch(:is_local_citizenship, false)
+  nationality.save!
 end
 
 puts "Seeded #{Nationality.count} nationalities"

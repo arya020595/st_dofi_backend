@@ -2,7 +2,7 @@ class Nationality < ApplicationRecord
   validates :name, presence: true, uniqueness: true
 
   def self.ransackable_attributes(_auth_object = nil)
-    %w[id name code created_at updated_at]
+    %w[id name code is_local_citizenship created_at updated_at]
   end
 
   def self.ransackable_associations(_auth_object = nil)
@@ -15,11 +15,12 @@ end
 # Table name: nationalities
 # Database name: primary
 #
-#  id         :uuid             not null, primary key
-#  code       :string
-#  name       :string           not null
-#  created_at :datetime         not null
-#  updated_at :datetime         not null
+#  id                   :uuid             not null, primary key
+#  code                 :string
+#  is_local_citizenship :boolean          default(FALSE), not null
+#  name                 :string           not null
+#  created_at           :datetime         not null
+#  updated_at           :datetime         not null
 #
 # Indexes
 #
