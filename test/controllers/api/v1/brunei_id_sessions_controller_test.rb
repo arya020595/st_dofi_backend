@@ -23,7 +23,9 @@ module Api
 
         assert_response :not_found
         assert_equal "fisherman_account_not_provisioned", response.parsed_body["code"]
-        assert_nil response.parsed_body.dig("data", "next_action")
+        assert_equal "registration_status", response.parsed_body.dig("data", "next_action")
+        assert_equal "not_found", response.parsed_body.dig("data", "registration_status")
+        assert_equal "01-123456", response.parsed_body.dig("data", "ic_number")
       end
 
       test "unknown jetty manager IC still returns registration action" do

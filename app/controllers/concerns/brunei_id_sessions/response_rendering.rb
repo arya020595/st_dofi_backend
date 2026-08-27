@@ -27,7 +27,7 @@ module BruneiIdSessions
 
     def render_fisherman_account_not_provisioned(verified_ic_number, _payload = nil)
       log_brunei_id_callback_result(fisherman_not_provisioned_log(verified_ic_number))
-      render json: fisherman_not_provisioned_payload, status: :not_found
+      render json: fisherman_not_provisioned_payload(verified_ic_number), status: :not_found
     end
 
     def render_unknown_fisherman_failure(verified_ic_number, _payload = nil)
@@ -36,7 +36,7 @@ module BruneiIdSessions
 
     def render_fisherman_claim_failed(verified_ic_number, _payload = nil)
       log_brunei_id_callback_result(fisherman_claim_failed_log(verified_ic_number))
-      render json: fisherman_claim_failed_payload, status: :unprocessable_content
+      render json: fisherman_claim_failed_payload(verified_ic_number), status: :unprocessable_content
     end
 
     def render_invalid_audience
