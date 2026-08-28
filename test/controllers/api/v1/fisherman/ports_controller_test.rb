@@ -7,10 +7,7 @@ module Api
         setup do
           @password = "Password123!"
 
-          # ports.view is required for #show, ports.list for #index — granted directly here (rather
-          # than relying on Roles::EnsureFishermanOwnerRole's broader grant) to exercise the policy
-          # itself in isolation.
-          fisherman_permissions = %w[ports.list ports.view].map do |code|
+          fisherman_permissions = %w[manifest_list.view manifest_form.view].map do |code|
             Permission.find_or_create_by!(code: code) { |p| p.name = code }
           end
 
@@ -25,7 +22,7 @@ module Api
           @plain_headers = auth_headers_for(@plain_user, password: @password)
         end
 
-        test "index requires the list permission" do
+        test "index requires manifest access permission" do
           get "/api/v1/fisherman/master_data/ports", headers: @plain_headers
 
           assert_response :forbidden

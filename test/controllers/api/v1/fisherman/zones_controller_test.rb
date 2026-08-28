@@ -6,7 +6,7 @@ module Api
       class ZonesControllerTest < ActionDispatch::IntegrationTest
         setup do
           @manifest = create(:manifest)
-          @headers = fisherman_headers_for(@manifest, permission_codes: %w[zones.view zones.list])
+          @headers = fisherman_headers_for(@manifest, permission_codes: %w[manifest_list.view manifest_form.view])
           @zone = create(:zone)
         end
 

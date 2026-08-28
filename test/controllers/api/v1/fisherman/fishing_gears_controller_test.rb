@@ -6,7 +6,7 @@ module Api
       class FishingGearsControllerTest < ActionDispatch::IntegrationTest
         setup do
           @manifest = create(:manifest)
-          @headers = fisherman_headers_for(@manifest, permission_codes: %w[fishing_gears.view fishing_gears.list])
+          @headers = fisherman_headers_for(@manifest, permission_codes: %w[manifest_list.view manifest_form.view])
           @gear = create(:fishing_gear)
         end
 

@@ -8,9 +8,8 @@ module Api
           setup do
             @manifest = create(:manifest, :small_scale)
             @headers = fisherman_headers_for(@manifest,
-                                             permission_codes: %w[manifest_minor_fishermen.view
-                                                                  manifest_minor_fishermen.create
-                                                                  manifest_minor_fishermen.delete])
+                                             permission_codes: %w[manifest_list.view manifest_form.view
+                                                                  manifest_form.create])
 
             # A plain dofi_officer-platform role (the factory default) rather than a second
             # fisherman-platform role for this company — deliberately fails the fisherman? audience

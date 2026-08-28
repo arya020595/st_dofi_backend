@@ -16,7 +16,7 @@ module Api
         def create_dashboard_context
           @company_profile = create(:company_profile)
           @manifest = create(:manifest, company_profile: @company_profile)
-          @headers = fisherman_headers_for(@manifest, permission_codes: %w[manifest_list.list])
+          @headers = fisherman_headers_for(@manifest, permission_codes: %w[manifest.view])
           @zone = create(:zone, name: "Zone Alpha")
           @gear_master = create(:fishing_gear, name: "Drift Gill Net", gear_type: "Net")
           @gear = create_company_gear
@@ -156,7 +156,7 @@ module Api
                        response.parsed_body["data"]
         end
 
-        test "dashboard endpoints require manifest list permission" do
+        test "dashboard endpoints require manifest permission" do
           no_access_headers = fisherman_headers_for(@manifest, permission_codes: [])
 
           get "/api/v1/fisherman/dashboard/summary", headers: no_access_headers
