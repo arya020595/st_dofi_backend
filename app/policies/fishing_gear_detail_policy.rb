@@ -1,11 +1,25 @@
 class FishingGearDetailPolicy < ApplicationPolicy
   RESOURCE = "capture_reports".freeze
 
-  def index?  = user.permission?("#{RESOURCE}.list", "#{RESOURCE}.view")
-  def show?   = user.permission?("#{RESOURCE}.view")
-  def create? = user.permission?("#{RESOURCE}.create")
-  def update? = user.permission?("#{RESOURCE}.update")
-  def destroy? = user.permission?("#{RESOURCE}.update")
+  def index?
+    fisherman_platform? ? fisherman_manifest_readable? : user.permission?("#{RESOURCE}.list", "#{RESOURCE}.view")
+  end
+
+  def show?
+    fisherman_platform? ? fisherman_manifest_readable? : user.permission?("#{RESOURCE}.view")
+  end
+
+  def create?
+    fisherman_platform? ? fisherman_manifest_writeable? : user.permission?("#{RESOURCE}.create")
+  end
+
+  def update?
+    fisherman_platform? ? fisherman_manifest_writeable? : user.permission?("#{RESOURCE}.update")
+  end
+
+  def destroy?
+    fisherman_platform? ? fisherman_manifest_writeable? : user.permission?("#{RESOURCE}.update")
+  end
 
   class Scope < Scope
     def resolve
@@ -13,5 +27,15 @@ class FishingGearDetailPolicy < ApplicationPolicy
 
       scope.joins(capture_report: :manifest).where(manifests: { company_profile_id: user.company_profile_id })
     end
+  end
+
+  private
+
+  def fisherman_manifest_readable?
+    user.permission?("#{RESOURCE}.list", "#{RESOURCE}.view") || fisherman_manifest_read?
+  end
+
+  def fisherman_manifest_writeable?
+    user.permission?("#{RESOURCE}.create", "#{RESOURCE}.update") || fisherman_manifest_write?
   end
 end

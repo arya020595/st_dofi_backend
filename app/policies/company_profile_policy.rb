@@ -1,10 +1,19 @@
 class CompanyProfilePolicy < ApplicationPolicy
   RESOURCE = "profiling".freeze
 
-  def index? = user.permission?("#{RESOURCE}.list", "#{RESOURCE}.view")
+  def index?
+    return user.permission?("#{RESOURCE}.view") if fisherman_platform?
+
+    user.permission?("#{RESOURCE}.list", "#{RESOURCE}.view")
+  end
+
   def show? = user.permission?("#{RESOURCE}.view")
   def create? = user.dofi_officer_platform? && user.permission?("#{RESOURCE}.create")
-  def update? = user.permission?("#{RESOURCE}.update")
+
+  def update?
+    fisherman_platform? ? user.permission?("#{RESOURCE}.view") : user.permission?("#{RESOURCE}.update")
+  end
+
   def destroy? = user.permission?("#{RESOURCE}.delete")
 
   class Scope < Scope

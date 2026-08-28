@@ -1,5 +1,6 @@
 PERMISSION_GROUPS = {
   "dashboard" => %w[view],
+  "manifest" => %w[view create delete],
   "manifest_list" => %w[view list update delete],
   "manifest_form" => %w[view create],
   "manifest_approvals" => %w[view list approve amendment],
@@ -34,6 +35,11 @@ PERMISSION_GROUPS = {
   "fisherman_roles" => %w[view list create update delete]
 }.freeze
 
+PERMISSION_LABELS = {
+  "manifest" => "Manifest",
+  "companies_vessels" => "Vessel & Fishing Gear Profiling"
+}.freeze
+
 # Every resource group above is either entirely one platform's, or "shared" (used identically by
 # both platforms — e.g. companies_crews.create, checked by both a fisherman's own self-service form
 # and an officer profiling on their behalf via the same dual-mounted controller). A handful of
@@ -53,7 +59,7 @@ DOFI_OFFICER_ONLY_GROUPS = %w[
   approval_remarks manifest_approvals companies_vessel_approvals companies_crew_approvals
   companies_fishing_gear_approvals companies_document_approvals capture_report_verifications
 ].freeze
-FISHERMAN_ONLY_GROUPS = %w[fisherman_users fisherman_roles].freeze
+FISHERMAN_ONLY_GROUPS = %w[manifest fisherman_users fisherman_roles].freeze
 DOFI_OFFICER_ONLY_ACTIONS = {
   "ports" => %w[create update delete],
   "zones" => %w[create update delete],
@@ -77,12 +83,15 @@ PERMISSION_GROUPS.each do |resource, actions|
   actions.each do |action|
     code = "#{resource}.#{action}"
     platform_scope = platform_scope_for(resource, action)
+    resource_label = PERMISSION_LABELS.fetch(resource, resource.humanize)
 
     permission = Permission.find_or_create_by!(code: code) do |record|
-      record.name = "#{resource.humanize} - #{action.humanize}"
+      record.name = "#{resource_label} - #{action.humanize}"
       record.platform_scope = platform_scope
     end
-    permission.update!(platform_scope: platform_scope) if permission.platform_scope != platform_scope
+    next if permission.platform_scope == platform_scope && permission.name == "#{resource_label} - #{action.humanize}"
+
+    permission.update!(platform_scope: platform_scope, name: "#{resource_label} - #{action.humanize}")
   end
 end
 
