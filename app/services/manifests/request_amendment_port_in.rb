@@ -10,6 +10,7 @@ module Manifests
       return Failure(manifest) unless manifest.may_request_amendment_port_in?
 
       manifest.request_amendment_port_in!(actor: actor, remarks: remarks)
+      Notifications::ManifestPublisher.call(event: :port_in_amendment_required, manifest:)
       Success(manifest)
     end
 

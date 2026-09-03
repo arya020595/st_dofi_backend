@@ -10,6 +10,7 @@ module Manifests
       return Failure(manifest) unless manifest.may_approve_port_in?
 
       manifest.approve_port_in!(actor: actor)
+      Notifications::ManifestPublisher.call(event: :port_in_approved, manifest:)
       Success(manifest)
     end
 
