@@ -13,6 +13,7 @@ module Manifests
         manifest.submit_port_in!(actor: actor)
       end
 
+      notify_capture_verifiers(manifest) if manifest.capture_report_submitted?
       Success(manifest)
     end
 
@@ -27,6 +28,10 @@ module Manifests
           reviewed_at: nil
         )
       end
+    end
+
+    def notify_capture_verifiers(manifest)
+      Notifications::ManifestPublisher.call(event: :capture_report_review_required, manifest:)
     end
 
     def not_ready(manifest)

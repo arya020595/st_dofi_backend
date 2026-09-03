@@ -53,6 +53,8 @@ module BruneiIdSessions
       registration_status_payload(user, verified_ic_number).merge(
         next_action: "dashboard",
         access_token: request.env["warden-jwt_auth.token"]
+      ).merge(
+        Realtime::CableToken.issue(user)
       )
     end
 

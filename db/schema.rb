@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_26_103000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_01_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -442,6 +442,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_26_103000) do
     t.index ["name"], name: "index_nationalities_on_name", unique: true
   end
 
+  create_table "notifications", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "message", null: false
+    t.jsonb "metadata", default: {}, null: false
+    t.string "notification_type", null: false
+    t.datetime "read_at"
+    t.uuid "resource_id"
+    t.string "resource_type"
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.uuid "user_id", null: false
+    t.index ["resource_type", "resource_id"], name: "index_notifications_on_resource_type_and_resource_id"
+    t.index ["user_id", "read_at", "created_at"], name: "index_notifications_for_user_inbox"
+    t.index ["user_id"], name: "index_notifications_on_user_id"
+  end
+
   create_table "permission_roles", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.datetime "created_at", null: false
     t.uuid "permission_id", null: false
@@ -609,6 +625,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_26_103000) do
   add_foreign_key "manifests", "ports", column: "port_out_id"
   add_foreign_key "manifests", "users", column: "created_by_id"
   add_foreign_key "manifests", "zones"
+  add_foreign_key "notifications", "users"
   add_foreign_key "permission_roles", "permissions"
   add_foreign_key "permission_roles", "roles"
   add_foreign_key "roles", "company_profiles"

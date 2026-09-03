@@ -86,3 +86,5 @@ group :development do
   gem "kamal", require: false
   gem "thruster", require: false
 end
+
+gem "solid_cable", "~> 4.0"

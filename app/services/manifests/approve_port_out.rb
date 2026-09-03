@@ -8,6 +8,7 @@ module Manifests
       return Failure(manifest) unless manifest.may_approve_port_out?
 
       manifest.approve_port_out!(actor: actor)
+      Notifications::ManifestPublisher.call(event: :port_out_approved, manifest:)
       Success(manifest)
     end
   end

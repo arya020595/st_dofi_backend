@@ -32,7 +32,10 @@ module BruneiIdSessions
     def legacy_dashboard_payload(user)
       {
         status: "success",
-        data: { access_token: request.env["warden-jwt_auth.token"], user: UserBlueprint.render_as_hash(user) }
+        data: {
+          access_token: request.env["warden-jwt_auth.token"],
+          user: UserBlueprint.render_as_hash(user)
+        }.merge(Realtime::CableToken.issue(user))
       }
     end
 

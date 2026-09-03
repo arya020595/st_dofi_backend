@@ -20,7 +20,10 @@ module Api
         access_token = request.env["warden-jwt_auth.token"]
         render json: {
           status: "success",
-          data: { access_token: access_token, user: UserBlueprint.render_as_hash(resource) }
+          data: {
+            access_token: access_token,
+            user: UserBlueprint.render_as_hash(resource)
+          }.merge(Realtime::CableToken.issue(resource))
         }, status: :ok
       end
 
@@ -35,7 +38,7 @@ module Api
           data: {
             user: UserBlueprint.render_as_hash(current_user),
             permissions: PermissionBlueprint.render_as_hash(current_user.role&.permissions&.order(:code) || [])
-          }
+          }.merge(Realtime::CableToken.issue(current_user))
         }, status: :ok
       end
     end

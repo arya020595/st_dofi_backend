@@ -9,6 +9,12 @@ module CaptureReports
 
       report.verify!(actor: actor)
       normalize_manifest_review_state!(report.manifest, actor: actor)
+      Notifications::ManifestPublisher.call(
+        event: :capture_report_verified,
+        manifest: report.manifest,
+        capture_report: report
+      )
+      notify_port_in_approvers(report.manifest)
       Success(report)
     end
 
@@ -38,6 +44,12 @@ module CaptureReports
 
     def ready_for_port_in_review?(manifest)
       manifest.port_in_pending? && manifest.may_begin_port_in_review?
+    end
+
+    def notify_port_in_approvers(manifest)
+      return unless manifest.awaiting_port_in_approval?
+
+      Notifications::ManifestPublisher.call(event: :port_in_review_required, manifest:)
     end
   end
 end
