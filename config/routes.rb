@@ -4,6 +4,7 @@ Rails.application.routes.draw do
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
   # Can be used by load balancers and uptime monitors to verify that the app is live.
   get "up" => "rails/health#show", as: :rails_health_check
+  mount ActionCable.server => "/cable"
 
   # devise_for is kept outside the api/v1 namespace so the routing "as:" scope doesn't rename the
   # mapping (and therefore current_user/authenticate_user!) to current_api_v1_user.
@@ -34,6 +35,9 @@ Rails.application.routes.draw do
       end
 
       resources :permissions, only: %i[index]
+      resources :notifications, only: %i[index] do
+        member { patch :read }
+      end
 
       # Generic Active Storage redirect endpoint (see docs/minio/MINIO.md §3-4): authorizes against the
       # attachment's owning record, then 302s to a freshly-signed MinIO URL. Works for any

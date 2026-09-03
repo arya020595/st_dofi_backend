@@ -12,6 +12,7 @@ class User < ApplicationRecord
   belongs_to :created_by, class_name: "User", optional: true, inverse_of: false
   belongs_to :revoked_by, class_name: "User", optional: true, inverse_of: false
   belongs_to :revocation_remark, class_name: "ApprovalRemark", optional: true, inverse_of: false
+  has_many :notifications, dependent: :delete_all
 
   include AASM
   include User::FishermanLifecycle

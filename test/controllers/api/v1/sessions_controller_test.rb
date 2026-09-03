@@ -27,6 +27,13 @@ module Api
         assert_equal response.headers["Authorization"], "Bearer #{access_token}"
       end
 
+      test "sign in returns a short-lived WebSocket token" do
+        post "/api/v1/auth/sign_in", params: { user: { username: @user.username, password: @password } }, as: :json
+
+        assert_predicate response.parsed_body.dig("data", "realtime_token"), :present?
+        assert_predicate response.parsed_body.dig("data", "realtime_token_expires_at"), :present?
+      end
+
       test "sign in with invalid credentials is rejected" do
         post "/api/v1/auth/sign_in", params: { user: { username: @user.username, password: "wrong-password" } },
                                      as: :json
@@ -44,14 +51,7 @@ module Api
         get "/api/v1/auth/me", headers: auth_headers_for(@user, password: @password)
 
         assert_response :ok
-        assert_equal @user.email, response.parsed_body.dig("data", "user", "email")
-
-        permissions = response.parsed_body
-                              .fetch("data")
-                              .fetch("permissions")
-                              .map { |permission| permission.fetch("code") }
-
-        assert_equal ["manifest_list.view"], permissions
+        assert_equal [@user.email, ["manifest_list.view"], true], me_response_summary(response.parsed_body)
       end
 
       test "sign out revokes the token" do
@@ -64,6 +64,14 @@ module Api
         get "/api/v1/auth/me", headers: headers
 
         assert_response :unauthorized
+      end
+
+      private
+
+      def me_response_summary(payload)
+        data = payload.fetch("data")
+        permissions = data.fetch("permissions").map { |permission| permission.fetch("code") }
+        [data.dig("user", "email"), permissions, data.fetch("realtime_token").present?]
       end
     end
   end

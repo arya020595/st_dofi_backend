@@ -51,3 +51,8 @@ production:
     <<: *primary_production
     database: <%= ENV.fetch("DATABASE_NAME", "dofi_backend_production") %>_queue
     migrations_paths: db/queue_migrate
+  cable:
+    <<: *primary_production
+    database: <%= ENV.fetch("CABLE_DATABASE_NAME", "#{ENV.fetch("DATABASE_NAME", "dofi_backend_production")}_cable") %>
+    migrations_paths: db/cable_migrate
+    schema_dump: cable_schema.rb
