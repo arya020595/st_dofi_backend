@@ -213,11 +213,18 @@ DICTIONARIES = [
 ].freeze
 
 DICTIONARIES.each do |attrs|
-  Dictionary.find_or_create_by!(local_name: attrs[:local_name]) do |dictionary|
-    dictionary.scientific_name = attrs[:scientific_name]
-    dictionary.group_name = attrs[:group_name]
-    dictionary.family_name = attrs[:family_name]
-  end
+  dictionary_group = DictionaryGroup.find_or_create_by!(name: attrs[:group_name])
+  dictionary_family = DictionaryFamily.find_or_create_by!(
+    dictionary_group:,
+    name: attrs[:family_name]
+  )
+
+  Dictionary.find_or_initialize_by(local_name: attrs[:local_name]).update!(
+    scientific_name: attrs[:scientific_name],
+    dictionary_group:,
+    dictionary_family:
+  )
 end
 
-puts "Seeded #{Dictionary.count} fish species"
+puts "Seeded #{DictionaryGroup.count} dictionary groups, #{DictionaryFamily.count} dictionary families, " \
+     "and #{Dictionary.count} fish species"

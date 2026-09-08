@@ -10,7 +10,7 @@ module Manifests
         zones: ZoneBlueprint.render_as_hash(Zone.all),
         fishing_gears: FishingGearBlueprint.render_as_hash(FishingGear.all),
         company_fishing_gears: CompaniesFishingGearBlueprint.render_as_hash(company_fishing_gears(manifest)),
-        dictionaries: DictionaryBlueprint.render_as_hash(Dictionary.all),
+        **dictionary_lookups,
         skip_reasons: ManifestSkipReasonBlueprint.render_as_hash(ManifestSkipReason.kept)
       }
     end
@@ -20,6 +20,18 @@ module Manifests
     def company_fishing_gears(manifest)
       manifest.company_profile.companies_fishing_gears.kept.approved
               .where(companies_vessel_id: manifest.companies_vessel_id)
+    end
+
+    def dictionary_lookups
+      {
+        dictionary_groups: DictionaryGroupBlueprint.render_as_hash(DictionaryGroup.order(:name)),
+        dictionary_families: DictionaryFamilyBlueprint.render_as_hash(dictionary_families),
+        dictionaries: DictionaryBlueprint.render_as_hash(Dictionary.includes(:dictionary_group, :dictionary_family))
+      }
+    end
+
+    def dictionary_families
+      DictionaryFamily.includes(:dictionary_group).order(:name)
     end
   end
 end

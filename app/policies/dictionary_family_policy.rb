@@ -1,0 +1,2 @@
+class DictionaryFamilyPolicy < DictionaryPolicy
+end

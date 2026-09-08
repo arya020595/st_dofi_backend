@@ -1,0 +1,2 @@
+class DictionaryGroupPolicy < DictionaryPolicy
+end

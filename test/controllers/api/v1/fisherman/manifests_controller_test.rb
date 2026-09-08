@@ -391,7 +391,9 @@ module Api
           data = response.parsed_body["data"]
 
           assert_equal manifest.id, data.dig("manifest", "id")
-          assert_equal %w[dictionaries skip_reasons zones], %w[dictionaries skip_reasons zones] & data.keys
+          expected_lookup_keys = %w[dictionaries dictionary_families dictionary_groups skip_reasons zones]
+
+          assert_equal expected_lookup_keys, expected_lookup_keys & data.keys
         end
 
         private

@@ -12,7 +12,7 @@ module Dictionaries
       tempfile.rewind
       spoofed_file = ActionDispatch::Http::UploadedFile.new(tempfile: tempfile, filename: "fake.png", type: "image/png")
 
-      result = Create.call([{ local_name: "Spoofed Fish", image: spoofed_file }])
+      result = Create.call([dictionary_attributes(local_name: "Spoofed Fish", image: spoofed_file)])
 
       assert_predicate result, :failure?
       assert_includes result.failure.errors.full_messages.join, "must be a JPEG, PNG, or WebP"
@@ -30,12 +30,21 @@ module Dictionaries
       tempfile.rewind
       real_file = ActionDispatch::Http::UploadedFile.new(tempfile: tempfile, filename: "real.png", type: "image/png")
 
-      result = Create.call([{ local_name: "Real Fish", image: real_file }])
+      result = Create.call([dictionary_attributes(local_name: "Real Fish", image: real_file)])
 
       assert_predicate result, :success?
       assert_equal "image/png", result.value!.first.image.blob.content_type
     ensure
       tempfile&.close!
+    end
+
+    private
+
+    def dictionary_attributes(attributes)
+      dictionary_group = create(:dictionary_group)
+      dictionary_family = create(:dictionary_family, dictionary_group:)
+
+      attributes.merge(dictionary_group_id: dictionary_group.id, dictionary_family_id: dictionary_family.id)
     end
   end
 end
