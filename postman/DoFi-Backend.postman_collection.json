@@ -51,6 +51,16 @@
       "type": "string"
     },
     {
+      "key": "dictionary_group_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "dictionary_family_id",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "port_id",
       "value": "",
       "type": "string"
@@ -4423,7 +4433,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Commercial\",\n    \"company_name\": \"Azri Fish Sdn Bhd\",\n    \"company_address\": \"Spg 10, Pantai Serasa, Mukim Serasa\",\n    \"rocbn_no\": \"RC20390923\",\n    \"contact_no\": \"71111111\",\n    \"district\": \"Brunei - Muara\",\n    \"mukim\": \"Serasa\",\n    \"village\": \"Kapok\",\n    \"fisherman_card_no\": \"R-2026-012563\",\n    \"issue_date\": \"2026-01-01\",\n    \"license_expiry_date\": \"2026-12-31\",\n    \"worker_quota\": 34,\n    \"owner\": {\n      \"full_name\": \"Muhammad Shahrizan Bin Haji Said\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-192839\",\n      \"ic_colour\": \"Yellow\"\n    },\n    \"admin\": {\n      \"full_name\": \"Seruddin Bin Haji Abdullah\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-192840\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
+              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Commercial\",\n    \"company_name\": \"Azri Fish Sdn Bhd\",\n    \"company_address\": \"Spg 10, Pantai Serasa, Mukim Serasa\",\n    \"rocbn_no\": \"RC20390923\",\n    \"contact_no\": \"71111111\",\n    \"district\": \"Brunei - Muara\",\n    \"mukim\": \"Serasa\",\n    \"village\": \"Kapok\",\n    \"fisherman_card_no\": \"R-2026-012563\",\n    \"issue_date\": \"2026-01-01\",\n    \"license_expiry_date\": \"2026-12-31\",\n    \"owner\": {\n      \"full_name\": \"Muhammad Shahrizan Bin Haji Said\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-192839\",\n      \"ic_colour\": \"Yellow\"\n    },\n    \"admin\": {\n      \"full_name\": \"Seruddin Bin Haji Abdullah\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-192840\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4482,7 +4492,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Small-Scale (Company)\",\n    \"company_name\": \"Serasa Small Fish Co\",\n    \"company_address\": \"Spg 20, Serasa\",\n    \"rocbn_no\": \"RC99887766\",\n    \"contact_no\": \"72222222\",\n    \"district\": \"Brunei - Muara\",\n    \"mukim\": \"Serasa\",\n    \"village\": \"Kapok\",\n    \"fisherman_card_no\": \"R-2026-099001\",\n    \"issue_date\": \"2026-02-01\",\n    \"license_expiry_date\": \"2027-01-31\",\n    \"worker_quota\": 5,\n    \"owner\": {\n      \"full_name\": \"Roslan Bin Mat\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-441122\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
+              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Small-Scale (Company)\",\n    \"company_name\": \"Serasa Small Fish Co\",\n    \"company_address\": \"Spg 20, Serasa\",\n    \"rocbn_no\": \"RC99887766\",\n    \"contact_no\": \"72222222\",\n    \"district\": \"Brunei - Muara\",\n    \"mukim\": \"Serasa\",\n    \"village\": \"Kapok\",\n    \"fisherman_card_no\": \"R-2026-099001\",\n    \"issue_date\": \"2026-02-01\",\n    \"license_expiry_date\": \"2027-01-31\",\n    \"owner\": {\n      \"full_name\": \"Roslan Bin Mat\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-441122\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4724,7 +4734,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"company_profile\": {\n    \"worker_quota\": 40\n  }\n}",
+              "raw": "{\n  \"company_profile\": {\n    \"contact_no\": \"71234567\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -5033,7 +5043,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Commercial\",\n    \"company_name\": \"Manifest Demo Fisheries Sdn Bhd\",\n    \"company_address\": \"Spg 1, Kampong Serasa, Mukim Serasa\",\n    \"rocbn_no\": \"RC-MFDEMO-001\",\n    \"contact_no\": \"71234567\",\n    \"district\": \"Brunei - Muara\",\n    \"mukim\": \"Mukim Serasa\",\n    \"village\": \"Kampong Serasa\",\n    \"fisherman_card_no\": \"R-MFDEMO-001\",\n    \"issue_date\": \"2026-01-01\",\n    \"license_expiry_date\": \"2027-01-01\",\n    \"worker_quota\": 5,\n    \"owner\": {\n      \"full_name\": \"Commercial Demo Fisherman\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-710002\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
+              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Commercial\",\n    \"company_name\": \"Manifest Demo Fisheries Sdn Bhd\",\n    \"company_address\": \"Spg 1, Kampong Serasa, Mukim Serasa\",\n    \"rocbn_no\": \"RC-MFDEMO-001\",\n    \"contact_no\": \"71234567\",\n    \"district\": \"Brunei - Muara\",\n    \"mukim\": \"Mukim Serasa\",\n    \"village\": \"Kampong Serasa\",\n    \"fisherman_card_no\": \"R-MFDEMO-001\",\n    \"issue_date\": \"2026-01-01\",\n    \"license_expiry_date\": \"2027-01-01\",\n    \"owner\": {\n      \"full_name\": \"Commercial Demo Fisherman\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-710002\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -11604,7 +11614,7 @@
                 },
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"zone\": {\n    \"name\": \"Zone 5\",\n    \"zone_type\": \"Deep Sea\",\n    \"start_range\": \"200 Nm\",\n    \"end_range\": \"500 Nm\"\n  }\n}",
+                  "raw": "{\n  \"zone\": {\n    \"name\": \"Zone 5\",\n    \"start_range\": 200,\n    \"end_range\": 500\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -12549,8 +12559,8 @@
       "description": "Reference data used across manifests and company profiling: ports, zones, fishing gears, nationalities, positions, and capture-report skip reasons. All six are simple admin-managed CRUD tables."
     },
     {
-      "name": "Dictionary",
-      "description": "Fish species dictionary CRUD. Supports single and bulk create (multipart/form-data or JSON). Images are uploaded via the `image` field and stored via ActiveStorage (MinIO, S3-compatible, in staging/production; local disk in development).",
+      "name": "Dictionary (Legacy - Superseded)",
+      "description": "Legacy Dictionary contract retained for historical reference. Use the `Dictionary - Current` folder below. Species now uses `dictionary_group_id` and `dictionary_family_id`; string `group_name` and `family_name` request fields are no longer accepted.",
       "item": [
         {
           "name": "List Dictionaries",
@@ -13557,6 +13567,149 @@
                   "pm.collectionVariables.set('manifest_dictionary_id', pm.response.json().data[0].id);"
                 ]
               }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Dictionary - Current",
+      "description": "Current Dictionary module. Species remains `/dictionaries`; Group and Family are separate modules. A Species must reference a Family belonging to its selected Group. Admin CRUD requires existing `dictionaries.*` permissions. Fisherman endpoints are read-only lookup data and use the same Manifest create access as the existing dictionary picker.",
+      "item": [
+        {
+          "name": "Admin - Dictionary Groups",
+          "item": [
+            {
+              "name": "List Groups",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/admin/dictionary_groups?page=1&limit=100",
+                "description": "List Groups. Supports `q[name_cont]` and normal Pagy parameters. Saves the first result as `dictionary_group_id`."
+              },
+              "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status is 200', () => pm.response.to.have.status(200));", "if (pm.response.json().data.length) pm.collectionVariables.set('dictionary_group_id', pm.response.json().data[0].id);"]}}]
+            },
+            {
+              "name": "Create Group",
+              "request": {
+                "method": "POST",
+                "header": [{"key": "Content-Type", "value": "application/json"}],
+                "url": "{{base_url}}/api/v1/admin/dictionary_groups",
+                "body": {"mode": "raw", "raw": "{\n  \"dictionary_group\": {\n    \"name\": \"Pelagic Fish\"\n  }\n}"}
+              },
+              "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status is 201', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('dictionary_group_id', pm.response.json().data.id);"]}}]
+            },
+            {
+              "name": "Show Group",
+              "request": {"method": "GET", "url": "{{base_url}}/api/v1/admin/dictionary_groups/{{dictionary_group_id}}"}
+            },
+            {
+              "name": "Update Group",
+              "request": {
+                "method": "PATCH",
+                "header": [{"key": "Content-Type", "value": "application/json"}],
+                "url": "{{base_url}}/api/v1/admin/dictionary_groups/{{dictionary_group_id}}",
+                "body": {"mode": "raw", "raw": "{\n  \"dictionary_group\": {\n    \"name\": \"Pelagic Fish Updated\"\n  }\n}"}
+              }
+            },
+            {
+              "name": "Delete Group",
+              "request": {"method": "DELETE", "url": "{{base_url}}/api/v1/admin/dictionary_groups/{{dictionary_group_id}}"},
+              "description": "Returns 422 when the Group still has Families or Species."
+            }
+          ]
+        },
+        {
+          "name": "Admin - Dictionary Families",
+          "item": [
+            {
+              "name": "List Families",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/admin/dictionary_families?q[dictionary_group_id_eq]={{dictionary_group_id}}&page=1&limit=100",
+                "description": "List Families. Optional filter: `q[dictionary_group_id_eq]`. Saves the first result as `dictionary_family_id`."
+              },
+              "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status is 200', () => pm.response.to.have.status(200));", "if (pm.response.json().data.length) pm.collectionVariables.set('dictionary_family_id', pm.response.json().data[0].id);"]}}]
+            },
+            {
+              "name": "Create Family",
+              "request": {
+                "method": "POST",
+                "header": [{"key": "Content-Type", "value": "application/json"}],
+                "url": "{{base_url}}/api/v1/admin/dictionary_families",
+                "body": {"mode": "raw", "raw": "{\n  \"dictionary_family\": {\n    \"name\": \"Scombridae\",\n    \"dictionary_group_id\": \"{{dictionary_group_id}}\"\n  }\n}"}
+              },
+              "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status is 201', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('dictionary_family_id', pm.response.json().data.id);"]}}]
+            },
+            {
+              "name": "Show Family",
+              "request": {"method": "GET", "url": "{{base_url}}/api/v1/admin/dictionary_families/{{dictionary_family_id}}"}
+            },
+            {
+              "name": "Update Family",
+              "request": {
+                "method": "PATCH",
+                "header": [{"key": "Content-Type", "value": "application/json"}],
+                "url": "{{base_url}}/api/v1/admin/dictionary_families/{{dictionary_family_id}}",
+                "body": {"mode": "raw", "raw": "{\n  \"dictionary_family\": {\n    \"name\": \"Scombridae Updated\",\n    \"dictionary_group_id\": \"{{dictionary_group_id}}\"\n  }\n}"}
+              },
+              "description": "Changing Group returns 422 if this Family is already used by Species."
+            },
+            {
+              "name": "Delete Family",
+              "request": {"method": "DELETE", "url": "{{base_url}}/api/v1/admin/dictionary_families/{{dictionary_family_id}}"},
+              "description": "Returns 422 when Species still reference this Family."
+            }
+          ]
+        },
+        {
+          "name": "Admin - Species (Dictionary)",
+          "item": [
+            {
+              "name": "List Species",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/api/v1/admin/dictionaries?q[dictionary_group_id_eq]={{dictionary_group_id}}&q[dictionary_family_id_eq]={{dictionary_family_id}}&page=1&limit=100",
+                "description": "Existing Species list. Filter using UUID FK: `q[dictionary_group_id_eq]` and/or `q[dictionary_family_id_eq]`. Response includes IDs plus nested `dictionary_group` and `dictionary_family`."
+              },
+              "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('Status is 200', () => pm.response.to.have.status(200));", "if (pm.response.json().data.length) pm.collectionVariables.set('dictionary_id', pm.response.json().data[0].id);"]}}]
+            },
+            {
+              "name": "Create Species",
+              "request": {
+                "method": "POST",
+                "header": [{"key": "Content-Type", "value": "application/json"}],
+                "url": "{{base_url}}/api/v1/admin/dictionaries",
+                "body": {"mode": "raw", "raw": "{\n  \"dictionary\": {\n    \"local_name\": \"Ikan Tenggiri\",\n    \"scientific_name\": \"Scomberomorus commerson\",\n    \"dictionary_group_id\": \"{{dictionary_group_id}}\",\n    \"dictionary_family_id\": \"{{dictionary_family_id}}\"\n  }\n}"}
+              },
+              "description": "For image upload, send the same fields as multipart: `dictionary[local_name]`, `dictionary[scientific_name]`, `dictionary[dictionary_group_id]`, `dictionary[dictionary_family_id]`, and optional `dictionary[image]`."
+            },
+            {
+              "name": "Update Species",
+              "request": {
+                "method": "PATCH",
+                "header": [{"key": "Content-Type", "value": "application/json"}],
+                "url": "{{base_url}}/api/v1/admin/dictionaries/{{dictionary_id}}",
+                "body": {"mode": "raw", "raw": "{\n  \"dictionary\": {\n    \"dictionary_group_id\": \"{{dictionary_group_id}}\",\n    \"dictionary_family_id\": \"{{dictionary_family_id}}\"\n  }\n}"}
+              },
+              "description": "The selected Family must belong to the selected Group; otherwise 422."
+            }
+          ]
+        },
+        {
+          "name": "Fisherman - Dictionary Lookup",
+          "item": [
+            {
+              "name": "List Groups",
+              "request": {"method": "GET", "url": "{{base_url}}/api/v1/fisherman/dictionary_groups?page=1&limit=100"}
+            },
+            {
+              "name": "List Families by Group",
+              "request": {"method": "GET", "url": "{{base_url}}/api/v1/fisherman/dictionary_families?q[dictionary_group_id_eq]={{dictionary_group_id}}&page=1&limit=100"}
+            },
+            {
+              "name": "List Species by Group and Family",
+              "request": {"method": "GET", "url": "{{base_url}}/api/v1/fisherman/dictionaries?q[dictionary_group_id_eq]={{dictionary_group_id}}&q[dictionary_family_id_eq]={{dictionary_family_id}}&page=1&limit=100"},
+              "description": "Read-only lookup for Capture Report. Uses Fisherman Bearer token and requires the existing Manifest create permission."
             }
           ]
         }
