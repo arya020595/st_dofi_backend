@@ -34,6 +34,34 @@ class Notifications::ManifestPublisherTest < ActiveSupport::TestCase
     assert_equal ["manifest.capture_report_review_required"], verifier.notifications.pluck(:notification_type)
   end
 
+  test "port-out resubmission notification is sent to authorized admin approvers" do
+    manifest = create(:manifest)
+    approver = create_admin_recipient("manifest_approvals.approve")
+
+    Notifications::ManifestPublisher.call(event: :port_out_resubmitted, manifest:)
+
+    assert_equal ["manifest.port_out_resubmitted"], approver.notifications.pluck(:notification_type)
+  end
+
+  test "capture-report resubmission notification is sent to authorized verifiers" do
+    manifest = create(:manifest)
+    report = create(:capture_report, manifest:)
+    verifier = create_admin_recipient("capture_report_verifications.verify")
+
+    Notifications::ManifestPublisher.call(event: :capture_report_resubmitted, manifest:, capture_report: report)
+
+    assert_equal ["manifest.capture_report_resubmitted"], verifier.notifications.pluck(:notification_type)
+  end
+
+  test "port-in resubmission notification is sent to authorized admin approvers" do
+    manifest = create(:manifest)
+    approver = create_admin_recipient("manifest_approvals.approve")
+
+    Notifications::ManifestPublisher.call(event: :port_in_resubmitted, manifest:)
+
+    assert_equal ["manifest.port_in_resubmitted"], approver.notifications.pluck(:notification_type)
+  end
+
   private
 
   def create_admin_recipient(permission_code)

@@ -10,6 +10,9 @@ module Notifications
       port_out_amendment_required: [
         :fishermen, "Port-Out Amendment Required", "Manifest %<number>s requires a Port-Out amendment."
       ],
+      port_out_resubmitted: [
+        :approvers, "Port-Out Resubmitted", "Manifest %<number>s has been resubmitted for Port-Out approval."
+      ],
       capture_report_review_required: [
         :capture_verifiers,
         "Capture Report Review Required",
@@ -23,6 +26,11 @@ module Notifications
         "Capture Report Amendment Required",
         "A Capture Report for manifest %<number>s requires amendment."
       ],
+      capture_report_resubmitted: [
+        :capture_verifiers,
+        "Capture Report Resubmitted",
+        "A Capture Report for manifest %<number>s has been resubmitted for verification."
+      ],
       port_in_review_required: [
         :approvers, "Port-In Approval Required", "Manifest %<number>s is ready for Port-In approval."
       ],
@@ -31,6 +39,9 @@ module Notifications
       ],
       port_in_amendment_required: [
         :fishermen, "Port-In Amendment Required", "Manifest %<number>s requires a Port-In amendment."
+      ],
+      port_in_resubmitted: [
+        :approvers, "Port-In Resubmitted", "Manifest %<number>s has been resubmitted for Port-In approval."
       ]
     }.freeze
 
