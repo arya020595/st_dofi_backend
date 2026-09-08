@@ -68,10 +68,12 @@ module Api
       end
 
       def company_profile_params
-        params.require(:company_profile).permit(
-          :registration_type, :company_name, :company_address, :rocbn_no, :contact_no,
-          :district, :mukim, :village, :fisherman_card_no, :issue_date, :license_expiry_date
+        company_profile = params.expect(
+          company_profile: %i[registration_type company_name company_address rocbn_no contact_no district mukim village
+                              fisherman_card_no issue_date license_expiry_date worker_quota]
         )
+
+        company_profile.except(:worker_quota)
       end
 
       def create_params
