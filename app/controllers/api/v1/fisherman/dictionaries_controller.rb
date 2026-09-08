@@ -6,7 +6,8 @@ module Api
 
         def index
           authorize Manifest, :create?
-          result = apply_ransack_search(policy_scope(Dictionary), default_sort: "local_name asc")
+          result = apply_ransack_search(policy_scope(Dictionary).includes(:dictionary_group, :dictionary_family),
+                                        default_sort: "local_name asc")
           pagy, records = pagy(:offset, result)
 
           render json: { status: "success", data: DictionaryBlueprint.render_as_hash(records),

@@ -41,7 +41,7 @@ module Api
         private
 
         def zone_params
-          params.expect(zone: %i[name zone_type start_range end_range])
+          params.expect(zone: %i[name start_range end_range])
         end
       end
     end

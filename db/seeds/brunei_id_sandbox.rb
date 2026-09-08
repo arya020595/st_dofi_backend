@@ -19,7 +19,6 @@ BRUNEI_ID_SANDBOX_FISHERMEN = [
     fisherman_card_no: "BID-FC-COM-001",
     issue_date: Date.new(2026, 1, 8),
     license_expiry_date: Date.new(2036, 1, 8),
-    worker_quota: 12,
     owner_name: "Brunei Id Sandbox Commercial Fisherman",
     gender: "Male",
     ic_colour: "Yellow",
@@ -38,7 +37,6 @@ BRUNEI_ID_SANDBOX_FISHERMEN = [
     fisherman_card_no: "BID-FC-FT-001",
     issue_date: Date.new(2026, 4, 2),
     license_expiry_date: Date.new(2036, 4, 2),
-    worker_quota: 1,
     owner_name: "Brunei Id Sandbox Full-Time Fisherman",
     gender: "Male",
     ic_colour: "Green",
@@ -65,8 +63,7 @@ SANDBOX_PROFILE_ATTRIBUTE_MAP = {
   village: :village,
   fisherman_card_no: :fisherman_card_no,
   issue_date: :issue_date,
-  license_expiry_date: :license_expiry_date,
-  worker_quota: :worker_quota
+  license_expiry_date: :license_expiry_date
 }.freeze
 
 def sandbox_profile_attributes(attributes)
@@ -318,6 +315,7 @@ def enrich_sandbox_profile!(company_profile, attributes, actor)
   upsert_sandbox_fishing_gear!(company_profile, vessel, context, actor)
   upsert_sandbox_document!(company_profile, attributes, context, actor)
 
+  CompanyProfiles::SyncWorkerQuota.call(company_profile)
   CompanyProfiles::SyncApprovalStatus.refresh_after_review!(company_profile, actor: actor)
 end
 

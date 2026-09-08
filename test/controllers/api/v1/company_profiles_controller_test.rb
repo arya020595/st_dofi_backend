@@ -32,7 +32,6 @@ module Api
             company_address: "Spg 1, Test", rocbn_no: "RC-NEW-001", contact_no: "71222222",
             district: "Brunei - Muara", mukim: "Serasa", village: "Kapok",
             fisherman_card_no: "R-2026-000999", issue_date: "2026-01-01", license_expiry_date: "2026-12-31",
-            worker_quota: 10,
             owner: { full_name: "Owner Person", gender: "Male", ic_no: "01-700010", ic_colour: "Yellow" }
           }.merge(overrides)
         }
@@ -125,12 +124,14 @@ module Api
         assert_predicate response.parsed_body["errors"], :present?
       end
 
-      test "update modifies the target profile" do
+      test "update ignores a client supplied worker quota" do
+        original_quota = @target.worker_quota
+
         patch "/api/v1/admin/company_profiles/#{@target.id}", params: { company_profile: { worker_quota: 99 } },
                                                               headers: @admin_headers, as: :json
 
         assert_response :ok
-        assert_equal 99, @target.reload.worker_quota
+        assert_equal original_quota, @target.reload.worker_quota
       end
 
       test "destroy soft-deletes the target profile and its kept contacts" do

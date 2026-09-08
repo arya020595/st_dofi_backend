@@ -46,7 +46,7 @@ module Api
         def destroy
           authorize @vessel
 
-          if @vessel.discard
+          if discard_vessel
             render json: { status: "success", message: "Vessel removed." }
           else
             render json: { status: "fail", errors: @vessel.errors.full_messages }, status: :unprocessable_content
@@ -83,6 +83,12 @@ module Api
 
         def image_params
           params.expect(images: [])
+        end
+
+        def discard_vessel
+          CompaniesVessel.transaction do
+            @vessel.discard && ::CompanyProfiles::SyncWorkerQuota.call(@company_profile)
+          end
         end
       end
     end

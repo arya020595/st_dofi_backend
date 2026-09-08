@@ -9,6 +9,7 @@ module CompaniesVessels
         return Failure(vessel) unless vessel.update(attributes)
 
         vessel.revert_to_pending_for_edit!
+        CompanyProfiles::SyncWorkerQuota.call(vessel.company_profile)
         CompanyProfiles::SyncApprovalStatus.mark_pending!(vessel.company_profile)
       end
 

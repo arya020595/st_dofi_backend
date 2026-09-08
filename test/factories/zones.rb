@@ -15,7 +15,6 @@ end
 #  end_range   :string
 #  name        :string           not null
 #  start_range :string
-#  zone_type   :string
 #  created_at  :datetime         not null
 #  updated_at  :datetime         not null
 #

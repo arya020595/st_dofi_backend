@@ -1,7 +1,10 @@
 class DictionaryBlueprint < Blueprinter::Base
   identifier :id
 
-  fields :local_name, :scientific_name, :group_name, :family_name, :created_at, :updated_at
+  fields :local_name, :scientific_name, :dictionary_group_id, :dictionary_family_id, :created_at, :updated_at
+
+  association :dictionary_group, blueprint: DictionaryGroupBlueprint
+  association :dictionary_family, blueprint: DictionaryFamilyBlueprint
 
   # Dictionary images live in the public-read bucket (see docs/minio/MINIO.md §2) — fish-species
   # reference photos aren't sensitive, so this is a direct, stable, unsigned URL rather than our

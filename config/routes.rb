@@ -57,6 +57,8 @@ Rails.application.routes.draw do
         resources :users, only: %i[index show create update destroy]
         resources :roles, only: %i[index show create update destroy]
         resources :dictionaries, only: %i[index show create update destroy]
+        resources :dictionary_groups, only: %i[index show create update destroy]
+        resources :dictionary_families, only: %i[index show create update destroy]
 
         namespace :master_data do
           resources :ports, only: %i[index show create update destroy], controller: "/api/v1/admin/ports"
@@ -236,6 +238,8 @@ Rails.application.routes.draw do
         resources :captains, only: %i[index]
         resources :crews, only: %i[index]
         resources :dictionaries, only: %i[index]
+        resources :dictionary_groups, only: %i[index]
+        resources :dictionary_families, only: %i[index]
         resources :company_profiles, only: %i[index show update destroy],
                                      controller: "/api/v1/company_profiles" do
           resources :contacts, only: %i[create update destroy], controller: "/api/v1/company_profiles/contacts"

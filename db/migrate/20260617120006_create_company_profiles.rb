@@ -30,7 +30,7 @@ class CreateCompanyProfiles < ActiveRecord::Migration[8.1]
       t.string :designation # e.g. "Fisherman", "Boat Owner"
 
       # Profile status
-      t.integer :worker_quota
+      t.integer :worker_quota, null: false, default: 0
       t.date :date_approval
       t.string :approval_status, null: false, default: "pending"
       # AASM: pending, approved, amendment_required

@@ -245,7 +245,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_01_100000) do
     t.string "rocbn_no"
     t.datetime "updated_at", null: false
     t.string "village"
-    t.integer "worker_quota"
+    t.integer "worker_quota", default: 0, null: false
     t.index ["approval_status"], name: "index_company_profiles_on_approval_status"
     t.index ["approved_by"], name: "index_company_profiles_on_approved_by"
     t.index ["discarded_at"], name: "index_company_profiles_on_discarded_at"
@@ -270,14 +270,32 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_01_100000) do
 
   create_table "dictionaries", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.string "family_name"
-    t.string "group_name"
+    t.uuid "dictionary_family_id", null: false
+    t.uuid "dictionary_group_id", null: false
     t.string "local_name", null: false
     t.string "scientific_name"
     t.datetime "updated_at", null: false
+    t.index ["dictionary_family_id"], name: "index_dictionaries_on_dictionary_family_id"
+    t.index ["dictionary_group_id"], name: "index_dictionaries_on_dictionary_group_id"
     t.index ["local_name"], name: "idx_dictionaries_local_name_trgm", opclass: :gin_trgm_ops, using: :gin
     t.index ["local_name"], name: "index_dictionaries_on_local_name"
     t.index ["scientific_name"], name: "idx_dictionaries_scientific_name_trgm", opclass: :gin_trgm_ops, using: :gin
+  end
+
+  create_table "dictionary_families", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.uuid "dictionary_group_id", null: false
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
+    t.index ["dictionary_group_id", "name"], name: "index_dictionary_families_on_dictionary_group_id_and_name", unique: true
+    t.index ["dictionary_group_id"], name: "index_dictionary_families_on_dictionary_group_id"
+  end
+
+  create_table "dictionary_groups", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
+    t.index ["name"], name: "index_dictionary_groups_on_name", unique: true
   end
 
   create_table "fish_capture_details", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -579,11 +597,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_01_100000) do
 
   create_table "zones", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.string "end_range"
+    t.integer "end_range"
     t.string "name", null: false
-    t.string "start_range"
+    t.integer "start_range"
     t.datetime "updated_at", null: false
-    t.string "zone_type"
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
@@ -607,6 +624,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_01_100000) do
   add_foreign_key "company_profiles", "users", column: "approved_by"
   add_foreign_key "crew_manifests", "companies_crews"
   add_foreign_key "crew_manifests", "manifests"
+  add_foreign_key "dictionaries", "dictionary_families"
+  add_foreign_key "dictionaries", "dictionary_groups"
+  add_foreign_key "dictionary_families", "dictionary_groups"
   add_foreign_key "fish_capture_details", "capture_reports"
   add_foreign_key "fish_capture_details", "dictionaries"
   add_foreign_key "fish_capture_details", "fishing_gear_details"

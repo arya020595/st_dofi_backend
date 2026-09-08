@@ -4,13 +4,14 @@ module Api
       class DictionariesController < ApplicationController
         include RansackSearchable
 
-        DICTIONARY_FIELDS = %i[local_name scientific_name group_name family_name image].freeze
+        DICTIONARY_FIELDS = %i[local_name scientific_name dictionary_group_id dictionary_family_id image].freeze
 
         before_action :set_dictionary, only: %i[show update destroy]
 
         def index
           authorize Dictionary
-          result = apply_ransack_search(policy_scope(Dictionary), default_sort: "created_at desc")
+          result = apply_ransack_search(policy_scope(Dictionary).includes(:dictionary_group, :dictionary_family),
+                                        default_sort: "created_at desc")
           pagy, records = pagy(:offset, result)
           render json: { status: "success", data: DictionaryBlueprint.render_as_hash(records),
                          meta: pagination_meta(pagy) }

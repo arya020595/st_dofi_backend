@@ -91,7 +91,8 @@ if manifest1.capture_reports.none?
 
   tenggiri = Dictionary.find_by!(local_name: "Ikan Tenggiri")
   report1.fish_capture_details.create!(dictionary: tenggiri, local_name: tenggiri.local_name,
-                                       scientific_name: tenggiri.scientific_name, fish_type: tenggiri.group_name,
+                                       scientific_name: tenggiri.scientific_name,
+                                       fish_type: tenggiri.dictionary_group.name,
                                        amount_captured_kg: 320.5, price_per_kg: 12.0, overall_total: 320.5 * 12.0,
                                        synced_at: Time.current, fishing_gear_detail: report1_gear_detail)
 end
@@ -282,7 +283,7 @@ if manifest6.capture_reports.none?
 
   selar = Dictionary.find_by!(local_name: "Ikan Selar")
   report6.fish_capture_details.create!(dictionary: selar, local_name: selar.local_name,
-                                       scientific_name: selar.scientific_name, fish_type: selar.group_name,
+                                       scientific_name: selar.scientific_name, fish_type: selar.dictionary_group.name,
                                        amount_captured_kg: 210.0, price_per_kg: 8.0, overall_total: 210.0 * 8.0,
                                        synced_at: Time.current, fishing_gear_detail: report6_gear_detail)
 end
@@ -338,7 +339,8 @@ if manifest7.capture_reports.none?
   )
   tongkol = Dictionary.find_by!(local_name: "Ikan Tongkol")
   report7.fish_capture_details.create!(dictionary: tongkol, local_name: tongkol.local_name,
-                                       scientific_name: tongkol.scientific_name, fish_type: tongkol.group_name,
+                                       scientific_name: tongkol.scientific_name,
+                                       fish_type: tongkol.dictionary_group.name,
                                        amount_captured_kg: 180.0, price_per_kg: 9.5, overall_total: 180.0 * 9.5,
                                        synced_at: Time.current, fishing_gear_detail: report7_gear_detail)
 end
@@ -393,7 +395,7 @@ if manifest8.capture_reports.none?
   )
   bilis = Dictionary.find_by!(local_name: "Ikan Bilis")
   report8.fish_capture_details.create!(dictionary: bilis, local_name: bilis.local_name,
-                                       scientific_name: bilis.scientific_name, fish_type: bilis.group_name,
+                                       scientific_name: bilis.scientific_name, fish_type: bilis.dictionary_group.name,
                                        amount_captured_kg: 45.0, price_per_kg: 6.0, overall_total: 45.0 * 6.0,
                                        synced_at: Time.current, fishing_gear_detail: report8_gear_detail)
 end
@@ -466,7 +468,8 @@ if manifest10.capture_reports.none?
   )
   kembung = Dictionary.find_by!(local_name: "Ikan Kembung")
   report10.fish_capture_details.create!(dictionary: kembung, local_name: kembung.local_name,
-                                        scientific_name: kembung.scientific_name, fish_type: kembung.group_name,
+                                        scientific_name: kembung.scientific_name,
+                                        fish_type: kembung.dictionary_group.name,
                                         amount_captured_kg: 260.0, price_per_kg: 7.5, overall_total: 260.0 * 7.5,
                                         synced_at: Time.current, fishing_gear_detail: report10_gear_detail)
 end
