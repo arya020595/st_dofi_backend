@@ -8,6 +8,11 @@ module CaptureReports
       return Failure(report) unless report.may_resubmit?
 
       report.resubmit!(actor: actor)
+      Notifications::ManifestPublisher.call(
+        event: :capture_report_resubmitted,
+        manifest: report.manifest,
+        capture_report: report
+      )
       Success(report)
     end
   end

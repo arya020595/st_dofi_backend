@@ -8,6 +8,7 @@ module Manifests
       return Failure(manifest) unless manifest.may_resubmit_port_out?
 
       manifest.resubmit_port_out!(actor: actor)
+      Notifications::ManifestPublisher.call(event: :port_out_resubmitted, manifest:)
       Success(manifest)
     end
   end
