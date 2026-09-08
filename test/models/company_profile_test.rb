@@ -1,10 +1,9 @@
 require "test_helper"
 class CompanyProfileTest < ActiveSupport::TestCase
-  test "invalid without worker_quota" do
+  test "does not require worker_quota because vessels calculate it" do
     profile = build(:company_profile, worker_quota: nil)
-    profile.valid?
 
-    assert_includes profile.errors.attribute_names, :worker_quota
+    assert_predicate profile, :valid?
   end
 
   test "an individual profile does not require company-shape fields" do
@@ -15,11 +14,11 @@ class CompanyProfileTest < ActiveSupport::TestCase
     assert_predicate profile, :valid?
   end
 
-  test "a non-individual profile is unaffected by the individual-only relaxation" do
-    profile = build(:company_profile, worker_quota: nil)
+  test "a non-individual profile still requires company-shape fields" do
+    profile = build(:company_profile, company_name: nil)
 
     assert_not profile.individual?
-    assert_not profile.valid?
+    assert_not_predicate profile, :valid?
   end
 
   test "a part-time profile is also treated as individual, same as full-time" do
@@ -85,7 +84,7 @@ end
 #  registration_type    :string           not null
 #  rocbn_no             :string
 #  village              :string
-#  worker_quota         :integer
+#  worker_quota         :integer          default(0), not null
 #  created_at           :datetime         not null
 #  updated_at           :datetime         not null
 #

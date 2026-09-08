@@ -10,6 +10,7 @@ module CompaniesVessels
       ActiveRecord::Base.transaction do
         return Failure(vessel) unless vessel.save
 
+        CompanyProfiles::SyncWorkerQuota.call(company_profile)
         CompanyProfiles::SyncApprovalStatus.mark_pending!(company_profile)
       end
 

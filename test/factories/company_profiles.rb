@@ -25,7 +25,6 @@ FactoryBot.define do
       fisherman_card_no { nil }
       issue_date { nil }
       license_expiry_date { nil }
-      worker_quota { nil }
     end
 
     trait :part_time do
@@ -66,7 +65,7 @@ end
 #  registration_type    :string           not null
 #  rocbn_no             :string
 #  village              :string
-#  worker_quota         :integer
+#  worker_quota         :integer          default(0), not null
 #  created_at           :datetime         not null
 #  updated_at           :datetime         not null
 #

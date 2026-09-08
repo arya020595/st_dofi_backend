@@ -68,15 +68,15 @@ module Api
       end
 
       def company_profile_params
-        params.expect(company_profile: %i[registration_type company_name company_address rocbn_no contact_no
-                                          district mukim village fisherman_card_no issue_date license_expiry_date
-                                          worker_quota])
+        params.require(:company_profile).permit(
+          :registration_type, :company_name, :company_address, :rocbn_no, :contact_no,
+          :district, :mukim, :village, :fisherman_card_no, :issue_date, :license_expiry_date
+        )
       end
 
       def create_params
         params.expect(company_profile: %i[registration_type company_name company_address rocbn_no contact_no
-                                          district mukim village fisherman_card_no issue_date license_expiry_date
-                                          worker_quota] +
+                                          district mukim village fisherman_card_no issue_date license_expiry_date] +
                                         [{ owner: %i[full_name gender ic_no ic_colour],
                                            admin: %i[full_name gender ic_no ic_colour] }])
       end

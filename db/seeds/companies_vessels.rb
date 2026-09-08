@@ -151,4 +151,6 @@ companies_vessels.each do |attrs|
   apply_approval_state.call(vessel, approve)
 end
 
+CompanyProfile.find_each { |company_profile| CompanyProfiles::SyncWorkerQuota.call(company_profile) }
+
 puts "Seeded #{CompaniesVessel.count} vessels (#{CompaniesVessel.approved.count} approved)"

@@ -5,7 +5,7 @@ class CompanyProfile < ApplicationRecord
   # POST /api/v1/admin/company_profiles like any other type — they just
   # represent one person rather than a company, so they're profiled with only an Owner
   # CompanyProfileContact (the fisherman themselves) and no company-shape fields. Company-shape
-  # fields (company_name, worker_quota, district, fisherman_card_no, ...) stay optional for these
+  # fields (company_name, district, fisherman_card_no, ...) stay optional for these
   # types rather than validating for data that path doesn't collect — see CLAUDE.md "don't
   # validate for scenarios that can't happen."
   INDIVIDUAL_REGISTRATION_TYPES = ["Small - Scale (Full-Time)", "Small - Scale (Part-Time)"].freeze
@@ -22,7 +22,7 @@ class CompanyProfile < ApplicationRecord
 
   validates :registration_type, presence: true
   validates :company_name, :company_address, :contact_no, :district, :mukim, :village,
-            :fisherman_card_no, :issue_date, :license_expiry_date, :worker_quota,
+            :fisherman_card_no, :issue_date, :license_expiry_date,
             presence: true, unless: :individual?
 
   def individual? = INDIVIDUAL_REGISTRATION_TYPES.include?(registration_type)
@@ -71,7 +71,7 @@ end
 #  registration_type    :string           not null
 #  rocbn_no             :string
 #  village              :string
-#  worker_quota         :integer
+#  worker_quota         :integer          default(0), not null
 #  created_at           :datetime         not null
 #  updated_at           :datetime         not null
 #
