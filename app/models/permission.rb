@@ -1,7 +1,6 @@
 class Permission < ApplicationRecord
   include Permission::PlatformScoping
-  include Permission::Taxonomy
-  include Permission::FishermanRoleConfigVisibility
+  include Permission::CatalogRecord
 
   has_many :permission_roles, dependent: :destroy
   has_many :roles, through: :permission_roles

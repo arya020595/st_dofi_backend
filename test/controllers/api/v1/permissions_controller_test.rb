@@ -40,9 +40,11 @@ module Api
         shared = data.find { |permission| permission["code"] == @shared_permission.code }
 
         assert_equal(
-          { "resource" => "dashboard", "section" => "dashboard", "section_order" => 1, "resource_order" => 1,
-            "resource_label" => "Dashboard", "section_label" => "Dashboard" },
-          shared.slice("resource", "section", "section_order", "resource_order", "resource_label", "section_label")
+          { "action" => "view", "action_order" => 1, "resource" => "dashboard", "section" => "dashboard",
+            "section_order" => 1, "resource_order" => 1, "resource_label" => "Dashboard",
+            "section_label" => "Dashboard" },
+          shared.slice("action", "action_order", "resource", "section", "section_order", "resource_order",
+                       "resource_label", "section_label")
         )
       end
 
@@ -59,21 +61,24 @@ module Api
       end
 
       test "index filters by code via ransack" do
-        other = create(:permission, code: "reports.export")
+        create(:permission, code: "manifest.view")
 
-        get "/api/v1/permissions", params: { q: { code_cont: "export" } }, headers: @headers
+        get "/api/v1/permissions", params: { q: { code_eq: "manifest.view" } }, headers: @headers
 
         assert_response :ok
         codes = response.parsed_body["data"].pluck("code")
 
-        assert_equal [other.code], codes
+        assert_empty codes
       end
 
-      test "fisherman index exposes simplified permissions only" do
+      test "fisherman index exposes every canonical fisherman and shared permission" do
         get "/api/v1/permissions", headers: fisherman_headers_for_permissions_test
 
         assert_response :ok
-        assert_simplified_fisherman_permission_codes(response.parsed_body["data"].pluck("code"))
+        codes = response.parsed_body["data"].pluck("code")
+
+        assert_empty %w[manifests.create ports.view capture_reports.create company_profiles.update] - codes
+        assert_not_includes codes, "roles.create"
       end
 
       private
@@ -88,34 +93,27 @@ module Api
       end
 
       def build_fisherman_permission_fixtures
-        @manifest_view = create_permission("manifest.view", Permission::FISHERMAN_PLATFORM)
-        @manifest_create = create_permission("manifest.create", Permission::FISHERMAN_PLATFORM)
-        @hidden_port = create_permission("ports.view", Permission::SHARED_PLATFORM)
-        @hidden_capture_report = create_permission("capture_reports.create", Permission::SHARED_PLATFORM)
-        @hidden_manifest_list = create_permission("manifest_list.view", Permission::SHARED_PLATFORM)
-        @hidden_manifest_form = create_permission("manifest_form.create", Permission::SHARED_PLATFORM)
-        @hidden_profiling_update = create_permission("profiling.update", Permission::SHARED_PLATFORM)
+        @manifest_view = create_permission("manifests.view")
+        @manifest_create = create_permission("manifests.create")
+        @port_view = create_permission("ports.view")
+        @capture_report_create = create_permission("capture_reports.create")
+        @company_profile_update = create_permission("company_profiles.update")
+        @officer_role_create = create_permission("roles.create")
       end
 
-      def create_permission(code, platform_scope)
-        create(:permission, code:, platform_scope:)
+      def create_permission(code)
+        entry = Permission::Catalog.fetch(code)
+        Permission.find_or_create_by!(code:) do |permission|
+          permission.name = entry.fetch(:name)
+          permission.platform_scope = entry.fetch(:platform_scope)
+        end
       end
 
       def fisherman_permission_set
         [
-          @manifest_view, @manifest_create, @hidden_port, @hidden_capture_report,
-          @hidden_manifest_list, @hidden_manifest_form, @hidden_profiling_update
+          @manifest_view, @manifest_create, @port_view, @capture_report_create,
+          @company_profile_update
         ]
-      end
-
-      def assert_simplified_fisherman_permission_codes(codes)
-        assert_includes codes, @manifest_view.code
-        assert_includes codes, @manifest_create.code
-        assert_not_includes codes, @hidden_port.code
-        assert_not_includes codes, @hidden_capture_report.code
-        assert_not_includes codes, @hidden_manifest_list.code
-        assert_not_includes codes, @hidden_manifest_form.code
-        assert_not_includes codes, @hidden_profiling_update.code
       end
     end
   end

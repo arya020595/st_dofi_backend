@@ -6,13 +6,13 @@ module Api
       class ManifestOptionsControllerTest < ActionDispatch::IntegrationTest
         setup do
           @password = "Password123!"
-          permission = Permission.find_or_create_by!(code: "manifest_form.create") do |record|
-            record.name = "Manifest form - Create"
+          permissions = %w[companies_vessels.list companies_crews.list].map do |code|
+            Permission.find_or_create_by!(code:) { |record| record.name = code }
           end
           @no_access_role = create(:role)
           @company_profile = create(:company_profile)
           @fisherman_role = create(:role, :fisherman, name: "Fisherman", company_profile: @company_profile,
-                                                      permissions: [permission])
+                                                      permissions: permissions)
           @fisherman = create(:user, role: @fisherman_role, company_profile: @company_profile,
                                      ic_number: "01-800100", registration_type: "Commercial",
                                      password: @password, password_confirmation: @password)
@@ -25,7 +25,7 @@ module Api
           vessels: [CompaniesVessel, :companies_vessel, "vessel_name"],
           crews: [CompaniesCrew, :companies_crew, "crew_name"]
         }.each do |endpoint, (_model, factory, name_field)|
-          test "#{endpoint} require manifest create permission and return only this company's approved records" do
+          test "#{endpoint} require their resource list permission and return only approved company records" do
             approved = create(factory, :approved, company_profile: @company_profile)
             create(factory, company_profile: @company_profile)
             create(factory, :approved)
@@ -47,7 +47,7 @@ module Api
         # Captains aren't their own resource — they're CompaniesCrew rows filtered to the
         # "Boat Captain" position, so this can't share the generic loop above (it also needs to
         # exclude approved crew in the right company with the wrong position).
-        test "captains require manifest create permission and return only this company's approved Boat Captain crew" do
+        test "captains require crew list permission and return only approved Boat Captain crew" do
           boat_captain = create(:position, name: "Boat Captain")
           approved = create(:companies_crew, :approved, company_profile: @company_profile, position: boat_captain)
           create(:companies_crew, company_profile: @company_profile, position: boat_captain)

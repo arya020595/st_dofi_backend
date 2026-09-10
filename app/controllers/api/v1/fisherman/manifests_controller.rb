@@ -45,7 +45,7 @@ module Api
         end
 
         def update
-          authorize @manifest, :fisherman_update?
+          authorize @manifest
 
           case ::Manifests::Update.call(@manifest, manifest_params, company_profile: current_user.company_profile)
           in Success(manifest)

@@ -1,7 +1,7 @@
 class FishermanApprovalPolicy < ApplicationPolicy
   RESOURCE = "fisherman_approvals".freeze
 
-  def index? = user.permission?("#{RESOURCE}.list", "#{RESOURCE}.view")
+  def index? = user.permission?("#{RESOURCE}.list")
   def show? = user.permission?("#{RESOURCE}.view") && fins_target?
   def approve? = user.permission?("#{RESOURCE}.approve") && approval_target?
   def reject? = user.permission?("#{RESOURCE}.reject") && approval_target?

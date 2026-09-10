@@ -20,7 +20,6 @@ stays intentionally at the "one screen" level rather than duplicating those.
 | Audit trail / soft delete | Audited / Discard |
 | File storage | MinIO (self-hosted, S3-compatible) via Active Storage; Cloudinary kept only until migration completes |
 | External identity | BruneiID (government ID verification) via `Faraday`/`jwt` — **mocked today**, see §1 |
-| Bilingual fields (EN/MS) | Mobility |
 | Monitoring | Sentry (errors) + Lograge (structured JSON request logs) |
 
 ## 1. System context

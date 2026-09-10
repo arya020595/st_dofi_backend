@@ -69,7 +69,7 @@ answer different questions on purpose:
   rows, but *every* role, including the many per-company Fisherman roles below. A role can have a
   `platform_scope` without a `kind` (every custom role does); it can never have neither.
 - `Permission#platform_scope` adds a third value, `Permission::SHARED_PLATFORM`, for permissions
-  usable by both platforms (e.g. `manifest_form.create`) — `Role`s don't get a "shared" option
+  usable by both platforms (for example `manifests.view`) — `Role`s don't get a "shared" option
   because a role's own platform is never ambiguous, only which permissions it's allowed to hold are.
 
 **There is no single global `Role` row for "Fisherman".** Each company gets its own

@@ -23,7 +23,7 @@ Controllers, models, and business logic each have one job. Don't let logic leak 
 ## SOLID, applied here
 
 - **Single Responsibility** — one class, one reason to change. A controller action should be ~5-10 lines: authorize, delegate to a service or model scope, render. If a model or controller method does several unrelated things, extract a service object named for what it does (`Manifests::SubmitForApproval`, not `ManifestHelper`).
-- **Open/Closed** — extend behavior via new policies, services, or `Mobility`/concerns rather than adding conditionals to existing classes. Example: a new role's permissions should be a new `Permission`/`Role` row and policy check, not an `if role == "x"` branch sprinkled through controllers.
+- **Open/Closed** — extend behavior via new policies, services, or concerns rather than adding conditionals to existing classes. Example: a new role's permissions should be a new `Permission`/`Role` row and policy check, not an `if role == "x"` branch sprinkled through controllers.
 - **Liskov Substitution** — every `ApplicationPolicy` subclass and `ApplicationRecord`/concern must honor the base contract (same method signatures, same meaning of return values) so callers can treat them interchangeably. Don't override a policy predicate to return something other than truthy/falsy, or a scope to return something other than a relation.
 - **Interface Segregation** — prefer small, focused concerns/modules over one large mixin. If a concern grows methods unrelated to its name, split it.
 - **Dependency Inversion** — services and jobs depend on injected collaborators (pass an HTTP client, mailer, or repository in), not hardcoded references, so they're testable in isolation. The BruneiID integration should go behind a small client class that controllers/services call, not inlined `Faraday` calls scattered across the codebase.
@@ -33,7 +33,6 @@ Controllers, models, and business logic each have one job. Don't let logic leak 
 - Style is enforced by Rubocop (`.rubocop.yml`): double-quoted strings, no frozen-string-literal comment, 120-char line length. Run `bin/rubocop` before committing; don't hand-tune style that Rubocop already covers.
 - Security: run `bin/brakeman` and `bin/bundler-audit` for anything touching auth, params, or external calls (`bin/ci` runs both).
 - Tests: Minitest + FactoryBot + Faker, fixtures disabled (`fixture: false`) — use factories, not fixtures, for new tests. Tests run in parallel; keep them independent (no shared mutable state).
-- Bilingual fields (EN/MS) go through `Mobility`, not ad hoc `_en`/`_ms` columns.
 - Never reuse a client-writable display/business code (a `reference_id`-style column) as an internal
   type/role discriminator for business logic. If a model needs a small, fixed set of system-recognized
   kinds, add a dedicated column excluded from controller mass-assignment, nullable so it doesn't force

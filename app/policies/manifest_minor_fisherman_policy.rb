@@ -1,21 +1,10 @@
 class ManifestMinorFishermanPolicy < ApplicationPolicy
   RESOURCE = "manifest_minor_fishermen".freeze
 
-  def index?
-    fisherman_platform? ? fisherman_manifest_readable? : user.permission?("#{RESOURCE}.view")
-  end
-
-  def show?
-    fisherman_platform? ? fisherman_manifest_readable? : user.permission?("#{RESOURCE}.view")
-  end
-
-  def create?
-    fisherman_platform? ? fisherman_manifest_writeable? : user.permission?("#{RESOURCE}.create")
-  end
-
-  def destroy?
-    fisherman_platform? ? fisherman_manifest_writeable? : user.permission?("#{RESOURCE}.delete")
-  end
+  def index? = user.permission?("#{RESOURCE}.list")
+  def show? = user.permission?("#{RESOURCE}.view")
+  def create? = user.permission?("#{RESOURCE}.create")
+  def destroy? = user.permission?("#{RESOURCE}.delete")
 
   class Scope < Scope
     def resolve
@@ -23,15 +12,5 @@ class ManifestMinorFishermanPolicy < ApplicationPolicy
 
       scope.where(manifest_id: Manifest.where(company_profile_id: user.company_profile_id).select(:id))
     end
-  end
-
-  private
-
-  def fisherman_manifest_readable?
-    user.permission?("#{RESOURCE}.view") || fisherman_manifest_read?
-  end
-
-  def fisherman_manifest_writeable?
-    user.permission?("#{RESOURCE}.create", "#{RESOURCE}.delete") || fisherman_manifest_write?
   end
 end

@@ -5,7 +5,7 @@ module Api
         include RansackSearchable
 
         def index
-          authorize Manifest, :create?
+          authorize CompaniesVessel
           result = apply_ransack_search(manifest_vessels, default_sort: "vessel_name asc")
           pagy, records = pagy(:offset, result)
 

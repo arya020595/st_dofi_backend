@@ -1,14 +1,14 @@
 require "test_helper"
 
 class PermissionTest < ActiveSupport::TestCase
-  test "derives resource and grouping metadata from code for a taxonomy-classified resource" do
+  test "derives resource and grouping metadata from a catalog permission" do
     permission = create(:permission, code: "ports.create", name: "Ports - Create")
 
     assert_equal "ports", permission.resource
     assert_equal({ section: "master_data", section_order: 5, resource_order: 1 }, grouping(permission))
   end
 
-  test "leaves section, section_order and resource_order nil for a resource outside the taxonomy" do
+  test "leaves grouping nil for a resource outside the catalog" do
     permission = create(:permission)
 
     assert_match(/\Aresource_\d+\z/, permission.resource)
@@ -26,22 +26,23 @@ class PermissionTest < ActiveSupport::TestCase
   end
 
   test "does not allow resource or grouping fields to be set independently of code" do
-    permission = build(:permission, code: "ports.create", resource: "something_else", section: "not_a_real_section")
+    permission = build(:permission, code: "ports.create", name: "Wrong", platform_scope: "shared",
+                                    resource: "something_else", section: "not_a_real_section")
 
     permission.valid?
 
-    assert_equal "ports", permission.resource
-    assert_equal "master_data", permission.section
+    assert_equal %w[Create dofi_officer ports master_data],
+                 [permission.name, permission.platform_scope, permission.resource, permission.section]
   end
 
-  test "resource_label and section_label return the taxonomy's mapped labels" do
+  test "resource_label and section_label return the catalog labels" do
     permission = create(:permission, code: "ports.create", name: "Ports - Create")
 
-    assert_equal "Port", permission.resource_label
-    assert_equal "Master Data", permission.section_label
+    assert_equal ["create", 3, "Ports", "Master Data"],
+                 [permission.action, permission.action_order, permission.resource_label, permission.section_label]
   end
 
-  test "resource_label and section_label fall back to humanize for a resource outside the taxonomy" do
+  test "resource and section labels fall back for a resource outside the catalog" do
     permission = create(:permission, code: "widgets.view")
 
     assert_equal "Widgets", permission.resource_label

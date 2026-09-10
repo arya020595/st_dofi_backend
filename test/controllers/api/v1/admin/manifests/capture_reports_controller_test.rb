@@ -22,7 +22,7 @@ module Api
             report = create(:capture_report, manifest: @manifest)
             role = create_role_with_permissions(
               kind: Role::DOFI_OFFICER,
-              permission_codes: %w[capture_report_verifications.view capture_report_verifications.list
+              permission_codes: %w[capture_reports.view capture_reports.list
                                    capture_report_verifications.verify capture_report_verifications.amendment],
               name: "DoFi Officer"
             )
@@ -42,7 +42,7 @@ module Api
           test "request_amendment stores the remarks" do
             report = create(:capture_report, manifest: @manifest)
             headers = officer_headers_for(
-              permission_codes: %w[capture_report_verifications.view capture_report_verifications.list
+              permission_codes: %w[capture_reports.view capture_reports.list
                                    capture_report_verifications.verify capture_report_verifications.amendment]
             )
 

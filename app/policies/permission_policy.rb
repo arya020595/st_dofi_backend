@@ -9,10 +9,8 @@ class PermissionPolicy < ApplicationPolicy
       platform = user.role&.platform_scope
       return scope.none if platform.blank?
 
-      permissions = scope.where(platform_scope: [platform, Permission::SHARED_PLATFORM])
-      return permissions unless platform == Permission::FISHERMAN_PLATFORM
-
-      permissions.visible_for_fisherman_role_config
+      scope.where(code: Permission::Catalog::CODES,
+                  platform_scope: [platform, Permission::SHARED_PLATFORM])
     end
   end
 end

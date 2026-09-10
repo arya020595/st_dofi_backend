@@ -1,24 +1,15 @@
 class CompanyProfilePolicy < ApplicationPolicy
-  RESOURCE = "profiling".freeze
+  RESOURCE = "company_profiles".freeze
 
-  def index?
-    return user.permission?("#{RESOURCE}.view") if fisherman_platform?
-
-    user.permission?("#{RESOURCE}.list", "#{RESOURCE}.view")
-  end
-
+  def index? = user.permission?("#{RESOURCE}.list")
   def show? = user.permission?("#{RESOURCE}.view")
-  def create? = user.dofi_officer_platform? && user.permission?("#{RESOURCE}.create")
-
-  def update?
-    fisherman_platform? ? user.permission?("#{RESOURCE}.view") : user.permission?("#{RESOURCE}.update")
-  end
-
+  def create? = user.permission?("#{RESOURCE}.create")
+  def update? = user.permission?("#{RESOURCE}.update")
   def destroy? = user.permission?("#{RESOURCE}.delete")
 
   class Scope < Scope
     def resolve
-      return scope.kept if user.officer?
+      return scope.kept if user.dofi_officer_platform?
 
       scope.kept.where(id: user.company_profile_id)
     end

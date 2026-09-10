@@ -247,7 +247,10 @@ class Permission < ApplicationRecord
   validates :code, presence: true, uniqueness: true
   validates :platform_scope, presence: true, inclusion: { in: PLATFORM_SCOPES }
 
-  def self.assignable_to(role_platform_scope) = where(platform_scope: [role_platform_scope, SHARED_PLATFORM])
+  def self.assignable_to(role_platform_scope)
+    where(code: Permission::Catalog::CODES,
+          platform_scope: [role_platform_scope, SHARED_PLATFORM])
+  end
 end
 ```
 
@@ -256,23 +259,21 @@ Full source: [`app/models/role.rb`](../../app/models/role.rb),
 
 ### 4.3 Seeds
 
-`db/seeds/permissions.rb` defines every permission code in one `PERMISSION_GROUPS` hash
-(`"resource" => %w[view list create update delete]`-shaped), then classifies each into a platform via
-`platform_scope_for` — everything defaults to `shared` unless explicitly listed as
-DoFi-Officer-only or Fisherman-only (whole resource group, or specific actions within one):
+`Permission::Catalog` defines every canonical permission code together with its action label,
+platform scope, section, resource label, and ordering. `db/seeds/permissions.rb` only idempotently
+persists those entries. There is no second resource/action map or inferred platform classifier:
 
 ```ruby
-def platform_scope_for(resource, action)
-  return Permission::FISHERMAN_PLATFORM if FISHERMAN_ONLY_GROUPS.include?(resource)
-  return Permission::DOFI_OFFICER_PLATFORM if DOFI_OFFICER_ONLY_GROUPS.include?(resource)
-  return Permission::DOFI_OFFICER_PLATFORM if DOFI_OFFICER_ONLY_ACTIONS[resource]&.include?(action)
-
-  Permission::SHARED_PLATFORM
+Permission::Catalog::ENTRIES.each do |entry|
+  permission = Permission.find_or_initialize_by(code: entry.fetch(:code))
+  permission.assign_attributes(entry.slice(:name, :platform_scope))
+  permission.save! if permission.new_record? || permission.changed?
 end
 ```
 
-`db/seeds/roles.rb` seeds only the 2 fixed `kind` roles (DoFi Officer gets every permission, Jetty
-Manager gets a fixed list) — **there is no Fisherman entry**, since per-company Owner roles are
+`db/seeds/roles.rb` seeds only the 2 fixed `kind` roles (DoFi Officer gets every canonical
+DoFi-Officer/shared permission, Jetty Manager gets a fixed list) — **there is no Fisherman entry**,
+since per-company Owner roles are
 created on demand by `Roles::EnsureFishermanOwnerRole` (§4.4), not seeded up front. Both seed files
 are idempotent (`find_or_create_by!` + drift-correcting `update!`), safe to rerun.
 
@@ -676,7 +677,7 @@ sequenceDiagram
 
     Ctrl->>Pundit: authorize record (or class)
     Pundit->>Pol: new(user, record).<action>?
-    Pol->>Perm: user.permission?("resource.action", ...)
+    Pol->>Perm: user.permission?("resource.action")
     alt has the permission
         Perm-->>Pol: true
         Pol-->>Pundit: true
@@ -814,10 +815,9 @@ few permissions they hold.
 
 ### 9.1 Adding a permission
 
-1. Add it to `PERMISSION_GROUPS` in `db/seeds/permissions.rb` — `"resource" => %w[action1 action2]`.
-2. Classify its platform: whole resource → `DOFI_OFFICER_ONLY_GROUPS`/`FISHERMAN_ONLY_GROUPS`;
-   specific actions only → `DOFI_OFFICER_ONLY_ACTIONS`; otherwise it defaults to `shared`.
-3. Run `bin/rails db:seed` — idempotent (`find_or_create_by!` + a drift-correcting `update!`).
+1. Add it to `Permission::Catalog` with its actions, platform scopes, and role-editor grouping.
+2. Set each action explicitly to `shared`, `dofi_officer`, or `fisherman` in that catalog entry.
+3. Add an expand/backfill migration for production data, then run `bin/rails db:seed` locally.
 4. Attach it to relevant roles: for the 2 system roles, add the code to `db/seeds/roles.rb`'s
    `ROLE_DEFINITIONS`; a company's Owner role picks it up automatically if it's fisherman/shared
    (§4.4's `Permission.assignable_to`), otherwise a company attaches it manually via
@@ -847,7 +847,7 @@ role mechanism — only follow this if you need a genuinely new fixed singleton 
 ### 9.3 Adding a new platform
 
 1. Add the constant to both `Role::PLATFORM_SCOPES` and `Permission::PLATFORM_SCOPES`.
-2. Decide and seed its allowed permissions (extend the `PERMISSION_GROUPS` classification in §4.3).
+2. Define its allowed actions and platform scopes in `Permission::Catalog` (§4.3).
 3. Add a branch to every `Policy::Scope#resolve` that currently only handles
    `dofi_officer_platform?`/`fisherman?` — `RolePolicy::Scope`, `UserPolicy::Scope`, and any other
    `PlatformScopedResource`-including policy.

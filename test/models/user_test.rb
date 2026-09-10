@@ -1,5 +1,11 @@
 require "test_helper"
 class UserTest < ActiveSupport::TestCase
+  test "permission check accepts exactly one capability code" do
+    user = build(:user)
+
+    assert_raises(ArgumentError) { user.permission?("ports.view", "manifests.view") }
+  end
+
   test "approve! transitions a pending user to active" do
     user = create(:user, status: "pending")
 

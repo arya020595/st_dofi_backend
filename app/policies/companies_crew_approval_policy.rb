@@ -1,7 +1,7 @@
 class CompaniesCrewApprovalPolicy < ApplicationPolicy
   RESOURCE = "companies_crew_approvals".freeze
 
-  def index?  = user.permission?("#{RESOURCE}.list", "#{RESOURCE}.view")
+  def index?  = user.permission?("#{RESOURCE}.list")
   def show?   = user.permission?("#{RESOURCE}.view")
   def approve? = user.permission?("#{RESOURCE}.approve")
   def request_amendment? = user.permission?("#{RESOURCE}.amendment")

@@ -1,7 +1,7 @@
 class ApprovalRemarkPolicy < ApplicationPolicy
   RESOURCE = "approval_remarks".freeze
 
-  def index? = user.permission?("#{RESOURCE}.list", "#{RESOURCE}.view")
+  def index? = user.permission?("#{RESOURCE}.list")
   def show? = user.permission?("#{RESOURCE}.view")
   def create? = user.permission?("#{RESOURCE}.create")
   def update? = user.permission?("#{RESOURCE}.update")

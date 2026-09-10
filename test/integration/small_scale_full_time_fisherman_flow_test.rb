@@ -5,14 +5,15 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
     @password = "Password123!"
 
     fisherman_permissions = %w[companies_vessels.view companies_vessels.list companies_vessels.create
-                               manifest_list.view manifest_list.list manifest_form.view manifest_form.create
-                               capture_reports.view capture_reports.list capture_reports.create].map do |code|
+                               manifests.view manifests.list manifests.create manifests.submit_port_out
+                               manifests.submit_port_in capture_reports.view capture_reports.list
+                               capture_reports.create].map do |code|
       Permission.find_or_create_by!(code: code) { |p| p.name = code }
     end
-    officer_permissions = %w[profiling.view profiling.create fisherman_approvals.view fisherman_approvals.list
+    officer_permissions = %w[company_profiles.view company_profiles.create fisherman_approvals.view
+                             fisherman_approvals.list
                              fisherman_approvals.approve companies_vessel_approvals.view
                              companies_vessel_approvals.list companies_vessel_approvals.approve
-                             capture_report_verifications.view capture_report_verifications.list
                              capture_report_verifications.verify].map do |code|
       Permission.find_or_create_by!(code: code) { |p| p.name = code }
     end
@@ -158,8 +159,7 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
   end
 
   test "a commercial fisherman still goes through Jetty Port-Out/Port-In approval, unaffected by small-scale" do
-    jetty_permissions = %w[manifest_list.view manifest_list.list manifest_approvals.view manifest_approvals.list
-                           manifest_approvals.approve].map do |code|
+    jetty_permissions = %w[manifests.view manifests.list manifest_approvals.approve].map do |code|
       Permission.find_or_create_by!(code: code) { |p| p.name = code }
     end
     jetty_role = create(:role, kind: Role::JETTY_MANAGER, name: "Jetty Manager", permissions: jetty_permissions)

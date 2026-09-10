@@ -11,8 +11,8 @@ ROLE_DEFINITIONS = {
     name: "Jetty Manager",
     description: "Port-level authority: manifest list/detail and port-in/out approval actions only.",
     permission_codes: %w[
-      manifest_list.view manifest_list.list
-      manifest_approvals.view manifest_approvals.list manifest_approvals.approve manifest_approvals.amendment
+      manifests.view manifests.list
+      manifest_approvals.approve manifest_approvals.amendment
     ]
   }
 }.freeze
@@ -31,7 +31,11 @@ ROLE_DEFINITIONS.each do |kind, attrs|
     role.update!(kind: kind, platform_scope: Role::DOFI_OFFICER_PLATFORM)
   end
 
-  permissions = attrs[:permission_codes] == :all ? Permission.all : Permission.where(code: attrs[:permission_codes])
+  permissions = if attrs[:permission_codes] == :all
+                  Permission.assignable_to(Role::DOFI_OFFICER_PLATFORM).where(code: Permission::Catalog::CODES)
+                else
+                  Permission.where(code: attrs[:permission_codes])
+                end
   role.permissions = permissions
 end
 

@@ -5,16 +5,15 @@ require "test_helper"
 # "Add User Role" UI grouping. Runs inside this test's transaction, so nothing seeded here persists
 # beyond it.
 class SeedsPermissionsTest < ActiveSupport::TestCase
-  test "every PERMISSION_GROUPS resource is fully classified after seeding" do
+  test "every catalog permission is seeded with canonical metadata" do
     load Rails.root.join("db/seeds/permissions.rb")
 
-    PERMISSION_GROUPS.each_key do |resource|
-      permission = Permission.find_by(resource: resource)
+    Permission::Catalog::ENTRIES.each do |entry|
+      permission = Permission.find_by!(code: entry.fetch(:code))
 
-      assert permission, "no permission was seeded for resource #{resource}"
-      assert permission.section.present? && permission.section_order.present? && permission.resource_order.present?,
-             "#{resource} is missing grouping metadata (section=#{permission.section.inspect}, " \
-             "section_order=#{permission.section_order.inspect}, resource_order=#{permission.resource_order.inspect})"
+      assert_equal entry.values_at(:platform_scope, :resource, :section, :section_order, :resource_order),
+                   [permission.platform_scope, permission.resource, permission.section,
+                    permission.section_order, permission.resource_order]
     end
   end
 end

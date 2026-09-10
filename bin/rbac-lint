@@ -1,0 +1,30 @@
+#!/usr/bin/env ruby
+
+policy_paths = Dir[File.expand_path("../app/policies/**/*.rb", __dir__)]
+controller_paths = Dir[File.expand_path("../app/controllers/**/*.rb", __dir__)]
+
+checks = {
+  policy_paths => {
+    /def fisherman_[a-z_]*\?/ => "audience-specific fisherman policy action",
+    /fisherman_platform\?/ => "platform branch in policy authorization",
+    /def fisherman_(?:manifest|lookup|vessel)_[a-z_]*\?/ => "cross-resource fisherman fallback helper"
+  },
+  controller_paths => {
+    /authorize .*:fisherman_[a-z_]*\?/ => "explicit fisherman policy dispatch"
+  }
+}
+
+violations = checks.flat_map do |paths, patterns|
+  paths.flat_map do |path|
+    source = File.read(path)
+    patterns.filter_map do |pattern, description|
+      next unless source.match?(pattern)
+
+      "#{path}: #{description}"
+    end
+  end
+end
+
+abort "RBAC contract violations:\n#{violations.join("\n")}" if violations.any?
+
+puts "RBAC policy contract passed"

@@ -8,17 +8,15 @@ module Api
         setup do
           @password = "Password123!"
 
-          fisherman_permissions = %w[manifest_list.view manifest_list.list manifest_form.view
-                                     manifest_form.create].map do |code|
+          fisherman_permissions = %w[manifests.view manifests.list manifests.create].map do |code|
             Permission.find_or_create_by!(code: code) { |p| p.name = code }
           end
-          jetty_permissions = %w[manifest_list.view manifest_list.list manifest_approvals.view
-                                 manifest_approvals.list manifest_approvals.approve
+          jetty_permissions = %w[manifests.view manifests.list manifest_approvals.approve
                                  manifest_approvals.amendment].map do |code|
             Permission.find_or_create_by!(code: code) { |p| p.name = code }
           end
-          update_permission = Permission.find_or_create_by!(code: "manifest_list.update") do |p|
-            p.name = "manifest_list.update"
+          update_permission = Permission.find_or_create_by!(code: "manifests.update") do |p|
+            p.name = "manifests.update"
           end
           officer_permissions = jetty_permissions + [update_permission]
 

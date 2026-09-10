@@ -5,7 +5,7 @@ module Api
     class SessionsControllerTest < ActionDispatch::IntegrationTest
       setup do
         @password = "Password123!"
-        @permission = create(:permission, code: "manifest_list.view", name: "Manifest List - View")
+        @permission = create(:permission, code: "manifests.view", name: "Manifest List - View")
         @role = create(:role, permissions: [@permission])
         @user = create(:user, role: @role, password: @password, password_confirmation: @password)
       end
@@ -51,7 +51,7 @@ module Api
         get "/api/v1/auth/me", headers: auth_headers_for(@user, password: @password)
 
         assert_response :ok
-        assert_equal [@user.email, ["manifest_list.view"], true], me_response_summary(response.parsed_body)
+        assert_equal [@user.email, ["manifests.view"], true], me_response_summary(response.parsed_body)
       end
 
       test "sign out revokes the token" do

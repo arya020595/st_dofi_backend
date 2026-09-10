@@ -17,6 +17,9 @@ module Permission::PlatformScoping
   class_methods do
     # The permission codes a role on the given platform may be assigned — its own platform's codes,
     # plus anything shared. Used by Roles::Create/Update to reject cross-platform assignment.
-    def assignable_to(role_platform_scope) = where(platform_scope: [role_platform_scope, SHARED_PLATFORM])
+    def assignable_to(role_platform_scope)
+      where(code: Permission::Catalog::CODES,
+            platform_scope: [role_platform_scope, SHARED_PLATFORM])
+    end
   end
 end

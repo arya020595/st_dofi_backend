@@ -2,7 +2,7 @@ module Api
   module V1
     module Fisherman
       class DashboardController < ApplicationController
-        before_action :authorize_manifest_access
+        before_action :authorize_dashboard
 
         def summary
           render json: { status: "success", data: ::Fisherman::Dashboard::Summary.call(**query_attributes) }
@@ -22,8 +22,8 @@ module Api
 
         private
 
-        def authorize_manifest_access
-          authorize Manifest, :index?
+        def authorize_dashboard
+          authorize :dashboard, :show?
         end
 
         def query_attributes

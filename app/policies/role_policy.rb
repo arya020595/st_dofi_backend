@@ -4,7 +4,7 @@ class RolePolicy < ApplicationPolicy
   RESOURCE = "roles".freeze
   FISHERMAN_RESOURCE = "fisherman_roles".freeze
 
-  def index?   = user.permission?("#{resource}.list", "#{resource}.view")
+  def index?   = user.permission?("#{resource}.list")
   def show?    = user.permission?("#{resource}.view") && owns_record?
   def create?  = user.permission?("#{resource}.create")
   def update?  = user.permission?("#{resource}.update") && owns_record? && modifiable_fisherman_role?

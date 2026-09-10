@@ -72,10 +72,10 @@ class User < ApplicationRecord
   validates :registration_type, inclusion: { in: VALID_REGISTRATION_TYPES }, if: :fisherman?
   validates :position, :unit, :username, presence: true, if: :officer?
 
-  def permission?(*codes)
+  def permission?(code)
     return false unless role
 
-    role.permissions.exists?(code: codes)
+    role.permissions.exists?(code: code)
   end
 
   # officer?/jetty_manager? stay narrow (kind-based) — "is this literally the one canonical
