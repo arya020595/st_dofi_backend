@@ -29,6 +29,23 @@ module Api
         assert_includes codes, @shared_permission.code
       end
 
+      test "index returns a flat array with resource/section grouping metadata per permission" do
+        get "/api/v1/permissions", headers: @headers
+
+        assert_response :ok
+        data = response.parsed_body["data"]
+
+        assert_kind_of Array, data
+
+        shared = data.find { |permission| permission["code"] == @shared_permission.code }
+
+        assert_equal(
+          { "resource" => "dashboard", "section" => "dashboard", "section_order" => 1, "resource_order" => 1,
+            "resource_label" => "Dashboard", "section_label" => "Dashboard" },
+          shared.slice("resource", "section", "section_order", "resource_order", "resource_label", "section_label")
+        )
+      end
+
       test "index excludes permissions belonging to another platform" do
         fisherman_only = create(:permission, code: "fisherman_users.create",
                                              platform_scope: Permission::FISHERMAN_PLATFORM)

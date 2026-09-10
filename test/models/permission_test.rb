@@ -1,0 +1,77 @@
+require "test_helper"
+
+class PermissionTest < ActiveSupport::TestCase
+  test "derives resource and grouping metadata from code for a taxonomy-classified resource" do
+    permission = create(:permission, code: "ports.create", name: "Ports - Create")
+
+    assert_equal "ports", permission.resource
+    assert_equal({ section: "master_data", section_order: 5, resource_order: 1 }, grouping(permission))
+  end
+
+  test "leaves section, section_order and resource_order nil for a resource outside the taxonomy" do
+    permission = create(:permission)
+
+    assert_match(/\Aresource_\d+\z/, permission.resource)
+    assert_equal({ section: nil, section_order: nil, resource_order: nil }, grouping(permission))
+    assert_predicate permission, :valid?
+  end
+
+  test "re-derives resource and grouping when code changes rather than keeping stale values" do
+    permission = create(:permission, code: "ports.create", name: "Ports - Create")
+
+    permission.update!(code: "dashboard.view", name: "Dashboard - View")
+
+    assert_equal "dashboard", permission.resource
+    assert_equal({ section: "dashboard", section_order: 1, resource_order: 1 }, grouping(permission))
+  end
+
+  test "does not allow resource or grouping fields to be set independently of code" do
+    permission = build(:permission, code: "ports.create", resource: "something_else", section: "not_a_real_section")
+
+    permission.valid?
+
+    assert_equal "ports", permission.resource
+    assert_equal "master_data", permission.section
+  end
+
+  test "resource_label and section_label return the taxonomy's mapped labels" do
+    permission = create(:permission, code: "ports.create", name: "Ports - Create")
+
+    assert_equal "Port", permission.resource_label
+    assert_equal "Master Data", permission.section_label
+  end
+
+  test "resource_label and section_label fall back to humanize for a resource outside the taxonomy" do
+    permission = create(:permission, code: "widgets.view")
+
+    assert_equal "Widgets", permission.resource_label
+    assert_nil permission.section_label
+  end
+
+  private
+
+  def grouping(permission)
+    { section: permission.section, section_order: permission.section_order, resource_order: permission.resource_order }
+  end
+end
+
+# == Schema Information
+#
+# Table name: permissions
+# Database name: primary
+#
+#  id             :uuid             not null, primary key
+#  code           :string           not null
+#  name           :string           not null
+#  platform_scope :string           default("shared"), not null
+#  resource       :string           not null
+#  resource_order :integer
+#  section        :string
+#  section_order  :integer
+#  created_at     :datetime         not null
+#  updated_at     :datetime         not null
+#
+# Indexes
+#
+#  index_permissions_on_code  (code) UNIQUE
+#

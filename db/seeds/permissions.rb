@@ -35,10 +35,14 @@ PERMISSION_GROUPS = {
   "fisherman_roles" => %w[view list create update delete]
 }.freeze
 
-PERMISSION_LABELS = {
-  "manifest" => "Manifest",
-  "companies_vessels" => "Vessel & Fishing Gear Profiling"
-}.freeze
+# Every resource above must be classified in Permission::PERMISSION_TAXONOMY (Section -> Resource,
+# for the "Add User Role" UI) — that taxonomy is the single source of truth for grouping, kept on the
+# model rather than duplicated here. Fail loudly rather than silently seeding a resource with no
+# section/section_order/resource_order.
+unclassified = PERMISSION_GROUPS.keys - Permission::RESOURCE_TAXONOMY.keys
+if unclassified.any?
+  raise "PERMISSION_GROUPS resources missing from Permission::PERMISSION_TAXONOMY: #{unclassified.join(', ')}"
+end
 
 # Every resource group above is either entirely one platform's, or "shared" (used identically by
 # both platforms — e.g. companies_crews.create, checked by both a fisherman's own self-service form
@@ -83,15 +87,28 @@ PERMISSION_GROUPS.each do |resource, actions|
   actions.each do |action|
     code = "#{resource}.#{action}"
     platform_scope = platform_scope_for(resource, action)
-    resource_label = PERMISSION_LABELS.fetch(resource, resource.humanize)
+    # Just the action (e.g. "View", "Create") — the UI already shows the resource as the row header
+    # (via resource/section grouping below), so repeating it in every checkbox's own label is redundant.
+    name = action.humanize
+    taxonomy = Permission::RESOURCE_TAXONOMY[resource]
 
     permission = Permission.find_or_create_by!(code: code) do |record|
-      record.name = "#{resource_label} - #{action.humanize}"
+      record.name = name
       record.platform_scope = platform_scope
     end
-    next if permission.platform_scope == platform_scope && permission.name == "#{resource_label} - #{action.humanize}"
 
-    permission.update!(platform_scope: platform_scope, name: "#{resource_label} - #{action.humanize}")
+    # resource/section/section_order/resource_order are re-derived by Permission's own
+    # before_validation callback from `code` + Permission::PERMISSION_TAXONOMY on every save below —
+    # comparing against them here (not just name/platform_scope) makes reclassifying a resource into a
+    # different section take effect on reseed, not just on first creation.
+    unchanged = permission.platform_scope == platform_scope &&
+                permission.name == name &&
+                permission.section == taxonomy&.dig(:section) &&
+                permission.section_order == taxonomy&.dig(:section_order) &&
+                permission.resource_order == taxonomy&.dig(:resource_order)
+    next if unchanged
+
+    permission.update!(platform_scope: platform_scope, name: name)
   end
 end
 
