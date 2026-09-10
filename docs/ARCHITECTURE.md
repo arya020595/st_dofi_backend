@@ -110,23 +110,39 @@ staging deploys on every push to `develop`, production only on `main` plus a rev
 
 ## 3. Layered application architecture
 
-Every request flows through the same five layers, each with exactly one job
+Every request flows through the same six layers, each with exactly one job
 (enforced in [`CLAUDE.md`](../CLAUDE.md)):
 
 ```mermaid
 graph LR
-    C["Controller<br/>app/controllers<br/>parse params, call one policy/service, render"]
+    C["Controller<br/>app/controllers<br/>parse params, call one policy/service/query, render"]
     P["Policy<br/>app/policies<br/>Pundit — authorization only, no side effects"]
     S["Service<br/>app/services<br/>business logic — dry-monads Success/Failure"]
+    Q["Query<br/>app/queries<br/>SQL/ActiveRecord query building only"]
     M["Model<br/>app/models<br/>associations, validations, scopes"]
     B["Blueprint<br/>app/blueprints<br/>Blueprinter — response shaping only"]
 
     C -->|"authorize"| P
-    C -->|"call(...)"| S
+    C -->|"call(...) — with business logic"| S
+    C -->|"call(...) — pure read"| Q
+    S -->|"reads via Query"| Q
+    Q -->|"reads"| M
     S -->|"reads / writes"| M
     C -->|"render_as_hash"| B
     B -->|"reads"| M
 ```
+
+Query is used once a lookup is complex enough to be worth naming and reusing — multi-table
+joins with `group`/`pluck` aggregation, like the dashboard analytics queries in
+[`app/queries/fisherman/dashboard/`](../app/queries/fisherman/dashboard/) (`SummaryQuery`,
+`TopFishesQuery`, `FishingGearAnalyticsQuery`, `ZoneAnalyticsQuery`, all built on a shared
+`BaseQuery`). A simple one-line model scope can still live inline in a service. For a pure read
+with no logic beyond the query, the Controller calls the Query directly
+(`Fisherman::DashboardController#top_fishes`/`#fishing_gear_analytics`/`#zone_analytics`) instead
+of adding a Service that would only forward the call. Once a business rule sits on top of the
+query result — `Fisherman::Dashboard::Summary` guards against dividing by zero when computing
+`catch_per_unit_effort` — that logic lives in a Service, and the Controller calls the Service
+instead.
 
 ### A concrete request, end to end
 
