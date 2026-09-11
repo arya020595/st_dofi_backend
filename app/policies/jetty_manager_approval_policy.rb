@@ -22,7 +22,5 @@ class JettyManagerApprovalPolicy < ApplicationPolicy
 
   def permission_resource = "jetty_manager_approvals"
 
-  def fins_target?
-    record.respond_to?(:fins_governed_jetty_manager?) && record.fins_governed_jetty_manager?
-  end
+  def fins_target? = record.fins_governed_jetty_manager?
 end

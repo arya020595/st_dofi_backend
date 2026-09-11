@@ -1,5 +1,7 @@
 class CaptureReportPolicy < ApplicationPolicy
-  def resubmit? = permitted?("resubmit")
+  def show? = super && owns_record?
+  def update? = super && owns_record?
+  def resubmit? = permitted?("resubmit") && owns_record?
 
   class Scope < ApplicationPolicy::Scope
     def resolve
@@ -12,4 +14,6 @@ class CaptureReportPolicy < ApplicationPolicy
   private
 
   def permission_resource = "capture_reports"
+
+  def owns_record? = user.dofi_officer_platform? || record.manifest.company_profile_id == user.company_profile_id
 end

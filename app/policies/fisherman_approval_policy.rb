@@ -20,11 +20,6 @@ class FishermanApprovalPolicy < ApplicationPolicy
 
   def permission_resource = "fisherman_approvals"
 
-  def fins_target?
-    record.respond_to?(:fins_governed_fisherman?) && record.fins_governed_fisherman?
-  end
-
-  def approval_target?
-    record.respond_to?(:fins_approval_required_fisherman?) && record.fins_approval_required_fisherman?
-  end
+  def fins_target? = record.fins_governed_fisherman?
+  def approval_target? = record.fins_approval_required_fisherman?
 end
