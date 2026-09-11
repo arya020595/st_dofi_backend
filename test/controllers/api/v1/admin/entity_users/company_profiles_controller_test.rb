@@ -32,12 +32,10 @@ module Api
           private
 
           def create_officer
-            permissions = %w[list view].map do |action|
-              Permission.find_or_create_by!(code: "dofi_officer_users.#{action}") do |permission|
-                permission.name = permission.code
-              end
+            permission = Permission.find_or_create_by!(code: "entity_users.list") do |record|
+              record.name = record.code
             end
-            role = create(:role, kind: Role::DOFI_OFFICER, permissions:)
+            role = create(:role, kind: Role::DOFI_OFFICER, permissions: [permission])
             create(:user, role:, position: "Administrator", unit: "HQ", password: @password,
                           password_confirmation: @password)
           end

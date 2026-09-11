@@ -1,3 +1,4 @@
+# rubocop:disable Metrics/ModuleLength
 module Permission::Catalog
   # Canonical source for permission codes, role-editor grouping, and platform assignment.
   SECTIONS = [
@@ -41,7 +42,8 @@ module Permission::Catalog
     { key: "user_management", label: "User Management", resources: [
       { key: "roles", label: "Roles", dofi_officer: %w[list view create update delete] },
       { key: "dofi_officer_users", label: "DoFi Officer Users", dofi_officer: %w[list view create update delete] },
-      { key: "permissions", label: "Permissions", shared: %w[list] }
+      { key: "permissions", label: "Permissions", shared: %w[list] },
+      { key: "entity_users", label: "Entity Users", dofi_officer: %w[list] }
     ] },
     { key: "account_management", label: "Account Management", resources: [
       { key: "fisherman_users", label: "Users", fisherman: %w[list view create update delete] },
@@ -53,7 +55,8 @@ module Permission::Catalog
       { key: "jetty_manager_approvals", label: "Jetty Manager Approval",
         dofi_officer: %w[list view approve reject deactivate reactivate revoke] },
       { key: "approval_remarks", label: "Approval Request",
-        dofi_officer: %w[list view create update delete] }
+        dofi_officer: %w[list view create update delete] },
+      { key: "admin_accounts", label: "Admin Accounts", dofi_officer: %w[list view deactivate reactivate] }
     ] },
     { key: "companies", label: "Companies", resources: [
       { key: "companies_vessels", label: "Vessels", shared: %w[list view create update delete images] },
@@ -102,3 +105,4 @@ module Permission::Catalog
   def self.fetch(code) = BY_CODE.fetch(code)
   def self.include?(code) = BY_CODE.key?(code)
 end
+# rubocop:enable Metrics/ModuleLength

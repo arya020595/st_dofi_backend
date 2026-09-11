@@ -1,5 +1,6 @@
 require "test_helper"
 
+# rubocop:disable Metrics/ClassLength
 class RbacContractTest < ActiveSupport::TestCase
   class PermissionProbe
     attr_reader :checked_codes
@@ -52,7 +53,8 @@ class RbacContractTest < ActiveSupport::TestCase
   end
 
   ACTION_SUFFIX = {
-    index?: "list", tab_counts?: "list", show?: "view", create?: "create", update?: "update", destroy?: "delete"
+    index?: "list", tab_counts?: "list", users?: "list", show?: "view", create?: "create", update?: "update",
+    destroy?: "delete"
   }.freeze
   STANDARD_ACTIONS = {
     "list" => :index?, "view" => :show?, "create" => :create?, "update" => :update?, "delete" => :destroy?
@@ -171,6 +173,7 @@ class RbacContractTest < ActiveSupport::TestCase
     actions
   end
 end
+# rubocop:enable Metrics/ClassLength
 
 class RbacSourceContractTest < ActiveSupport::TestCase
   # This single repository scan deliberately asserts every forbidden syntax invariant together.

@@ -74,11 +74,9 @@ module Api
         private
 
         def create_account_permissions
-          %w[fisherman_approvals jetty_manager_approvals].flat_map do |resource|
-            %w[list view deactivate reactivate].map do |action|
-              Permission.find_or_create_by!(code: "#{resource}.#{action}") do |permission|
-                permission.name = permission.code
-              end
+          %w[list view deactivate reactivate].map do |action|
+            Permission.find_or_create_by!(code: "admin_accounts.#{action}") do |permission|
+              permission.name = permission.code
             end
           end
         end

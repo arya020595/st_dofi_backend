@@ -1,14 +1,15 @@
 class EntityUserPolicy < ApplicationPolicy
-  RESOURCE = "dofi_officer_users".freeze
+  def users? = index?
 
-  def index? = user.permission?("#{RESOURCE}.list", "#{RESOURCE}.view")
-  alias users? index?
-
-  class Scope < Scope
+  class Scope < ApplicationPolicy::Scope
     def resolve
       return scope.kept if user.dofi_officer_platform?
 
       scope.none
     end
   end
+
+  private
+
+  def permission_resource = "entity_users"
 end
