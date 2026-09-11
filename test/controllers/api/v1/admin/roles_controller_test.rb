@@ -7,7 +7,7 @@ module Api
         setup do
           @password = "Password123!"
 
-          @view_permission = Permission.find_or_create_by!(code: "manifest_list.view") do |permission|
+          @view_permission = Permission.find_or_create_by!(code: "manifests.view") do |permission|
             permission.name = "Manifest list - View"
             permission.platform_scope = Permission::SHARED_PLATFORM
           end
@@ -117,7 +117,7 @@ module Api
         end
 
         test "update replaces the permission set" do
-          another_permission = create(:permission)
+          another_permission = create(:permission, code: "company_profiles.view")
 
           patch "/api/v1/admin/roles/#{@target.id}", params: { role: { name: "Renamed" },
                                                                permission_codes: [another_permission.code] },

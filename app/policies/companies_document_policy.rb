@@ -1,16 +1,18 @@
 class CompaniesDocumentPolicy < ApplicationPolicy
-  RESOURCE = "companies_documents".freeze
+  def show? = super && owns_record?
+  def update? = super && owns_record?
 
-  def index?  = user.permission?("#{RESOURCE}.list", "#{RESOURCE}.view")
-  def show?   = user.permission?("#{RESOURCE}.view")
-  def create? = user.permission?("#{RESOURCE}.create")
-  def update? = user.permission?("#{RESOURCE}.update")
-
-  class Scope < Scope
+  class Scope < ApplicationPolicy::Scope
     def resolve
-      return scope.kept if user.officer?
+      return scope.kept if user.dofi_officer_platform?
 
       scope.kept.where(company_profile_id: user.company_profile_id)
     end
   end
+
+  private
+
+  def permission_resource = "companies_documents"
+
+  def owns_record? = user.dofi_officer_platform? || record.company_profile_id == user.company_profile_id
 end

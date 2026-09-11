@@ -54,9 +54,6 @@ gem "caxlsx_rails"
 gem "prawn"
 gem "prawn-table"
 
-# Bilingual (EN/MS) model attributes
-gem "mobility", "~> 1.3"
-
 # HTTP client (BruneiID integration)
 gem "faraday"
 gem "jwt"

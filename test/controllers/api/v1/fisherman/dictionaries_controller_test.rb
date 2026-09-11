@@ -7,7 +7,7 @@ module Api
         setup do
           @password = "Password123!"
 
-          permissions = %w[manifest_form.create].map do |code|
+          permissions = %w[dictionaries.list].map do |code|
             Permission.find_or_create_by!(code: code) { |permission| permission.name = code }
           end
           @role = create(:role, :fisherman, permissions: permissions)
@@ -16,7 +16,7 @@ module Api
           @headers = auth_headers_for(@user, password: @password)
         end
 
-        test "index requires manifest create permission" do
+        test "index requires dictionaries list permission" do
           plain_user = create(:user, password: @password, password_confirmation: @password)
 
           get "/api/v1/fisherman/dictionaries", headers: auth_headers_for(plain_user, password: @password)

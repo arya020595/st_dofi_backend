@@ -13,16 +13,20 @@ module Roles
     end
 
     test "grants every fisherman and shared permission on first call" do
-      fisherman_permission = create(:permission, platform_scope: Permission::FISHERMAN_PLATFORM)
-      shared_permission = create(:permission, platform_scope: Permission::SHARED_PLATFORM)
-      officer_permission = create(:permission, platform_scope: Permission::DOFI_OFFICER_PLATFORM)
+      fisherman_permission = create(:permission, code: "fisherman_users.view")
+      shared_permission = create(:permission, code: "manifests.view")
+      officer_permission = create(:permission, code: "roles.view")
+      legacy_permission = create(
+        :permission, code: "manifest.view", platform_scope: Permission::FISHERMAN_PLATFORM
+      )
       company_profile = create(:company_profile)
 
       role = EnsureFishermanOwnerRole.call(company_profile)
 
-      assert_includes role.permissions, fisherman_permission
-      assert_includes role.permissions, shared_permission
-      assert_not_includes role.permissions, officer_permission
+      assignments = [fisherman_permission, shared_permission, officer_permission, legacy_permission]
+                    .map { |permission| role.permissions.include?(permission) }
+
+      assert_equal [true, true, false, false], assignments
     end
 
     test "is idempotent — a second call for the same company returns the same role" do

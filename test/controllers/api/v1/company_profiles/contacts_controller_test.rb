@@ -7,9 +7,13 @@ module Api
         setup do
           @password = "Password123!"
 
-          admin_permissions = %w[list view create update delete].map do |action|
-            Permission.find_or_create_by!(code: "profiling.#{action}") do |permission|
-              permission.name = "Profiling - #{action.capitalize}"
+          admin_permission_codes = %w[
+            company_profiles.view company_profiles.update company_profile_contacts.create
+            company_profile_contacts.update company_profile_contacts.delete
+          ]
+          admin_permissions = admin_permission_codes.map do |code|
+            Permission.find_or_create_by!(code:) do |permission|
+              permission.name = code
             end
           end
           @admin_role = create(:role, kind: Role::DOFI_OFFICER, permissions: admin_permissions)

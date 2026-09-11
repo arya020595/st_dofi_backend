@@ -5,7 +5,7 @@ module Api
         include RansackSearchable
 
         def index
-          authorize Manifest, :create?
+          authorize CompaniesCrew
           result = apply_ransack_search(manifest_crews, default_sort: "crew_name asc")
           pagy, records = pagy(:offset, result)
 
@@ -16,7 +16,7 @@ module Api
         private
 
         def manifest_crews
-          CompaniesCrew.kept.where(company_profile_id: current_user.company_profile_id, approval_status: "approved")
+          policy_scope(CompaniesCrew).where(approval_status: "approved")
         end
       end
     end

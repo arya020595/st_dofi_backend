@@ -6,7 +6,7 @@ module Api
       class PositionsControllerTest < ActionDispatch::IntegrationTest
         setup do
           @manifest = create(:manifest)
-          @headers = fisherman_headers_for(@manifest, permission_codes: %w[manifest_list.view manifest_form.view])
+          @headers = fisherman_headers_for(@manifest, permission_codes: %w[positions.list positions.view])
           @position = create(:position)
         end
 

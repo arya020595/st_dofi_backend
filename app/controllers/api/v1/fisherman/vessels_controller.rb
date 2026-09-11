@@ -5,7 +5,7 @@ module Api
         include RansackSearchable
 
         def index
-          authorize Manifest, :create?
+          authorize CompaniesVessel
           result = apply_ransack_search(manifest_vessels, default_sort: "vessel_name asc")
           pagy, records = pagy(:offset, result)
 
@@ -16,7 +16,7 @@ module Api
         private
 
         def manifest_vessels
-          CompaniesVessel.kept.where(company_profile_id: current_user.company_profile_id, approval_status: "approved")
+          policy_scope(CompaniesVessel).where(approval_status: "approved")
         end
       end
     end

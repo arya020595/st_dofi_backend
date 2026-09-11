@@ -289,7 +289,9 @@ SEED_COMPANY_PROFILES.each do |attrs|
     company_name: attrs[:company_name]
   )
 
-  profile.assign_attributes(attrs.except(:code, :review_state, :owner, :admin))
+  profile.assign_attributes(
+    attrs.except(:code, :review_state, :owner, :admin).merge(mailing_address: attrs[:company_address])
+  )
   profile.dofi_registration_no ||= SecureRandom.uuid
   profile.save!
 

@@ -1,0 +1,76 @@
+#!/usr/bin/env ruby
+
+policy_source_paths = Dir[File.expand_path("../app/policies/**/*.rb", __dir__)]
+policy_paths = Dir[File.expand_path("../app/policies/**/*_policy.rb", __dir__)]
+application_policy_path = File.expand_path("../app/policies/application_policy.rb", __dir__)
+concrete_policy_paths = policy_paths.reject { |path| path == application_policy_path }
+controller_paths = Dir[File.expand_path("../app/controllers/**/*.rb", __dir__)]
+catalog_source = File.read(File.expand_path("../app/models/concerns/permission/catalog.rb", __dir__))
+catalog_keys = catalog_source.scan(/\{ key: "([^"]+)", label:/).flatten
+
+checks = {
+  policy_source_paths => {
+    /def fisherman_[a-z_]*\?/ => "audience-specific fisherman policy action",
+    /fisherman_platform\?/ => "platform branch in policy authorization",
+    /def fisherman_(?:manifest|lookup|vessel)_[a-z_]*\?/ => "cross-resource fisherman fallback helper",
+    /PlatformScopedResource/ => "dynamic audience-to-resource selection"
+  },
+  controller_paths => {
+    /authorize .*:fisherman_[a-z_]*\?/ => "explicit fisherman policy dispatch"
+  }
+}
+
+violations = checks.flat_map do |paths, patterns|
+  paths.flat_map do |path|
+    source = File.read(path)
+    patterns.filter_map do |pattern, description|
+      next unless source.match?(pattern)
+
+      "#{path}: #{description}"
+    end
+  end
+end
+owned_resources = Hash.new { |resources, resource| resources[resource] = [] }
+
+(policy_source_paths - [application_policy_path]).each do |path|
+  source = File.read(path)
+  constant_values = source.scan(/^\s*[A-Z][A-Z0-9_]*\s*=\s*["']([^"']+)["']/).flatten
+  if constant_values.any? { |value| catalog_keys.include?(value) }
+    violations << "#{path}: permission namespace constants are forbidden"
+  end
+  violations << "#{path}: use ApplicationPolicy#permitted?" if source.match?(/user\.permission\?\s*\(/)
+end
+
+concrete_policy_paths.each do |path|
+  source = File.read(path)
+  class_declaration = source.match(/^class\s+\S+\s+<\s+(\S+)/)
+  unless class_declaration&.captures == ["ApplicationPolicy"]
+    violations << "#{path}: concrete policies must directly inherit ApplicationPolicy"
+  end
+
+  resource_methods = source.scan(/\bdef permission_resource\b/)
+  literal_resource_definitions = source.scan(/def permission_resource(?:\s*=\s*"[^"]+"|\s*\n\s*"[^"]+")/)
+  unless resource_methods.one? && literal_resource_definitions.one?
+    violations << "#{path}: define exactly one literal #permission_resource"
+  end
+  resource_match = source.match(/def permission_resource(?:\s*=\s*"([^"]+)"|\s*\n\s*"([^"]+)")/)
+  next unless resource_match
+
+  resource = resource_match.captures.compact.first
+  owned_resources[resource] << path
+  violations << "#{path}: unknown permission resource #{resource}" unless catalog_keys.include?(resource)
+
+  method_position = resource_match.begin(0)
+  private_position = source.rindex(/^\s*private\s*$/, method_position)
+  violations << "#{path}: #permission_resource must be private" unless private_position
+end
+
+owned_resources.each do |resource, paths|
+  next if paths.one?
+
+  violations << "#{paths.join(', ')}: permission resource #{resource} has multiple policies"
+end
+
+abort "RBAC contract violations:\n#{violations.join("\n")}" if violations.any?
+
+puts "RBAC policy contract passed"

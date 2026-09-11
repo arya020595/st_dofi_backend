@@ -55,6 +55,19 @@ Rails.application.routes.draw do
       # ==================== admin/ : DoFi Officer + Jetty Manager ====================
       namespace :admin, defaults: { audience: "admin" } do
         resources :users, only: %i[index show create update destroy]
+        resources :accounts, only: %i[index show] do
+          member do
+            post :deactivate
+            post :reactivate
+          end
+        end
+
+        namespace :entity_users do
+          resources :company_profiles, only: %i[index] do
+            member { get :users }
+          end
+        end
+
         resources :roles, only: %i[index show create update destroy]
         resources :dictionaries, only: %i[index show create update destroy]
         resources :dictionary_groups, only: %i[index show create update destroy]

@@ -157,20 +157,24 @@ erDiagram
 
 ## 4. Layered architecture
 
-Same five layers as every other feature in this codebase (enforced in
+Same six layers as every other feature in this codebase (enforced in
 [`CLAUDE.md`](../../CLAUDE.md)), applied to Roles/Users:
 
 ```mermaid
 graph LR
     C["Controller<br/>Admin::/Fisherman::<br/>RolesController, UsersController"]
-    P["Policy<br/>RolePolicy, UserPolicy<br/>+ PlatformScopedResource"]
+    P["Policy<br/>one permission resource<br/>per policy"]
     S["Service<br/>Roles::Create/Update<br/>Users::Create/Update<br/>+ validation concerns"]
+    Q["Query<br/>read-only query construction"]
     M["Model<br/>Role, Permission, User<br/>+ DB constraints"]
     B["Blueprint<br/>RoleBlueprint, UserBlueprint<br/>PermissionBlueprint"]
 
     C -->|"authorize / policy_scope"| P
     C -->|".call(...)"| S
-    S -->|"reads / writes"| M
+    C -->|"pure reads"| Q
+    S -->|"reads via"| Q
+    Q -->|"reads"| M
+    S -->|"writes"| M
     C -->|"render_as_hash"| B
     B -->|"reads"| M
 ```
@@ -247,7 +251,10 @@ class Permission < ApplicationRecord
   validates :code, presence: true, uniqueness: true
   validates :platform_scope, presence: true, inclusion: { in: PLATFORM_SCOPES }
 
-  def self.assignable_to(role_platform_scope) = where(platform_scope: [role_platform_scope, SHARED_PLATFORM])
+  def self.assignable_to(role_platform_scope)
+    where(code: Permission::Catalog::CODES,
+          platform_scope: [role_platform_scope, SHARED_PLATFORM])
+  end
 end
 ```
 
@@ -256,23 +263,21 @@ Full source: [`app/models/role.rb`](../../app/models/role.rb),
 
 ### 4.3 Seeds
 
-`db/seeds/permissions.rb` defines every permission code in one `PERMISSION_GROUPS` hash
-(`"resource" => %w[view list create update delete]`-shaped), then classifies each into a platform via
-`platform_scope_for` — everything defaults to `shared` unless explicitly listed as
-DoFi-Officer-only or Fisherman-only (whole resource group, or specific actions within one):
+`Permission::Catalog` defines every canonical permission code together with its action label,
+platform scope, section, resource label, and ordering. `db/seeds/permissions.rb` only idempotently
+persists those entries. There is no second resource/action map or inferred platform classifier:
 
 ```ruby
-def platform_scope_for(resource, action)
-  return Permission::FISHERMAN_PLATFORM if FISHERMAN_ONLY_GROUPS.include?(resource)
-  return Permission::DOFI_OFFICER_PLATFORM if DOFI_OFFICER_ONLY_GROUPS.include?(resource)
-  return Permission::DOFI_OFFICER_PLATFORM if DOFI_OFFICER_ONLY_ACTIONS[resource]&.include?(action)
-
-  Permission::SHARED_PLATFORM
+Permission::Catalog::ENTRIES.each do |entry|
+  permission = Permission.find_or_initialize_by(code: entry.fetch(:code))
+  permission.assign_attributes(entry.slice(:name, :platform_scope))
+  permission.save! if permission.new_record? || permission.changed?
 end
 ```
 
-`db/seeds/roles.rb` seeds only the 2 fixed `kind` roles (DoFi Officer gets every permission, Jetty
-Manager gets a fixed list) — **there is no Fisherman entry**, since per-company Owner roles are
+`db/seeds/roles.rb` seeds only the 2 fixed `kind` roles (DoFi Officer gets every canonical
+DoFi-Officer/shared permission, Jetty Manager gets a fixed list) — **there is no Fisherman entry**,
+since per-company Owner roles are
 created on demand by `Roles::EnsureFishermanOwnerRole` (§4.4), not seeded up front. Both seed files
 are idempotent (`find_or_create_by!` + drift-correcting `update!`), safe to rerun.
 
@@ -387,62 +392,79 @@ Full source: [`app/services/roles/ensure_fisherman_owner_role.rb`](../../app/ser
 
 ### 4.5 Policies
 
-`PlatformScopedResource` — included by `RolePolicy`/`UserPolicy`/`PermissionPolicy`, shown in full
-(12 lines): picks which permission-code resource name to check, based on the *acting user's* platform,
-not the record's:
+Every concrete policy directly inherits `ApplicationPolicy`, owns exactly one permission namespace,
+and declares it through one private literal method:
 
 ```ruby
-module PlatformScopedResource
-  extend ActiveSupport::Concern
+class RolePolicy < ApplicationPolicy
+  def update? = super && owns_record?
 
   private
 
-  def resource
-    user.dofi_officer_platform? ? self.class::RESOURCE : self.class::FISHERMAN_RESOURCE
-  end
+  def permission_resource = "roles"
 end
 ```
 
-`ApplicationPolicy` (base contract every policy honors — Liskov): all predicates deny by default,
-`Scope#resolve` must be overridden:
+`ApplicationPolicy` is the only class that builds permission codes. `User#permission?` accepts one
+code, so a concrete policy cannot implement an unrelated-resource fallback:
 
 ```ruby
-def index? = false
-def show? = false
-def create? = false
-def update? = false
-def destroy? = false
-# Scope#resolve raises NoMethodError unless overridden
+def index? = permitted?("list")
+def show? = permitted?("view")
+def create? = permitted?("create")
+def update? = permitted?("update")
+def destroy? = permitted?("delete")
+
+def permitted?(action)
+  user.permission?("#{permission_resource}.#{action}")
+end
 ```
 
-`RolePolicy`/`UserPolicy` — the isolation-critical methods only (`owns_record?` and `Scope#resolve`;
-the `index?`/`show?`/etc. predicates are formulaic `user.permission?(...)` one-liners, omitted here):
+Admin and Fisherman use the same action names, but their genuinely different resources use explicit
+policies: `RolePolicy` owns `roles.*`, `FishermanRolePolicy` owns `fisherman_roles.*`, `UserPolicy`
+owns `dofi_officer_users.*`, and `FishermanUserPolicy` owns `fisherman_users.*`. The Fisherman
+controllers select their policy and scope with `policy_class:`/`policy_scope_class:`.
+
+Workflow permissions on the same model follow the same rule. `ManifestPolicy` never references
+`manifest_approvals`; `ManifestApprovalPolicy` handles that namespace. Likewise,
+`CaptureReportPolicy` and `CaptureReportVerificationPolicy` are separate. `Policy::Scope` contains
+row isolation only:
 
 ```ruby
-# RolePolicy
-def owns_record?
-  return true if user.dofi_officer_platform?
+class FishermanRolePolicy < ApplicationPolicy
+  def update? = super && owns_record? && !record.system_managed_fisherman_role?
 
-  record.platform_scope == Role::FISHERMAN_PLATFORM && record.company_profile_id == user.company_profile_id
-end
-
-class Scope < Scope
-  def resolve
-    return scope.where(platform_scope: Role::DOFI_OFFICER_PLATFORM) if user.dofi_officer_platform?
-    return scope.where(platform_scope: Role::FISHERMAN_PLATFORM,
-                       company_profile_id: user.company_profile_id) if user.fisherman?
-
-    scope.none
+  class Scope < ApplicationPolicy::Scope
+    def resolve
+      scope.where(platform_scope: Role::FISHERMAN_PLATFORM, company_profile_id: user.company_profile_id)
+    end
   end
+
+  private
+
+  def permission_resource = "fisherman_roles"
 end
 ```
 
-`UserPolicy#owns_record?`/`Scope#resolve` follow the identical shape, scoped on
-`company_profile_id` directly instead of via `platform_scope`.
+This `owns_record?` shape is **mandatory** for every policy shared between the two platforms that
+guards tenant-owned (company-scoped) data — not just `FishermanRolePolicy`/`FishermanUserPolicy` above.
+`ApplicationPolicy` has no base `owns_record?`; nothing stops a shared policy's `show?`/`update?`/
+`destroy?` from authorizing purely on the permission bit and never inspecting `record`, which would make
+the policy layer depend entirely on every controller — current and future — fetching the record through
+a `policy_scope(...)`-rooted chain forever. `ManifestPolicy`, `ManifestExpensePolicy`,
+`ManifestMinorFishermanPolicy`, `CompaniesVesselPolicy`, `CompaniesCrewPolicy`,
+`CompaniesFishingGearPolicy`, `CompaniesDocumentPolicy`, `CompanyProfilePolicy`,
+`CompanyProfileContactPolicy`, `CaptureReportPolicy`, `FishCaptureDetailPolicy`, and
+`FishingGearDetailPolicy` all define their own `owns_record?`, bypassed via `user.dofi_officer_platform?`
+to match their own `Scope#resolve`'s existing officer bypass. Add it to every predicate whose action is
+in the catalog and that receives a real record instance; skip `create?`/`index?`/any predicate authorized
+against the bare class — there's no row to own yet. `test/policies/rbac_contract_test.rb`'s "shared
+tenant-owned policies define an ownership guard" test locks this in for the resources above — add a new
+policy to that list when you add it.
 
-Full source: [`app/policies/concerns/platform_scoped_resource.rb`](../../app/policies/concerns/platform_scoped_resource.rb),
-[`app/policies/application_policy.rb`](../../app/policies/application_policy.rb),
+Full source: [`app/policies/application_policy.rb`](../../app/policies/application_policy.rb),
 [`app/policies/role_policy.rb`](../../app/policies/role_policy.rb),
+[`app/policies/fisherman_role_policy.rb`](../../app/policies/fisherman_role_policy.rb),
 [`app/policies/user_policy.rb`](../../app/policies/user_policy.rb).
 
 ### 4.6 Controllers
@@ -460,14 +482,14 @@ module Api
         before_action :set_role, only: %i[show update destroy]
 
         def index
-          authorize Role
-          result = apply_ransack_search(policy_scope(Role), default_sort: "name asc")
+          authorize Role, policy_class: FishermanRolePolicy
+          result = apply_ransack_search(fisherman_role_scope, default_sort: "name asc")
           pagy, records = pagy(:offset, result)
           render json: { status: "success", data: RoleBlueprint.render_as_hash(records), meta: pagination_meta(pagy) }
         end
 
         def create
-          authorize Role
+          authorize Role, policy_class: FishermanRolePolicy
 
           result = Roles::Create.call(role_params, platform_scope: Role::FISHERMAN_PLATFORM,
                                                    company_profile_id: current_user.company_profile_id,
@@ -485,7 +507,11 @@ module Api
         # policy_scope, not a raw Role.find — another company's role 404s via RecordNotFound
         # rather than 403ing and confirming the id exists (§2.5, §5.4).
         def set_role
-          @role = policy_scope(Role).find(params.expect(:id))
+          @role = fisherman_role_scope.find(params.expect(:id))
+        end
+
+        def fisherman_role_scope
+          policy_scope(Role, policy_scope_class: FishermanRolePolicy::Scope)
         end
 
         # kind/platform_scope/company_profile_id are never in this allowlist.
@@ -642,13 +668,13 @@ still goes to registration.
 sequenceDiagram
     participant Owner as Company Owner
     participant Ctrl as Fisherman::RolesController#create
-    participant Pol as RolePolicy#create?
+    participant Pol as FishermanRolePolicy#create?
     participant Svc as Roles::Create
     participant Val as PermissionPlatformValidation
     participant DB
 
     Owner->>Ctrl: POST /fisherman/roles {role: {name}, permission_codes: [...]}
-    Ctrl->>Pol: authorize Role
+    Ctrl->>Pol: authorize Role, policy_class: FishermanRolePolicy
     Pol-->>Ctrl: allowed (fisherman_roles.create)
     Ctrl->>Svc: Roles::Create.call(role_params, platform_scope: "fisherman",<br/>company_profile_id: current_user.company_profile_id, permission_codes:)
     Note over Ctrl,Svc: platform_scope / company_profile_id are explicit kwargs —<br/>never read from role_params
@@ -676,7 +702,7 @@ sequenceDiagram
 
     Ctrl->>Pundit: authorize record (or class)
     Pundit->>Pol: new(user, record).<action>?
-    Pol->>Perm: user.permission?("resource.action", ...)
+    Pol->>Perm: user.permission?("resource.action")
     alt has the permission
         Perm-->>Pol: true
         Pol-->>Pundit: true
@@ -695,11 +721,11 @@ sequenceDiagram
 sequenceDiagram
     participant U as Company B user
     participant Ctrl as Fisherman::RolesController#show
-    participant Scope as RolePolicy::Scope
+    participant Scope as FishermanRolePolicy::Scope
     participant DB
 
     U->>Ctrl: GET /fisherman/roles/:id  (Company A's role id)
-    Ctrl->>Scope: policy_scope(Role).find(id)
+    Ctrl->>Scope: policy_scope(Role, policy_scope_class: FishermanRolePolicy::Scope).find(id)
     Scope->>DB: Role.where(platform_scope: "fisherman",<br/>company_profile_id: user.company_profile_id)  — Company B only
     DB-->>Scope: relation excludes Company A's row entirely
     Scope-->>Ctrl: .find(id) raises ActiveRecord::RecordNotFound
@@ -739,7 +765,7 @@ mechanism can be checked/tested and an intent can't.
 | Invariant | Enforced by | Layer |
 |---|---|---|
 | A fisherman-platform role belongs to exactly one company | `validates :company_profile_id, presence: true, if: :fisherman_platform?` + a cross-column DB check constraint (`platform_scope='fisherman'` requires `company_profile_id` present, `'dofi_officer'` requires it absent) | Model + Database |
-| A fisherman role is only visible within its own company | `RolePolicy::Scope`/`UserPolicy::Scope` — the fisherman branch scopes to `user.company_profile_id` | Policy (Scope) |
+| A fisherman role is only visible within its own company | `FishermanRolePolicy::Scope`/`FishermanUserPolicy::Scope` scope to `user.company_profile_id` | Policy (Scope) |
 | A fisherman role can never hold a dofi_officer-only permission | `Roles::PermissionPlatformValidation#no_cross_platform_codes?` | Service |
 | Client cannot choose `platform_scope` on create/update | Controller passes it as an explicit keyword argument; `role_params` never permits it | Controller |
 | Client cannot choose `company_profile_id` on create/update | Same — explicit keyword argument, never in `role_params` | Controller |
@@ -749,12 +775,14 @@ mechanism can be checked/tested and an intent can't.
 | Historical revoked Owner users do not block replacement | `occupies_fisherman_owner_slot?` is false for `fisherman_status: "revoked"` while `has_fisherman_owner_role?` stays true for audit/history | Model + Service |
 | The default Owner/Admin roles cannot be renamed or deleted | `Role#system_managed?` / role policy/service validations reject modifying system-managed Fisherman roles | Model + Policy + Service |
 | Custom roles cannot be named Owner/Admin | `Role` validates reserved Fisherman role names case-insensitively for non-system roles | Model |
-| Fisherman User Management cannot manage Owner users | `UserPolicy` plus `Fisherman::OwnerManagementGuard` block Owner targets and Owner role assignment | Policy + Service |
+| Fisherman User Management cannot manage Owner users | `FishermanUserPolicy` plus `Fisherman::OwnerManagementGuard` block Owner targets and Owner role assignment | Policy + Service |
 | Source A requires approval, Source B does not | `Fisherman::ProvisioningContext` derives `pending_approval` for `dofi_company_profile` and `claimable` for `fisherman_owner` | Service |
 | Normalized IC uniqueness is global across kept users | `users.normalized_ic_number` kept-row unique index; `Fisherman::CheckIcAvailability` checks `User.kept` globally, not per company/platform/role | Model + Database + Service |
 | Provisioning races become domain conflicts | `Fisherman::ProvisionUser` rescues `ActiveRecord::RecordNotUnique`, rechecks normalized IC, and returns deterministic conflict symbols | Service |
 | Reaching for another company's role/user by id never confirms it exists | `policy_scope(...).find` raises `RecordNotFound` (404), not `Pundit::NotAuthorizedError` (403) | Controller + Policy |
 | Role creation/update is atomic — never a saved role with a dropped permission set | `Roles::Create`/`Update` wrap `role.save!` + permission assignment in `ActiveRecord::Base.transaction` | Service |
+| A shared (dofi_officer + fisherman) policy never authorizes `show?`/`update?`/`destroy?` on another company's tenant-owned record from the permission bit alone | Each policy's own `owns_record?`, bypassed for `user.dofi_officer_platform?`; locked in by `rbac_contract_test.rb`'s ownership-guard test | Policy |
+| DoFi Officer and Jetty Manager accounts share one `platform_scope` (`"dofi_officer"`) but must never be treated interchangeably by Jetty-Manager-only workflows | `User#jetty_manager?`/`#fins_governed_jetty_manager?` (kind-based, not platform_scope-based); `JettyManagerApprovalPolicy::Scope` filters by `kind` via `Role.find_by(kind: Role::JETTY_MANAGER)`; each of the 5 `Users::*Registration` services independently re-checks `fins_governed_jetty_manager?`; locked in by `test/services/users/jetty_manager_registration_guard_test.rb` | Model + Policy + Service |
 
 ---
 
@@ -768,9 +796,8 @@ provisioning, not self-registration; see
 
 `platform_scope: "dofi_officer"`, `kind: "DoFi Officer"`. Manages `admin/roles` (any dofi_officer-
 platform role) and `admin/users` (any internal officer account). Cannot see or touch **any** company's
-fisherman-platform roles or users — `RolePolicy::Scope`/`UserPolicy::Scope` return `scope.none` for
-a dofi_officer-platform user requesting a resource that isn't theirs to see, and there's no admin
-endpoint that even queries fisherman-platform rows.
+fisherman-platform roles or users. Admin endpoints use `RolePolicy::Scope`/`UserPolicy::Scope`, which
+only return DoFI Officer records; Fisherman endpoints use their separate company-scoped policies.
 
 ### 7.2 Company Owner
 
@@ -814,16 +841,21 @@ few permissions they hold.
 
 ### 9.1 Adding a permission
 
-1. Add it to `PERMISSION_GROUPS` in `db/seeds/permissions.rb` — `"resource" => %w[action1 action2]`.
-2. Classify its platform: whole resource → `DOFI_OFFICER_ONLY_GROUPS`/`FISHERMAN_ONLY_GROUPS`;
-   specific actions only → `DOFI_OFFICER_ONLY_ACTIONS`; otherwise it defaults to `shared`.
-3. Run `bin/rails db:seed` — idempotent (`find_or_create_by!` + a drift-correcting `update!`).
+1. Add it to `Permission::Catalog` with its actions, platform scopes, and role-editor grouping.
+2. Set each action explicitly to `shared`, `dofi_officer`, or `fisherman` in that catalog entry.
+3. Add an expand/backfill migration for production data, then run `bin/rails db:seed` locally.
 4. Attach it to relevant roles: for the 2 system roles, add the code to `db/seeds/roles.rb`'s
    `ROLE_DEFINITIONS`; a company's Owner role picks it up automatically if it's fisherman/shared
    (§4.4's `Permission.assignable_to`), otherwise a company attaches it manually via
    `PATCH /fisherman/roles/:id`.
-5. Reference the code in the relevant policy predicate: `def action? = user.permission?("resource.action")`.
-6. Add a test asserting the permission gates the action, and — if platform-restricted — that the
+5. Ensure one concrete policy owns that resource via its private literal `permission_resource`.
+   Standard actions are inherited; custom actions call `permitted?("action")`. Never call
+   `user.permission?` directly from the concrete policy. If the resource is shared between platforms
+   **and** tenant-owned (has a `company_profile_id` or a traceable FK chain to one), also define
+   `owns_record?` per §4.5 and add the policy to `rbac_contract_test.rb`'s ownership-guard list.
+6. If the same model already has a policy for another permission resource, add a separate policy and
+   use explicit `policy_class:`/`policy_scope_class:` dispatch in the controller.
+7. Add a test asserting the permission gates the action, and — if platform-restricted — that the
    wrong platform is rejected (see `test/controllers/api/v1/*/roles_controller_test.rb`'s
    `"create rejects a permission code belonging to the ... platform"` tests for the pattern).
 
@@ -847,10 +879,9 @@ role mechanism — only follow this if you need a genuinely new fixed singleton 
 ### 9.3 Adding a new platform
 
 1. Add the constant to both `Role::PLATFORM_SCOPES` and `Permission::PLATFORM_SCOPES`.
-2. Decide and seed its allowed permissions (extend the `PERMISSION_GROUPS` classification in §4.3).
-3. Add a branch to every `Policy::Scope#resolve` that currently only handles
-   `dofi_officer_platform?`/`fisherman?` — `RolePolicy::Scope`, `UserPolicy::Scope`, and any other
-   `PlatformScopedResource`-including policy.
+2. Define its allowed actions and platform scopes in `Permission::Catalog` (§4.3).
+3. Add or update that platform's dedicated policies and `Policy::Scope#resolve` implementations.
+   Never select a permission namespace conditionally inside one policy.
 4. Decide role-creation rules for it (per-tenant like fisherman, or global like dofi_officer) and
    extend `Roles::Create`/`Update`'s callers accordingly.
 5. Extend `db/seeds/roles.rb`/`permissions.rb` for the new platform's seed data.
@@ -864,7 +895,7 @@ If the tenant boundary itself needs to change (e.g. sharing a role across multip
 scoping by something other than `CompanyProfile`):
 
 1. The FK/column itself (`roles.company_profile_id`) and its NOT NULL / check constraints.
-2. `RolePolicy::Scope#fisherman_scope` / `UserPolicy::Scope#fisherman_scope` — the isolation boundary.
+2. `FishermanRolePolicy::Scope#resolve` / `FishermanUserPolicy::Scope#resolve` — the isolation boundary.
 3. `Role.assignable_by_fisherman` — the assignability boundary.
 4. A data migration for existing rows — `20260811090205_migrate_fishermen_to_company_scoped_owner_roles.rb`
    (§10 Phase 2) is the template for this exact shape of cutover.
@@ -919,6 +950,10 @@ wouldn't reveal which layer regressed.
   role-assignment scoping, cross-company 404s, the split permission-layer (403) vs
   role-assignment-scope-layer (422) self-reassignment tests from §10 Phase 4.
 - `test/services/roles/` — `EnsureFishermanOwnerRole` idempotency.
+- `test/policies/rbac_contract_test.rb`'s ownership-guard test — asserts every shared tenant-owned
+  policy in §4.5's list still defines `owns_record?`.
+- `test/services/users/jetty_manager_registration_guard_test.rb` — proves each of the 5 Jetty-Manager
+  lifecycle services rejects a DoFi Officer account despite the shared `platform_scope`.
 
 **Postman** (`postman/DoFi-Backend.postman_collection.json`) — `Roles / Fisherman` and
 `Users / Fisherman` subfolders (nested inside the existing `Roles`/`Users` folders), covering

@@ -1,6 +1,7 @@
 module Notifications
   class ManifestRecipients
-    APPROVAL_PERMISSION = "manifest_approvals.approve".freeze
+    PORT_OUT_APPROVAL_PERMISSION = "manifest_approvals.approve_port_out".freeze
+    PORT_IN_APPROVAL_PERMISSION = "manifest_approvals.approve_port_in".freeze
     CAPTURE_VERIFICATION_PERMISSION = "capture_report_verifications.verify".freeze
 
     def self.resolve(...) = new(...).call
@@ -16,9 +17,8 @@ module Notifications
       admin_recipients
     end
 
-    def self.approvers_for(manifest)
-      resolve(manifest:, permission_code: APPROVAL_PERMISSION)
-    end
+    def self.port_out_approvers_for(manifest) = resolve(manifest:, permission_code: PORT_OUT_APPROVAL_PERMISSION)
+    def self.port_in_approvers_for(manifest) = resolve(manifest:, permission_code: PORT_IN_APPROVAL_PERMISSION)
 
     def self.capture_verifiers_for(manifest)
       resolve(manifest:, permission_code: CAPTURE_VERIFICATION_PERMISSION)

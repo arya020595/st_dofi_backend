@@ -9,7 +9,7 @@ module Api
             setup do
               @manifest = create(:manifest)
               @report = create(:capture_report, manifest: @manifest)
-              @headers = officer_headers_for(permission_codes: %w[capture_reports.view capture_reports.list])
+              @headers = officer_headers_for(permission_codes: %w[fish_capture_details.view fish_capture_details.list])
             end
 
             test "index lists fish capture details for the capture report" do

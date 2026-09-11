@@ -6,7 +6,7 @@ module Api
       class RolesControllerOwnerGovernanceTest < ActionDispatch::IntegrationTest
         setup do
           @password = "Password123!"
-          @view_permission = create(:permission, code: "manifest_list.view",
+          @view_permission = create(:permission, code: "manifests.view",
                                                  platform_scope: Permission::SHARED_PLATFORM)
           @company_profile = create(:company_profile)
           permissions = role_management_permissions

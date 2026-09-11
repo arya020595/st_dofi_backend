@@ -54,7 +54,7 @@ module Api
         end
 
         def images
-          authorize @vessel, :update?
+          authorize @vessel, :images?
 
           case CompaniesVessels::AttachImages.call(@vessel, image_params)
           in Success(vessel)

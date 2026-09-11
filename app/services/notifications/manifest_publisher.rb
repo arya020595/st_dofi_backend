@@ -2,7 +2,7 @@ module Notifications
   class ManifestPublisher
     EVENTS = {
       port_out_review_required: [
-        :approvers, "Port-Out Approval Required", "Manifest %<number>s is waiting for Port-Out approval."
+        :port_out_approvers, "Port-Out Approval Required", "Manifest %<number>s is waiting for Port-Out approval."
       ],
       port_out_approved: [
         :fishermen, "Port-Out Approved", "Manifest %<number>s has been approved for Port-Out."
@@ -11,7 +11,7 @@ module Notifications
         :fishermen, "Port-Out Amendment Required", "Manifest %<number>s requires a Port-Out amendment."
       ],
       port_out_resubmitted: [
-        :approvers, "Port-Out Resubmitted", "Manifest %<number>s has been resubmitted for Port-Out approval."
+        :port_out_approvers, "Port-Out Resubmitted", "Manifest %<number>s has been resubmitted for Port-Out approval."
       ],
       capture_report_review_required: [
         :capture_verifiers,
@@ -32,7 +32,7 @@ module Notifications
         "A Capture Report for manifest %<number>s has been resubmitted for verification."
       ],
       port_in_review_required: [
-        :approvers, "Port-In Approval Required", "Manifest %<number>s is ready for Port-In approval."
+        :port_in_approvers, "Port-In Approval Required", "Manifest %<number>s is ready for Port-In approval."
       ],
       port_in_approved: [
         :fishermen, "Port-In Approved", "Manifest %<number>s has been approved for Port-In."
@@ -41,7 +41,7 @@ module Notifications
         :fishermen, "Port-In Amendment Required", "Manifest %<number>s requires a Port-In amendment."
       ],
       port_in_resubmitted: [
-        :approvers, "Port-In Resubmitted", "Manifest %<number>s has been resubmitted for Port-In approval."
+        :port_in_approvers, "Port-In Resubmitted", "Manifest %<number>s has been resubmitted for Port-In approval."
       ]
     }.freeze
 
@@ -60,7 +60,8 @@ module Notifications
 
     def recipients_for(recipient_group, manifest)
       case recipient_group
-      when :approvers then ManifestRecipients.approvers_for(manifest)
+      when :port_out_approvers then ManifestRecipients.port_out_approvers_for(manifest)
+      when :port_in_approvers then ManifestRecipients.port_in_approvers_for(manifest)
       when :capture_verifiers then ManifestRecipients.capture_verifiers_for(manifest)
       when :fishermen then ManifestRecipients.fishermen_for(manifest)
       end

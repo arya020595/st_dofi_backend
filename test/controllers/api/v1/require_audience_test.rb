@@ -7,8 +7,11 @@ module Api
         @password = "Password123!"
 
         profiling_permissions = %w[list view].map do |action|
-          Permission.find_or_create_by!(code: "profiling.#{action}") { |p| p.name = "Profiling - #{action}" }
+          Permission.find_or_create_by!(code: "company_profiles.#{action}") do |permission|
+            permission.name = "Company Profiles - #{action}"
+          end
         end
+        profiling_permissions << Permission.find_or_create_by!(code: "permissions.list")
 
         officer_role = create(:role, kind: Role::DOFI_OFFICER, permissions: profiling_permissions)
         jetty_manager_role = create(:role, kind: Role::JETTY_MANAGER, permissions: profiling_permissions)
@@ -57,7 +60,7 @@ module Api
 
       test "fisherman audience denies revoked Owner even though role is fisherman scoped" do
         company_profile = create(:company_profile)
-        permissions = Permission.where(code: %w[profiling.list profiling.view])
+        permissions = Permission.where(code: %w[company_profiles.list company_profiles.view])
         owner_role = create(:role, :fisherman, company_profile: company_profile, name: "Owner", is_default: true,
                                                permissions: permissions)
         owner = create(:user, role: owner_role, company_profile: company_profile, ic_number: SecureRandom.hex(5),

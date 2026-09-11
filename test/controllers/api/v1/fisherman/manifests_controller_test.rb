@@ -7,8 +7,10 @@ module Api
         setup do
           @password = "Password123!"
 
-          fisherman_permissions = %w[manifest_list.view manifest_list.list
-                                     manifest_list.delete manifest_form.view manifest_form.create
+          fisherman_permissions = %w[manifests.view manifests.list manifests.create manifests.update
+                                     manifests.delete manifests.offline_bundle manifests.submit_port_out
+                                     manifests.resubmit_port_out manifests.submit_port_in manifests.resubmit_port_in
+                                     manifests.skip_capture_report
                                      companies_vessels.view companies_vessels.list
                                      companies_vessels.create].map do |code|
             Permission.find_or_create_by!(code: code) { |p| p.name = code }

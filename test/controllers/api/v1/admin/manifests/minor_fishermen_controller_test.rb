@@ -7,7 +7,9 @@ module Api
         class MinorFishermenControllerTest < ActionDispatch::IntegrationTest
           setup do
             @manifest = create(:manifest, :small_scale)
-            @headers = officer_headers_for(permission_codes: %w[manifest_minor_fishermen.view])
+            @headers = officer_headers_for(
+              permission_codes: %w[manifest_minor_fishermen.list manifest_minor_fishermen.view]
+            )
           end
 
           test "index lists minor fishermen for the manifest" do
