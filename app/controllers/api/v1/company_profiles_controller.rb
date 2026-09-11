@@ -69,16 +69,17 @@ module Api
 
       def company_profile_params
         company_profile = params.expect(
-          company_profile: %i[registration_type company_name company_address rocbn_no contact_no district mukim village
-                              fisherman_card_no issue_date license_expiry_date worker_quota]
+          company_profile: %i[registration_type company_name company_address mailing_address rocbn_no contact_no
+                              district mukim village fisherman_card_no issue_date license_expiry_date worker_quota]
         )
 
         company_profile.except(:worker_quota)
       end
 
       def create_params
-        params.expect(company_profile: %i[registration_type company_name company_address rocbn_no contact_no
-                                          district mukim village fisherman_card_no issue_date license_expiry_date] +
+        params.expect(company_profile: %i[registration_type company_name company_address mailing_address rocbn_no
+                                          contact_no district mukim village fisherman_card_no issue_date
+                                          license_expiry_date] +
                                         [{ owner: %i[full_name gender ic_no ic_colour],
                                            admin: %i[full_name gender ic_no ic_colour] }])
       end
