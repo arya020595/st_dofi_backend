@@ -11,6 +11,8 @@ AllCops:
     - "db/schema.rb"
     - "db/cache_schema.rb"
     - "db/queue_schema.rb"
+    - "db/log_schema.rb"
+    - "db/cable_schema.rb"
     - "vendor/**/*"
 
 Style/Documentation:
@@ -54,6 +56,9 @@ Layout/LineLength:
     - "app/models/companies_document.rb"
     - "test/factories/companies_documents.rb"
     - "test/models/companies_document_test.rb"
+    - "app/models/user.rb"
+    - "test/factories/users.rb"
+    - "test/models/user_test.rb"
 
 # Integration tests assert against a sequential, dependent multi-step HTTP flow (e.g. register ->
 # approve -> login -> create vessel -> ... -> complete) where each step's assertions depend on the

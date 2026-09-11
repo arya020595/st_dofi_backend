@@ -70,15 +70,13 @@ module Api
           end
 
           def render_approval_histories(status_type)
-            render json: {
-              status: "success",
-              data: {
-                manifest_id: @manifest.id,
-                status_type: status_type,
-                current_status: current_status_for(status_type),
-                histories: approval_histories_for(status_type).map { |history| approval_history_payload(history) }
-              }
+            payload = {
+              manifest_id: @manifest.id,
+              status_type: status_type,
+              current_status: current_status_for(status_type),
+              histories: approval_histories_for(status_type)
             }
+            render json: { status: "success", data: ManifestApprovalHistoryBlueprint.render_as_hash(payload) }
           end
 
           def current_status_for(status_type)
@@ -86,26 +84,6 @@ module Api
             when "port_out_status" then @manifest.port_out_status
             when "port_in_status" then @manifest.port_in_status
             end
-          end
-
-          def approval_history_payload(history)
-            history.slice("id", "action", "status_type", "from_state", "to_state", "remarks", "changed_by_id",
-                          "created_at")
-                   .symbolize_keys
-                   .merge(changed_by: approval_history_actor_payload(history.changed_by))
-          end
-
-          def approval_history_actor_payload(user)
-            return nil unless user
-
-            {
-              id: user.id,
-              name: user.name,
-              email: user.email,
-              username: user.username,
-              unit: user.unit,
-              position: user.position
-            }
           end
 
           def approval_histories_for(status_type)
