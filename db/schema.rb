@@ -240,6 +240,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_11_090000) do
     t.date "issue_date"
     t.date "license_expiry_date"
     t.string "logo_url"
+    t.text "mailing_address"
     t.string "mukim"
     t.string "registration_type", null: false
     t.string "rocbn_no"

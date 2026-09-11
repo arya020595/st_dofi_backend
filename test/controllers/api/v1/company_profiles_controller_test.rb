@@ -29,7 +29,8 @@ module Api
         {
           company_profile: {
             registration_type: "Small-Scale (Company)", company_name: "New Profiling Co",
-            company_address: "Spg 1, Test", rocbn_no: "RC-NEW-001", contact_no: "71222222",
+            company_address: "Spg 1, Test", mailing_address: "P.O. Box 1, Serasa", rocbn_no: "RC-NEW-001",
+            contact_no: "71222222",
             district: "Brunei - Muara", mukim: "Serasa", village: "Kapok",
             fisherman_card_no: "R-2026-000999", issue_date: "2026-01-01", license_expiry_date: "2026-12-31",
             owner: { full_name: "Owner Person", gender: "Male", ic_no: "01-700010", ic_colour: "Yellow" }
@@ -89,6 +90,7 @@ module Api
         data = response.parsed_body["data"]
 
         assert_equal "Owner Person", data.dig("owner_profile", "full_name")
+        assert_equal "P.O. Box 1, Serasa", data.dig("company_profile", "mailing_address")
         assert_nil data["admin_profile"]
         assert_equal "pending_approval", data.dig("owner_user", "status")
       end

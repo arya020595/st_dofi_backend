@@ -20,9 +20,9 @@ end
 # Database name: primary
 #
 #  id          :uuid             not null, primary key
-#  end_range   :string
+#  end_range   :integer
 #  name        :string           not null
-#  start_range :string
+#  start_range :integer
 #  created_at  :datetime         not null
 #  updated_at  :datetime         not null
 #

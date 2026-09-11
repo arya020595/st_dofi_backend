@@ -68,6 +68,7 @@ SANDBOX_PROFILE_ATTRIBUTE_MAP = {
 
 def sandbox_profile_attributes(attributes)
   SANDBOX_PROFILE_ATTRIBUTE_MAP.transform_values { |source_key| attributes[source_key] }.merge(
+    mailing_address: attributes[:company_address],
     approval_status: "approved",
     approved_at: Time.current,
     date_approval: Date.current

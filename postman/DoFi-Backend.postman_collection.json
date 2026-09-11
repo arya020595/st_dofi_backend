@@ -41,6 +41,11 @@
       "type": "string"
     },
     {
+      "key": "account_id",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "permission_code",
       "value": "dashboard.list",
       "type": "string"
@@ -4433,7 +4438,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Commercial\",\n    \"company_name\": \"Azri Fish Sdn Bhd\",\n    \"company_address\": \"Spg 10, Pantai Serasa, Mukim Serasa\",\n    \"rocbn_no\": \"RC20390923\",\n    \"contact_no\": \"71111111\",\n    \"district\": \"Brunei - Muara\",\n    \"mukim\": \"Serasa\",\n    \"village\": \"Kapok\",\n    \"fisherman_card_no\": \"R-2026-012563\",\n    \"issue_date\": \"2026-01-01\",\n    \"license_expiry_date\": \"2026-12-31\",\n    \"owner\": {\n      \"full_name\": \"Muhammad Shahrizan Bin Haji Said\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-192839\",\n      \"ic_colour\": \"Yellow\"\n    },\n    \"admin\": {\n      \"full_name\": \"Seruddin Bin Haji Abdullah\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-192840\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
+              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Commercial\",\n    \"company_name\": \"Azri Fish Sdn Bhd\",\n    \"company_address\": \"Spg 10, Pantai Serasa, Mukim Serasa\",\n    \"mailing_address\": \"P.O. Box 100, Bandar Seri Begawan BA1111\",\n    \"rocbn_no\": \"RC20390923\",\n    \"contact_no\": \"71111111\",\n    \"district\": \"Brunei - Muara\",\n    \"mukim\": \"Serasa\",\n    \"village\": \"Kapok\",\n    \"fisherman_card_no\": \"R-2026-012563\",\n    \"issue_date\": \"2026-01-01\",\n    \"license_expiry_date\": \"2026-12-31\",\n    \"owner\": {\n      \"full_name\": \"Muhammad Shahrizan Bin Haji Said\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-192839\",\n      \"ic_colour\": \"Yellow\"\n    },\n    \"admin\": {\n      \"full_name\": \"Seruddin Bin Haji Abdullah\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-192840\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4492,7 +4497,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Small-Scale (Company)\",\n    \"company_name\": \"Serasa Small Fish Co\",\n    \"company_address\": \"Spg 20, Serasa\",\n    \"rocbn_no\": \"RC99887766\",\n    \"contact_no\": \"72222222\",\n    \"district\": \"Brunei - Muara\",\n    \"mukim\": \"Serasa\",\n    \"village\": \"Kapok\",\n    \"fisherman_card_no\": \"R-2026-099001\",\n    \"issue_date\": \"2026-02-01\",\n    \"license_expiry_date\": \"2027-01-31\",\n    \"owner\": {\n      \"full_name\": \"Roslan Bin Mat\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-441122\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
+              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Small-Scale (Company)\",\n    \"company_name\": \"Serasa Small Fish Co\",\n    \"company_address\": \"Spg 20, Serasa\",\n    \"mailing_address\": \"P.O. Box 20, Serasa, Brunei-Muara\",\n    \"rocbn_no\": \"RC99887766\",\n    \"contact_no\": \"72222222\",\n    \"district\": \"Brunei - Muara\",\n    \"mukim\": \"Serasa\",\n    \"village\": \"Kapok\",\n    \"fisherman_card_no\": \"R-2026-099001\",\n    \"issue_date\": \"2026-02-01\",\n    \"license_expiry_date\": \"2027-01-31\",\n    \"owner\": {\n      \"full_name\": \"Roslan Bin Mat\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-441122\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4734,7 +4739,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"company_profile\": {\n    \"contact_no\": \"71234567\"\n  }\n}",
+              "raw": "{\n  \"company_profile\": {\n    \"mailing_address\": \"P.O. Box 100, Bandar Seri Begawan BA1111\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
