@@ -5,15 +5,15 @@ pagination. It currently covers:
 
 | Endpoint | Paginated? | Auth required | Permission needed |
 |---|---|---|---|
-| `GET /api/v1/admin/users` | Yes | Yes (JWT) | `dofi_officer_users.list` or `dofi_officer_users.view` |
-| `GET /api/v1/admin/roles` | Yes | Yes (JWT) | `roles.list` or `roles.view` |
+| `GET /api/v1/admin/users` | Yes | Yes (JWT) | `dofi_officer_users.list` |
+| `GET /api/v1/admin/roles` | Yes | Yes (JWT) | `roles.list` |
 | `GET /api/v1/permissions` | No (returns full filtered list) | Yes (JWT) | any authenticated user |
-| `GET /api/v1/admin/master_data/ports` (also `/api/v1/fisherman/master_data/ports`, read-only) | Yes | Yes (JWT) | `ports.list` or `ports.view` |
-| `GET /api/v1/admin/master_data/zones` (also `/api/v1/fisherman/master_data/zones`, read-only) | Yes | Yes (JWT) | `zones.list` or `zones.view` |
-| `GET /api/v1/admin/master_data/fishing_gears` (also `/api/v1/fisherman/master_data/fishing_gears`, read-only) | Yes | Yes (JWT) | `fishing_gears.list` or `fishing_gears.view` |
-| `GET /api/v1/admin/master_data/nationalities` | Yes | Yes (JWT) | `nationalities.list` or `nationalities.view` |
-| `GET /api/v1/admin/master_data/positions` | Yes | Yes (JWT) | `positions.list` or `positions.view` |
-| `GET /api/v1/admin/master_data/reasons` | Yes | Yes (JWT) | `reasons.list` or `reasons.view` |
+| `GET /api/v1/admin/master_data/ports` (also `/api/v1/fisherman/master_data/ports`, read-only) | Yes | Yes (JWT) | `ports.list` |
+| `GET /api/v1/admin/master_data/zones` (also `/api/v1/fisherman/master_data/zones`, read-only) | Yes | Yes (JWT) | `zones.list` |
+| `GET /api/v1/admin/master_data/fishing_gears` (also `/api/v1/fisherman/master_data/fishing_gears`, read-only) | Yes | Yes (JWT) | `fishing_gears.list` |
+| `GET /api/v1/admin/master_data/nationalities` | Yes | Yes (JWT) | `nationalities.list` |
+| `GET /api/v1/admin/master_data/positions` | Yes | Yes (JWT) | `positions.list` |
+| `GET /api/v1/admin/master_data/reasons` | Yes | Yes (JWT) | `skip_reasons.list` |
 
 Send the JWT the same way as every other endpoint: `Authorization: Bearer <token>`.
 

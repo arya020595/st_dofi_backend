@@ -12,7 +12,7 @@ stays intentionally at the "one screen" level rather than duplicating those.
 | Database | PostgreSQL |
 | Background jobs / cache | Solid Queue / Solid Cache — DB-backed, no Redis |
 | Auth | Devise + devise-jwt (JWT sessions) |
-| Authorization | Pundit (one policy per model) |
+| Authorization | Pundit (one policy per permission resource; scopes enforce row isolation) |
 | Service layer | dry-monads (`Success`/`Failure` results, not exceptions, for expected failure paths) |
 | State machine | AASM (e.g. `User#status`, manifest/approval lifecycles) |
 | Serialization | Blueprinter |
@@ -20,7 +20,6 @@ stays intentionally at the "one screen" level rather than duplicating those.
 | Audit trail / soft delete | Audited / Discard |
 | File storage | MinIO (self-hosted, S3-compatible) via Active Storage; Cloudinary kept only until migration completes |
 | External identity | BruneiID (government ID verification) via `Faraday`/`jwt` — **mocked today**, see §1 |
-| Bilingual fields (EN/MS) | Mobility |
 | Monitoring | Sentry (errors) + Lograge (structured JSON request logs) |
 
 ## 1. System context
@@ -110,23 +109,86 @@ staging deploys on every push to `develop`, production only on `main` plus a rev
 
 ## 3. Layered application architecture
 
-Every request flows through the same five layers, each with exactly one job
+Every request flows through the same six layers, each with exactly one job
 (enforced in [`CLAUDE.md`](../CLAUDE.md)):
 
 ```mermaid
 graph LR
-    C["Controller<br/>app/controllers<br/>parse params, call one policy/service, render"]
+    C["Controller<br/>app/controllers<br/>parse params, authorize, call a service/query, render"]
     P["Policy<br/>app/policies<br/>Pundit — authorization only, no side effects"]
     S["Service<br/>app/services<br/>business logic — dry-monads Success/Failure"]
+    Q["Query<br/>app/queries<br/>read-only SQL/ActiveRecord construction"]
     M["Model<br/>app/models<br/>associations, validations, scopes"]
     B["Blueprint<br/>app/blueprints<br/>Blueprinter — response shaping only"]
 
     C -->|"authorize"| P
-    C -->|"call(...)"| S
-    S -->|"reads / writes"| M
+    C -->|"call(...) — business workflow"| S
+    C -->|"call(...) — pure read"| Q
+    S -->|"reads via Query"| Q
+    Q -->|"reads"| M
+    S -->|"writes"| M
     C -->|"render_as_hash"| B
     B -->|"reads"| M
 ```
+
+### Authorization contract
+
+Authorization is modeled by permission resource, not controller namespace, audience, or model name.
+A model may therefore have more than one policy when it participates in distinct capabilities:
+`ManifestPolicy` owns `manifests.*`, while `ManifestApprovalPolicy` owns
+`manifest_approvals.*`. The controller selects the alternate policy explicitly; neither policy may
+reference the other's resource.
+
+Every concrete policy must directly inherit `ApplicationPolicy` and provide one private literal
+`permission_resource`. Every canonical catalog resource must have exactly one owning policy:
+
+```ruby
+class DashboardPolicy < ApplicationPolicy
+  private
+
+  def permission_resource = "dashboard"
+end
+```
+
+`ApplicationPolicy` owns the standard mapping:
+
+| Pundit predicate | Permission action |
+|---|---|
+| `index?` | `list` |
+| `show?` | `view` |
+| `create?` | `create` |
+| `update?` | `update` |
+| `destroy?` | `delete` |
+
+Custom predicates use the same action name through `permitted?`, while record/state checks follow
+the permission check. For example, `verify?` checks only
+`capture_report_verifications.verify`; `request_amendment?` checks only
+`capture_report_verifications.request_amendment`.
+
+The following are forbidden and enforced by `bin/rbac-lint` plus policy contract tests:
+
+- permission resource constants or multiple resources in one policy;
+- cross-resource or multi-code fallback authorization;
+- audience-prefixed policy actions such as `fisherman_update?`;
+- platform-selected resources such as `PlatformScopedResource`;
+- concrete-policy inheritance, which can silently reuse a parent's permission namespace;
+- direct `user.permission?` calls outside `ApplicationPolicy`.
+
+Platform routing and action authorization are separate from row visibility. Route audience rejects
+the wrong application surface, the policy predicate checks exactly one capability, and
+`Policy::Scope#resolve` applies company/tenant isolation. Alternative workflow policies use explicit
+`policy_class:` and `policy_scope_class:` at the controller call site.
+
+Every shared policy protecting tenant-owned data must also define a per-record `owns_record?` guard
+(bypassed for `dofi_officer_platform?`), independent of any Scope-level or controller-level filtering —
+see [`docs/rbac/platform-company-isolation.md`](rbac/platform-company-isolation.md) §4.5/§6 for the
+pattern and the enforced regression test.
+
+`Permission::Catalog` is the only live definition of permission code, action, platform scope,
+section, label, and ordering. Seeds persist that catalog and role mutation accepts only catalog codes
+available to the role's platform. Legacy codes may remain temporarily in the database during an
+expand/cutover/contract rollout, but are never returned by the permission endpoint or accepted by
+role create/update.
 
 ### A concrete request, end to end
 

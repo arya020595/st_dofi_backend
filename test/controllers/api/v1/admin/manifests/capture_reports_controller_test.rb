@@ -22,8 +22,9 @@ module Api
             report = create(:capture_report, manifest: @manifest)
             role = create_role_with_permissions(
               kind: Role::DOFI_OFFICER,
-              permission_codes: %w[capture_report_verifications.view capture_report_verifications.list
-                                   capture_report_verifications.verify capture_report_verifications.amendment],
+              permission_codes: %w[capture_report_verifications.list capture_report_verifications.view
+                                   capture_report_verifications.verify
+                                   capture_report_verifications.request_amendment],
               name: "DoFi Officer"
             )
             officer = create(:user, role: role, position: "Administrator", unit: "HQ",
@@ -42,8 +43,9 @@ module Api
           test "request_amendment stores the remarks" do
             report = create(:capture_report, manifest: @manifest)
             headers = officer_headers_for(
-              permission_codes: %w[capture_report_verifications.view capture_report_verifications.list
-                                   capture_report_verifications.verify capture_report_verifications.amendment]
+              permission_codes: %w[capture_report_verifications.list capture_report_verifications.view
+                                   capture_report_verifications.verify
+                                   capture_report_verifications.request_amendment]
             )
 
             post "/api/v1/admin/manifests/#{@manifest.id}/capture_reports/#{report.id}/request_amendment",
@@ -59,7 +61,9 @@ module Api
           test "index lists capture reports for the manifest" do
             reviewer = create(:user)
             create(:capture_report, manifest: @manifest, reviewed_by: reviewer, reviewed_at: Time.current)
-            headers = officer_headers_for(permission_codes: %w[capture_reports.view capture_reports.list])
+            headers = officer_headers_for(
+              permission_codes: %w[capture_report_verifications.list capture_report_verifications.view]
+            )
 
             get "/api/v1/admin/manifests/#{@manifest.id}/capture_reports", headers: headers
 

@@ -6,24 +6,24 @@ module ManifestApprovalTransitions
                           request_amendment_port_in].freeze
 
   def approve_port_out
-    authorize @manifest
+    authorize @manifest, policy_class: ManifestApprovalPolicy
     render_transition(::Manifests::ApprovePortOut.call(@manifest, actor: current_user))
   end
 
   def request_amendment_port_out
-    authorize @manifest
+    authorize @manifest, policy_class: ManifestApprovalPolicy
     result = ::Manifests::RequestAmendmentPortOut.call(@manifest, actor: current_user,
                                                                   remarks: params.expect(:remarks))
     render_transition(result)
   end
 
   def approve_port_in
-    authorize @manifest
+    authorize @manifest, policy_class: ManifestApprovalPolicy
     render_transition(::Manifests::ApprovePortIn.call(@manifest, actor: current_user))
   end
 
   def request_amendment_port_in
-    authorize @manifest
+    authorize @manifest, policy_class: ManifestApprovalPolicy
     result = ::Manifests::RequestAmendmentPortIn.call(@manifest, actor: current_user,
                                                                  remarks: params.expect(:remarks))
     render_transition(result)

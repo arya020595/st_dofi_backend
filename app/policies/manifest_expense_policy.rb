@@ -1,25 +1,11 @@
 class ManifestExpensePolicy < ApplicationPolicy
-  RESOURCE = "manifest_expenses".freeze
-
-  def show?
-    fisherman_platform? ? fisherman_manifest_readable? : user.permission?("#{RESOURCE}.view")
-  end
-
-  def create?
-    fisherman_platform? ? fisherman_manifest_writeable? : user.permission?("#{RESOURCE}.create")
-  end
-
-  def update?
-    fisherman_platform? ? fisherman_manifest_writeable? : user.permission?("#{RESOURCE}.update")
-  end
+  def show? = super && owns_record?
+  def create? = super && owns_record?
+  def update? = super && owns_record?
 
   private
 
-  def fisherman_manifest_readable?
-    user.permission?("#{RESOURCE}.view") || fisherman_manifest_read?
-  end
+  def permission_resource = "manifest_expenses"
 
-  def fisherman_manifest_writeable?
-    user.permission?("#{RESOURCE}.create", "#{RESOURCE}.update") || fisherman_manifest_write?
-  end
+  def owns_record? = user.dofi_officer_platform? || record.manifest.company_profile_id == user.company_profile_id
 end

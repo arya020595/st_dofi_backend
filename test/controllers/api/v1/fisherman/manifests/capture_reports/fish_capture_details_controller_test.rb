@@ -12,8 +12,12 @@ module Api
               @gear_detail = create(:fishing_gear_detail, capture_report: @report)
               @dictionary = create(:dictionary, local_name: "Ikan Merah", scientific_name: "Lutjanus campechanus")
               @headers = fisherman_headers_for(@manifest,
-                                               permission_codes: %w[manifest_list.view manifest_form.view
-                                                                    manifest_form.create])
+                                               permission_codes: %w[fish_capture_details.list
+                                                                    fish_capture_details.view
+                                                                    fish_capture_details.create
+                                                                    fish_capture_details.update
+                                                                    fish_capture_details.delete
+                                                                    fish_capture_details.bulk_sync])
             end
 
             test "create snapshots the dictionary name and computes the overall total" do

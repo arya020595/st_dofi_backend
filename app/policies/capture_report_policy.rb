@@ -1,34 +1,9 @@
 class CaptureReportPolicy < ApplicationPolicy
-  RESOURCE = "capture_reports".freeze
-  VERIFICATIONS = "capture_report_verifications".freeze
+  def show? = super && owns_record?
+  def update? = super && owns_record?
+  def resubmit? = permitted?("resubmit") && owns_record?
 
-  def index?
-    return fisherman_manifest_readable? if fisherman_platform?
-
-    user.permission?("#{RESOURCE}.list", "#{RESOURCE}.view", "#{VERIFICATIONS}.list",
-                     "#{VERIFICATIONS}.view")
-  end
-
-  def show?
-    fisherman_platform? ? fisherman_manifest_readable? : user.permission?("#{RESOURCE}.view", "#{VERIFICATIONS}.view")
-  end
-
-  def create?
-    fisherman_platform? ? fisherman_manifest_writeable? : user.permission?("#{RESOURCE}.create")
-  end
-
-  def update?
-    fisherman_platform? ? fisherman_manifest_writeable? : user.permission?("#{RESOURCE}.update")
-  end
-
-  def verify? = user.permission?("#{VERIFICATIONS}.verify")
-  def request_amendment? = user.permission?("#{VERIFICATIONS}.amendment")
-
-  def resubmit?
-    fisherman_platform? ? fisherman_manifest_writeable? : user.permission?("#{RESOURCE}.update")
-  end
-
-  class Scope < Scope
+  class Scope < ApplicationPolicy::Scope
     def resolve
       return scope if user.dofi_officer_platform?
 
@@ -38,11 +13,7 @@ class CaptureReportPolicy < ApplicationPolicy
 
   private
 
-  def fisherman_manifest_readable?
-    user.permission?("#{RESOURCE}.list", "#{RESOURCE}.view") || fisherman_manifest_read?
-  end
+  def permission_resource = "capture_reports"
 
-  def fisherman_manifest_writeable?
-    user.permission?("#{RESOURCE}.create", "#{RESOURCE}.update") || fisherman_manifest_write?
-  end
+  def owns_record? = user.dofi_officer_platform? || record.manifest.company_profile_id == user.company_profile_id
 end

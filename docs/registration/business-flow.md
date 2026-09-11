@@ -69,7 +69,7 @@ answer different questions on purpose:
   rows, but *every* role, including the many per-company Fisherman roles below. A role can have a
   `platform_scope` without a `kind` (every custom role does); it can never have neither.
 - `Permission#platform_scope` adds a third value, `Permission::SHARED_PLATFORM`, for permissions
-  usable by both platforms (e.g. `manifest_form.create`) — `Role`s don't get a "shared" option
+  usable by both platforms (for example `manifests.view`) — `Role`s don't get a "shared" option
   because a role's own platform is never ambiguous, only which permissions it's allowed to hold are.
 
 **There is no single global `Role` row for "Fisherman".** Each company gets its own
@@ -87,8 +87,9 @@ answer different questions on purpose:
   `POST /api/v1/fisherman/roles` (`Fisherman::RolesController`) — `platform_scope: "fisherman"` and
   `company_profile_id` are always forced from the acting user server-side (`Roles::Create`/`Update`),
   never accepted from the request body, so a company can never create a role on another platform or
-  under another company's `company_profile_id`. `RolePolicy`/`UserPolicy#owns_record?` additionally
-  gate `show`/`update`/`destroy` on the record actually belonging to the caller's own company —
+  under another company's `company_profile_id`.
+  `FishermanRolePolicy`/`FishermanUserPolicy#owns_record?` additionally gate
+  `show`/`update`/`destroy` on the record actually belonging to the caller's own company —
   reaching for another company's role/user id 404s (via `policy_scope(...).find`, not a raw `find` +
   `authorize`), the same as a nonexistent id, rather than 403ing in a way that would confirm the id
   exists at all. Custom role names `Owner` and `Admin` are reserved case-insensitively, so system

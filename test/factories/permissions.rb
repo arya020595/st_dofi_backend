@@ -15,6 +15,10 @@ end
 #  code           :string           not null
 #  name           :string           not null
 #  platform_scope :string           default("shared"), not null
+#  resource       :string           not null
+#  resource_order :integer
+#  section        :string
+#  section_order  :integer
 #  created_at     :datetime         not null
 #  updated_at     :datetime         not null
 #

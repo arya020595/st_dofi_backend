@@ -6,31 +6,26 @@ class ApplicationPolicy
     @record = record
   end
 
-  def index? = false
-  def show? = false
-  def create? = false
+  def index? = permitted?("list")
+  def show? = permitted?("view")
+  def create? = permitted?("create")
   def new? = create?
-  def update? = false
+  def update? = permitted?("update")
   def edit? = update?
-  def destroy? = false
+  def destroy? = permitted?("delete")
 
   private
 
-  def fisherman_platform?
-    user&.fisherman?
+  def permitted?(action)
+    user.permission?(build_permission_code(action))
   end
 
-  def fisherman_manifest_read?
-    user.permission?("manifest.view", "manifest.create", "manifest_list.view", "manifest_form.view",
-                     "manifest_form.create")
+  def build_permission_code(action)
+    "#{permission_resource}.#{action}"
   end
 
-  def fisherman_manifest_write?
-    user.permission?("manifest.create", "manifest_form.create")
-  end
-
-  def fisherman_manifest_delete?
-    user.permission?("manifest.delete", "manifest_list.delete")
+  def permission_resource
+    raise NotImplementedError, "#{self.class.name} must implement #permission_resource"
   end
 
   class Scope

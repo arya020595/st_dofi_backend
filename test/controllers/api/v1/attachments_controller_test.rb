@@ -27,7 +27,7 @@ module Api
       end
 
       test "forbids a user without permission on the owning record" do
-        headers = auth_headers_for(user_with_permission("dashboard.view"), password: @password)
+        headers = auth_headers_for(user_with_permission("dashboard.list"), password: @password)
 
         get "/api/v1/attachments/#{@signed_id}", headers: headers
 

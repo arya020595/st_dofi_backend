@@ -5,7 +5,7 @@ module Api
         include RansackSearchable
 
         def index
-          authorize Manifest, :create?
+          authorize Dictionary
           result = apply_ransack_search(policy_scope(Dictionary).includes(:dictionary_group, :dictionary_family),
                                         default_sort: "local_name asc")
           pagy, records = pagy(:offset, result)

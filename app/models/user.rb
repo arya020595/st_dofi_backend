@@ -72,16 +72,22 @@ class User < ApplicationRecord
   validates :registration_type, inclusion: { in: VALID_REGISTRATION_TYPES }, if: :fisherman?
   validates :position, :unit, :username, presence: true, if: :officer?
 
-  def permission?(*codes)
+  def permission?(code)
     return false unless role
 
-    role.permissions.exists?(code: codes)
+    role.permissions.exists?(code: code)
   end
 
   # officer?/jetty_manager? stay narrow (kind-based) — "is this literally the one canonical
   # singleton row." fisherman?/dofi_officer_platform? are broad (platform_scope-based) — "is this
   # user's role anywhere on this platform," true for every company's Owner/custom role too, not just
   # a single fixed row. See Role's own kind vs platform_scope comment for the full rationale.
+  # Not redundant: db/seeds/roles.rb seeds DoFi Officer and Jetty Manager with the *same*
+  # platform_scope ("dofi_officer") — kind is the only column that tells them apart. That's why
+  # fins_governed_jetty_manager? (below) and JettyManagerApprovalPolicy::Scope key off kind, and why
+  # every Users::*Registration service re-checks it — swapping either to dofi_officer_platform? would
+  # let a DoFi Officer's own account flow through Jetty-Manager-only approve/reject/deactivate/
+  # reactivate/revoke.
   def jetty_manager? = role&.kind == Role::JETTY_MANAGER
   def officer? = role&.kind == Role::DOFI_OFFICER
   def fisherman? = role&.fisherman_platform? || false
@@ -169,12 +175,14 @@ end
 # Indexes
 #
 #  index_users_on_company_profile_contact_id              (company_profile_contact_id)
+#  index_users_on_company_profile_contact_id_kept_unique  (company_profile_contact_id) UNIQUE WHERE ((company_profile_contact_id IS NOT NULL) AND (discarded_at IS NULL))
 #  index_users_on_company_profile_id                      (company_profile_id)
 #  index_users_on_discarded_at                            (discarded_at)
 #  index_users_on_email                                   (email) UNIQUE WHERE ((email)::text <> ''::text)
 #  index_users_on_employee_id                             (employee_id) UNIQUE
 #  index_users_on_ic_number                               (ic_number)
 #  index_users_on_jti                                     (jti) UNIQUE
+#  index_users_on_normalized_ic_number_kept_unique        (normalized_ic_number) UNIQUE WHERE ((normalized_ic_number IS NOT NULL) AND (discarded_at IS NULL))
 #  index_users_on_reset_password_token                    (reset_password_token) UNIQUE
 #  index_users_on_revocation_remark_id                    (revocation_remark_id)
 #  index_users_on_revoked_by_id                           (revoked_by_id)

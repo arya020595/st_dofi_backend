@@ -4,7 +4,7 @@ module Api
       # Company-scoped mirror of Admin::UsersController — a company managing its own teammates.
       # company_profile is always server-derived from current_user, never a client param (same
       # precedent as Manifests::Create deriving company_profile from the acting fisherman), and only
-      # this company's own fisherman-platform roles are assignable (see UserPolicy,
+      # this company's own fisherman-platform roles are assignable (see FishermanUserPolicy,
       # Role.assignable_by_fisherman).
       class UsersController < ApplicationController
         include RansackSearchable
@@ -12,19 +12,19 @@ module Api
         before_action :set_user, only: %i[show update destroy]
 
         def index
-          authorize User
-          result = apply_ransack_search(policy_scope(User), default_sort: "created_at desc")
+          authorize User, policy_class: FishermanUserPolicy
+          result = apply_ransack_search(fisherman_user_scope, default_sort: "created_at desc")
           pagy, records = pagy(:offset, result)
           render json: { status: "success", data: UserBlueprint.render_as_hash(records), meta: pagination_meta(pagy) }
         end
 
         def show
-          authorize @user
+          authorize @user, policy_class: FishermanUserPolicy
           render json: { status: "success", data: UserBlueprint.render_as_hash(@user) }
         end
 
         def create
-          authorize User
+          authorize User, policy_class: FishermanUserPolicy
 
           role = role_for_create
           return render_unassignable_role if user_params[:role_id].present? && role.nil?
@@ -33,7 +33,7 @@ module Api
         end
 
         def update
-          authorize @user
+          authorize @user, policy_class: FishermanUserPolicy
 
           case Users::Update.call(@user, user_params, assignable_roles: assignable_roles, actor: current_user)
           in Success(user)
@@ -44,7 +44,7 @@ module Api
         end
 
         def destroy
-          authorize @user
+          authorize @user, policy_class: FishermanUserPolicy
 
           if @user.discard
             render json: { status: "success", message: "User removed." }
@@ -56,7 +56,11 @@ module Api
         private
 
         def set_user
-          @user = policy_scope(User).find(params.expect(:id))
+          @user = fisherman_user_scope.find(params.expect(:id))
+        end
+
+        def fisherman_user_scope
+          policy_scope(User, policy_scope_class: FishermanUserPolicy::Scope)
         end
 
         def assignable_roles = Role.assignable_by_fisherman(current_user.company_profile_id)

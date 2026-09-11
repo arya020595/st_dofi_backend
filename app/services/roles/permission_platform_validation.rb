@@ -16,7 +16,8 @@ module Roles
     end
 
     def all_codes_exist?(role, codes)
-      unknown = codes - Permission.where(code: codes).pluck(:code)
+      canonical_codes = codes & Permission::Catalog::CODES
+      unknown = codes - Permission.where(code: canonical_codes).pluck(:code)
       return true if unknown.empty?
 
       role.errors.add(:permission_codes, "includes unknown codes: #{unknown.join(', ')}")
@@ -25,7 +26,9 @@ module Roles
 
     def no_cross_platform_codes?(role, permission_codes)
       allowed_scopes = [role.platform_scope, Permission::SHARED_PLATFORM]
-      disallowed = Permission.where(code: permission_codes).where.not(platform_scope: allowed_scopes).pluck(:code)
+      disallowed = permission_codes.reject do |code|
+        Permission::Catalog.fetch(code).fetch(:platform_scope).in?(allowed_scopes)
+      end
       return true if disallowed.empty?
 
       role.errors.add(:permission_codes,

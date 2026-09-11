@@ -53,8 +53,8 @@ Accept-Language: ms
 ```
 
 The backend reads this header in `ApplicationController#set_locale` (a `before_action`), sets
-`I18n.locale` for the duration of the request, and Mobility-backed translated columns / validation
-messages resolve accordingly. Unrecognized or missing values fall back to the app default (`en`).
+`I18n.locale` for the duration of the request, and locale-aware validation/error messages resolve
+accordingly. Unrecognized or missing values fall back to the app default (`en`).
 
 ## On login
 
@@ -66,6 +66,6 @@ immediately after login/`me`, with no extra API call needed.
 
 - Locale is an HTTP header, never a JSON body key.
 - Only `en` and `ms` are valid.
-- The header affects translated fields, validation/error messages, and any other locale-aware
-  response content for that request only — it is not persisted unless sent via
+- The header affects validation/error messages and other Rails I18n-backed response content for that
+  request only — it is not persisted unless sent via
   `PATCH /api/v1/profile/locale`.

@@ -5,7 +5,7 @@ module Api
         include RansackSearchable
 
         def index
-          authorize Manifest, :create?
+          authorize DictionaryGroup
           result = apply_ransack_search(policy_scope(DictionaryGroup), default_sort: "name asc")
           pagy, records = pagy(:offset, result)
           render json: { status: "success", data: DictionaryGroupBlueprint.render_as_hash(records),

@@ -1,23 +1,8 @@
 class ManifestMinorFishermanPolicy < ApplicationPolicy
-  RESOURCE = "manifest_minor_fishermen".freeze
+  def show? = super && owns_record?
+  def destroy? = super && owns_record?
 
-  def index?
-    fisherman_platform? ? fisherman_manifest_readable? : user.permission?("#{RESOURCE}.view")
-  end
-
-  def show?
-    fisherman_platform? ? fisherman_manifest_readable? : user.permission?("#{RESOURCE}.view")
-  end
-
-  def create?
-    fisherman_platform? ? fisherman_manifest_writeable? : user.permission?("#{RESOURCE}.create")
-  end
-
-  def destroy?
-    fisherman_platform? ? fisherman_manifest_writeable? : user.permission?("#{RESOURCE}.delete")
-  end
-
-  class Scope < Scope
+  class Scope < ApplicationPolicy::Scope
     def resolve
       return scope if user.dofi_officer_platform?
 
@@ -27,11 +12,7 @@ class ManifestMinorFishermanPolicy < ApplicationPolicy
 
   private
 
-  def fisherman_manifest_readable?
-    user.permission?("#{RESOURCE}.view") || fisherman_manifest_read?
-  end
+  def permission_resource = "manifest_minor_fishermen"
 
-  def fisherman_manifest_writeable?
-    user.permission?("#{RESOURCE}.create", "#{RESOURCE}.delete") || fisherman_manifest_write?
-  end
+  def owns_record? = user.dofi_officer_platform? || record.manifest.company_profile_id == user.company_profile_id
 end

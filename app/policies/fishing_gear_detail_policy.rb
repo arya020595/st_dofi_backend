@@ -1,27 +1,9 @@
 class FishingGearDetailPolicy < ApplicationPolicy
-  RESOURCE = "capture_reports".freeze
+  def show? = super && owns_record?
+  def update? = super && owns_record?
+  def destroy? = super && owns_record?
 
-  def index?
-    fisherman_platform? ? fisherman_manifest_readable? : user.permission?("#{RESOURCE}.list", "#{RESOURCE}.view")
-  end
-
-  def show?
-    fisherman_platform? ? fisherman_manifest_readable? : user.permission?("#{RESOURCE}.view")
-  end
-
-  def create?
-    fisherman_platform? ? fisherman_manifest_writeable? : user.permission?("#{RESOURCE}.create")
-  end
-
-  def update?
-    fisherman_platform? ? fisherman_manifest_writeable? : user.permission?("#{RESOURCE}.update")
-  end
-
-  def destroy?
-    fisherman_platform? ? fisherman_manifest_writeable? : user.permission?("#{RESOURCE}.update")
-  end
-
-  class Scope < Scope
+  class Scope < ApplicationPolicy::Scope
     def resolve
       return scope if user.dofi_officer_platform?
 
@@ -31,11 +13,9 @@ class FishingGearDetailPolicy < ApplicationPolicy
 
   private
 
-  def fisherman_manifest_readable?
-    user.permission?("#{RESOURCE}.list", "#{RESOURCE}.view") || fisherman_manifest_read?
-  end
+  def permission_resource = "fishing_gear_details"
 
-  def fisherman_manifest_writeable?
-    user.permission?("#{RESOURCE}.create", "#{RESOURCE}.update") || fisherman_manifest_write?
+  def owns_record?
+    user.dofi_officer_platform? || record.capture_report.manifest.company_profile_id == user.company_profile_id
   end
 end
