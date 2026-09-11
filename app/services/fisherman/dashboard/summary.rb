@@ -1,34 +1,29 @@
 module Fisherman
   module Dashboard
-    class Summary < BaseQuery
+    class Summary
       def self.call(...) = new(...).call
 
+      def initialize(**query_attributes)
+        @query_attributes = query_attributes
+      end
+
       def call
+        data = SummaryQuery.call(**@query_attributes)
+
         {
-          total_catch_kg: total_catch_kg,
-          estimated_revenue: estimated_revenue,
-          total_trips:,
-          catch_per_unit_effort: catch_per_unit_effort(total_catch_kg, total_trips)
+          total_catch_kg: data[:total_catch_kg],
+          estimated_revenue: data[:overall_total],
+          total_trips: data[:total_trips],
+          catch_per_unit_effort: catch_per_unit_effort(data[:total_catch_kg], data[:total_trips])
         }
       end
 
       private
 
-      def total_catch_kg = totals[0].to_f.round(3)
-      def estimated_revenue = totals[1].to_f.round(2)
-      def total_trips = verified_capture_reports.distinct.count(:manifest_id)
-
       def catch_per_unit_effort(total_catch_kg, total_trips)
         return 0.0 if total_trips.zero?
 
-        (total_catch_kg / total_trips).round(2)
-      end
-
-      def totals
-        @totals ||= fish_capture_details.pick(
-          Arel.sql("COALESCE(SUM(fish_capture_details.amount_captured_kg), 0)"),
-          Arel.sql("COALESCE(SUM(fish_capture_details.overall_total), 0)")
-        )
+        total_catch_kg.to_f / total_trips
       end
     end
   end

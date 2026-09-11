@@ -1,10 +1,10 @@
 module Fisherman
   module Dashboard
-    class ZoneAnalytics < BaseQuery
+    class ZoneAnalyticsQuery < BaseQuery
       def self.call(...) = new(...).call
 
       def call
-        rows.map { |row| serialize(row) }
+        rows.map { |row| to_hash(row) }
       end
 
       private
@@ -19,13 +19,13 @@ module Fisherman
                             )
       end
 
-      def serialize(row)
+      def to_hash(row)
         zone_id, zone_area, total_catch_kg = row
 
         {
           zone_id: zone_id,
           zone_area: zone_area,
-          total_catch_kg: total_catch_kg.to_f.round(3)
+          total_catch_kg: total_catch_kg
         }
       end
     end

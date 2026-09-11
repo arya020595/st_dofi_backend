@@ -51,7 +51,7 @@ reject code that violates them.
   (company-scoped) resource must define a private `owns_record?` and use it on every predicate that
   receives a persisted record — `super && owns_record?` on inherited predicates,
   `permitted?("action") && owns_record?` on custom ones — bypassed via `user.dofi_officer_platform? ||
-  ...` so officer oversight is unaffected. This holds even when a controller already loads the record
+...` so officer oversight is unaffected. This holds even when a controller already loads the record
   through a scoped chain; the policy is the last line of defense, not the controller. Never add it to
   `create?`/`index?`/any predicate a controller authorizes against the bare model class — there is no
   record to own yet. See `docs/rbac/platform-company-isolation.md` §4.5 for the full worked set.

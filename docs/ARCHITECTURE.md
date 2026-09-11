@@ -6,21 +6,21 @@ stays intentionally at the "one screen" level rather than duplicating those.
 
 ## Tech stack at a glance
 
-| Concern | Choice |
-|---|---|
-| Language / framework | Ruby 3.4.7, Rails 8.1.3 (API-only, no views/assets) |
-| Database | PostgreSQL |
-| Background jobs / cache | Solid Queue / Solid Cache — DB-backed, no Redis |
-| Auth | Devise + devise-jwt (JWT sessions) |
-| Authorization | Pundit (one policy per permission resource; scopes enforce row isolation) |
-| Service layer | dry-monads (`Success`/`Failure` results, not exceptions, for expected failure paths) |
-| State machine | AASM (e.g. `User#status`, manifest/approval lifecycles) |
-| Serialization | Blueprinter |
-| Search / pagination | Ransack / Pagy |
-| Audit trail / soft delete | Audited / Discard |
-| File storage | MinIO (self-hosted, S3-compatible) via Active Storage; Cloudinary kept only until migration completes |
-| External identity | BruneiID (government ID verification) via `Faraday`/`jwt` — **mocked today**, see §1 |
-| Monitoring | Sentry (errors) + Lograge (structured JSON request logs) |
+| Concern                   | Choice                                                                                                |
+| ------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Language / framework      | Ruby 3.4.7, Rails 8.1.3 (API-only, no views/assets)                                                   |
+| Database                  | PostgreSQL                                                                                            |
+| Background jobs / cache   | Solid Queue / Solid Cache — DB-backed, no Redis                                                       |
+| Auth                      | Devise + devise-jwt (JWT sessions)                                                                    |
+| Authorization             | Pundit (one policy per permission resource; scopes enforce row isolation)                             |
+| Service layer             | dry-monads (`Success`/`Failure` results, not exceptions, for expected failure paths)                  |
+| State machine             | AASM (e.g. `User#status`, manifest/approval lifecycles)                                               |
+| Serialization             | Blueprinter                                                                                           |
+| Search / pagination       | Ransack / Pagy                                                                                        |
+| Audit trail / soft delete | Audited / Discard                                                                                     |
+| File storage              | MinIO (self-hosted, S3-compatible) via Active Storage; Cloudinary kept only until migration completes |
+| External identity         | BruneiID (government ID verification) via `Faraday`/`jwt` — **mocked today**, see §1                  |
+| Monitoring                | Sentry (errors) + Lograge (structured JSON request logs)                                              |
 
 ## 1. System context
 
@@ -153,12 +153,12 @@ end
 `ApplicationPolicy` owns the standard mapping:
 
 | Pundit predicate | Permission action |
-|---|---|
-| `index?` | `list` |
-| `show?` | `view` |
-| `create?` | `create` |
-| `update?` | `update` |
-| `destroy?` | `delete` |
+| ---------------- | ----------------- |
+| `index?`         | `list`            |
+| `show?`          | `view`            |
+| `create?`        | `create`          |
+| `update?`        | `update`          |
+| `destroy?`       | `delete`          |
 
 Custom predicates use the same action name through `permitted?`, while record/state checks follow
 the permission check. For example, `verify?` checks only

@@ -1,10 +1,10 @@
 module Fisherman
   module Dashboard
-    class FishingGearAnalytics < BaseQuery
+    class FishingGearAnalyticsQuery < BaseQuery
       def self.call(...) = new(...).call
 
       def call
-        rows.map { |row| serialize(row) }
+        rows.map { |row| to_hash(row) }
       end
 
       private
@@ -36,7 +36,7 @@ module Fisherman
         ]
       end
 
-      def serialize(row)
+      def to_hash(row)
         companies_fishing_gear_id, fishing_gear_id, name, gear_type, total_catch_kg = row
 
         {
@@ -44,7 +44,7 @@ module Fisherman
           fishing_gear_id: fishing_gear_id,
           name: name,
           gear_type: gear_type,
-          total_catch_kg: total_catch_kg.to_f.round(3)
+          total_catch_kg: total_catch_kg
         }
       end
     end

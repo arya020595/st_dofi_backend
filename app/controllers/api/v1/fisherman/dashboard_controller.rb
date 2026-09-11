@@ -5,19 +5,23 @@ module Api
         before_action :authorize_dashboard
 
         def summary
-          render json: { status: "success", data: ::Fisherman::Dashboard::Summary.call(**query_attributes) }
+          data = ::Fisherman::Dashboard::Summary.call(**query_attributes)
+          render json: { status: "success", data: DashboardSummaryBlueprint.render_as_hash(data) }
         end
 
         def top_fishes
-          render json: { status: "success", data: ::Fisherman::Dashboard::TopFishes.call(**query_attributes) }
+          data = ::Fisherman::Dashboard::TopFishesQuery.call(**query_attributes)
+          render json: { status: "success", data: DashboardTopFishesBlueprint.render_as_hash(data) }
         end
 
         def fishing_gear_analytics
-          render json: { status: "success", data: ::Fisherman::Dashboard::FishingGearAnalytics.call(**query_attributes) }
+          data = ::Fisherman::Dashboard::FishingGearAnalyticsQuery.call(**query_attributes)
+          render json: { status: "success", data: DashboardFishingGearAnalyticsBlueprint.render_as_hash(data) }
         end
 
         def zone_analytics
-          render json: { status: "success", data: ::Fisherman::Dashboard::ZoneAnalytics.call(**query_attributes) }
+          data = ::Fisherman::Dashboard::ZoneAnalyticsQuery.call(**query_attributes)
+          render json: { status: "success", data: DashboardZoneAnalyticsBlueprint.render_as_hash(data) }
         end
 
         private
