@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_01_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_10_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -240,6 +240,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_01_100000) do
     t.date "issue_date"
     t.date "license_expiry_date"
     t.string "logo_url"
+    t.text "mailing_address"
     t.string "mukim"
     t.string "registration_type", null: false
     t.string "rocbn_no"

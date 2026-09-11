@@ -1,7 +1,7 @@
 class CompanyProfileDetailBlueprint < Blueprinter::Base
   identifier :id
 
-  fields :registration_type, :company_name, :company_address, :rocbn_no, :contact_no,
+  fields :registration_type, :company_name, :company_address, :mailing_address, :rocbn_no, :contact_no,
          :district, :mukim, :village, :full_address, :fisherman_card_no, :issue_date,
          :license_expiry_date, :worker_quota, :dofi_registration_no, :approval_status,
          :amendment_remarks, :approved_at, :approved_by, :date_approval, :created_at, :updated_at

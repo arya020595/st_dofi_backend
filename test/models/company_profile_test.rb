@@ -80,6 +80,7 @@ end
 #  issue_date           :date
 #  license_expiry_date  :date
 #  logo_url             :string
+#  mailing_address      :text
 #  mukim                :string
 #  registration_type    :string           not null
 #  rocbn_no             :string
