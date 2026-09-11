@@ -14,11 +14,64 @@ See [README.md](README.md) for setup (Docker or manual Rails) and how to run tes
 
 Controllers, models, and business logic each have one job. Don't let logic leak across layers.
 
-- **Controllers** (`app/controllers`) — parse params, call one policy/service, render a response. No business rules, no direct multi-step ActiveRecord orchestration.
-- **Policies** (`app/policies`) — authorization only (`Pundit`). One policy per model, subclassing `ApplicationPolicy`. Keep predicate methods (`show?`, `create?`, ...) free of side effects.
-- **Services** (`app/services`, create as needed) — business logic and multi-step workflows. Use `dry-monads` `Success`/`Failure` results instead of raising for expected failure paths; controllers pattern-match on the result instead of branching on exceptions.
+- **Controllers** (`app/controllers`) — parse params, authorize, call one service/query, and render. No business rules or direct multi-step ActiveRecord orchestration.
+- **Policies** (`app/policies`) — authorization only (`Pundit`). One policy owns exactly one permission resource. Keep predicates side-effect free.
+- **Services** (`app/services`, create as needed) — business logic and multi-step workflows. Use `dry-monads` `Success`/`Failure` results instead of raising for expected failure paths; controllers pattern-match on the result instead of branching on exceptions. Delegate non-trivial SQL construction to a Query object.
+- **Queries** (`app/queries`, create as needed) — read-only SQL/ActiveRecord construction. A `*Query` exposes `self.call(...)`; it contains no authorization, business rules, response formatting, or side effects.
 - **Models** (`app/models`) — associations, validations, scopes, and persistence concerns only. If a method coordinates multiple models or external calls, it belongs in a service, not the model.
 - **Blueprints** (`app/blueprints`, create as needed) — response shaping only, via Blueprinter. Don't compute business values inline in a blueprint field that aren't simple presentation logic.
+
+## Mandatory Pundit/RBAC contract
+
+These are repository invariants, not preferences. `bin/rbac-lint` and the policy contract tests must
+reject code that violates them.
+
+- Every concrete policy directly subclasses `ApplicationPolicy` and defines exactly one private,
+  literal `permission_resource`. Do not use permission resource constants such as `RESOURCE`,
+  `APPROVALS`, or `VERIFICATIONS`.
+- Every canonical catalog resource is owned by exactly one concrete policy. Never reuse the same
+  `permission_resource` in multiple policies.
+- Never choose a permission resource from the user's audience/platform inside a policy. Admin and
+  Fisherman actions keep the same Pundit action names; route audience gates the platform and
+  `Policy::Scope` provides row-level isolation.
+- A policy may authorize only its own resource. Never accept another resource's code as a fallback,
+  and never pass multiple codes to `User#permission?`; that method intentionally accepts one code.
+- Standard mapping is fixed: `index? -> .list`, `show? -> .view`, `create? -> .create`,
+  `update? -> .update`, and `destroy? -> .delete`. Custom predicates map to the identically named
+  action code. `new?`/`edit?` and true semantic aliases such as `tab_counts? = index?` are the only
+  aliases.
+- Standard predicates are inherited. Override one only to append a business predicate after the
+  exact capability check, using `super && ...`. Custom predicates use `permitted?("action")`.
+- When one model participates in another authorization resource, create another policy and dispatch
+  it explicitly with Pundit's `policy_class:`/`policy_scope_class:`. For example, `ManifestPolicy`
+  owns `manifests.*`; `ManifestApprovalPolicy` owns `manifest_approvals.*`.
+- Policy scopes filter which rows can be observed; they do not substitute one capability for another.
+  Preserve company/tenant scoping and load tenant-owned records through `policy_scope(...).find`.
+- `Permission::Catalog` is the sole source of truth for canonical codes, actions, platform scope,
+  labels, sections, and ordering. Seeds persist it; role create/update rejects codes absent from it.
+
+Canonical policy shape:
+
+```ruby
+class DashboardPolicy < ApplicationPolicy
+  private
+
+  def permission_resource = "dashboard"
+end
+```
+
+Policy with a state/ownership rule:
+
+```ruby
+class ExamplePolicy < ApplicationPolicy
+  def update? = super && record.company_profile_id == user.company_profile_id
+  def submit? = permitted?("submit") && record.draft?
+
+  private
+
+  def permission_resource = "examples"
+end
+```
 
 ## SOLID, applied here
 
@@ -43,4 +96,4 @@ Controllers, models, and business logic each have one job. Don't let logic leak 
 
 ## Definition of done
 
-Before considering a change complete: `bin/rubocop`, `bin/rails test`, and (for anything security-sensitive) `bin/brakeman` all pass. Prefer `bin/ci` for a full check.
+Before considering a change complete: `bin/rbac-lint`, `bin/rubocop`, `bin/rails test`, and (for anything security-sensitive) `bin/brakeman` all pass. Prefer `bin/ci` for a full check.

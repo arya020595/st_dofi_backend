@@ -1,7 +1,5 @@
 class ManifestExpensePolicy < ApplicationPolicy
-  RESOURCE = "manifest_expenses".freeze
+  private
 
-  def show? = user.permission?("#{RESOURCE}.view")
-  def create? = user.permission?("#{RESOURCE}.create")
-  def update? = user.permission?("#{RESOURCE}.update")
+  def permission_resource = "manifest_expenses"
 end

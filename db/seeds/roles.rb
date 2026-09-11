@@ -11,8 +11,9 @@ ROLE_DEFINITIONS = {
     name: "Jetty Manager",
     description: "Port-level authority: manifest list/detail and port-in/out approval actions only.",
     permission_codes: %w[
-      manifests.view manifests.list
-      manifest_approvals.approve manifest_approvals.amendment
+      manifest_approvals.list manifest_approvals.view
+      manifest_approvals.approve_port_out manifest_approvals.request_amendment_port_out
+      manifest_approvals.approve_port_in manifest_approvals.request_amendment_port_in
     ]
   }
 }.freeze

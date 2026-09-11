@@ -4,26 +4,26 @@ module Api
       # Company-scoped mirror of Admin::RolesController. Same controller shape and the same
       # Roles::Create/Update services, but every call forces platform_scope: "fisherman" and this
       # company's own company_profile_id server-side — never accepted as client params (see
-      # RolePolicy for the record-level ownership enforcement on show/update/destroy).
+      # FishermanRolePolicy for the record-level ownership enforcement on show/update/destroy).
       class RolesController < ApplicationController
         include RansackSearchable
 
         before_action :set_role, only: %i[show update destroy]
 
         def index
-          authorize Role
-          result = apply_ransack_search(policy_scope(Role), default_sort: "name asc")
+          authorize Role, policy_class: FishermanRolePolicy
+          result = apply_ransack_search(fisherman_role_scope, default_sort: "name asc")
           pagy, records = pagy(:offset, result)
           render json: { status: "success", data: RoleBlueprint.render_as_hash(records), meta: pagination_meta(pagy) }
         end
 
         def show
-          authorize @role
+          authorize @role, policy_class: FishermanRolePolicy
           render json: { status: "success", data: RoleBlueprint.render_as_hash(@role) }
         end
 
         def create
-          authorize Role
+          authorize Role, policy_class: FishermanRolePolicy
 
           result = Roles::Create.call(role_params, platform_scope: Role::FISHERMAN_PLATFORM,
                                                    company_profile_id: current_user.company_profile_id,
@@ -37,7 +37,7 @@ module Api
         end
 
         def update
-          authorize @role
+          authorize @role, policy_class: FishermanRolePolicy
 
           result = Roles::Update.call(@role, role_params, platform_scope: Role::FISHERMAN_PLATFORM,
                                                           company_profile_id: current_user.company_profile_id,
@@ -51,7 +51,7 @@ module Api
         end
 
         def destroy
-          authorize @role
+          authorize @role, policy_class: FishermanRolePolicy
 
           if @role.destroy
             render json: { status: "success", message: "Role removed." }
@@ -68,7 +68,11 @@ module Api
         # exists at all — matching this codebase's convention for fisherman-side multi-tenant
         # resources (see Fisherman::UsersController#set_user, Fisherman::ManifestsController).
         def set_role
-          @role = policy_scope(Role).find(params.expect(:id))
+          @role = fisherman_role_scope.find(params.expect(:id))
+        end
+
+        def fisherman_role_scope
+          policy_scope(Role, policy_scope_class: FishermanRolePolicy::Scope)
         end
 
         def role_params

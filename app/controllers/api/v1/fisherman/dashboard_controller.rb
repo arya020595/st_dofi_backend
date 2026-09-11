@@ -23,7 +23,7 @@ module Api
         private
 
         def authorize_dashboard
-          authorize :dashboard, :show?
+          authorize :dashboard, :index?
         end
 
         def query_attributes

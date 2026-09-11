@@ -1,15 +1,9 @@
 class ApprovalRemarkPolicy < ApplicationPolicy
-  RESOURCE = "approval_remarks".freeze
-
-  def index? = user.permission?("#{RESOURCE}.list")
-  def show? = user.permission?("#{RESOURCE}.view")
-  def create? = user.permission?("#{RESOURCE}.create")
-  def update? = user.permission?("#{RESOURCE}.update")
-  def destroy? = user.permission?("#{RESOURCE}.delete")
-
-  class Scope < Scope
-    def resolve
-      scope.kept
-    end
+  class Scope < ApplicationPolicy::Scope
+    def resolve = scope.kept
   end
+
+  private
+
+  def permission_resource = "approval_remarks"
 end

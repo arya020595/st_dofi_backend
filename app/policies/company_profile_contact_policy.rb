@@ -1,7 +1,13 @@
 class CompanyProfileContactPolicy < ApplicationPolicy
-  RESOURCE = "company_profile_contacts".freeze
+  class Scope < ApplicationPolicy::Scope
+    def resolve
+      return scope.kept if user.dofi_officer_platform?
 
-  def create? = user.permission?("#{RESOURCE}.create")
-  def update? = user.permission?("#{RESOURCE}.update")
-  def destroy? = user.permission?("#{RESOURCE}.delete")
+      scope.kept.where(company_profile_id: user.company_profile_id)
+    end
+  end
+
+  private
+
+  def permission_resource = "company_profile_contacts"
 end

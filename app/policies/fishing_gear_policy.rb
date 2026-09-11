@@ -1,16 +1,9 @@
 class FishingGearPolicy < ApplicationPolicy
-  RESOURCE = "fishing_gears".freeze
-
-  def index? = user.permission?("#{RESOURCE}.list")
-  def show? = user.permission?("#{RESOURCE}.view")
-
-  def create? = user.permission?("#{RESOURCE}.create")
-  def update? = user.permission?("#{RESOURCE}.update")
-  def destroy? = user.permission?("#{RESOURCE}.delete")
-
-  class Scope < Scope
-    def resolve
-      scope.all
-    end
+  class Scope < ApplicationPolicy::Scope
+    def resolve = scope.all
   end
+
+  private
+
+  def permission_resource = "fishing_gears"
 end

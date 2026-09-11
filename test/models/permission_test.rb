@@ -19,7 +19,7 @@ class PermissionTest < ActiveSupport::TestCase
   test "re-derives resource and grouping when code changes rather than keeping stale values" do
     permission = create(:permission, code: "ports.create", name: "Ports - Create")
 
-    permission.update!(code: "dashboard.view", name: "Dashboard - View")
+    permission.update!(code: "dashboard.list", name: "Dashboard - List")
 
     assert_equal "dashboard", permission.resource
     assert_equal({ section: "dashboard", section_order: 1, resource_order: 1 }, grouping(permission))

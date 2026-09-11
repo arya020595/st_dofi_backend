@@ -5,11 +5,9 @@ module Api
     class PermissionsControllerTest < ActionDispatch::IntegrationTest
       setup do
         @password = "Password123!"
-        @shared_permission = Permission.find_or_create_by!(code: "dashboard.view") do |permission|
-          permission.name = "Dashboard - View"
-          permission.platform_scope = Permission::SHARED_PLATFORM
-        end
-        @role = create(:role, permissions: [@shared_permission])
+        @shared_permission = create_permission("dashboard.list")
+        @list_permission = create_permission("permissions.list")
+        @role = create(:role, permissions: [@shared_permission, @list_permission])
         @user = create(:user, role: @role, password: @password, password_confirmation: @password)
         @headers = auth_headers_for(@user, password: @password)
       end
@@ -40,7 +38,7 @@ module Api
         shared = data.find { |permission| permission["code"] == @shared_permission.code }
 
         assert_equal(
-          { "action" => "view", "action_order" => 1, "resource" => "dashboard", "section" => "dashboard",
+          { "action" => "list", "action_order" => 1, "resource" => "dashboard", "section" => "dashboard",
             "section_order" => 1, "resource_order" => 1, "resource_label" => "Dashboard",
             "section_label" => "Dashboard" },
           shared.slice("action", "action_order", "resource", "section", "section_order", "resource_order",
@@ -85,7 +83,7 @@ module Api
 
       def fisherman_headers_for_permissions_test
         build_fisherman_permission_fixtures
-        fisherman_role = create(:role, :fisherman, permissions: fisherman_permission_set)
+        fisherman_role = create(:role, :fisherman, permissions: fisherman_permission_set + [@list_permission])
         fisherman = create(:user, role: fisherman_role, ic_number: "01-880001", registration_type: "Commercial",
                                   password: @password, password_confirmation: @password)
 
@@ -99,6 +97,7 @@ module Api
         @capture_report_create = create_permission("capture_reports.create")
         @company_profile_update = create_permission("company_profiles.update")
         @officer_role_create = create_permission("roles.create")
+        @list_permission = create_permission("permissions.list")
       end
 
       def create_permission(code)

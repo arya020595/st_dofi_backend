@@ -1,47 +1,17 @@
 class UserPolicy < ApplicationPolicy
-  include PlatformScopedResource
+  def show? = super && owns_record?
+  def update? = super && owns_record?
+  def destroy? = super && owns_record?
 
-  RESOURCE = "dofi_officer_users".freeze
-  FISHERMAN_RESOURCE = "fisherman_users".freeze
-
-  def index?   = user.permission?("#{resource}.list")
-  def show?    = user.permission?("#{resource}.view") && owns_record?
-  def create?  = user.permission?("#{resource}.create")
-  def update?  = user.permission?("#{resource}.update") && owns_record? && manageable_fisherman_target?
-  def destroy? = user.permission?("#{resource}.delete") && owns_record? && manageable_fisherman_target?
-
-  class Scope < Scope
+  class Scope < ApplicationPolicy::Scope
     def resolve
-      return admin_scope if user.dofi_officer_platform?
-      return fisherman_scope if user.fisherman?
-
-      scope.none
-    end
-
-    private
-
-    # Excludes external (Jetty Manager / any fisherman-platform) users from the admin list — an
-    # officer manages DoFi-Officer-platform accounts here, not any company's fisherman roster.
-    def admin_scope
       scope.kept.where(role_id: nil).or(scope.kept.where.not(role_id: Role.external.select(:id)))
-    end
-
-    def fisherman_scope
-      scope.kept.where(company_profile_id: user.company_profile_id)
     end
   end
 
   private
 
-  def owns_record?
-    return true if user.dofi_officer_platform?
+  def permission_resource = "dofi_officer_users"
 
-    record.company_profile_id == user.company_profile_id
-  end
-
-  def manageable_fisherman_target?
-    return true unless user.fisherman?
-
-    !record.has_fisherman_owner_role?
-  end
+  def owns_record? = record.role_id.nil? || !record.role&.external?
 end

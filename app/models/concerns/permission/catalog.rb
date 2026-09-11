@@ -2,13 +2,15 @@ module Permission::Catalog
   # Canonical source for permission codes, role-editor grouping, and platform assignment.
   SECTIONS = [
     { key: "dashboard", label: "Dashboard", resources: [
-      { key: "dashboard", label: "Dashboard", shared: %w[view] }
+      { key: "dashboard", label: "Dashboard", shared: %w[list] }
     ] },
     { key: "manifest", label: "Manifest", resources: [
       { key: "manifests", label: "Manifests",
         shared: %w[list view create update delete offline_bundle submit_port_out resubmit_port_out submit_port_in
                    resubmit_port_in skip_capture_report] },
-      { key: "manifest_approvals", label: "Manifest Approvals", dofi_officer: %w[approve amendment] },
+      { key: "manifest_approvals", label: "Manifest Approvals",
+        dofi_officer: %w[list view approve_port_out request_amendment_port_out approve_port_in
+                         request_amendment_port_in] },
       { key: "manifest_minor_fishermen", label: "Minor Fishermen", shared: %w[list view create delete] },
       { key: "manifest_expenses", label: "Manifest Expenses", shared: %w[view create update] }
     ] },
@@ -38,8 +40,8 @@ module Permission::Catalog
     ] },
     { key: "user_management", label: "User Management", resources: [
       { key: "roles", label: "Roles", dofi_officer: %w[list view create update delete] },
-      { key: "dofi_officer_users", label: "DoFi Officer Users",
-        dofi_officer: %w[list view create update delete] }
+      { key: "dofi_officer_users", label: "DoFi Officer Users", dofi_officer: %w[list view create update delete] },
+      { key: "permissions", label: "Permissions", shared: %w[list] }
     ] },
     { key: "account_management", label: "Account Management", resources: [
       { key: "fisherman_users", label: "Users", fisherman: %w[list view create update delete] },
@@ -56,21 +58,21 @@ module Permission::Catalog
     { key: "companies", label: "Companies", resources: [
       { key: "companies_vessels", label: "Vessels", shared: %w[list view create update delete images] },
       { key: "companies_vessel_approvals", label: "Vessel Approvals",
-        dofi_officer: %w[list view approve amendment] },
+        dofi_officer: %w[list view approve request_amendment] },
       { key: "companies_crews", label: "Crews", shared: %w[list view create update delete] },
       { key: "companies_crew_approvals", label: "Crew Approvals",
-        dofi_officer: %w[list view approve amendment] },
+        dofi_officer: %w[list view approve request_amendment] },
       { key: "companies_fishing_gears", label: "Fishing Gears", shared: %w[list view create update delete] },
       { key: "companies_fishing_gear_approvals", label: "Fishing Gear Approvals",
-        dofi_officer: %w[list view approve amendment] },
+        dofi_officer: %w[list view approve request_amendment] },
       { key: "companies_documents", label: "Documents", shared: %w[list view create update] },
       { key: "companies_document_approvals", label: "Document Approvals",
-        dofi_officer: %w[list view approve amendment] }
+        dofi_officer: %w[list view approve request_amendment] }
     ] },
     { key: "capture_reports", label: "Capture Reports", resources: [
       { key: "capture_reports", label: "Capture Reports", shared: %w[list view create update resubmit] },
       { key: "capture_report_verifications", label: "Capture Report Verifications",
-        dofi_officer: %w[verify amendment] },
+        dofi_officer: %w[list view verify request_amendment] },
       { key: "fish_capture_details", label: "Fish Capture Details",
         shared: %w[list view create update delete bulk_sync] },
       { key: "fishing_gear_details", label: "Fishing Gear Details", shared: %w[list view create update delete] }

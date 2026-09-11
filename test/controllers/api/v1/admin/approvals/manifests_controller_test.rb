@@ -11,8 +11,10 @@ module Api
           fisherman_permissions = %w[manifests.view manifests.list manifests.create].map do |code|
             Permission.find_or_create_by!(code: code) { |p| p.name = code }
           end
-          jetty_permissions = %w[manifests.view manifests.list manifest_approvals.approve
-                                 manifest_approvals.amendment].map do |code|
+          jetty_permissions = %w[manifest_approvals.list manifest_approvals.view
+                                 manifest_approvals.approve_port_out manifest_approvals.request_amendment_port_out
+                                 manifest_approvals.approve_port_in
+                                 manifest_approvals.request_amendment_port_in].map do |code|
             Permission.find_or_create_by!(code: code) { |p| p.name = code }
           end
           update_permission = Permission.find_or_create_by!(code: "manifests.update") do |p|

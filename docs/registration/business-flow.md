@@ -87,8 +87,9 @@ answer different questions on purpose:
   `POST /api/v1/fisherman/roles` (`Fisherman::RolesController`) — `platform_scope: "fisherman"` and
   `company_profile_id` are always forced from the acting user server-side (`Roles::Create`/`Update`),
   never accepted from the request body, so a company can never create a role on another platform or
-  under another company's `company_profile_id`. `RolePolicy`/`UserPolicy#owns_record?` additionally
-  gate `show`/`update`/`destroy` on the record actually belonging to the caller's own company —
+  under another company's `company_profile_id`.
+  `FishermanRolePolicy`/`FishermanUserPolicy#owns_record?` additionally gate
+  `show`/`update`/`destroy` on the record actually belonging to the caller's own company —
   reaching for another company's role/user id 404s (via `policy_scope(...).find`, not a raw `find` +
   `authorize`), the same as a nonexistent id, rather than 403ing in a way that would confirm the id
   exists at all. Custom role names `Owner` and `Admin` are reserved case-insensitively, so system

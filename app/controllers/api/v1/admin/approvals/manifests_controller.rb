@@ -11,35 +11,35 @@ module Api
                                *ManifestApprovalTransitions::TRANSITION_ACTIONS]
 
           def index
-            authorize Manifest
-            result = apply_ransack_search(policy_scope(Manifest), default_sort: "created_at desc")
+            authorize Manifest, policy_class: ManifestApprovalPolicy
+            result = apply_ransack_search(manifest_approval_scope, default_sort: "created_at desc")
             pagy, records = pagy(:offset, result)
             render json: { status: "success", data: ManifestBlueprint.render_as_hash(records),
                            meta: pagination_meta(pagy) }
           end
 
           def tab_counts
-            authorize Manifest
-            render json: { status: "success", data: ::Manifests::TabCounts.call(policy_scope(Manifest)) }
+            authorize Manifest, policy_class: ManifestApprovalPolicy
+            render json: { status: "success", data: ::Manifests::TabCounts.call(manifest_approval_scope) }
           end
 
           def show
-            authorize @manifest
+            authorize @manifest, policy_class: ManifestApprovalPolicy
             render json: { status: "success", data: ManifestDetailBlueprint.render_as_hash(@manifest) }
           end
 
           def port_out_approval
-            authorize @manifest, :show?
+            authorize @manifest, :show?, policy_class: ManifestApprovalPolicy
             render_approval_histories("port_out_status")
           end
 
           def port_in_approval
-            authorize @manifest, :show?
+            authorize @manifest, :show?, policy_class: ManifestApprovalPolicy
             render_approval_histories("port_in_status")
           end
 
           def update
-            authorize @manifest
+            authorize @manifest, policy_class: ManifestPolicy
 
             case ::Manifests::Update.call(@manifest, manifest_params)
             in Success(manifest)
@@ -52,7 +52,11 @@ module Api
           private
 
           def set_manifest
-            @manifest = policy_scope(Manifest).find(params.expect(:id))
+            @manifest = manifest_approval_scope.find(params.expect(:id))
+          end
+
+          def manifest_approval_scope
+            policy_scope(Manifest, policy_scope_class: ManifestApprovalPolicy::Scope)
           end
 
           def manifest_params

@@ -1,14 +1,14 @@
 class CompaniesCrewApprovalPolicy < ApplicationPolicy
-  RESOURCE = "companies_crew_approvals".freeze
+  def approve? = permitted?("approve")
+  def request_amendment? = permitted?("request_amendment")
 
-  def index?  = user.permission?("#{RESOURCE}.list")
-  def show?   = user.permission?("#{RESOURCE}.view")
-  def approve? = user.permission?("#{RESOURCE}.approve")
-  def request_amendment? = user.permission?("#{RESOURCE}.amendment")
-
-  class Scope < Scope
+  class Scope < ApplicationPolicy::Scope
     def resolve
       scope.kept
     end
   end
+
+  private
+
+  def permission_resource = "companies_crew_approvals"
 end

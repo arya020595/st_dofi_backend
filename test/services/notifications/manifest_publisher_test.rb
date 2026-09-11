@@ -3,7 +3,7 @@ require "test_helper"
 class Notifications::ManifestPublisherTest < ActiveSupport::TestCase
   test "port-out review notification is sent only to authorized admin approvers" do
     manifest = create(:manifest)
-    approver = create_admin_recipient("manifest_approvals.approve")
+    approver = create_admin_recipient("manifest_approvals.approve_port_out")
     create_admin_recipient("capture_report_verifications.verify")
 
     Notifications::ManifestPublisher.call(event: :port_out_review_required, manifest:)
@@ -27,7 +27,7 @@ class Notifications::ManifestPublisherTest < ActiveSupport::TestCase
   test "capture-report review notification is sent only to authorized verifiers" do
     manifest = create(:manifest)
     verifier = create_admin_recipient("capture_report_verifications.verify")
-    create_admin_recipient("manifest_approvals.approve")
+    create_admin_recipient("manifest_approvals.approve_port_out")
 
     Notifications::ManifestPublisher.call(event: :capture_report_review_required, manifest:)
 
@@ -36,7 +36,7 @@ class Notifications::ManifestPublisherTest < ActiveSupport::TestCase
 
   test "port-out resubmission notification is sent to authorized admin approvers" do
     manifest = create(:manifest)
-    approver = create_admin_recipient("manifest_approvals.approve")
+    approver = create_admin_recipient("manifest_approvals.approve_port_out")
 
     Notifications::ManifestPublisher.call(event: :port_out_resubmitted, manifest:)
 
@@ -55,7 +55,7 @@ class Notifications::ManifestPublisherTest < ActiveSupport::TestCase
 
   test "port-in resubmission notification is sent to authorized admin approvers" do
     manifest = create(:manifest)
-    approver = create_admin_recipient("manifest_approvals.approve")
+    approver = create_admin_recipient("manifest_approvals.approve_port_in")
 
     Notifications::ManifestPublisher.call(event: :port_in_resubmitted, manifest:)
 

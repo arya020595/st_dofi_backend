@@ -1,5 +1,5 @@
 class DashboardPolicy < ApplicationPolicy
-  RESOURCE = "dashboard".freeze
+  private
 
-  def show? = user.permission?("#{RESOURCE}.view")
+  def permission_resource = "dashboard"
 end
