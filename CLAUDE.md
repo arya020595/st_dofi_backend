@@ -47,6 +47,14 @@ reject code that violates them.
   owns `manifests.*`; `ManifestApprovalPolicy` owns `manifest_approvals.*`.
 - Policy scopes filter which rows can be observed; they do not substitute one capability for another.
   Preserve company/tenant scoping and load tenant-owned records through `policy_scope(...).find`.
+- A policy shared between the `dofi_officer` and `fisherman` platforms for a tenant-owned
+  (company-scoped) resource must define a private `owns_record?` and use it on every predicate that
+  receives a persisted record — `super && owns_record?` on inherited predicates,
+  `permitted?("action") && owns_record?` on custom ones — bypassed via `user.dofi_officer_platform? ||
+  ...` so officer oversight is unaffected. This holds even when a controller already loads the record
+  through a scoped chain; the policy is the last line of defense, not the controller. Never add it to
+  `create?`/`index?`/any predicate a controller authorizes against the bare model class — there is no
+  record to own yet. See `docs/rbac/platform-company-isolation.md` §4.5 for the full worked set.
 - `Permission::Catalog` is the sole source of truth for canonical codes, actions, platform scope,
   labels, sections, and ordering. Seeds persist it; role create/update rejects codes absent from it.
 
@@ -64,12 +72,14 @@ Policy with a state/ownership rule:
 
 ```ruby
 class ExamplePolicy < ApplicationPolicy
-  def update? = super && record.company_profile_id == user.company_profile_id
+  def update? = super && owns_record?
   def submit? = permitted?("submit") && record.draft?
 
   private
 
   def permission_resource = "examples"
+
+  def owns_record? = user.dofi_officer_platform? || record.company_profile_id == user.company_profile_id
 end
 ```
 

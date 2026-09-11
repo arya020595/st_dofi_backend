@@ -446,6 +446,22 @@ class FishermanRolePolicy < ApplicationPolicy
 end
 ```
 
+This `owns_record?` shape is **mandatory** for every policy shared between the two platforms that
+guards tenant-owned (company-scoped) data — not just `FishermanRolePolicy`/`FishermanUserPolicy` above.
+`ApplicationPolicy` has no base `owns_record?`; nothing stops a shared policy's `show?`/`update?`/
+`destroy?` from authorizing purely on the permission bit and never inspecting `record`, which would make
+the policy layer depend entirely on every controller — current and future — fetching the record through
+a `policy_scope(...)`-rooted chain forever. `ManifestPolicy`, `ManifestExpensePolicy`,
+`ManifestMinorFishermanPolicy`, `CompaniesVesselPolicy`, `CompaniesCrewPolicy`,
+`CompaniesFishingGearPolicy`, `CompaniesDocumentPolicy`, `CompanyProfilePolicy`,
+`CompanyProfileContactPolicy`, `CaptureReportPolicy`, `FishCaptureDetailPolicy`, and
+`FishingGearDetailPolicy` all define their own `owns_record?`, bypassed via `user.dofi_officer_platform?`
+to match their own `Scope#resolve`'s existing officer bypass. Add it to every predicate whose action is
+in the catalog and that receives a real record instance; skip `create?`/`index?`/any predicate authorized
+against the bare class — there's no row to own yet. `test/policies/rbac_contract_test.rb`'s "shared
+tenant-owned policies define an ownership guard" test locks this in for the resources above — add a new
+policy to that list when you add it.
+
 Full source: [`app/policies/application_policy.rb`](../../app/policies/application_policy.rb),
 [`app/policies/role_policy.rb`](../../app/policies/role_policy.rb),
 [`app/policies/fisherman_role_policy.rb`](../../app/policies/fisherman_role_policy.rb),
@@ -765,6 +781,8 @@ mechanism can be checked/tested and an intent can't.
 | Provisioning races become domain conflicts | `Fisherman::ProvisionUser` rescues `ActiveRecord::RecordNotUnique`, rechecks normalized IC, and returns deterministic conflict symbols | Service |
 | Reaching for another company's role/user by id never confirms it exists | `policy_scope(...).find` raises `RecordNotFound` (404), not `Pundit::NotAuthorizedError` (403) | Controller + Policy |
 | Role creation/update is atomic — never a saved role with a dropped permission set | `Roles::Create`/`Update` wrap `role.save!` + permission assignment in `ActiveRecord::Base.transaction` | Service |
+| A shared (dofi_officer + fisherman) policy never authorizes `show?`/`update?`/`destroy?` on another company's tenant-owned record from the permission bit alone | Each policy's own `owns_record?`, bypassed for `user.dofi_officer_platform?`; locked in by `rbac_contract_test.rb`'s ownership-guard test | Policy |
+| DoFi Officer and Jetty Manager accounts share one `platform_scope` (`"dofi_officer"`) but must never be treated interchangeably by Jetty-Manager-only workflows | `User#jetty_manager?`/`#fins_governed_jetty_manager?` (kind-based, not platform_scope-based); `JettyManagerApprovalPolicy::Scope` filters by `kind` via `Role.find_by(kind: Role::JETTY_MANAGER)`; each of the 5 `Users::*Registration` services independently re-checks `fins_governed_jetty_manager?`; locked in by `test/services/users/jetty_manager_registration_guard_test.rb` | Model + Policy + Service |
 
 ---
 
@@ -832,7 +850,9 @@ few permissions they hold.
    `PATCH /fisherman/roles/:id`.
 5. Ensure one concrete policy owns that resource via its private literal `permission_resource`.
    Standard actions are inherited; custom actions call `permitted?("action")`. Never call
-   `user.permission?` directly from the concrete policy.
+   `user.permission?` directly from the concrete policy. If the resource is shared between platforms
+   **and** tenant-owned (has a `company_profile_id` or a traceable FK chain to one), also define
+   `owns_record?` per §4.5 and add the policy to `rbac_contract_test.rb`'s ownership-guard list.
 6. If the same model already has a policy for another permission resource, add a separate policy and
    use explicit `policy_class:`/`policy_scope_class:` dispatch in the controller.
 7. Add a test asserting the permission gates the action, and — if platform-restricted — that the
@@ -930,6 +950,10 @@ wouldn't reveal which layer regressed.
   role-assignment scoping, cross-company 404s, the split permission-layer (403) vs
   role-assignment-scope-layer (422) self-reassignment tests from §10 Phase 4.
 - `test/services/roles/` — `EnsureFishermanOwnerRole` idempotency.
+- `test/policies/rbac_contract_test.rb`'s ownership-guard test — asserts every shared tenant-owned
+  policy in §4.5's list still defines `owns_record?`.
+- `test/services/users/jetty_manager_registration_guard_test.rb` — proves each of the 5 Jetty-Manager
+  lifecycle services rejects a DoFi Officer account despite the shared `platform_scope`.
 
 **Postman** (`postman/DoFi-Backend.postman_collection.json`) — `Roles / Fisherman` and
 `Users / Fisherman` subfolders (nested inside the existing `Roles`/`Users` folders), covering

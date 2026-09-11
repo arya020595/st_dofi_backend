@@ -115,6 +115,18 @@ class RbacContractTest < ActiveSupport::TestCase
     assert_empty Permission::Catalog::RESOURCES.keys - policy_resources, "catalog resource has no policy"
   end
 
+  test "shared tenant-owned policies define an ownership guard" do
+    tenant_owned_shared_policies = [
+      ManifestPolicy, ManifestExpensePolicy, ManifestMinorFishermanPolicy, CompaniesVesselPolicy,
+      CompaniesCrewPolicy, CompaniesFishingGearPolicy, CompaniesDocumentPolicy, CompanyProfilePolicy,
+      CompanyProfileContactPolicy, CaptureReportPolicy, FishCaptureDetailPolicy, FishingGearDetailPolicy
+    ].freeze
+
+    missing = tenant_owned_shared_policies.reject { |policy_class| policy_class.private_method_defined?(:owns_record?) }
+
+    assert_empty missing, "missing owns_record?: #{missing.join(', ')}"
+  end
+
   test "admin and fisherman manifest access dispatches through the same action" do
     permission = create(:permission, code: "manifests.list")
     company = create(:company_profile)

@@ -82,6 +82,12 @@ class User < ApplicationRecord
   # singleton row." fisherman?/dofi_officer_platform? are broad (platform_scope-based) — "is this
   # user's role anywhere on this platform," true for every company's Owner/custom role too, not just
   # a single fixed row. See Role's own kind vs platform_scope comment for the full rationale.
+  # Not redundant: db/seeds/roles.rb seeds DoFi Officer and Jetty Manager with the *same*
+  # platform_scope ("dofi_officer") — kind is the only column that tells them apart. That's why
+  # fins_governed_jetty_manager? (below) and JettyManagerApprovalPolicy::Scope key off kind, and why
+  # every Users::*Registration service re-checks it — swapping either to dofi_officer_platform? would
+  # let a DoFi Officer's own account flow through Jetty-Manager-only approve/reject/deactivate/
+  # reactivate/revoke.
   def jetty_manager? = role&.kind == Role::JETTY_MANAGER
   def officer? = role&.kind == Role::DOFI_OFFICER
   def fisherman? = role&.fisherman_platform? || false

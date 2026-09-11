@@ -179,6 +179,11 @@ the wrong application surface, the policy predicate checks exactly one capabilit
 `Policy::Scope#resolve` applies company/tenant isolation. Alternative workflow policies use explicit
 `policy_class:` and `policy_scope_class:` at the controller call site.
 
+Every shared policy protecting tenant-owned data must also define a per-record `owns_record?` guard
+(bypassed for `dofi_officer_platform?`), independent of any Scope-level or controller-level filtering —
+see [`docs/rbac/platform-company-isolation.md`](rbac/platform-company-isolation.md) §4.5/§6 for the
+pattern and the enforced regression test.
+
 `Permission::Catalog` is the only live definition of permission code, action, platform scope,
 section, label, and ordering. Seeds persist that catalog and role mutation accepts only catalog codes
 available to the role's platform. Legacy codes may remain temporarily in the database during an
