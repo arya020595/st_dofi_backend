@@ -41,6 +41,11 @@
       "type": "string"
     },
     {
+      "key": "account_id",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "permission_code",
       "value": "dashboard.view",
       "type": "string"
@@ -4357,6 +4362,183 @@
             }
           ],
           "description": "Company-scoped mirror of the requests above, via Fisherman::UsersController — a company managing its own teammates. company_profile is always server-derived from current_user, never a client param; only this company's own fisherman-platform roles are assignable (Role.assignable_by_fisherman). See UserPolicy."
+        },
+        {
+          "name": "Account Management",
+          "description": "DoFI account management for FINS-governed Fisherman Owner/Admin accounts and Jetty Manager accounts. Use category=fisherman_account or category=jetty_manager_account. Read and lifecycle actions reuse the matching Fisherman or Jetty Manager approval permissions.",
+          "item": [
+            {
+              "name": "List Fisherman Accounts",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/accounts?category=fisherman_account&page=1&limit=20",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "accounts"
+                  ],
+                  "query": [
+                    {
+                      "key": "category",
+                      "value": "fisherman_account"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "List Jetty Manager Accounts",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/accounts?category=jetty_manager_account&page=1&limit=20",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "accounts"
+                  ],
+                  "query": [
+                    {
+                      "key": "category",
+                      "value": "jetty_manager_account"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Show Account",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/accounts/{{account_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "accounts",
+                    "{{account_id}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Deactivate Account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/accounts/{{account_id}}/deactivate",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "accounts",
+                    "{{account_id}}",
+                    "deactivate"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Temporary account suspension\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Reactivate Account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/accounts/{{account_id}}/reactivate",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "accounts",
+                    "{{account_id}}",
+                    "reactivate"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Account access restored\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            }
+          ]
         }
       ],
       "description": "CRUD for DoFi officer users. Each user belongs to a Role (assigned via `role_id` on create/update, omitted defaults apply). `DELETE` soft-deletes via Discard rather than removing the row."
@@ -4433,7 +4615,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Commercial\",\n    \"company_name\": \"Azri Fish Sdn Bhd\",\n    \"company_address\": \"Spg 10, Pantai Serasa, Mukim Serasa\",\n    \"rocbn_no\": \"RC20390923\",\n    \"contact_no\": \"71111111\",\n    \"district\": \"Brunei - Muara\",\n    \"mukim\": \"Serasa\",\n    \"village\": \"Kapok\",\n    \"fisherman_card_no\": \"R-2026-012563\",\n    \"issue_date\": \"2026-01-01\",\n    \"license_expiry_date\": \"2026-12-31\",\n    \"owner\": {\n      \"full_name\": \"Muhammad Shahrizan Bin Haji Said\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-192839\",\n      \"ic_colour\": \"Yellow\"\n    },\n    \"admin\": {\n      \"full_name\": \"Seruddin Bin Haji Abdullah\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-192840\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
+              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Commercial\",\n    \"company_name\": \"Azri Fish Sdn Bhd\",\n    \"company_address\": \"Spg 10, Pantai Serasa, Mukim Serasa\",\n    \"mailing_address\": \"P.O. Box 100, Bandar Seri Begawan BA1111\",\n    \"rocbn_no\": \"RC20390923\",\n    \"contact_no\": \"71111111\",\n    \"district\": \"Brunei - Muara\",\n    \"mukim\": \"Serasa\",\n    \"village\": \"Kapok\",\n    \"fisherman_card_no\": \"R-2026-012563\",\n    \"issue_date\": \"2026-01-01\",\n    \"license_expiry_date\": \"2026-12-31\",\n    \"owner\": {\n      \"full_name\": \"Muhammad Shahrizan Bin Haji Said\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-192839\",\n      \"ic_colour\": \"Yellow\"\n    },\n    \"admin\": {\n      \"full_name\": \"Seruddin Bin Haji Abdullah\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-192840\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4492,7 +4674,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Small-Scale (Company)\",\n    \"company_name\": \"Serasa Small Fish Co\",\n    \"company_address\": \"Spg 20, Serasa\",\n    \"rocbn_no\": \"RC99887766\",\n    \"contact_no\": \"72222222\",\n    \"district\": \"Brunei - Muara\",\n    \"mukim\": \"Serasa\",\n    \"village\": \"Kapok\",\n    \"fisherman_card_no\": \"R-2026-099001\",\n    \"issue_date\": \"2026-02-01\",\n    \"license_expiry_date\": \"2027-01-31\",\n    \"owner\": {\n      \"full_name\": \"Roslan Bin Mat\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-441122\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
+              "raw": "{\n  \"company_profile\": {\n    \"registration_type\": \"Small-Scale (Company)\",\n    \"company_name\": \"Serasa Small Fish Co\",\n    \"company_address\": \"Spg 20, Serasa\",\n    \"mailing_address\": \"P.O. Box 20, Serasa, Brunei-Muara\",\n    \"rocbn_no\": \"RC99887766\",\n    \"contact_no\": \"72222222\",\n    \"district\": \"Brunei - Muara\",\n    \"mukim\": \"Serasa\",\n    \"village\": \"Kapok\",\n    \"fisherman_card_no\": \"R-2026-099001\",\n    \"issue_date\": \"2026-02-01\",\n    \"license_expiry_date\": \"2027-01-31\",\n    \"owner\": {\n      \"full_name\": \"Roslan Bin Mat\",\n      \"gender\": \"Male\",\n      \"ic_no\": \"01-441122\",\n      \"ic_colour\": \"Yellow\"\n    }\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4734,7 +4916,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"company_profile\": {\n    \"contact_no\": \"71234567\"\n  }\n}",
+              "raw": "{\n  \"company_profile\": {\n    \"mailing_address\": \"P.O. Box 100, Bandar Seri Begawan BA1111\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
