@@ -17,6 +17,8 @@ class Manifest < ApplicationRecord
   belongs_to :created_by, class_name: "User", optional: true
 
   has_many :crew_manifests, dependent: :destroy
+  has_many :manifest_support_vessels, dependent: :destroy
+  has_many :support_vessels, through: :manifest_support_vessels, source: :companies_vessel
   has_many :manifest_minor_fishermen, dependent: :destroy
   has_many :capture_reports, dependent: :destroy
   has_many :manifest_histories, dependent: :destroy
@@ -27,7 +29,6 @@ class Manifest < ApplicationRecord
 
   validates :manifest_number, presence: true, uniqueness: true
   validates :fisherman_category, presence: true
-  validate :support_vessel_is_valid
 
   def self.ransackable_attributes(_auth_object = nil)
     %w[id manifest_number fisherman_category manifest_status port_out_status port_in_status
@@ -143,34 +144,6 @@ class Manifest < ApplicationRecord
   end
 
   private
-
-  def support_vessel_is_valid
-    validate_support_vessel_presence
-    validate_support_vessel_record if support_vessel.present?
-  end
-
-  def validate_support_vessel_presence
-    return if has_support_vessel? == support_vessel_id.present?
-
-    message = if has_support_vessel?
-                "must be provided when a support vessel is used"
-              else
-                "must be blank when no support vessel is used"
-              end
-    errors.add(:support_vessel_id, message)
-  end
-
-  def validate_support_vessel_record
-    errors.add(:support_vessel_id, "must differ from the primary vessel") if support_vessel_id == companies_vessel_id
-    validate_support_vessel_company
-    errors.add(:support_vessel_id, "must be approved") unless support_vessel.approved?
-  end
-
-  def validate_support_vessel_company
-    return if support_vessel.company_profile_id == company_profile_id
-
-    errors.add(:support_vessel_id, "must belong to the same company")
-  end
 
   def record_port_out_history(actor: nil, remarks: nil, **)
     record_history!("port_out_status", aasm_name: :port_out, actor: actor, remarks: remarks)
