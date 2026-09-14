@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_11_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_14_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -390,6 +390,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_11_090000) do
     t.index ["discarded_at"], name: "index_manifest_skip_reasons_on_discarded_at"
   end
 
+  create_table "manifest_support_vessels", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "boat_number", null: false
+    t.uuid "companies_vessel_id", null: false
+    t.datetime "created_at", null: false
+    t.uuid "manifest_id", null: false
+    t.string "registration_no"
+    t.datetime "updated_at", null: false
+    t.string "vessel_name", null: false
+    t.index ["companies_vessel_id"], name: "index_manifest_support_vessels_on_companies_vessel_id"
+    t.index ["manifest_id", "companies_vessel_id"], name: "index_msv_on_manifest_and_vessel", unique: true
+    t.index ["manifest_id"], name: "index_manifest_support_vessels_on_manifest_id"
+  end
+
   create_table "manifests", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.boolean "ais_tracking", default: false, null: false
     t.uuid "captain_crew_id"
@@ -641,6 +654,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_11_090000) do
   add_foreign_key "manifest_histories", "manifests"
   add_foreign_key "manifest_histories", "users", column: "changed_by_id"
   add_foreign_key "manifest_minor_fishermen", "manifests"
+  add_foreign_key "manifest_support_vessels", "companies_vessels"
+  add_foreign_key "manifest_support_vessels", "manifests"
   add_foreign_key "manifests", "companies_crews", column: "captain_crew_id"
   add_foreign_key "manifests", "companies_vessels"
   add_foreign_key "manifests", "companies_vessels", column: "support_vessel_id"

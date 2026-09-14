@@ -54,7 +54,8 @@ def vessel_rows_for(definition, context)
 end
 
 def commercial_vessel_rows(context)
-  [sinar_bahari_one(context), sinar_bahari_two(context), sinar_bahari_three(context)]
+  [sinar_bahari_one(context), sinar_bahari_two(context), sinar_bahari_three(context),
+   sinar_bahari_four(context), sinar_bahari_five(context)]
 end
 
 def small_company_vessel_rows(context)
@@ -90,6 +91,20 @@ def sinar_bahari_three_attributes
     max_crew: 22, gross_tonnage: 18.75, length: 17.5, horse_power: 280, engine_count: 2,
     year_built: 2021, draft: 2.2, material: "steel", is_powered: true, charter_type: "own",
     boat_type: "permanent" }
+end
+
+def sinar_bahari_four(context)
+  vessel_row(context, vessel_name: "Sinar Bahari 4", boat_number: "BSB-1004", capacity: 8,
+                      license_reg_date: 14.months.ago.to_date, license_expiry_date: 22.months.from_now.to_date,
+                      category: "support_vessel", zone: :zone_inshore_two, registration_no: "REG-BSB-1004",
+                      max_crew: 12)
+end
+
+def sinar_bahari_five(context)
+  vessel_row(context, vessel_name: "Sinar Bahari 5", boat_number: "BSB-1005", capacity: 6,
+                      license_reg_date: 10.months.ago.to_date, license_expiry_date: 26.months.from_now.to_date,
+                      category: "support_vessel", zone: :zone_inshore_two, registration_no: "REG-BSB-1005",
+                      max_crew: 10)
 end
 
 def emas_laut_one(context)

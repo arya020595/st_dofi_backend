@@ -23,6 +23,7 @@ module Manifests
 
       ActiveRecord::Base.transaction do
         manifest.save!
+        set_support_vessels!(manifest, attributes, company_profile)
         SetCrew.call(manifest, crew_ids: attributes[:crew_ids], ad_hoc_crew: attributes[:ad_hoc_crew])
       end
       Success(manifest)
@@ -44,10 +45,7 @@ module Manifests
     def snapshots(attributes, company_profile)
       vessel = company_profile.companies_vessels.kept.find_by(id: attributes[:companies_vessel_id])
       captain = find_captain(company_profile, attributes[:captain_crew_id])
-      support_vessel = find_support_vessel(company_profile, attributes[:support_vessel_id])
-
       Snapshots.vessel(vessel).merge(Snapshots.captain(captain))
-               .merge(Snapshots.support_vessel(support_vessel))
                .merge(port_snapshot(attributes))
     end
 
@@ -58,6 +56,7 @@ module Manifests
 
     def sanitized_attributes(attributes)
       attributes.except(:crew_ids, :ad_hoc_crew, :companies_vessel_id, :captain_crew_id, :support_vessel_id,
+                        :support_vessel_ids, :has_support_vessel,
                         :fisherman_category)
     end
 
@@ -67,10 +66,19 @@ module Manifests
       company_profile.companies_crews.kept.find_by(id: captain_crew_id)
     end
 
-    def find_support_vessel(company_profile, support_vessel_id)
-      return nil if support_vessel_id.blank?
+    def set_support_vessels!(manifest, attributes, company_profile)
+      support_vessel_ids = attributes[:support_vessel_ids] || Array(attributes[:support_vessel_id])
+      has_support_vessel = support_vessel_requested?(attributes, support_vessel_ids)
+      result = SetSupportVessels.call(manifest, support_vessel_ids: support_vessel_ids,
+                                                has_support_vessel: has_support_vessel,
+                                                company_profile: company_profile)
+      raise ActiveRecord::RecordInvalid, manifest if result.failure?
+    end
 
-      company_profile.companies_vessels.kept.find_by(id: support_vessel_id)
+    def support_vessel_requested?(attributes, support_vessel_ids)
+      return attributes[:has_support_vessel] if attributes.key?(:has_support_vessel)
+
+      support_vessel_ids.any?
     end
 
     def vessel_valid?(manifest)

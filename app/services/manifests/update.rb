@@ -11,9 +11,8 @@ module Manifests
 
       ActiveRecord::Base.transaction do
         manifest.update!(attributes_for_update(manifest, attributes, company_profile))
-        if attributes.key?(:crew_ids) || attributes.key?(:ad_hoc_crew)
-          SetCrew.call(manifest, crew_ids: attributes[:crew_ids], ad_hoc_crew: attributes[:ad_hoc_crew])
-        end
+        update_support_vessels!(manifest, attributes, company_profile)
+        set_crew!(manifest, attributes)
       end
       Success(manifest)
     rescue ActiveRecord::RecordInvalid
@@ -45,8 +44,15 @@ module Manifests
       manifest
     end
 
+    def set_crew!(manifest, attributes)
+      return unless attributes.key?(:crew_ids) || attributes.key?(:ad_hoc_crew)
+
+      SetCrew.call(manifest, crew_ids: attributes[:crew_ids], ad_hoc_crew: attributes[:ad_hoc_crew])
+    end
+
     def attributes_for_update(manifest, attributes, company_profile)
-      update_attributes = attributes.except(:crew_ids, :ad_hoc_crew)
+      update_attributes = attributes.except(:crew_ids, :ad_hoc_crew, :support_vessel_id, :support_vessel_ids,
+                                            :has_support_vessel)
       update_port_snapshot!(update_attributes)
       update_company_scoped_snapshots!(manifest, update_attributes, company_profile) if company_profile
       update_attributes
@@ -55,7 +61,6 @@ module Manifests
     def update_company_scoped_snapshots!(manifest, attributes, company_profile)
       update_vessel_snapshot!(manifest, attributes, company_profile) if attributes.key?(:companies_vessel_id)
       update_captain_snapshot!(manifest, attributes, company_profile) if attributes.key?(:captain_crew_id)
-      update_support_vessel_snapshot!(manifest, attributes, company_profile) if attributes.key?(:support_vessel_id)
     end
 
     def update_port_snapshot!(attributes)
@@ -88,14 +93,25 @@ module Manifests
       raise ActiveRecord::RecordInvalid, manifest
     end
 
-    def update_support_vessel_snapshot!(manifest, attributes, company_profile)
-      if attributes[:support_vessel_id].blank?
-        attributes.merge!(Snapshots.support_vessel(nil))
-        return
-      end
+    def support_vessel_update?(attributes)
+      %i[support_vessel_ids support_vessel_id has_support_vessel].any? { |key| attributes.key?(key) }
+    end
 
-      vessel = approved_vessel!(manifest, company_profile, attributes[:support_vessel_id], :support_vessel_id)
-      attributes.merge!(Snapshots.support_vessel(vessel))
+    def update_support_vessels!(manifest, attributes, company_profile)
+      return unless support_vessel_update?(attributes)
+
+      support_vessel_ids = attributes[:support_vessel_ids] || Array(attributes[:support_vessel_id])
+      has_support_vessel = support_vessel_requested?(attributes, support_vessel_ids)
+      result = SetSupportVessels.call(manifest, support_vessel_ids: support_vessel_ids,
+                                                has_support_vessel: has_support_vessel,
+                                                company_profile: company_profile)
+      raise ActiveRecord::RecordInvalid, manifest if result.failure?
+    end
+
+    def support_vessel_requested?(attributes, support_vessel_ids)
+      return attributes[:has_support_vessel] if attributes.key?(:has_support_vessel)
+
+      support_vessel_ids.any?
     end
 
     # Shared by both the primary and support vessel — same "approved, owned by this company" rule,

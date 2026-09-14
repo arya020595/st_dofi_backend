@@ -14,6 +14,9 @@ class ManifestDetailBlueprint < Blueprinter::Base
   field(:is_draft, &:draft?)
 
   association :crew_manifests, blueprint: CrewManifestBlueprint
+  field :support_vessels do |manifest|
+    ManifestSupportVesselBlueprint.render_as_hash(manifest.manifest_support_vessels)
+  end
   association :manifest_minor_fishermen, blueprint: ManifestMinorFishermanBlueprint
   association :capture_reports, blueprint: CaptureReportDetailBlueprint
   association :manifest_histories, blueprint: ManifestHistoryBlueprint

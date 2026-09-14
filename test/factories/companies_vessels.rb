@@ -8,6 +8,10 @@ FactoryBot.define do
       approval_status { "approved" }
     end
 
+    trait :support_vessel do
+      category { "support_vessel" }
+    end
+
     trait :non_powered do
       is_powered { false }
     end
