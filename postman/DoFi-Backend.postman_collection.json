@@ -5599,7 +5599,7 @@
     },
     {
       "name": "Companies - Documents",
-      "description": "Fisherman-facing upload for CompaniesDocument, nested under a CompanyProfile (/api/v1/company_profiles/:company_profile_id/documents). Five fixed document_type values: company_registration, surat_tawaran, foreign_worker_license, white_card, fishing_gear_license — one document per type per company profile (re-uploading the same type replaces the file rather than creating a second row). PDF only (application/pdf, detected from the file's real bytes via Marcel — not the client-claimed Content-Type), max 10MB (CompaniesDocument::ALLOWED_CONTENT_TYPES/MAX_FILE_SIZE). Stored on the private MinIO bucket (see docs/minio/MINIO.md) — document_url in the response is our own /api/v1/attachments/:signed_id redirect endpoint, never a direct storage URL. Every document starts approval_status: pending (see Approvals - Documents below); replacing the file on an approved/amendment_required document automatically reverts it to pending via Approvable#revert_to_pending_for_edit!. No show/destroy actions — index/create/update only. Requires companies_documents.*.\n\nRun \"Create Profiling (Owner + Admin)\" in the Profiling folder first so company_profile_id is set.",
+      "description": "Fisherman-facing upload for CompaniesDocument, nested under a CompanyProfile (/api/v1/company_profiles/:company_profile_id/documents). Six fixed document_type values: company_registration, surat_tawaran, foreign_worker_license, white_card, fishing_gear_license, insurance_document — one document per type per company profile (re-uploading the same type replaces the file rather than creating a second row). PDF only (application/pdf, detected from the file's real bytes via Marcel — not the client-claimed Content-Type), max 10MB (CompaniesDocument::ALLOWED_CONTENT_TYPES/MAX_FILE_SIZE). Stored on the private MinIO bucket (see docs/minio/MINIO.md) — document_url in the response is our own /api/v1/attachments/:signed_id redirect endpoint, never a direct storage URL. Every document starts approval_status: pending (see Approvals - Documents below); replacing the file on an approved/amendment_required document automatically reverts it to pending via Approvable#revert_to_pending_for_edit!. No show/destroy actions — index/create/update only. Requires companies_documents.*.\n\nRun \"Create Profiling (Owner + Admin)\" in the Profiling folder first so company_profile_id is set.",
       "item": [
         {
           "name": "List Documents",
@@ -5662,7 +5662,7 @@
                 }
               ]
             },
-            "description": "Multipart upload. document_type must be one of company_registration, surat_tawaran, foreign_worker_license, white_card, fishing_gear_license and unique per company profile (among kept/non-discarded documents). file must be a real PDF under 10MB or the request fails with a 422 listing which constraint was violated. Always created approval_status: pending. Requires companies_documents.create."
+            "description": "Multipart upload. document_type must be one of company_registration, surat_tawaran, foreign_worker_license, white_card, fishing_gear_license, insurance_document and unique per company profile (among kept/non-discarded documents). file must be a real PDF under 10MB or the request fails with a 422 listing which constraint was violated. Always created approval_status: pending. Requires companies_documents.create."
           },
           "event": [
             {
@@ -5718,7 +5718,7 @@
                 }
               ]
             },
-            "description": "document_type outside the fixed 5-value list fails the inclusion validation."
+            "description": "document_type outside the fixed 6-value list fails the inclusion validation."
           },
           "event": [
             {

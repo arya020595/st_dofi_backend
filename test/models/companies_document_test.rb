@@ -45,6 +45,12 @@ class CompaniesDocumentTest < ActiveSupport::TestCase
     assert_includes document.errors.attribute_names, :document_type
   end
 
+  test "accepts insurance_document as a document type" do
+    document = build(:companies_document, document_type: "insurance_document")
+
+    assert_predicate document, :valid?
+  end
+
   test "is invalid without a file attached" do
     document = CompaniesDocument.new(company_profile: create(:company_profile), document_type: "white_card")
 
