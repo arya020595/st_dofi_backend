@@ -353,6 +353,8 @@ jetty_manager.assign_attributes(
   position: BRUNEI_ID_SANDBOX_JETTY_MANAGER[:position],
   contact_no: BRUNEI_ID_SANDBOX_JETTY_MANAGER[:contact_no],
   status: "active",
+  fisherman_status: nil,
+  provisioning_source: nil,
   preferred_locale: "en",
   brunei_id_verified_at: Time.current,
   password: default_password,

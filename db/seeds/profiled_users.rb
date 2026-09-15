@@ -122,18 +122,24 @@ JETTY_MANAGER_USERS = [
 ].freeze
 
 JETTY_MANAGER_USERS.each do |attrs|
-  User.find_or_create_by!(ic_number: attrs[:ic_number]) do |user|
-    user.name = attrs[:name]
-    user.role = jetty_manager_role
-    user.unit = attrs[:unit]
-    user.position = attrs[:position]
-    user.contact_no = attrs[:contact_no]
-    user.status = "active"
-    user.preferred_locale = "en"
-    user.brunei_id_verified_at = Time.current
-    user.password = default_password
-    user.password_confirmation = default_password
+  jetty_manager = User.find_or_initialize_by(ic_number: attrs[:ic_number])
+  jetty_manager.assign_attributes(
+    name: attrs[:name],
+    role: jetty_manager_role,
+    unit: attrs[:unit],
+    position: attrs[:position],
+    contact_no: attrs[:contact_no],
+    status: "active",
+    fisherman_status: nil,
+    provisioning_source: nil,
+    preferred_locale: "en",
+    brunei_id_verified_at: Time.current
+  )
+  unless jetty_manager.persisted?
+    jetty_manager.password = default_password
+    jetty_manager.password_confirmation = default_password
   end
+  jetty_manager.save!
 end
 
 fisherman_count = User.joins(:role).where(roles: { platform_scope: Role::FISHERMAN_PLATFORM }).count
