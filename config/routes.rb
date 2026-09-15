@@ -63,6 +63,7 @@ Rails.application.routes.draw do
         end
 
         namespace :entity_users do
+          resources :individual_fishermen, only: :index
           resources :company_profiles, only: %i[index] do
             member { get :users }
           end
