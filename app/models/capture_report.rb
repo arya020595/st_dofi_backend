@@ -9,13 +9,23 @@ class CaptureReport < ApplicationRecord
   has_many :fish_capture_details, dependent: :destroy
   has_many :fishing_gear_details, dependent: :destroy
 
+  before_validation :assign_number_without_database_trigger, on: :create
+
   def self.ransackable_attributes(_auth_object = nil)
-    %w[id manifest_id zone_id zone_area capture_report_status capture_report_remarks
+    %w[id capture_report_number manifest_id zone_id zone_area capture_report_status capture_report_remarks
        reviewed_by_id reviewed_at created_at updated_at]
   end
 
   def self.ransackable_associations(_auth_object = nil)
     []
+  end
+
+  def self.capture_report_number_trigger_available?
+    return @capture_report_number_trigger_available if defined?(@capture_report_number_trigger_available)
+
+    @capture_report_number_trigger_available = connection.select_value(<<~SQL.squish)
+      SELECT to_regclass('public.capture_report_number_sequence') IS NOT NULL
+    SQL
   end
 
   def manifest_id_for_history = manifest_id
@@ -42,6 +52,15 @@ class CaptureReport < ApplicationRecord
   end
 
   private
+
+  # PostgreSQL functions and triggers are not represented by db/schema.rb. The normal application
+  # path uses the BEFORE INSERT trigger from the migration; this fallback keeps schema-loaded test
+  # databases functional until they are rebuilt from a SQL structure dump.
+  def assign_number_without_database_trigger
+    return if capture_report_number.present? || self.class.capture_report_number_trigger_available?
+
+    self.capture_report_number = CaptureReports::NumberGenerator.call
+  end
 
   def record_catch_history(actor: nil, remarks: nil, **)
     record_history!("capture_report_status", actor: actor, remarks: remarks)
@@ -90,6 +109,7 @@ end
 # Database name: primary
 #
 #  id                     :uuid             not null, primary key
+#  capture_report_number  :string           not null
 #  capture_report_remarks :text
 #  capture_report_status  :string           default("pending_verification"), not null
 #  latitude               :decimal(10, 8)
@@ -106,6 +126,7 @@ end
 #
 #  index_capture_reports_on_capture_report_status  (capture_report_status)
 #  index_capture_reports_on_manifest_id            (manifest_id)
+#  index_capture_reports_on_number                 (capture_report_number) UNIQUE
 #  index_capture_reports_on_reviewed_by_id         (reviewed_by_id)
 #  index_capture_reports_on_zone_id                (zone_id)
 #

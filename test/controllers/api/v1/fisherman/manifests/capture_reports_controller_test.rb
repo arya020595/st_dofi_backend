@@ -43,6 +43,8 @@ module Api
 
             assert_response :ok
             assert_equal reviewer.id, response.parsed_body.dig("data", "reviewed_by", "id")
+            assert_equal [report.capture_report_number, @manifest.manifest_number],
+                         response.parsed_body.fetch("data").values_at("capture_report_number", "manifest_number")
           end
         end
       end

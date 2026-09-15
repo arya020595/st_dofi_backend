@@ -71,6 +71,19 @@ module Api
             assert_equal 1, response.parsed_body["data"].size
             assert_equal reviewer.id, response.parsed_body.dig("data", 0, "reviewed_by", "id")
           end
+
+          test "show includes the capture report and manifest numbers" do
+            report = create(:capture_report, manifest: @manifest)
+            headers = officer_headers_for(
+              permission_codes: %w[capture_report_verifications.list capture_report_verifications.view]
+            )
+
+            get "/api/v1/admin/manifests/#{@manifest.id}/capture_reports/#{report.id}", headers: headers
+
+            assert_response :ok
+            assert_equal [report.capture_report_number, @manifest.manifest_number],
+                         response.parsed_body.fetch("data").values_at("capture_report_number", "manifest_number")
+          end
         end
       end
     end

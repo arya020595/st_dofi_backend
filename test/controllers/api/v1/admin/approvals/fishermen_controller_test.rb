@@ -60,6 +60,13 @@ module Api
           assert_response :forbidden
         end
 
+        test "show includes the related company profile contact number" do
+          get "/api/v1/admin/approvals/fishermen/#{@fisherman.id}", headers: @admin_headers
+
+          assert_response :ok
+          assert_equal @company_profile.contact_no, response.parsed_body.dig("data", "company_profile", "contact_no")
+        end
+
         test "reject requires an approval_remark_id and persists its name as the rejection reason" do
           remark = create(:approval_remark, usage_scope: "reject")
 

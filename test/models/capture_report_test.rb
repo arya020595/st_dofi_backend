@@ -12,6 +12,14 @@ class CaptureReportTest < ActiveSupport::TestCase
     assert_not_nil report.reviewed_at
   end
 
+  test "database-generated numbers are unique for separate capture report inserts" do
+    first_report = create(:capture_report)
+    second_report = create(:capture_report)
+
+    assert_match(/\ACAPTURE-\d{8}-\d{3,}\z/, first_report.capture_report_number)
+    assert_not_equal first_report.capture_report_number, second_report.capture_report_number
+  end
+
   test "verify! raises when the report is not pending_verification" do
     report = create(:capture_report)
     report.verify!
@@ -91,6 +99,7 @@ end
 # Database name: primary
 #
 #  id                     :uuid             not null, primary key
+#  capture_report_number  :string           not null
 #  capture_report_remarks :text
 #  capture_report_status  :string           default("pending_verification"), not null
 #  latitude               :decimal(10, 8)
@@ -107,6 +116,7 @@ end
 #
 #  index_capture_reports_on_capture_report_status  (capture_report_status)
 #  index_capture_reports_on_manifest_id            (manifest_id)
+#  index_capture_reports_on_number                 (capture_report_number) UNIQUE
 #  index_capture_reports_on_reviewed_by_id         (reviewed_by_id)
 #  index_capture_reports_on_zone_id                (zone_id)
 #

@@ -10,6 +10,7 @@ end
 # Database name: primary
 #
 #  id                     :uuid             not null, primary key
+#  capture_report_number  :string           not null
 #  capture_report_remarks :text
 #  capture_report_status  :string           default("pending_verification"), not null
 #  latitude               :decimal(10, 8)
@@ -26,6 +27,7 @@ end
 #
 #  index_capture_reports_on_capture_report_status  (capture_report_status)
 #  index_capture_reports_on_manifest_id            (manifest_id)
+#  index_capture_reports_on_number                 (capture_report_number) UNIQUE
 #  index_capture_reports_on_reviewed_by_id         (reviewed_by_id)
 #  index_capture_reports_on_zone_id                (zone_id)
 #
