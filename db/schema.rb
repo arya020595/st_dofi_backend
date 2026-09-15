@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_14_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_15_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -77,6 +77,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_14_100000) do
   end
 
   create_table "capture_reports", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "capture_report_number", null: false
     t.text "capture_report_remarks"
     t.string "capture_report_status", default: "pending_verification", null: false
     t.datetime "created_at", null: false
@@ -88,6 +89,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_14_100000) do
     t.datetime "updated_at", null: false
     t.string "zone_area"
     t.uuid "zone_id"
+    t.index ["capture_report_number"], name: "index_capture_reports_on_number", unique: true
     t.index ["capture_report_status"], name: "index_capture_reports_on_capture_report_status"
     t.index ["manifest_id"], name: "index_capture_reports_on_manifest_id"
     t.index ["reviewed_by_id"], name: "index_capture_reports_on_reviewed_by_id"
