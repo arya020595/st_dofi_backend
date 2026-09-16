@@ -2,6 +2,10 @@
 
 Guidance for Claude Code (and other contributors) when working in this repository.
 
+> **This is the authoritative copy.** [`AGENTS.md`](AGENTS.md) is a full, synced mirror for agents
+> that look for that filename instead (Codex and most other tools). **If you edit the rules below,
+> edit `AGENTS.md` to match in the same change** — don't let them drift.
+
 ## Project
 
 DoFi Backend — the FINS Capture Fisheries module API. API-only Rails 8.1.3 app (no views/assets) backing vessels, crews, manifests, capture reports, and related reference data for fisheries reporting.
