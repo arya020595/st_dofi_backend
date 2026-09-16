@@ -10,6 +10,7 @@ module CompaniesDocuments
       ActiveRecord::Base.transaction do
         document.request_amendment!(actor: actor, remarks: remarks)
         CompanyProfiles::SyncApprovalStatus.mark_pending!(document.company_profile)
+        Notifications::ProfilingPublisher.call(event: :document_amendment_required, resource: document)
       end
 
       Success(document)
