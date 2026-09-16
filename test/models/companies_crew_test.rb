@@ -31,6 +31,23 @@ class CompaniesCrewTest < ActiveSupport::TestCase
     end
   end
 
+  test "does not require foreign worker licence fields for a local citizen" do
+    Nationality.create!(code: "BN", name: "Bruneian", is_local_citizenship: true)
+    crew = build(:companies_crew, nationality: "Bruneian", foreign_worker_license_no: nil,
+                                  foreign_worker_license_start_date: nil, foreign_worker_license_end_date: nil)
+
+    assert_predicate crew, :valid?
+  end
+
+  test "requires foreign worker licence fields for a non-local citizen" do
+    Nationality.create!(code: "MY", name: "Malaysian", is_local_citizenship: false)
+    crew = build(:companies_crew, nationality: "Malaysian", foreign_worker_license_no: nil,
+                                  foreign_worker_license_start_date: nil, foreign_worker_license_end_date: nil)
+
+    assert_not crew.valid?
+    assert_includes crew.errors.attribute_names, :foreign_worker_license_no
+  end
+
   test "defaults to active status" do
     crew = create(:companies_crew)
 

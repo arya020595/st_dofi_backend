@@ -10,6 +10,7 @@ module CompaniesCrews
       ActiveRecord::Base.transaction do
         crew.request_amendment!(actor: actor, remarks: remarks)
         CompanyProfiles::SyncApprovalStatus.mark_pending!(crew.company_profile)
+        Notifications::ProfilingPublisher.call(event: :crew_amendment_required, resource: crew)
       end
 
       Success(crew)
