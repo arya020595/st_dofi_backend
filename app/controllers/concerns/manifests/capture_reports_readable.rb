@@ -9,7 +9,7 @@ module Manifests
 
     def index
       authorize CaptureReport
-      reports = policy_scope(CaptureReport).where(manifest: @manifest)
+      reports = policy_scope(CaptureReport).where(manifest: @manifest).includes(:manifest)
       render json: { status: "success", data: CaptureReportBlueprint.render_as_hash(reports) }
     end
 

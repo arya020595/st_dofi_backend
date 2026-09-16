@@ -91,17 +91,19 @@ module Api
         end
 
         test "create snapshots an approved support vessel when provided" do
-          support_vessel = create(:companies_vessel, :approved, company_profile: @company_profile)
+          support_vessels = create_list(:companies_vessel, 3, :approved, :support_vessel,
+                                        company_profile: @company_profile)
           params = { manifest: { companies_vessel_id: @vessel.id, has_support_vessel: true,
-                                 support_vessel_id: support_vessel.id } }
+                                 support_vessel_ids: support_vessels.map(&:id) } }
 
           post "/api/v1/fisherman/manifests", params: params, headers: @fisherman_headers, as: :json
 
           assert_response :created
           data = response.parsed_body["data"]
 
-          assert_equal [support_vessel.id, support_vessel.vessel_name, support_vessel.boat_number],
-                       data.values_at("support_vessel_id", "support_vessel_name", "support_vessel_no")
+          assert_equal(support_vessels.map(&:id).sort, data.fetch("support_vessels").pluck("companies_vessel_id").sort)
+          assert_equal(support_vessels.map(&:registration_no).sort,
+                       data.fetch("support_vessels").pluck("registration_no").sort)
         end
 
         test "create derives fisherman_category from registration_type, ignoring any client value" do
@@ -115,12 +117,12 @@ module Api
 
         test "update lets a fisherman add port-out tracking and snapshots an approved support vessel" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
-          support_vessel = create(:companies_vessel, :approved, company_profile: @company_profile)
+          support_vessel = create(:companies_vessel, :approved, :support_vessel, company_profile: @company_profile)
 
           patch "/api/v1/fisherman/manifests/#{manifest.id}",
                 params: { manifest: { ais_tracking: true,
                                       has_support_vessel: true,
-                                      support_vessel_id: support_vessel.id } },
+                                      support_vessel_ids: [support_vessel.id] } },
                 headers: @fisherman_headers, as: :json
 
           assert_response :ok

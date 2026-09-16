@@ -57,6 +57,22 @@ manifest1 = Manifest.find_or_create_by!(manifest_number: "DOF-SEED-0001") do |m|
   m.longitude = 115.05
 end
 
+support_vessels1 = commercial_profile.companies_vessels.approved.where(category: "support_vessel")
+                                     .where(boat_number: %w[BSB-1002 BSB-1004 BSB-1005]).order(:boat_number)
+if support_vessels1.any? && manifest1.manifest_support_vessels.none?
+  support_vessels1.each do |support_vessel|
+    manifest1.manifest_support_vessels.create!(companies_vessel: support_vessel,
+                                               vessel_name: support_vessel.vessel_name,
+                                               boat_number: support_vessel.boat_number,
+                                               registration_no: support_vessel.registration_no)
+  end
+  first_support_vessel = support_vessels1.first
+  manifest1.update!(has_support_vessel: true,
+                    support_vessel: first_support_vessel,
+                    support_vessel_name: first_support_vessel.vessel_name,
+                    support_vessel_no: first_support_vessel.boat_number)
+end
+
 if manifest1.crew_manifests.none?
   crew1 = commercial_profile.companies_crews.approved.find_by!(ic_number: "01-789012")
   manifest1.crew_manifests.create!(companies_crew: crew1, crew_name: crew1.crew_name, ic_number: crew1.ic_number,

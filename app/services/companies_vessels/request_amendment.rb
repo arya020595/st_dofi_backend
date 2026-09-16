@@ -10,6 +10,7 @@ module CompaniesVessels
       ActiveRecord::Base.transaction do
         vessel.request_amendment!(actor: actor, remarks: remarks)
         CompanyProfiles::SyncApprovalStatus.mark_pending!(vessel.company_profile)
+        Notifications::ProfilingPublisher.call(event: :vessel_amendment_required, resource: vessel)
       end
 
       Success(vessel)

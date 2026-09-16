@@ -10,7 +10,7 @@ class CompaniesCrew < ApplicationRecord
   validates :crew_name, :date_of_birth, :ic_number, :nationality, :gender, presence: true
   validates :position, presence: true
   validates :foreign_worker_license_no, :foreign_worker_license_start_date, :foreign_worker_license_end_date,
-            presence: true
+            presence: true, unless: :local_citizen?
   validates :status, inclusion: { in: STATUSES }
   validate :position_must_be_crew_category
 
@@ -30,6 +30,10 @@ class CompaniesCrew < ApplicationRecord
     return if position.nil? || position.category == "Crew"
 
     errors.add(:position, "must be a crew position")
+  end
+
+  def local_citizen?
+    Nationality.exists?(name: nationality, is_local_citizenship: true)
   end
 end
 

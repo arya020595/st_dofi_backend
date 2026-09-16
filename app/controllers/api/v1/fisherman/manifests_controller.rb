@@ -78,7 +78,7 @@ module Api
                                    :port_in_id, :port_in_datetime, :port_in_area,
                                    :zone_id, :zone_area, :longitude, :latitude, :has_minor_fishermen,
                                    :ais_tracking, :has_support_vessel, :support_vessel_id,
-                                   { crew_ids: [],
+                                   { support_vessel_ids: [], crew_ids: [],
                                      ad_hoc_crew: [%i[crew_name ic_number passport_number
                                                       position nationality date_of_birth]] }])
         end

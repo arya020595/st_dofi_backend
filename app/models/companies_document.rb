@@ -8,6 +8,7 @@ class CompaniesDocument < ApplicationRecord
     foreign_worker_license
     white_card
     fishing_gear_license
+    insurance_document
   ].freeze
 
   ALLOWED_CONTENT_TYPES = %w[application/pdf].freeze

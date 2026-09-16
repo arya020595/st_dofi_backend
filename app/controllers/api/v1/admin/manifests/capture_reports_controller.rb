@@ -9,7 +9,7 @@ module Api
 
           def index
             authorize CaptureReport, policy_class: CaptureReportVerificationPolicy
-            reports = capture_report_verification_scope.where(manifest: @manifest)
+            reports = capture_report_verification_scope.where(manifest: @manifest).includes(:manifest)
             render json: { status: "success", data: CaptureReportBlueprint.render_as_hash(reports) }
           end
 
