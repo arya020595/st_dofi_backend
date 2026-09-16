@@ -104,5 +104,14 @@ module Permission::Catalog
 
   def self.fetch(code) = BY_CODE.fetch(code)
   def self.include?(code) = BY_CODE.key?(code)
+
+  # The codes assignable to a role on the given platform — its own platform's codes, plus
+  # anything shared. Computed straight from ENTRIES rather than the persisted `permissions`
+  # table, so a stale platform_scope column on an existing row can never leak a code across
+  # platforms — this module is the sole source of truth, per CLAUDE.md.
+  def self.codes_for_platform(platform)
+    allowed_scopes = [platform.to_s, "shared"]
+    ENTRIES.select { |entry| allowed_scopes.include?(entry[:platform_scope]) }.pluck(:code)
+  end
 end
 # rubocop:enable Metrics/ModuleLength

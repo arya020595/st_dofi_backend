@@ -49,6 +49,13 @@ class PermissionTest < ActiveSupport::TestCase
     assert_nil permission.section_label
   end
 
+  test "assignable_to excludes a code even if its platform_scope column has drifted from the catalog" do
+    officer_only = create(:permission, code: "roles.create")
+    officer_only.update_column(:platform_scope, Permission::SHARED_PLATFORM) # rubocop:disable Rails/SkipsModelValidations
+
+    assert_not_includes Permission.assignable_to(Permission::FISHERMAN_PLATFORM), officer_only
+  end
+
   private
 
   def grouping(permission)

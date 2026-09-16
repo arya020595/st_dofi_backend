@@ -58,6 +58,21 @@ module Api
         assert_not_includes codes, fisherman_only.code
       end
 
+      test "index excludes a permission whose platform_scope column has drifted from the catalog" do
+        officer_only = create_permission("roles.create")
+        officer_only.update_column(:platform_scope, Permission::SHARED_PLATFORM) # rubocop:disable Rails/SkipsModelValidations
+        fisherman_role = create(:role, :fisherman, permissions: [@list_permission])
+        fisherman = create(:user, role: fisherman_role, ic_number: "01-880002", registration_type: "Commercial",
+                                  password: @password, password_confirmation: @password)
+
+        get "/api/v1/permissions", headers: auth_headers_for(fisherman, password: @password)
+
+        assert_response :ok
+        codes = response.parsed_body["data"].pluck("code")
+
+        assert_not_includes codes, officer_only.code
+      end
+
       test "index filters by code via ransack" do
         create(:permission, code: "manifest.view")
 
