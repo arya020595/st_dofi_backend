@@ -249,3 +249,7 @@ To extend this contract to a new `index` action:
 2. Call `apply_ransack_search(policy_scope(Model), default_sort: "...")` and pass the result into `pagy`.
 3. Define `ransackable_attributes` (and `ransackable_associations`, even if `[]`) on the model — Ransack
    raises an error if `ransackable_associations` isn't defined at all, even for attribute-only queries.
+
+If the filter needs business logic beyond a plain column predicate (value translation, a mandatory
+non-client-togglable scope, a cross-table condition), that's a Query object, not more controller code —
+see [`docs/architecture/thin-controllers-and-query-objects.md`](../architecture/thin-controllers-and-query-objects.md).

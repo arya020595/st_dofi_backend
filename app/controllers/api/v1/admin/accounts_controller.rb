@@ -45,25 +45,7 @@ module Api
         end
 
         def filtered_accounts
-          accounts = category.blank? ? account_scope : accounts_for_category
-          return accounts unless status_filter_present?
-
-          filter_by_status(accounts)
-        end
-
-        def accounts_for_category
-          return fisherman_accounts if category == "fisherman_account"
-
-          jetty_manager_accounts
-        end
-
-        def fisherman_accounts
-          account_scope.joins(:role)
-                       .where(roles: { platform_scope: Role::FISHERMAN_PLATFORM })
-        end
-
-        def jetty_manager_accounts
-          account_scope.joins(:role).where(roles: { kind: Role::JETTY_MANAGER })
+          ::Admin::AccountsQuery.call(scope: account_scope, category:, status_values:)
         end
 
         def category = params[:category]
@@ -72,33 +54,8 @@ module Api
           Array(params[:status]).flat_map { |value| value.to_s.split(",") }.compact_blank.uniq
         end
 
-        def status_filter_present? = status_values.any?
-
         def valid_filters?
           (category.blank? || CATEGORIES.include?(category)) && status_values.all? { |value| STATUSES.include?(value) }
-        end
-
-        def filter_by_status(accounts)
-          return accounts.where(fisherman_status: fisherman_lifecycle_statuses) if category == "fisherman_account"
-          return accounts.where(status: jetty_manager_lifecycle_statuses) if category == "jetty_manager_account"
-
-          accounts.where(
-            status_conditions,
-            Role::FISHERMAN_PLATFORM,
-            fisherman_lifecycle_statuses,
-            Role::JETTY_MANAGER,
-            jetty_manager_lifecycle_statuses
-          )
-        end
-
-        def fisherman_lifecycle_statuses
-          status_values.map { |value| value == "active" ? "active" : "suspended" }
-        end
-
-        def jetty_manager_lifecycle_statuses = status_values
-
-        def status_conditions
-          "(roles.platform_scope = ? AND users.fisherman_status IN (?)) OR (roles.kind = ? AND users.status IN (?))"
         end
 
         def render_invalid_filter

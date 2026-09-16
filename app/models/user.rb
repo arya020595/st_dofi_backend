@@ -16,6 +16,7 @@ class User < ApplicationRecord
 
   include AASM
   include User::FishermanLifecycle
+  include User::EntityUserCounting
 
   audited only: %i[
     name ic_number normalized_ic_number status fisherman_status provisioning_source claimed_at

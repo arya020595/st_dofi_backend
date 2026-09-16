@@ -8,27 +8,49 @@ module Api
 
         def index
           authorize DictionaryGroup
-          render_collection(policy_scope(DictionaryGroup), default_sort: "created_at desc")
+          result = apply_ransack_search(policy_scope(DictionaryGroup), default_sort: "created_at desc")
+          pagy, records = pagy(:offset, result)
+          render json: { status: "success", data: DictionaryGroupBlueprint.render_as_hash(records),
+                         meta: pagination_meta(pagy) }
         end
 
         def show
           authorize @dictionary_group
-          render_resource(@dictionary_group)
+          render json: { status: "success", data: DictionaryGroupBlueprint.render_as_hash(@dictionary_group) }
         end
 
         def create
           authorize DictionaryGroup
-          create_resource(DictionaryGroup.new(dictionary_group_params))
+
+          @dictionary_group = DictionaryGroup.new(dictionary_group_params)
+          if @dictionary_group.save
+            render json: { status: "success", data: DictionaryGroupBlueprint.render_as_hash(@dictionary_group) },
+                   status: :created
+          else
+            render json: { status: "fail", errors: @dictionary_group.errors.full_messages },
+                   status: :unprocessable_content
+          end
         end
 
         def update
           authorize @dictionary_group
-          update_resource(@dictionary_group)
+
+          if @dictionary_group.update(dictionary_group_params)
+            render json: { status: "success", data: DictionaryGroupBlueprint.render_as_hash(@dictionary_group) }
+          else
+            render json: { status: "fail", errors: @dictionary_group.errors.full_messages },
+                   status: :unprocessable_content
+          end
         end
 
         def destroy
           authorize @dictionary_group
-          destroy_resource(@dictionary_group, "Dictionary group removed.")
+          if @dictionary_group.destroy
+            render json: { status: "success", message: "Dictionary group removed." }
+          else
+            render json: { status: "fail", errors: @dictionary_group.errors.full_messages },
+                   status: :unprocessable_content
+          end
         end
 
         private
@@ -39,35 +61,6 @@ module Api
 
         def dictionary_group_params
           params.expect(dictionary_group: [:name])
-        end
-
-        def render_collection(scope, default_sort:)
-          result = apply_ransack_search(scope, default_sort:)
-          pagy, records = pagy(:offset, result)
-          render json: { status: "success", data: DictionaryGroupBlueprint.render_as_hash(records),
-                         meta: pagination_meta(pagy) }
-        end
-
-        def render_resource(resource, status: :ok)
-          render json: { status: "success", data: DictionaryGroupBlueprint.render_as_hash(resource) }, status:
-        end
-
-        def create_resource(resource)
-          return render_resource(resource, status: :created) if resource.save
-
-          render json: { status: "fail", errors: resource.errors.full_messages }, status: :unprocessable_content
-        end
-
-        def update_resource(resource)
-          return render_resource(resource) if resource.update(dictionary_group_params)
-
-          render json: { status: "fail", errors: resource.errors.full_messages }, status: :unprocessable_content
-        end
-
-        def destroy_resource(resource, message)
-          return render json: { status: "success", message: } if resource.destroy
-
-          render json: { status: "fail", errors: resource.errors.full_messages }, status: :unprocessable_content
         end
       end
     end

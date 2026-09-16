@@ -14,12 +14,15 @@ module Api
             @company_users = create_company_users(@commercial_profile)
           end
 
-          test "index filters by profiling type and includes kept user count" do
+          test "index filters by registration type via ransack and includes kept user count" do
             get "/api/v1/admin/entity_users/company_profiles",
-                params: { registration_type: "Commercial,Small-Scale (Company)" }, headers: @headers
+                params: { q: { registration_type_in: ["Commercial"] } }, headers: @headers
 
             assert_response :ok
-            assert_equal @company_users.count, response.parsed_body.fetch("data").first.fetch("user_count")
+            data = response.parsed_body.fetch("data")
+
+            assert_equal [@commercial_profile.id], data.pluck("id")
+            assert_equal @company_users.count, data.first.fetch("user_count")
           end
 
           test "users returns only the selected company profile users" do

@@ -71,6 +71,7 @@ end
 #  discarded_at         :datetime
 #  district             :string
 #  dofi_registration_no :string
+#  entity_user_count    :integer          default(0), not null
 #  fisherman_card_no    :string
 #  full_address         :string
 #  full_name            :string

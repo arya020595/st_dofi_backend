@@ -13,12 +13,11 @@ module Api
             @commercial_profile = create(:company_profile, registration_type: "Commercial")
           end
 
-          test "index returns individual fisherman users directly" do
+          test "index returns only individual fisherman users, excluding commercial ones" do
             fisherman = create_fisherman(@full_time_profile, "Small - Scale (Full-Time)")
             create_fisherman(@commercial_profile, "Commercial")
 
-            get "/api/v1/admin/entity_users/individual_fishermen",
-                params: { registration_type: "Small - Scale (Full-Time),Small - Scale (Part-Time)" }, headers: @headers
+            get "/api/v1/admin/entity_users/individual_fishermen", headers: @headers
 
             assert_response :ok
             data = response.parsed_body.fetch("data")
