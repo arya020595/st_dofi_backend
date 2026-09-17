@@ -106,9 +106,11 @@ module Api
           end
 
           assert_response :created
-          assert_equal [@company_profile.id, "inactive", "inactive"],
-                       [User.last.company_profile_id, User.last.status,
-                        response.parsed_body.dig("data", "status")]
+          assert_equal [@company_profile.id, "inactive", "inactive", User.last.normalized_ic_number, false, false],
+                       [User.last.company_profile_id, User.last.status, response.parsed_body.dig("data", "status"),
+                        response.parsed_body.dig("data", "normalized_ic_number"),
+                        response.parsed_body.dig("data", "role").key?("permissions"),
+                        response.parsed_body["data"].key?("company_profile")]
         end
 
         test "create rejects a role_id belonging to another company" do

@@ -61,7 +61,7 @@ module Api
         end
 
         def fisherman_user_scope
-          policy_scope(User, policy_scope_class: FishermanUserPolicy::Scope)
+          policy_scope(User, policy_scope_class: FishermanUserPolicy::Scope).includes(:role)
         end
 
         def assignable_roles = Role.assignable_by_fisherman(current_user.company_profile_id)
