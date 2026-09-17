@@ -50,9 +50,12 @@ CRUD-response helpers flattened back to the canonical shape).
 - Every controller with a searchable `index` already includes `RansackSearchable` — use it
   (`q[field_in][]=...`, `q[field_eq]=...`, see
   [`docs/api/search-filter-sort-pagination.md`](docs/api/search-filter-sort-pagination.md)) instead of
-  hand-rolling filter-param parsing for a plain column predicate. Only write custom filtering logic
-  when there's real business logic Ransack can't express — a value translation, a mandatory scope
-  that must not be a client-togglable filter, a cross-table condition — and even then put it in a
+  hand-rolling filter-param parsing for a plain column predicate. If the value needs translating or
+  computing (a cross-column condition, a public vocabulary that maps to different stored values), that's
+  a Ransack `ransacker` on the model (see `User#account_category`/`account_status` in
+  `app/models/concerns/user/admin_account_filtering.rb`) — still zero controller code. Only reach for a
+  Query object when the thing you need isn't optional per-request at all: a mandatory scope that must
+  not be a client-togglable filter (`EntityUsers::IndividualFishermenQuery`) — and even then put it in a
   Query object, not the controller.
 - Non-trivial SQL/ActiveRecord construction (correlated subqueries, multi-branch scoping, cross-table
   joins with business-specific translation) belongs in a `app/queries/**/*Query` object:

@@ -4,16 +4,11 @@ module Api
       class AccountsController < ApplicationController
         include RansackSearchable
 
-        CATEGORIES = %w[fisherman_account jetty_manager_account].freeze
-        STATUSES = %w[active inactive].freeze
-
         before_action :set_account, only: %i[show deactivate reactivate]
 
         def index
           authorize User, policy_class: AdminAccountPolicy
-          return render_invalid_filter unless valid_filters?
-
-          result = apply_ransack_search(filtered_accounts, default_sort: "created_at desc")
+          result = apply_ransack_search(account_scope, default_sort: "created_at desc")
           pagy, records = pagy(:offset, result)
           render json: { status: "success", data: AdminAccountBlueprint.render_as_hash(records),
                          meta: pagination_meta(pagy) }
@@ -52,26 +47,6 @@ module Api
 
         def account_scope
           policy_scope(User, policy_scope_class: AdminAccountPolicy::Scope)
-        end
-
-        def filtered_accounts
-          ::Admin::AccountsQuery.call(scope: account_scope, category:, status_values:)
-        end
-
-        def category = params[:category]
-
-        def status_values
-          Array(params[:status]).flat_map { |value| value.to_s.split(",") }.compact_blank.uniq
-        end
-
-        def valid_filters?
-          (category.blank? || CATEGORIES.include?(category)) && status_values.all? { |value| STATUSES.include?(value) }
-        end
-
-        def render_invalid_filter
-          errors = ["Category must be fisherman_account or jetty_manager_account; status must be active or inactive"]
-          render json: { status: "fail", errors: },
-                 status: :unprocessable_content
         end
 
         def deactivate_account

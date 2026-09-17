@@ -14,14 +14,16 @@ module Api
         end
 
         test "index filters fisherman accounts by category" do
-          get "/api/v1/admin/accounts", params: { category: "fisherman_account" }, headers: @headers
+          get "/api/v1/admin/accounts", params: { q: { account_category_eq: "fisherman_account" } },
+                                        headers: @headers
 
           assert_response :ok
           assert_equal [@fisherman.id], account_ids
         end
 
         test "index filters jetty manager accounts by category" do
-          get "/api/v1/admin/accounts", params: { category: "jetty_manager_account" }, headers: @headers
+          get "/api/v1/admin/accounts", params: { q: { account_category_eq: "jetty_manager_account" } },
+                                        headers: @headers
 
           assert_response :ok
           assert_equal [@jetty_manager.id], account_ids
@@ -30,7 +32,9 @@ module Api
         test "index filters the category by active lifecycle status" do
           @fisherman.update!(fisherman_status: "active", claimed_at: Time.current, brunei_id_verified_at: Time.current)
 
-          get "/api/v1/admin/accounts", params: { category: "fisherman_account", status: "active" }, headers: @headers
+          get "/api/v1/admin/accounts",
+              params: { q: { account_category_eq: "fisherman_account", account_status_eq: "active" } },
+              headers: @headers
 
           assert_response :ok
           assert_equal [@fisherman.id], account_ids
@@ -40,10 +44,19 @@ module Api
           @fisherman.update!(fisherman_status: "active", claimed_at: Time.current, brunei_id_verified_at: Time.current)
           @jetty_manager.update!(status: "inactive")
 
-          get "/api/v1/admin/accounts", params: { status: "active,inactive" }, headers: @headers
+          get "/api/v1/admin/accounts", params: { q: { account_status_in: %w[active inactive] } }, headers: @headers
 
           assert_response :ok
           assert_equal [@fisherman.id, @jetty_manager.id].sort, account_ids.sort
+        end
+
+        test "index excludes pending/claimable/revoked fishermen from both status values" do
+          @fisherman.update!(fisherman_status: "pending_approval")
+
+          get "/api/v1/admin/accounts", params: { q: { account_status_in: %w[active inactive] } }, headers: @headers
+
+          assert_response :ok
+          assert_not_includes account_ids, @fisherman.id
         end
 
         test "show returns the account category and lifecycle status" do
