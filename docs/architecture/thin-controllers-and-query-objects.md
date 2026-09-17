@@ -32,7 +32,8 @@ flowchart TD
 
     A --> E{"index/search action?"}
     E -->|"Plain column filter"| F["RansackSearchable + q[field_predicate]<br/>no controller code needed"]
-    E -->|"Business logic Ransack can't express<br/>(value translation, mandatory scope,<br/>cross-table join)"| G["Query object (app/queries)<br/>self.call(scope:, ...)"]
+    E -->|"Needs translation/computing,<br/>but still opt-in per request"| K["ransacker on the model<br/>(app/models/**.rb)"]
+    E -->|"Mandatory scope that isn't<br/>client-toggleable"| G["Query object (app/queries)<br/>self.call(scope:, ...)"]
 
     A --> H{"Per-row aggregate needed<br/>alongside pagination?"}
     H -->|"1-2 mutation sites"| I["Persisted column +<br/>explicit sync service call<br/>at each mutation site"]
@@ -53,7 +54,7 @@ intentional — three similar `render json:` blocks are more legible and more gr
 indirection layer invented to save them, and per-controller helper methods are exactly what caused the
 two sibling controllers above to drift into incompatible shapes in the first place.
 
-## 4. Ransack first, Query object only for real business logic
+## 4. Ransack first — including for computed/translated fields — Query object only for what's left
 
 Every controller with a searchable `index` already includes `RansackSearchable`
 (`app/controllers/concerns/ransack_searchable.rb`) and calls `apply_ransack_search(scope,
@@ -62,24 +63,33 @@ default_sort:)`. If the field you need to filter on is already (or can be) liste
 controller code. See [`docs/api/search-filter-sort-pagination.md`](../api/search-filter-sort-pagination.md)
 for the full frontend contract.
 
-Write a Query object only when there's real business logic a plain Ransack predicate can't express:
+**Before reaching for a Query object, check whether a Ransack `ransacker` covers it.** A `ransacker`
+declares a computed/virtual filterable field backed by an arbitrary SQL expression, whitelisted in
+`ransackable_attributes` exactly like a real column — this is the standard tool for "the public filter
+value needs translating before it hits the database," and it's easy to miss (an earlier version of this
+doc used a hand-rolled `Admin::AccountsQuery` for exactly this, before realizing `ransacker` already
+solved it). `User`'s `account_category`/`account_status` ransackers
+(`app/models/concerns/user/admin_account_filtering.rb`) are the worked example: an admin account's
+"category" depends on `role.kind`/`role.platform_scope` (Jetty Manager and DoFi Officer even share
+`platform_scope`, so `kind` has to be checked first), and its public "active"/"inactive" status maps to
+*different* columns with *different* stored values depending on that category
+(`fisherman_status: "active"/"suspended"` vs `status: "active"/"inactive"` directly). Both collapse to a
+`CASE` expression in a `ransacker` block, and `accounts_controller.rb#index` needs zero filtering code
+at all — `apply_ransack_search(account_scope, ...)`, full stop.
 
-- **A mandatory scope that isn't a client-toggleable filter.** `EntityUsers::IndividualFishermenQuery`
-  (`app/queries/entity_users/individual_fishermen_query.rb`) always constrains to individual
-  registration types — that's what defines the endpoint, not something the client opts into.
-- **Cross-column value translation.** `Admin::AccountsQuery`
-  (`app/queries/admin/accounts_query.rb`) filters by a public "active"/"inactive" vocabulary that maps
-  to *different* columns with *different* values depending on account category
-  (`fisherman_status: "active"/"suspended"` vs `status: "active"/"inactive"`) — no single Ransack
-  predicate can express that.
+Reach for an actual Query object only when the thing you need **isn't optional per-request** — a
+`ransacker` is still something the client opts into via `q[...]`; it can't express a scope that must
+always apply regardless of what the client sends. `EntityUsers::IndividualFishermenQuery`
+(`app/queries/entity_users/individual_fishermen_query.rb`) is the remaining real example: it always
+constrains to individual registration types — that's what defines the endpoint, not something the
+client toggles.
 
-Query object convention: `self.call(scope:, ...)` with keyword arguments, `private_class_method` for
-internal steps, returns an ActiveRecord relation (or a plain Hash when the caller needs a finished
-aggregate, not a further-composable relation — see `app/queries/fisherman/dashboard/summary_query.rb`
-for that shape). No authorization, no response formatting, no side effects. Prefer Rails' own relation
-combinators (`#or`, `#merge`) over a raw SQL string with positional `?` binds when the same result is
-reachable with plain `.where` hashes — `Admin::AccountsQuery`'s "no category given" branch is
-`fisherman_scope(...).or(jetty_manager_scope(...))`, not a hand-built `OR` string.
+Query object convention (when you do need one): `self.call(scope:, ...)` with keyword arguments,
+`private_class_method` for internal steps, returns an ActiveRecord relation (or a plain Hash when the
+caller needs a finished aggregate, not a further-composable relation — see
+`app/queries/fisherman/dashboard/summary_query.rb` for that shape). No authorization, no response
+formatting, no side effects. Prefer Rails' own relation combinators (`#or`, `#merge`) over a raw SQL
+string with positional `?` binds when the same result is reachable with plain `.where` hashes.
 
 ## 5. Persisted aggregates: model callback vs explicit service call
 

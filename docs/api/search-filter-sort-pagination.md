@@ -14,6 +14,7 @@ pagination. It currently covers:
 | `GET /api/v1/admin/master_data/nationalities` | Yes | Yes (JWT) | `nationalities.list` |
 | `GET /api/v1/admin/master_data/positions` | Yes | Yes (JWT) | `positions.list` |
 | `GET /api/v1/admin/master_data/reasons` | Yes | Yes (JWT) | `skip_reasons.list` |
+| `GET /api/v1/admin/accounts` | Yes | Yes (JWT) | `admin_accounts.list` |
 
 Send the JWT the same way as every other endpoint: `Authorization: Bearer <token>`.
 
@@ -208,6 +209,34 @@ Filterable/sortable fields: `id`, `name`, `discarded_at`, `created_at`, `updated
 Default sort: `created_at desc`
 
 Soft-deleted via Discard — `DELETE` sets `discarded_at` rather than removing the record.
+
+### Accounts — `GET /api/v1/admin/accounts`
+
+Filterable/sortable fields: `id`, `name`, `email`, `ic_number`, `status`, `fisherman_status`,
+`registration_type`, `discarded_at`, `created_at`, `updated_at`, plus two computed fields —
+`account_category` and `account_status` — that unify what would otherwise be several
+category-dependent columns into one filterable value:
+
+- `account_category` — `fisherman_account` or `jetty_manager_account`.
+- `account_status` — `active` or `inactive`, regardless of category (internally this reads
+  `fisherman_status` for fisherman accounts and `status` for Jetty Manager accounts, translating
+  fisherman's stored `"suspended"` to the public `"inactive"`; fishermen in
+  `pending_approval`/`claimable`/`revoked` — governed via `/api/v1/admin/approvals/fishermen` instead —
+  never match either value here).
+
+Default sort: `created_at desc`
+
+Example — active fisherman accounts:
+
+```
+GET /api/v1/admin/accounts?q[account_category_eq]=fisherman_account&q[account_status_eq]=active
+```
+
+Example — every account (either category) that's currently inactive:
+
+```
+GET /api/v1/admin/accounts?q[account_status_eq]=inactive
+```
 
 ---
 
