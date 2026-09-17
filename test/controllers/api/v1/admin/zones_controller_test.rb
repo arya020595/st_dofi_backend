@@ -45,11 +45,30 @@ module Api
           assert_equal "Renamed Zone", @zone.reload.name
         end
 
-        test "destroy removes the zone" do
+        test "destroy discards the zone" do
           delete "/api/v1/admin/master_data/zones/#{@zone.id}", headers: @headers
 
           assert_response :ok
-          assert_not Zone.exists?(@zone.id)
+          assert_predicate @zone.reload, :discarded?
+          assert_not Zone.kept.exists?(@zone.id)
+        end
+
+        test "index excludes discarded zones" do
+          @zone.discard
+
+          get "/api/v1/admin/master_data/zones", headers: @headers
+
+          assert_response :ok
+          assert_not_includes response.parsed_body["data"].pluck("id"), @zone.id
+        end
+
+        test "show still resolves a discarded zone" do
+          @zone.discard
+
+          get "/api/v1/admin/master_data/zones/#{@zone.id}", headers: @headers
+
+          assert_response :ok
+          assert_equal @zone.id, response.parsed_body["data"]["id"]
         end
       end
     end

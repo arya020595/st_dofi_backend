@@ -31,7 +31,7 @@ module Api
           set_port
           authorize @port
 
-          if @port.destroy
+          if @port.discard
             render json: { status: "success", message: "Port removed." }
           else
             render json: { status: "fail", errors: @port.errors.full_messages }, status: :unprocessable_content

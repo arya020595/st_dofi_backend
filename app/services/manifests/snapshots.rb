@@ -19,5 +19,9 @@ module Manifests
     def self.port_name(port_id)
       Port.find_by(id: port_id)&.port_name
     end
+
+    def self.zone_name(zone_id)
+      Zone.find_by(id: zone_id)&.name
+    end
   end
 end

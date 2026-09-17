@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_16_110000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_17_120001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -449,6 +449,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_16_110000) do
     t.string "vessel_boat_no"
     t.string "zone_area"
     t.uuid "zone_id"
+    t.string "zone_name"
     t.index ["captain_crew_id"], name: "index_manifests_on_captain_crew_id"
     t.index ["capture_report_skipped"], name: "index_manifests_on_capture_report_skipped"
     t.index ["companies_vessel_id"], name: "index_manifests_on_companies_vessel_id"
@@ -519,10 +520,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_16_110000) do
 
   create_table "ports", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.datetime "discarded_at"
     t.decimal "latitude", precision: 10, scale: 8
     t.decimal "longitude", precision: 11, scale: 8
     t.string "port_name", null: false
     t.datetime "updated_at", null: false
+    t.index ["discarded_at"], name: "index_ports_on_discarded_at"
     t.index ["port_name"], name: "index_ports_on_port_name"
   end
 
@@ -618,10 +621,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_16_110000) do
 
   create_table "zones", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.datetime "discarded_at"
     t.integer "end_range"
     t.string "name", null: false
     t.integer "start_range"
     t.datetime "updated_at", null: false
+    t.index ["discarded_at"], name: "index_zones_on_discarded_at"
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"

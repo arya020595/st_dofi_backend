@@ -48,6 +48,7 @@ end
 #  vessel_boat_name                 :string
 #  vessel_boat_no                   :string
 #  zone_area                        :string
+#  zone_name                        :string
 #  created_at                       :datetime         not null
 #  updated_at                       :datetime         not null
 #  captain_crew_id                  :uuid

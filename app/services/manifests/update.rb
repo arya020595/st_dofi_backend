@@ -54,6 +54,7 @@ module Manifests
       update_attributes = attributes.except(:crew_ids, :ad_hoc_crew, :support_vessel_id, :support_vessel_ids,
                                             :has_support_vessel)
       update_port_snapshot!(update_attributes)
+      update_zone_snapshot!(update_attributes)
       update_company_scoped_snapshots!(manifest, update_attributes, company_profile) if company_profile
       update_attributes
     end
@@ -66,6 +67,10 @@ module Manifests
     def update_port_snapshot!(attributes)
       attributes[:port_out_name] = Snapshots.port_name(attributes[:port_out_id]) if attributes.key?(:port_out_id)
       attributes[:port_in_name] = Snapshots.port_name(attributes[:port_in_id]) if attributes.key?(:port_in_id)
+    end
+
+    def update_zone_snapshot!(attributes)
+      attributes[:zone_name] = Snapshots.zone_name(attributes[:zone_id]) if attributes.key?(:zone_id)
     end
 
     def update_vessel_snapshot!(manifest, attributes, company_profile)

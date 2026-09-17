@@ -47,11 +47,16 @@ module Manifests
       captain = find_captain(company_profile, attributes[:captain_crew_id])
       Snapshots.vessel(vessel).merge(Snapshots.captain(captain))
                .merge(port_snapshot(attributes))
+               .merge(zone_snapshot(attributes))
     end
 
     def port_snapshot(attributes)
       { port_out_name: Snapshots.port_name(attributes[:port_out_id]),
         port_in_name: Snapshots.port_name(attributes[:port_in_id]) }
+    end
+
+    def zone_snapshot(attributes)
+      { zone_name: Snapshots.zone_name(attributes[:zone_id]) }
     end
 
     def sanitized_attributes(attributes)

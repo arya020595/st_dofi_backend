@@ -31,7 +31,7 @@ module Api
           set_zone
           authorize @zone
 
-          if @zone.destroy
+          if @zone.discard
             render json: { status: "success", message: "Zone removed." }
           else
             render json: { status: "fail", errors: @zone.errors.full_messages }, status: :unprocessable_content
