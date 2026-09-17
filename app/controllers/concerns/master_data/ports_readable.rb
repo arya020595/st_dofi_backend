@@ -8,14 +8,14 @@ module MasterData
     end
 
     def index
-      authorize Port
-      result = apply_ransack_search(policy_scope(Port), default_sort: ports_default_sort)
+      authorize Port if reference_data_permission_required?
+      result = apply_ransack_search(reference_data_scope(Port), default_sort: ports_default_sort)
       pagy, records = pagy(:offset, result)
       render json: { status: "success", data: PortBlueprint.render_as_hash(records), meta: pagination_meta(pagy) }
     end
 
     def show
-      authorize @port
+      authorize @port if reference_data_permission_required?
       render json: { status: "success", data: PortBlueprint.render_as_hash(@port) }
     end
 
@@ -24,6 +24,14 @@ module MasterData
     def set_port
       @port = Port.find(params.expect(:id))
     end
+
+    def reference_data_scope(model)
+      return model.all unless reference_data_permission_required?
+
+      policy_scope(model)
+    end
+
+    def reference_data_permission_required? = true
 
     # Admin's master-data screen wants newest-added first; Fisherman's picker (selecting a port
     # when building a manifest) wants alphabetical — overridden in Fisherman::PortsController.

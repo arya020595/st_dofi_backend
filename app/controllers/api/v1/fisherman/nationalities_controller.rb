@@ -3,6 +3,7 @@ module Api
     module Fisherman
       class NationalitiesController < ApplicationController
         include ::MasterData::NationalitiesReadable
+        include FishermanReferenceDataAccess
       end
     end
   end

@@ -5,8 +5,7 @@ module Api
         include RansackSearchable
 
         def index
-          authorize DictionaryFamily
-          result = apply_ransack_search(policy_scope(DictionaryFamily).includes(:dictionary_group),
+          result = apply_ransack_search(DictionaryFamily.includes(:dictionary_group),
                                         default_sort: "name asc")
           pagy, records = pagy(:offset, result)
           render json: { status: "success", data: DictionaryFamilyBlueprint.render_as_hash(records),

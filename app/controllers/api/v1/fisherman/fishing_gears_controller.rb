@@ -3,6 +3,7 @@ module Api
     module Fisherman
       class FishingGearsController < ApplicationController
         include ::MasterData::FishingGearsReadable
+        include FishermanReferenceDataAccess
       end
     end
   end

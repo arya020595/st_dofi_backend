@@ -3,6 +3,7 @@ module Api
     module Fisherman
       class PortsController < ApplicationController
         include ::MasterData::PortsReadable
+        include FishermanReferenceDataAccess
 
         private
 

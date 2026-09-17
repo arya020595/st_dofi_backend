@@ -3,6 +3,7 @@ module Api
     module Fisherman
       class ReasonsController < ApplicationController
         include ::MasterData::ReasonsReadable
+        include FishermanReferenceDataAccess
       end
     end
   end

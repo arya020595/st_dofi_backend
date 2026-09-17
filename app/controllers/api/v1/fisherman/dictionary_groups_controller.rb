@@ -5,8 +5,7 @@ module Api
         include RansackSearchable
 
         def index
-          authorize DictionaryGroup
-          result = apply_ransack_search(policy_scope(DictionaryGroup), default_sort: "name asc")
+          result = apply_ransack_search(DictionaryGroup.all, default_sort: "name asc")
           pagy, records = pagy(:offset, result)
           render json: { status: "success", data: DictionaryGroupBlueprint.render_as_hash(records),
                          meta: pagination_meta(pagy) }
