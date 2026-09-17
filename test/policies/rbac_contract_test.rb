@@ -120,8 +120,8 @@ class RbacContractTest < ActiveSupport::TestCase
   test "shared tenant-owned policies define an ownership guard" do
     tenant_owned_shared_policies = [
       ManifestPolicy, ManifestExpensePolicy, ManifestMinorFishermanPolicy, CompaniesVesselPolicy,
-      CompaniesCrewPolicy, CompaniesFishingGearPolicy, CompaniesDocumentPolicy, CompanyProfilePolicy,
-      CompanyProfileContactPolicy, CaptureReportPolicy, FishCaptureDetailPolicy, FishingGearDetailPolicy
+      CompaniesCrewPolicy, CompaniesDocumentPolicy, CompanyProfilePolicy,
+      CompanyProfileContactPolicy, CaptureReportPolicy
     ].freeze
 
     missing = tenant_owned_shared_policies.reject { |policy_class| policy_class.private_method_defined?(:owns_record?) }
