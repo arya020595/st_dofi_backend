@@ -26,12 +26,22 @@ module Api
 
         def deactivate
           authorize @account, policy_class: AdminAccountPolicy
-          render_result(deactivate_account)
+          case deactivate_account
+          in Success(user)
+            render json: { status: "success", data: AdminAccountBlueprint.render_as_hash(user) }
+          in Failure(reason)
+            render json: { status: "fail", errors: [reason.to_s.humanize] }, status: :unprocessable_content
+          end
         end
 
         def reactivate
           authorize @account, policy_class: AdminAccountPolicy
-          render_result(reactivate_account)
+          case reactivate_account
+          in Success(user)
+            render json: { status: "success", data: AdminAccountBlueprint.render_as_hash(user) }
+          in Failure(reason)
+            render json: { status: "fail", errors: [reason.to_s.humanize] }, status: :unprocessable_content
+          end
         end
 
         private
@@ -77,15 +87,6 @@ module Api
             ::Fisherman::ReactivateUser.call(user: @account, actor: current_user, reason: params[:reason])
           else
             Users::ReactivateRegistration.call(user: @account, actor: current_user, reason: params[:reason])
-          end
-        end
-
-        def render_result(result)
-          case result
-          in Success(user)
-            render json: { status: "success", data: AdminAccountBlueprint.render_as_hash(user) }
-          in Failure(reason)
-            render json: { status: "fail", errors: [reason.to_s.humanize] }, status: :unprocessable_content
           end
         end
       end
