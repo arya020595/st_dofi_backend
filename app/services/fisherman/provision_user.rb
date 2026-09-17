@@ -5,11 +5,14 @@ module Fisherman
 
     DOFI_COMPANY_PROFILE = "dofi_company_profile".freeze
     FISHERMAN_OWNER = "fisherman_owner".freeze
+    ACCOUNT_STATUSES = %w[active inactive].freeze
 
     def self.call(...) = new.call(...)
 
     def call(**attributes)
       @request = ProvisioningRequest.new(attributes)
+      return Failure(:invalid_status) unless ACCOUNT_STATUSES.include?(request.status)
+
       context_result = ProvisioningContext.call(request)
       return context_result if context_result.failure?
 
@@ -76,6 +79,7 @@ module Fisherman
         company_profile: request.company_profile,
         company_profile_contact: context.company_profile_contact,
         role: context.role,
+        status: request.status,
         fisherman_status: context.fisherman_status,
         provisioning_source: request.provisioning_source,
         created_by: request.created_by
