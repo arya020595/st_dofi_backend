@@ -75,7 +75,7 @@ class ExpandCanonicalPermissionsTest < ActiveSupport::TestCase
 
     run_migration
 
-    assert_equal ["View", "fisherman", "manifests", "manifest", 2, 1],
+    assert_equal ["View", "shared", "manifests", "manifest", 2, 1],
                  permission.reload.attributes.values_at(
                    "name", "platform_scope", "resource", "section", "section_order", "resource_order"
                  )
