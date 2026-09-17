@@ -22,6 +22,16 @@ module Api
         assert_equal [own_company.id], response.parsed_body["data"].pluck("id")
       end
 
+      test "fisherman can view their own company profile without company profile permission" do
+        company_profile = create(:company_profile)
+        headers = fisherman_headers_without_profile_permission(company_profile)
+
+        get "/api/v1/fisherman/company_profiles/#{company_profile.id}", headers: headers
+
+        assert_equal [200, company_profile.id],
+                     [response.status, response.parsed_body.dig("data", "id")]
+      end
+
       private
 
       def viewer_headers_for(company_profile)
@@ -33,6 +43,15 @@ module Api
                                ic_number: SecureRandom.hex(5), registration_type: "Commercial",
                                password: @password, password_confirmation: @password)
         auth_headers_for(viewer, password: @password)
+      end
+
+      def fisherman_headers_without_profile_permission(company_profile)
+        role = create(:role, :fisherman, company_profile: company_profile)
+        fisherman = create(:user, role: role, company_profile: company_profile,
+                                  ic_number: SecureRandom.hex(5), registration_type: "Commercial",
+                                  password: @password, password_confirmation: @password)
+
+        auth_headers_for(fisherman, password: @password)
       end
     end
   end

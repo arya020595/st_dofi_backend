@@ -14,7 +14,7 @@ module Api
       end
 
       def show
-        authorize @company_profile
+        authorize @company_profile unless params[:audience] == "fisherman"
         render json: { status: "success", data: CompanyProfileDetailBlueprint.render_as_hash(@company_profile) }
       end
 
