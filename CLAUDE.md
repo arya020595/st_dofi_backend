@@ -2,6 +2,10 @@
 
 Guidance for Claude Code (and other contributors) when working in this repository.
 
+> **This is the authoritative copy.** [`AGENTS.md`](AGENTS.md) is a full, synced mirror for agents
+> that look for that filename instead (Codex and most other tools). **If you edit the rules below,
+> edit `AGENTS.md` to match in the same change** — don't let them drift.
+
 ## Project
 
 DoFi Backend — the FINS Capture Fisheries module API. API-only Rails 8.1.3 app (no views/assets) backing vessels, crews, manifests, capture reports, and related reference data for fisheries reporting.
@@ -20,6 +24,65 @@ Controllers, models, and business logic each have one job. Don't let logic leak 
 - **Queries** (`app/queries`, create as needed) — read-only SQL/ActiveRecord construction. A `*Query` exposes `self.call(...)`; it contains no authorization, business rules, response formatting, or side effects.
 - **Models** (`app/models`) — associations, validations, scopes, and persistence concerns only. If a method coordinates multiple models or external calls, it belongs in a service, not the model.
 - **Blueprints** (`app/blueprints`, create as needed) — response shaping only, via Blueprinter. Don't compute business values inline in a blueprint field that aren't simple presentation logic.
+
+## Mandatory controller/query shape contract
+
+These are repository invariants, not preferences — reviewers should reject a PR that violates them
+rather than let a new one-off style in. See
+[`docs/architecture/thin-controllers-and-query-objects.md`](docs/architecture/thin-controllers-and-query-objects.md)
+for the full worked example (a real cleanup: raw SQL pulled out of a controller, a param-parsing idiom
+duplicated across three controllers collapsed, two sibling controllers' incompatible bespoke
+CRUD-response helpers flattened back to the canonical shape).
+
+- A controller action is exactly: `authorize` → one call (a service, a Query object, or
+  `policy_scope`/Ransack directly) → an inline `render`. Never wrap the render in a private
+  `render_resource`/`create_resource`/`persist`-style helper "to DRY it up" — write each action's
+  render out, even when it's nearly identical to a sibling action's. Three similar `render json:`
+  blocks beat one indirection layer invented for this one controller. `dictionaries_controller.rb` is
+  the canonical shape.
+- Every controller with a searchable `index` already includes `RansackSearchable` — use it
+  (`q[field_in][]=...`, `q[field_eq]=...`, see
+  [`docs/api/search-filter-sort-pagination.md`](docs/api/search-filter-sort-pagination.md)) instead of
+  hand-rolling filter-param parsing for a plain column predicate. If the value needs translating or
+  computing (a cross-column condition, a public vocabulary that maps to different stored values), that's
+  a Ransack `ransacker` on the model (see `User#account_category`/`account_status` in
+  `app/models/concerns/user/admin_account_filtering.rb`) — still zero controller code. Only reach for a
+  Query object when the thing you need isn't optional per-request at all: a mandatory scope that must
+  not be a client-togglable filter (`EntityUsers::IndividualFishermenQuery`) — and even then put it in a
+  Query object, not the controller.
+- Non-trivial SQL/ActiveRecord construction (correlated subqueries, multi-branch scoping, cross-table
+  joins with business-specific translation) belongs in a `app/queries/**/*Query` object:
+  `self.call(scope:, ...)` with keyword args, `private_class_method` for internal steps, returns a
+  relation (or a Hash for a finished aggregate). Never build this inline in a controller action or a
+  controller's private method.
+- Don't manufacture a service object for plain CRUD that has no business logic beyond model
+  validations — call `.save`/`.update`/`.destroy` directly in the controller action, inline-rendered,
+  the same way every controller in this repo already handles `destroy`. Reserve services for genuine
+  multi-step workflows (batch creation, external calls, state transitions).
+- A per-row aggregate that must ride along with a paginated/searched relation (e.g. a count) is a
+  persisted counter column, not a live correlated subquery, once more than one or two places can
+  mutate the rows it counts. Maintain it via model callbacks (the soft-delete gem's own
+  `after_discard`/`after_undiscard`, plus `after_create`) rather than a manually-threaded explicit sync
+  call at every mutation site — a callback can't be forgotten at a new call site; a hand-threaded call
+  can. Reserve the explicit-service-call style
+  (`app/services/company_profiles/sync_worker_quota.rb`) for aggregates with only one or two mutation
+  sites, where a model-level callback would be overkill.
+
+Canonical controller shape:
+
+```ruby
+class DictionariesController < ApplicationController
+  include RansackSearchable
+
+  def index
+    authorize Dictionary
+    result = apply_ransack_search(policy_scope(Dictionary), default_sort: "created_at desc")
+    pagy, records = pagy(:offset, result)
+    render json: { status: "success", data: DictionaryBlueprint.render_as_hash(records),
+                   meta: pagination_meta(pagy) }
+  end
+end
+```
 
 ## Mandatory Pundit/RBAC contract
 

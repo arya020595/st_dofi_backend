@@ -15,12 +15,13 @@ module Api
           authorize User, policy_class: FishermanUserPolicy
           result = apply_ransack_search(fisherman_user_scope, default_sort: "created_at desc")
           pagy, records = pagy(:offset, result)
-          render json: { status: "success", data: UserBlueprint.render_as_hash(records), meta: pagination_meta(pagy) }
+          render json: { status: "success", data: FishermanUserBlueprint.render_as_hash(records),
+                         meta: pagination_meta(pagy) }
         end
 
         def show
           authorize @user, policy_class: FishermanUserPolicy
-          render json: { status: "success", data: UserBlueprint.render_as_hash(@user) }
+          render json: { status: "success", data: FishermanUserBlueprint.render_as_hash(@user) }
         end
 
         def create
@@ -37,7 +38,7 @@ module Api
 
           case Users::Update.call(@user, user_params, assignable_roles: assignable_roles, actor: current_user)
           in Success(user)
-            render json: { status: "success", data: UserBlueprint.render_as_hash(user) }
+            render json: { status: "success", data: FishermanUserBlueprint.render_as_hash(user) }
           in Failure(user)
             render json: { status: "fail", errors: user.errors.full_messages }, status: :unprocessable_content
           end
@@ -60,7 +61,7 @@ module Api
         end
 
         def fisherman_user_scope
-          policy_scope(User, policy_scope_class: FishermanUserPolicy::Scope)
+          policy_scope(User, policy_scope_class: FishermanUserPolicy::Scope).includes(:role)
         end
 
         def assignable_roles = Role.assignable_by_fisherman(current_user.company_profile_id)
@@ -75,7 +76,7 @@ module Api
         def render_provision_result(result)
           case result
           in Success(user)
-            render json: { status: "success", data: UserBlueprint.render_as_hash(user) }, status: :created
+            render json: { status: "success", data: FishermanUserBlueprint.render_as_hash(user) }, status: :created
           in Failure(user) if user.respond_to?(:errors)
             render json: { status: "fail", errors: user.errors.full_messages }, status: :unprocessable_content
           in Failure(reason)
@@ -90,13 +91,14 @@ module Api
             created_by: current_user,
             name: user_params[:name],
             ic_number: user_params[:ic_number],
-            role: role
+            role: role,
+            status: user_params.fetch(:status, "active")
           )
         end
 
         def user_params
           params.expect(user: %i[name email password password_confirmation role_id ic_number
-                                 registration_type contact_no designation preferred_locale])
+                                 registration_type contact_no designation preferred_locale status])
         end
       end
     end

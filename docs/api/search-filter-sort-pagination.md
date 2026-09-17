@@ -14,6 +14,7 @@ pagination. It currently covers:
 | `GET /api/v1/admin/master_data/nationalities` | Yes | Yes (JWT) | `nationalities.list` |
 | `GET /api/v1/admin/master_data/positions` | Yes | Yes (JWT) | `positions.list` |
 | `GET /api/v1/admin/master_data/reasons` | Yes | Yes (JWT) | `skip_reasons.list` |
+| `GET /api/v1/admin/accounts` | Yes | Yes (JWT) | `admin_accounts.list` |
 
 Send the JWT the same way as every other endpoint: `Authorization: Bearer <token>`.
 
@@ -209,6 +210,34 @@ Default sort: `created_at desc`
 
 Soft-deleted via Discard — `DELETE` sets `discarded_at` rather than removing the record.
 
+### Accounts — `GET /api/v1/admin/accounts`
+
+Filterable/sortable fields: `id`, `name`, `email`, `ic_number`, `status`, `fisherman_status`,
+`registration_type`, `discarded_at`, `created_at`, `updated_at`, plus two computed fields —
+`account_category` and `account_status` — that unify what would otherwise be several
+category-dependent columns into one filterable value:
+
+- `account_category` — `fisherman_account` or `jetty_manager_account`.
+- `account_status` — `active` or `inactive`, regardless of category (internally this reads
+  `fisherman_status` for fisherman accounts and `status` for Jetty Manager accounts, translating
+  fisherman's stored `"suspended"` to the public `"inactive"`; fishermen in
+  `pending_approval`/`claimable`/`revoked` — governed via `/api/v1/admin/approvals/fishermen` instead —
+  never match either value here).
+
+Default sort: `created_at desc`
+
+Example — active fisherman accounts:
+
+```
+GET /api/v1/admin/accounts?q[account_category_eq]=fisherman_account&q[account_status_eq]=active
+```
+
+Example — every account (either category) that's currently inactive:
+
+```
+GET /api/v1/admin/accounts?q[account_status_eq]=inactive
+```
+
 ---
 
 ## Frontend usage example
@@ -249,3 +278,7 @@ To extend this contract to a new `index` action:
 2. Call `apply_ransack_search(policy_scope(Model), default_sort: "...")` and pass the result into `pagy`.
 3. Define `ransackable_attributes` (and `ransackable_associations`, even if `[]`) on the model — Ransack
    raises an error if `ransackable_associations` isn't defined at all, even for attribute-only queries.
+
+If the filter needs business logic beyond a plain column predicate (value translation, a mandatory
+non-client-togglable scope, a cross-table condition), that's a Query object, not more controller code —
+see [`docs/architecture/thin-controllers-and-query-objects.md`](../architecture/thin-controllers-and-query-objects.md).

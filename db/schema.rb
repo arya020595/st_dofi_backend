@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_15_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_16_110000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pg_trgm"
@@ -233,6 +233,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_15_100000) do
     t.datetime "discarded_at"
     t.string "district"
     t.string "dofi_registration_no"
+    t.integer "entity_user_count", default: 0, null: false
     t.string "fisherman_card_no"
     t.string "full_address"
     t.string "full_name"

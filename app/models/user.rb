@@ -16,6 +16,8 @@ class User < ApplicationRecord
 
   include AASM
   include User::FishermanLifecycle
+  include User::EntityUserCounting
+  include User::AdminAccountFiltering
 
   audited only: %i[
     name ic_number normalized_ic_number status fisherman_status provisioning_source claimed_at
@@ -114,7 +116,7 @@ class User < ApplicationRecord
   def self.ransackable_attributes(_auth_object = nil)
     %w[id name email employee_id status fisherman_status normalized_ic_number preferred_locale unit position contact_no
        role_id doft_registration_no ic_number registration_type username revoked_at revoked_by_id
-       revocation_remark_id discarded_at created_at updated_at]
+       revocation_remark_id discarded_at created_at updated_at account_category account_status]
   end
 
   def self.ransackable_associations(_auth_object = nil)

@@ -110,7 +110,9 @@ staging deploys on every push to `develop`, production only on `main` plus a rev
 ## 3. Layered application architecture
 
 Every request flows through the same six layers, each with exactly one job
-(enforced in [`CLAUDE.md`](../CLAUDE.md)):
+(enforced in [`CLAUDE.md`](../CLAUDE.md); the canonical shape for each layer and when to reach for a
+Query object vs. a service is worked through in
+[`docs/architecture/thin-controllers-and-query-objects.md`](architecture/thin-controllers-and-query-objects.md)):
 
 ```mermaid
 graph LR
@@ -321,6 +323,8 @@ fields that matter onto their own rows rather than only holding the foreign key 
 
 ## Where to go deeper
 
+- [`docs/architecture/`](architecture/) — canonical shape for controllers, Query objects, and
+  persisted aggregates; the worked example behind `CLAUDE.md`'s mandatory contract
 - [`docs/rbac/`](rbac/) — role-based access control: platform/company isolation, authorization vs.
   isolation, permissions model
 - [`docs/registration/`](registration/) — actors, roles, registration & approval flow

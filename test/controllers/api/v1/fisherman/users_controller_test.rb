@@ -92,7 +92,7 @@ module Api
           assert_response :not_found
         end
 
-        test "create persists a teammate in this company, ignoring any client-supplied company_profile" do
+        test "create persists an inactive teammate in this company, ignoring any client-supplied company profile" do
           foreign_company = create(:company_profile)
 
           assert_difference("User.count", 1) do
@@ -100,12 +100,17 @@ module Api
                                                               ic_number: SecureRandom.hex(5),
                                                               registration_type: "Commercial",
                                                               role_id: @member_role.id,
+                                                              status: "inactive",
                                                               company_profile_id: foreign_company.id } },
                                             headers: @owner_headers, as: :json
           end
 
           assert_response :created
-          assert_equal @company_profile, User.last.company_profile
+          assert_equal [@company_profile.id, "inactive", "inactive", User.last.normalized_ic_number, false, false],
+                       [User.last.company_profile_id, User.last.status, response.parsed_body.dig("data", "status"),
+                        response.parsed_body.dig("data", "normalized_ic_number"),
+                        response.parsed_body.dig("data", "role").key?("permissions"),
+                        response.parsed_body["data"].key?("company_profile")]
         end
 
         test "create rejects a role_id belonging to another company" do

@@ -11,6 +11,7 @@ module Fisherman
     def ic_number = attributes.fetch(:ic_number)
     def company_profile_contact = attributes[:company_profile_contact]
     def role = attributes[:role]
+    def status = attributes.fetch(:status, "active")
 
     private
 

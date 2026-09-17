@@ -17,17 +17,31 @@ module Api
 
         def show
           authorize @dictionary_family
-          render_resource(@dictionary_family)
+          render json: { status: "success", data: DictionaryFamilyBlueprint.render_as_hash(@dictionary_family) }
         end
 
         def create
           authorize DictionaryFamily
-          persist(DictionaryFamily.new(dictionary_family_params), :save)
+
+          @dictionary_family = DictionaryFamily.new(dictionary_family_params)
+          if @dictionary_family.save
+            render json: { status: "success", data: DictionaryFamilyBlueprint.render_as_hash(@dictionary_family) },
+                   status: :created
+          else
+            render json: { status: "fail", errors: @dictionary_family.errors.full_messages },
+                   status: :unprocessable_content
+          end
         end
 
         def update
           authorize @dictionary_family
-          persist(@dictionary_family, :update)
+
+          if @dictionary_family.update(dictionary_family_params)
+            render json: { status: "success", data: DictionaryFamilyBlueprint.render_as_hash(@dictionary_family) }
+          else
+            render json: { status: "fail", errors: @dictionary_family.errors.full_messages },
+                   status: :unprocessable_content
+          end
         end
 
         def destroy
@@ -48,18 +62,6 @@ module Api
 
         def dictionary_family_params
           params.expect(dictionary_family: %i[name dictionary_group_id])
-        end
-
-        def persist(resource, operation)
-          successful = operation == :save ? resource.save : resource.update(dictionary_family_params)
-          return render_resource(resource) if successful
-
-          render json: { status: "fail", errors: resource.errors.full_messages }, status: :unprocessable_content
-        end
-
-        def render_resource(resource)
-          render json: { status: "success", data: DictionaryFamilyBlueprint.render_as_hash(resource) },
-                 status: action_name == "create" ? :created : :ok
         end
       end
     end
