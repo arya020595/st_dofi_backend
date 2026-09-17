@@ -7,9 +7,9 @@ module Api
         setup do
           @password = "Password123!"
 
-          @view_permission = Permission.find_or_create_by!(code: "manifests.view") do |permission|
-            permission.name = "Manifest list - View"
-            permission.platform_scope = Permission::SHARED_PLATFORM
+          @view_permission = Permission.find_or_create_by!(code: "roles.view") do |permission|
+            permission.name = "Roles - View"
+            permission.platform_scope = Permission::DOFI_OFFICER_PLATFORM
           end
           role_permissions = %w[list view create update delete].map do |action|
             Permission.find_or_create_by!(code: "roles.#{action}") do |permission|

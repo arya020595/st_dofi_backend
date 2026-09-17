@@ -1,4 +1,3 @@
-# rubocop:disable Metrics/ModuleLength
 module Permission::Catalog
   # Canonical source for permission codes, role-editor grouping, and platform assignment.
   SECTIONS = [
@@ -19,28 +18,23 @@ module Permission::Catalog
       { key: "manifest_expenses", label: "Manifest Expenses", fisherman: %w[view create update] }
     ] },
     { key: "profiling", label: "Profiling", resources: [
-      { key: "company_profiles", label: "Company Profiles", shared: %w[list view create update],
-        dofi_officer: %w[delete] },
-      { key: "company_profile_contacts", label: "Company Profile Contacts", shared: %w[create update],
-        dofi_officer: %w[delete] }
+      { key: "company_profiles", label: "Company Profiles",
+        dofi_officer: %w[list view create update delete] },
+      { key: "company_profile_contacts", label: "Company Profile Contacts",
+        dofi_officer: %w[create update delete] }
     ] },
     { key: "dictionary", label: "Dictionary", resources: [
-      { key: "dictionaries", label: "Dictionaries", shared: %w[list],
-        dofi_officer: %w[view create update delete] },
-      { key: "dictionary_groups", label: "Dictionary Groups", shared: %w[list],
-        dofi_officer: %w[view create update delete] },
-      { key: "dictionary_families", label: "Dictionary Families", shared: %w[list],
-        dofi_officer: %w[view create update delete] }
+      { key: "dictionaries", label: "Dictionaries", dofi_officer: %w[list view create update delete] },
+      { key: "dictionary_groups", label: "Dictionary Groups", dofi_officer: %w[list view create update delete] },
+      { key: "dictionary_families", label: "Dictionary Families", dofi_officer: %w[list view create update delete] }
     ] },
     { key: "master_data", label: "Master Data", resources: [
-      { key: "ports", label: "Ports", shared: %w[list view], dofi_officer: %w[create update delete] },
-      { key: "zones", label: "Zones", shared: %w[list view], dofi_officer: %w[create update delete] },
-      { key: "fishing_gears", label: "Fishing Gears", shared: %w[list view],
-        dofi_officer: %w[create update delete] },
-      { key: "nationalities", label: "Nationalities", shared: %w[list view],
-        dofi_officer: %w[create update delete] },
-      { key: "positions", label: "Positions", shared: %w[list view], dofi_officer: %w[create update delete] },
-      { key: "skip_reasons", label: "Reasons", shared: %w[list view], dofi_officer: %w[create update delete] }
+      { key: "ports", label: "Ports", dofi_officer: %w[list view create update delete] },
+      { key: "zones", label: "Zones", dofi_officer: %w[list view create update delete] },
+      { key: "fishing_gears", label: "Fishing Gears", dofi_officer: %w[list view create update delete] },
+      { key: "nationalities", label: "Nationalities", dofi_officer: %w[list view create update delete] },
+      { key: "positions", label: "Positions", dofi_officer: %w[list view create update delete] },
+      { key: "skip_reasons", label: "Reasons", dofi_officer: %w[list view create update delete] }
     ] },
     { key: "user_management", label: "User Management", resources: [
       { key: "roles", label: "Roles", dofi_officer: %w[list view create update delete] },
@@ -66,7 +60,7 @@ module Permission::Catalog
         fisherman: %w[list view create update delete images] },
       { key: "companies_vessel_approvals", label: "Vessel & Fishing Gear Approvals",
         dofi_officer: %w[list view approve request_amendment] },
-      { key: "companies_crews", label: "Crews", shared: %w[list view create update delete] },
+      { key: "companies_crews", label: "Crews", fisherman: %w[list view create update delete] },
       { key: "companies_crew_approvals", label: "Crew Approvals",
         dofi_officer: %w[list view approve request_amendment] },
       { key: "companies_documents", label: "Documents", fisherman: %w[list view create update] },
@@ -107,4 +101,3 @@ module Permission::Catalog
     ENTRIES.select { |entry| allowed_scopes.include?(entry[:platform_scope]) }.pluck(:code)
   end
 end
-# rubocop:enable Metrics/ModuleLength

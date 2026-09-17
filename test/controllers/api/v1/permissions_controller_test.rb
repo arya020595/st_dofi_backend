@@ -87,11 +87,18 @@ module Api
       test "fisherman index exposes every canonical fisherman and shared permission" do
         get "/api/v1/permissions", headers: fisherman_headers_for_permissions_test
 
-        assert_response :ok
         codes = response.parsed_body["data"].pluck("code")
+        expected_codes = %w[manifests.create capture_reports.create]
+        expected_codes_present = (expected_codes - codes).empty?
+        admin_profile_access_present = codes.include?("company_profiles.update")
+        admin_role_access_present = codes.include?("roles.create")
+        capture_detail_access_present = codes.any? do |code|
+          code.start_with?("fish_capture_details.") || code.start_with?("fishing_gear_details.")
+        end
 
-        assert_empty %w[manifests.create ports.view capture_reports.create company_profiles.update] - codes
-        assert_not_includes codes, "roles.create"
+        assert_equal [200, true, false, false, false],
+                     [response.status, expected_codes_present, admin_profile_access_present, admin_role_access_present,
+                      capture_detail_access_present]
       end
 
       private
@@ -108,9 +115,7 @@ module Api
       def build_fisherman_permission_fixtures
         @manifest_view = create_permission("manifests.view")
         @manifest_create = create_permission("manifests.create")
-        @port_view = create_permission("ports.view")
         @capture_report_create = create_permission("capture_reports.create")
-        @company_profile_update = create_permission("company_profiles.update")
         @officer_role_create = create_permission("roles.create")
         @list_permission = create_permission("permissions.list")
       end
@@ -125,8 +130,7 @@ module Api
 
       def fisherman_permission_set
         [
-          @manifest_view, @manifest_create, @port_view, @capture_report_create,
-          @company_profile_update
+          @manifest_view, @manifest_create, @capture_report_create
         ]
       end
     end
