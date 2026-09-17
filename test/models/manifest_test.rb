@@ -139,6 +139,21 @@ class ManifestTest < ActiveSupport::TestCase
     assert_not support_vessel.valid?
     assert_includes support_vessel.errors[:companies_vessel], "must differ from the primary vessel"
   end
+
+  test "destroy is blocked when an owned capture report exists" do
+    manifest = create(:manifest)
+    create(:capture_report, manifest: manifest)
+
+    assert_not manifest.destroy
+    assert_includes manifest.errors[:base], "Cannot delete record because dependent capture reports exist"
+    assert_raises(ActiveRecord::RecordNotDestroyed) { manifest.destroy! }
+  end
+
+  test "destroy succeeds when the manifest has no owned children" do
+    manifest = create(:manifest)
+
+    assert manifest.destroy
+  end
 end
 
 # == Schema Information
@@ -178,6 +193,7 @@ end
 #  vessel_boat_name                 :string
 #  vessel_boat_no                   :string
 #  zone_area                        :string
+#  zone_name                        :string
 #  created_at                       :datetime         not null
 #  updated_at                       :datetime         not null
 #  captain_crew_id                  :uuid

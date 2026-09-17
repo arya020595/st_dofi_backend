@@ -43,11 +43,30 @@ module Api
           assert_equal "Renamed Port", @port.reload.port_name
         end
 
-        test "destroy removes the port" do
+        test "destroy discards the port" do
           delete "/api/v1/admin/master_data/ports/#{@port.id}", headers: @headers
 
           assert_response :ok
-          assert_not Port.exists?(@port.id)
+          assert_predicate @port.reload, :discarded?
+          assert_not Port.kept.exists?(@port.id)
+        end
+
+        test "index excludes discarded ports" do
+          @port.discard
+
+          get "/api/v1/admin/master_data/ports", headers: @headers
+
+          assert_response :ok
+          assert_not_includes response.parsed_body["data"].pluck("id"), @port.id
+        end
+
+        test "show still resolves a discarded port" do
+          @port.discard
+
+          get "/api/v1/admin/master_data/ports/#{@port.id}", headers: @headers
+
+          assert_response :ok
+          assert_equal @port.id, response.parsed_body["data"]["id"]
         end
       end
     end

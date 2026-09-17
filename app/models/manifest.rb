@@ -16,13 +16,13 @@ class Manifest < ApplicationRecord
   belongs_to :skip_reason, class_name: "ManifestSkipReason", optional: true
   belongs_to :created_by, class_name: "User", optional: true
 
-  has_many :crew_manifests, dependent: :destroy
-  has_many :manifest_support_vessels, dependent: :destroy
+  has_many :crew_manifests, dependent: :restrict_with_error
+  has_many :manifest_support_vessels, dependent: :restrict_with_error
   has_many :support_vessels, through: :manifest_support_vessels, source: :companies_vessel
-  has_many :manifest_minor_fishermen, dependent: :destroy
-  has_many :capture_reports, dependent: :destroy
-  has_many :manifest_histories, dependent: :destroy
-  has_one :manifest_expense, dependent: :destroy
+  has_many :manifest_minor_fishermen, dependent: :restrict_with_error
+  has_many :capture_reports, dependent: :restrict_with_error
+  has_many :manifest_histories, dependent: :restrict_with_error
+  has_one :manifest_expense, dependent: :restrict_with_error
 
   COMMERCIAL = "commercial".freeze
   SMALL_SCALE = %w[small_scale_company small_scale_full_time small_scale_part_time].freeze
@@ -268,6 +268,7 @@ end
 #  vessel_boat_name                 :string
 #  vessel_boat_no                   :string
 #  zone_area                        :string
+#  zone_name                        :string
 #  created_at                       :datetime         not null
 #  updated_at                       :datetime         not null
 #  captain_crew_id                  :uuid

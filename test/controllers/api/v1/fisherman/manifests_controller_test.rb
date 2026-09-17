@@ -339,6 +339,19 @@ module Api
                        manifest.reload.values_at(:port_out_id, :port_out_name)
         end
 
+        test "update snapshots the zone name while the manifest is a draft" do
+          manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
+          zone = create(:zone, name: "Zone A")
+
+          patch "/api/v1/fisherman/manifests/#{manifest.id}",
+                params: { manifest: { zone_id: zone.id, zone_area: "Near the reef" } },
+                headers: @fisherman_headers, as: :json
+
+          assert_response :ok
+          assert_equal [zone.id, "Zone A"],
+                       manifest.reload.values_at(:zone_id, :zone_name)
+        end
+
         test "update allows a fisherman to fill port-in details while the manifest is at sea" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
           manifest.submit_port_out!

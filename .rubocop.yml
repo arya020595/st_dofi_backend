@@ -79,3 +79,6 @@ Metrics/ClassLength:
     # Same reasoning: index/show/ransack-filter/create/update/destroy plus owner+admin contact
     # variants, each its own focused test block.
     - "test/controllers/api/v1/company_profiles_controller_test.rb"
+    # Same reasoning: three AASM state machines' worth of transition tests plus model-level
+    # predicate/validation/deletion-safety tests, each its own focused test block.
+    - "test/models/manifest_test.rb"
