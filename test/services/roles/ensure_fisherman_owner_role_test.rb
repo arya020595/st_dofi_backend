@@ -29,6 +29,16 @@ module Roles
       assert_equal [true, true, false, false], assignments
     end
 
+    test "never grants a permission whose platform_scope column has drifted from the catalog" do
+      officer_only = create(:permission, code: "roles.view")
+      officer_only.update_column(:platform_scope, Permission::SHARED_PLATFORM) # rubocop:disable Rails/SkipsModelValidations
+      company_profile = create(:company_profile)
+
+      role = EnsureFishermanOwnerRole.call(company_profile)
+
+      assert_not role.permissions.include?(officer_only)
+    end
+
     test "is idempotent — a second call for the same company returns the same role" do
       company_profile = create(:company_profile)
 
