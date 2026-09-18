@@ -6,18 +6,22 @@ module Permission::Catalog
     ] },
     { key: "manifest", label: "Manifest", resources: [
       { key: "manifests", label: "Manifests",
-        fisherman: %w[list view create update delete offline_bundle submit_port_out resubmit_port_out submit_port_in
-                      resubmit_port_in skip_capture_report] },
+        fisherman: %w[list view create update delete] },
       { key: "manifest_approvals", label: "Manifest Approvals",
-        dofi_officer: %w[list view approve_port_out request_amendment_port_out approve_port_in
-                         request_amendment_port_in] },
-      { key: "capture_reports", label: "Capture Reports", fisherman: %w[list view create update resubmit delete] },
+        dofi_officer: %w[list view process_port_out process_port_in] },
+      { key: "capture_reports", label: "Capture Reports", fisherman: %w[list view create update delete] },
       { key: "capture_report_verifications", label: "Capture Report Verifications",
-        dofi_officer: %w[list view verify request_amendment] }
+        dofi_officer: %w[list view request_amendment verify] }
     ] },
     { key: "profiling", label: "Profiling", resources: [
       { key: "company_profiles", label: "Company Profiles",
-        dofi_officer: %w[list view create update delete] }
+        dofi_officer: %w[list view create update delete] },
+      { key: "companies_vessel_approvals", label: "Vessel & Fishing Gear Approvals",
+        dofi_officer: %w[list view approve request_amendment] },
+      { key: "companies_crew_approvals", label: "Crew Approvals",
+        dofi_officer: %w[list view approve request_amendment] },
+      { key: "companies_document_approvals", label: "Document Approvals",
+        dofi_officer: %w[list view approve request_amendment] }
     ] },
     { key: "dictionary", label: "Dictionary", resources: [
       { key: "dictionaries", label: "Dictionaries", dofi_officer: %w[list view create update delete] },
@@ -35,7 +39,6 @@ module Permission::Catalog
     { key: "user_management", label: "User Management", resources: [
       { key: "roles", label: "Roles", dofi_officer: %w[list view create update delete] },
       { key: "dofi_officer_users", label: "DoFi Officer Users", dofi_officer: %w[list view create update delete] },
-      { key: "permissions", label: "Permissions", shared: %w[list] },
       { key: "entity_users", label: "Entity Users", dofi_officer: %w[list] }
     ] },
     { key: "account_management", label: "Account Management", resources: [
@@ -50,18 +53,6 @@ module Permission::Catalog
       { key: "approval_remarks", label: "Approval Request",
         dofi_officer: %w[list view create update delete] },
       { key: "admin_accounts", label: "Admin Accounts", dofi_officer: %w[list view deactivate reactivate] }
-    ] },
-    { key: "companies", label: "Companies", resources: [
-      { key: "companies_vessels", label: "Vessels & Fishing Gears",
-        fisherman: %w[list view create update delete images] },
-      { key: "companies_vessel_approvals", label: "Vessel & Fishing Gear Approvals",
-        dofi_officer: %w[list view approve request_amendment] },
-      { key: "companies_crews", label: "Crews", fisherman: %w[list view create update delete] },
-      { key: "companies_crew_approvals", label: "Crew Approvals",
-        dofi_officer: %w[list view approve request_amendment] },
-      { key: "companies_documents", label: "Documents", fisherman: %w[list view create update] },
-      { key: "companies_document_approvals", label: "Document Approvals",
-        dofi_officer: %w[list view approve request_amendment] }
     ] }
   ].freeze
 

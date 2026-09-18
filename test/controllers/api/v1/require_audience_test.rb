@@ -11,8 +11,6 @@ module Api
             permission.name = "Company Profiles - #{action}"
           end
         end
-        profiling_permissions << Permission.find_or_create_by!(code: "permissions.list")
-
         officer_role = create(:role, kind: Role::DOFI_OFFICER, permissions: profiling_permissions)
         jetty_manager_role = create(:role, kind: Role::JETTY_MANAGER, permissions: profiling_permissions)
         fisherman_role = create(:role, :fisherman, permissions: profiling_permissions)
