@@ -7,8 +7,8 @@ module Api
         setup do
           @password = "Password123!"
 
-          admin_permissions = %w[view list create update delete images].map do |action|
-            Permission.find_or_create_by!(code: "companies_vessels.#{action}") { |p| p.name = "Vessels - #{action}" }
+          admin_permissions = %w[view list create update delete].map do |action|
+            Permission.find_or_create_by!(code: "company_profiles.#{action}") { |p| p.name = "Vessels - #{action}" }
           end
           @admin_role = create(:role, kind: Role::DOFI_OFFICER, permissions: admin_permissions)
           @no_access_role = create(:role, kind: Role::JETTY_MANAGER)

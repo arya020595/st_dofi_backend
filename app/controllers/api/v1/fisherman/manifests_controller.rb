@@ -27,7 +27,7 @@ module Api
         end
 
         def offline_bundle
-          authorize @manifest, :offline_bundle?
+          authorize @manifest, :update?
           render json: { status: "success", data: ::Manifests::OfflineBundle.call(@manifest) }
         end
 

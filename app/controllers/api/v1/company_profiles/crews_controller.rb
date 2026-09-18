@@ -8,20 +8,20 @@ module Api
         before_action :set_crew, only: %i[show update destroy]
 
         def index
-          authorize CompaniesCrew
-          result = apply_ransack_search(policy_scope(@company_profile.companies_crews), default_sort: "created_at desc")
+          authorize @company_profile
+          result = apply_ransack_search(@company_profile.companies_crews.kept, default_sort: "created_at desc")
           pagy, records = pagy(:offset, result)
           render json: { status: "success", data: CompaniesCrewBlueprint.render_as_hash(records),
                          meta: pagination_meta(pagy) }
         end
 
         def show
-          authorize @crew
+          authorize @company_profile
           render json: { status: "success", data: CompaniesCrewBlueprint.render_as_hash(@crew) }
         end
 
         def create
-          authorize CompaniesCrew
+          authorize @company_profile
 
           case CompaniesCrews::Create.call(@company_profile, crew_params)
           in Success(crew)
@@ -32,7 +32,7 @@ module Api
         end
 
         def update
-          authorize @crew
+          authorize @company_profile
 
           case CompaniesCrews::Update.call(@crew, crew_params)
           in Success(crew)
@@ -43,7 +43,7 @@ module Api
         end
 
         def destroy
-          authorize @crew
+          authorize @company_profile
 
           if @crew.discard
             render json: { status: "success", message: "Crew removed." }

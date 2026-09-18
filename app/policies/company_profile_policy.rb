@@ -1,12 +1,19 @@
 class CompanyProfilePolicy < ApplicationPolicy
+  def index?
+    return true if user.fisherman?
+
+    super
+  end
+
   def show?
     return owns_record? if user.fisherman?
 
     super
   end
 
-  def update? = super && owns_record?
-  def destroy? = super && owns_record?
+  def create? = user.fisherman? || super
+  def update? = user.fisherman? ? owns_record? : super && owns_record?
+  def destroy? = user.fisherman? ? owns_record? : super && owns_record?
 
   class Scope < ApplicationPolicy::Scope
     def resolve

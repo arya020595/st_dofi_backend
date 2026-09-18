@@ -151,8 +151,7 @@ Rails.application.routes.draw do
           end
         end
 
-        # Dual-mounted, not moved — same controllers as fisherman/company_profiles below; each
-        # resource's own Policy::Scope (CompaniesVesselPolicy::Scope etc.) decides what's visible.
+        # Dual-mounted, not moved — the parent CompanyProfile policy/scope controls visibility.
         resources :company_profiles, only: %i[index show create update destroy],
                                      controller: "/api/v1/company_profiles" do
           resources :contacts, only: %i[create update destroy], controller: "/api/v1/company_profiles/contacts"

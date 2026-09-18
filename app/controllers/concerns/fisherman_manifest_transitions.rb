@@ -6,27 +6,27 @@ module FishermanManifestTransitions
                           skip_capture_report].freeze
 
   def submit_port_out
-    authorize @manifest
+    authorize @manifest, :update?
     render_transition(::Manifests::SubmitPortOut.call(@manifest, actor: current_user))
   end
 
   def resubmit_port_out
-    authorize @manifest
+    authorize @manifest, :update?
     render_transition(::Manifests::ResubmitPortOut.call(@manifest, actor: current_user))
   end
 
   def submit_port_in
-    authorize @manifest
+    authorize @manifest, :update?
     render_transition(::Manifests::SubmitPortIn.call(@manifest, actor: current_user))
   end
 
   def resubmit_port_in
-    authorize @manifest
+    authorize @manifest, :update?
     render_transition(::Manifests::ResubmitPortIn.call(@manifest, actor: current_user))
   end
 
   def skip_capture_report
-    authorize @manifest
+    authorize @manifest, :update?
     result = ::Manifests::SkipCaptureReport.call(@manifest, skip_reason_id: skip_params[:skip_reason_id],
                                                             remarks: skip_params[:skip_reason_remarks],
                                                             actor: current_user)
