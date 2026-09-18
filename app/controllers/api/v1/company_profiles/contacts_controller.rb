@@ -6,7 +6,7 @@ module Api
         before_action :set_contact, only: %i[update destroy]
 
         def create
-          authorize CompanyProfileContact
+          authorize @company_profile
 
           case CompanyProfileContacts::Create.call(@company_profile, contact_params)
           in Success(contact)
@@ -18,7 +18,7 @@ module Api
         end
 
         def update
-          authorize @contact
+          authorize @company_profile
 
           case CompanyProfileContacts::Update.call(@contact, contact_params)
           in Success(contact)
@@ -29,7 +29,7 @@ module Api
         end
 
         def destroy
-          authorize @contact
+          authorize @company_profile
 
           if @contact.discard
             render json: { status: "success", message: "Contact removed." }

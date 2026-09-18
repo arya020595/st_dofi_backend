@@ -13,11 +13,9 @@ module Api
                                      company_profile: @manifest.company_profile,
                                      companies_vessel: @manifest.companies_vessel)
               @headers = fisherman_headers_for(@manifest,
-                                               permission_codes: %w[fishing_gear_details.list
-                                                                    fishing_gear_details.view
-                                                                    fishing_gear_details.create
-                                                                    fishing_gear_details.update
-                                                                    fishing_gear_details.delete])
+                                               permission_codes: %w[capture_reports.list capture_reports.view
+                                                                    capture_reports.create capture_reports.update
+                                                                    capture_reports.delete])
             end
 
             test "create snapshots the master fishing gear's name, type, and specification" do

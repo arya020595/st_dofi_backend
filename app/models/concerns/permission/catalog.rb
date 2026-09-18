@@ -1,4 +1,3 @@
-# rubocop:disable Metrics/ModuleLength
 module Permission::Catalog
   # Canonical source for permission codes, role-editor grouping, and platform assignment.
   SECTIONS = [
@@ -7,42 +6,40 @@ module Permission::Catalog
     ] },
     { key: "manifest", label: "Manifest", resources: [
       { key: "manifests", label: "Manifests",
-        shared: %w[list view create update delete offline_bundle submit_port_out resubmit_port_out submit_port_in
-                   resubmit_port_in skip_capture_report] },
+        fisherman: %w[list view create update delete] },
       { key: "manifest_approvals", label: "Manifest Approvals",
-        dofi_officer: %w[list view approve_port_out request_amendment_port_out approve_port_in
-                         request_amendment_port_in] },
-      { key: "manifest_minor_fishermen", label: "Minor Fishermen", shared: %w[list view create delete] },
-      { key: "manifest_expenses", label: "Manifest Expenses", shared: %w[view create update] }
+        dofi_officer: %w[list view approve amendment],
+        action_labels: { "approve" => "Approval Port In/Port Out", "amendment" => "Amendment Port In/Port Out" } },
+      { key: "capture_reports", label: "Capture Reports", fisherman: %w[list view create update delete] },
+      { key: "capture_report_verifications", label: "Capture Report Verifications",
+        dofi_officer: %w[list view request_amendment verify] }
     ] },
     { key: "profiling", label: "Profiling", resources: [
-      { key: "company_profiles", label: "Company Profiles", shared: %w[list view create update],
-        dofi_officer: %w[delete] },
-      { key: "company_profile_contacts", label: "Company Profile Contacts", shared: %w[create update],
-        dofi_officer: %w[delete] }
+      { key: "company_profiles", label: "Company Profiles",
+        dofi_officer: %w[list view create update delete] },
+      { key: "companies_vessel_approvals", label: "Vessel & Fishing Gear Approvals",
+        dofi_officer: %w[list view approve request_amendment] },
+      { key: "companies_crew_approvals", label: "Crew Approvals",
+        dofi_officer: %w[list view approve request_amendment] },
+      { key: "companies_document_approvals", label: "Document Approvals",
+        dofi_officer: %w[list view approve request_amendment] }
     ] },
     { key: "dictionary", label: "Dictionary", resources: [
-      { key: "dictionaries", label: "Dictionaries", shared: %w[list],
-        dofi_officer: %w[view create update delete] },
-      { key: "dictionary_groups", label: "Dictionary Groups", shared: %w[list],
-        dofi_officer: %w[view create update delete] },
-      { key: "dictionary_families", label: "Dictionary Families", shared: %w[list],
-        dofi_officer: %w[view create update delete] }
+      { key: "dictionaries", label: "Dictionaries", dofi_officer: %w[list view create update delete] },
+      { key: "dictionary_groups", label: "Dictionary Groups", dofi_officer: %w[list view create update delete] },
+      { key: "dictionary_families", label: "Dictionary Families", dofi_officer: %w[list view create update delete] }
     ] },
     { key: "master_data", label: "Master Data", resources: [
-      { key: "ports", label: "Ports", shared: %w[list view], dofi_officer: %w[create update delete] },
-      { key: "zones", label: "Zones", shared: %w[list view], dofi_officer: %w[create update delete] },
-      { key: "fishing_gears", label: "Fishing Gears", shared: %w[list view],
-        dofi_officer: %w[create update delete] },
-      { key: "nationalities", label: "Nationalities", shared: %w[list view],
-        dofi_officer: %w[create update delete] },
-      { key: "positions", label: "Positions", shared: %w[list view], dofi_officer: %w[create update delete] },
-      { key: "skip_reasons", label: "Reasons", shared: %w[list view], dofi_officer: %w[create update delete] }
+      { key: "ports", label: "Ports", dofi_officer: %w[list view create update delete] },
+      { key: "zones", label: "Zones", dofi_officer: %w[list view create update delete] },
+      { key: "fishing_gears", label: "Fishing Gears", dofi_officer: %w[list view create update delete] },
+      { key: "nationalities", label: "Nationalities", dofi_officer: %w[list view create update delete] },
+      { key: "positions", label: "Positions", dofi_officer: %w[list view create update delete] },
+      { key: "skip_reasons", label: "Reasons", dofi_officer: %w[list view create update delete] }
     ] },
     { key: "user_management", label: "User Management", resources: [
       { key: "roles", label: "Roles", dofi_officer: %w[list view create update delete] },
       { key: "dofi_officer_users", label: "DoFi Officer Users", dofi_officer: %w[list view create update delete] },
-      { key: "permissions", label: "Permissions", shared: %w[list] },
       { key: "entity_users", label: "Entity Users", dofi_officer: %w[list] }
     ] },
     { key: "account_management", label: "Account Management", resources: [
@@ -57,28 +54,6 @@ module Permission::Catalog
       { key: "approval_remarks", label: "Approval Request",
         dofi_officer: %w[list view create update delete] },
       { key: "admin_accounts", label: "Admin Accounts", dofi_officer: %w[list view deactivate reactivate] }
-    ] },
-    { key: "companies", label: "Companies", resources: [
-      { key: "companies_vessels", label: "Vessels", shared: %w[list view create update delete images] },
-      { key: "companies_vessel_approvals", label: "Vessel Approvals",
-        dofi_officer: %w[list view approve request_amendment] },
-      { key: "companies_crews", label: "Crews", shared: %w[list view create update delete] },
-      { key: "companies_crew_approvals", label: "Crew Approvals",
-        dofi_officer: %w[list view approve request_amendment] },
-      { key: "companies_fishing_gears", label: "Fishing Gears", shared: %w[list view create update delete] },
-      { key: "companies_fishing_gear_approvals", label: "Fishing Gear Approvals",
-        dofi_officer: %w[list view approve request_amendment] },
-      { key: "companies_documents", label: "Documents", shared: %w[list view create update] },
-      { key: "companies_document_approvals", label: "Document Approvals",
-        dofi_officer: %w[list view approve request_amendment] }
-    ] },
-    { key: "capture_reports", label: "Capture Reports", resources: [
-      { key: "capture_reports", label: "Capture Reports", shared: %w[list view create update resubmit] },
-      { key: "capture_report_verifications", label: "Capture Report Verifications",
-        dofi_officer: %w[list view verify request_amendment] },
-      { key: "fish_capture_details", label: "Fish Capture Details",
-        shared: %w[list view create update delete bulk_sync] },
-      { key: "fishing_gear_details", label: "Fishing Gear Details", shared: %w[list view create update delete] }
     ] }
   ].freeze
 
@@ -91,7 +66,7 @@ module Permission::Catalog
       scoped_actions.each_with_index.map do |(scope, action), action_index|
         {
           code: "#{resource[:key]}.#{action}", action: action, action_order: action_index + 1,
-          name: action.humanize, platform_scope: scope.to_s,
+          name: resource.fetch(:action_labels, {}).fetch(action, action.titleize), platform_scope: scope.to_s,
           resource: resource[:key], resource_label: resource[:label], resource_order: resource_index + 1,
           section: section[:key], section_label: section[:label], section_order: section_index + 1
         }.freeze
@@ -114,4 +89,3 @@ module Permission::Catalog
     ENTRIES.select { |entry| allowed_scopes.include?(entry[:platform_scope]) }.pluck(:code)
   end
 end
-# rubocop:enable Metrics/ModuleLength

@@ -4,7 +4,7 @@ module Manifests
     include Manifests::ManifestScoped
 
     def show
-      authorize expense_record, :show?
+      authorize @manifest, policy_class: manifest_policy_class
 
       expense = @manifest.manifest_expense
       if expense
@@ -16,8 +16,6 @@ module Manifests
 
     private
 
-    def expense_record
-      @manifest.manifest_expense || ManifestExpense.new(manifest_id: @manifest.id)
-    end
+    def manifest_policy_class = ManifestPolicy
   end
 end

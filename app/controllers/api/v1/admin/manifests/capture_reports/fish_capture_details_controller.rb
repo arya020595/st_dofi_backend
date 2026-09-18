@@ -5,6 +5,10 @@ module Api
         module CaptureReports
           class FishCaptureDetailsController < ApplicationController
             include ::Manifests::FishCaptureDetailsReadable
+
+            private
+
+            def capture_report_policy_class = CaptureReportVerificationPolicy
           end
         end
       end

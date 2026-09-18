@@ -7,16 +7,13 @@ module Api
         setup do
           @password = "Password123!"
 
-          permissions = %w[dictionaries.list].map do |code|
-            Permission.find_or_create_by!(code: code) { |permission| permission.name = code }
-          end
-          @role = create(:role, :fisherman, permissions: permissions)
+          @role = create(:role, :fisherman)
           @user = create(:user, role: @role, ic_number: "01-800200", registration_type: "Commercial",
                                 password: @password, password_confirmation: @password)
           @headers = auth_headers_for(@user, password: @password)
         end
 
-        test "index requires dictionaries list permission" do
+        test "index requires the fisherman audience" do
           plain_user = create(:user, password: @password, password_confirmation: @password)
 
           get "/api/v1/fisherman/dictionaries", headers: auth_headers_for(plain_user, password: @password)

@@ -12,15 +12,15 @@ class CaptureReportPolicyTest < ActiveSupport::TestCase
     assert_not CaptureReportPolicy.new(fisherman, other_report).show?
   end
 
-  test "fisherman cannot resubmit a capture report on another company's manifest" do
-    permission = create(:permission, code: "capture_reports.resubmit")
+  test "fisherman cannot update a capture report on another company's manifest" do
+    permission = create(:permission, code: "capture_reports.update")
     owning_company = create(:company_profile)
     other_report = create(:capture_report, manifest: create(:manifest, company_profile: create(:company_profile)))
     fisherman = build(:user, company_profile: owning_company,
                              role: create(:role, :fisherman, company_profile: owning_company,
                                                              permissions: [permission]))
 
-    assert_not CaptureReportPolicy.new(fisherman, other_report).resubmit?
+    assert_not CaptureReportPolicy.new(fisherman, other_report).update?
   end
 
   test "fisherman can view a capture report on their own company's manifest" do

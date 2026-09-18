@@ -1,6 +1,5 @@
 require "test_helper"
 
-# rubocop:disable Metrics/ClassLength
 class RbacContractTest < ActiveSupport::TestCase
   class PermissionProbe
     attr_reader :checked_codes
@@ -119,9 +118,7 @@ class RbacContractTest < ActiveSupport::TestCase
 
   test "shared tenant-owned policies define an ownership guard" do
     tenant_owned_shared_policies = [
-      ManifestPolicy, ManifestExpensePolicy, ManifestMinorFishermanPolicy, CompaniesVesselPolicy,
-      CompaniesCrewPolicy, CompaniesFishingGearPolicy, CompaniesDocumentPolicy, CompanyProfilePolicy,
-      CompanyProfileContactPolicy, CaptureReportPolicy, FishCaptureDetailPolicy, FishingGearDetailPolicy
+      ManifestPolicy, CompanyProfilePolicy, CaptureReportPolicy
     ].freeze
 
     missing = tenant_owned_shared_policies.reject { |policy_class| policy_class.private_method_defined?(:owns_record?) }
@@ -173,7 +170,6 @@ class RbacContractTest < ActiveSupport::TestCase
     actions
   end
 end
-# rubocop:enable Metrics/ClassLength
 
 class RbacSourceContractTest < ActiveSupport::TestCase
   # This single repository scan deliberately asserts every forbidden syntax invariant together.

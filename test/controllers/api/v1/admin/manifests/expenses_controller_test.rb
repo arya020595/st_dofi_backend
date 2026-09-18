@@ -7,7 +7,7 @@ module Api
         class ExpensesControllerTest < ActionDispatch::IntegrationTest
           setup do
             @manifest = create(:manifest)
-            @headers = officer_headers_for(permission_codes: %w[manifest_expenses.view])
+            @headers = officer_headers_for(permission_codes: %w[manifest_approvals.view])
           end
 
           test "show returns the expense for the manifest" do

@@ -6,12 +6,12 @@ module Api
           include ::Manifests::ExpenseReadable
 
           def create
-            authorize expense_record, :create?
+            authorize @manifest
             upsert
           end
 
           def update
-            authorize expense_record, :update?
+            authorize @manifest
             upsert
           end
 

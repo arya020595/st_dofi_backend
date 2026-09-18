@@ -78,8 +78,7 @@ graph TB
 
 `Role::PLATFORM_SCOPES = %w[dofi_officer fisherman]` — every role has exactly one. `Permission`
 carries a third value, `shared`, for permission codes usable by both platforms (e.g.
-`companies_crews.create`, checked identically whether a fisherman is editing their own crew or an
-officer is profiling on their behalf through the same dual-mounted controller). A role can never be
+`dashboard.list`). A role can never be
 "shared" — its own platform is never ambiguous, only which permissions it's allowed to hold are. This
 is deliberate asymmetry: don't "simplify" `Permission::PLATFORM_SCOPES` to reuse `Role::PLATFORM_SCOPES`.
 
@@ -451,11 +450,8 @@ guards tenant-owned (company-scoped) data — not just `FishermanRolePolicy`/`Fi
 `ApplicationPolicy` has no base `owns_record?`; nothing stops a shared policy's `show?`/`update?`/
 `destroy?` from authorizing purely on the permission bit and never inspecting `record`, which would make
 the policy layer depend entirely on every controller — current and future — fetching the record through
-a `policy_scope(...)`-rooted chain forever. `ManifestPolicy`, `ManifestExpensePolicy`,
-`ManifestMinorFishermanPolicy`, `CompaniesVesselPolicy`, `CompaniesCrewPolicy`,
-`CompaniesFishingGearPolicy`, `CompaniesDocumentPolicy`, `CompanyProfilePolicy`,
-`CompanyProfileContactPolicy`, `CaptureReportPolicy`, `FishCaptureDetailPolicy`, and
-`FishingGearDetailPolicy` all define their own `owns_record?`, bypassed via `user.dofi_officer_platform?`
+a `policy_scope(...)`-rooted chain forever. `ManifestPolicy`, `CompanyProfilePolicy`, and
+`CaptureReportPolicy` define their own `owns_record?`, bypassed via `user.dofi_officer_platform?`
 to match their own `Scope#resolve`'s existing officer bypass. Add it to every predicate whose action is
 in the catalog and that receives a real record instance; skip `create?`/`index?`/any predicate authorized
 against the bare class — there's no row to own yet. `test/policies/rbac_contract_test.rb`'s "shared

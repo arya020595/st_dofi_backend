@@ -8,7 +8,7 @@ module Api
           @password = "Password123!"
 
           admin_permissions = %w[view list approve request_amendment].map do |action|
-            Permission.find_or_create_by!(code: "companies_fishing_gear_approvals.#{action}") do |p|
+            Permission.find_or_create_by!(code: "companies_vessel_approvals.#{action}") do |p|
               p.name = "Approvals - #{action}"
             end
           end

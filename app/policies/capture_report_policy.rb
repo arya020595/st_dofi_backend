@@ -1,7 +1,6 @@
 class CaptureReportPolicy < ApplicationPolicy
   def show? = super && owns_record?
   def update? = super && owns_record?
-  def resubmit? = permitted?("resubmit") && owns_record?
 
   class Scope < ApplicationPolicy::Scope
     def resolve

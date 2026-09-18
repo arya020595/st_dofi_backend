@@ -8,7 +8,7 @@ module Api
           before_action :set_fishing_gear, only: %i[show approve request_amendment]
 
           def index
-            authorize CompaniesFishingGear, policy_class: CompaniesFishingGearApprovalPolicy
+            authorize CompaniesFishingGear, policy_class: CompaniesVesselApprovalPolicy
             result = apply_ransack_search(fishing_gear_scope, default_sort: "created_at desc")
             pagy, records = pagy(:offset, result)
             render json: { status: "success", data: CompaniesFishingGearApprovalBlueprint.render_as_hash(records),
@@ -16,13 +16,13 @@ module Api
           end
 
           def show
-            authorize @fishing_gear, policy_class: CompaniesFishingGearApprovalPolicy
+            authorize @fishing_gear, policy_class: CompaniesVesselApprovalPolicy
             render json: { status: "success",
                            data: CompaniesFishingGearApprovalBlueprint.render_as_hash(@fishing_gear) }
           end
 
           def approve
-            authorize @fishing_gear, policy_class: CompaniesFishingGearApprovalPolicy
+            authorize @fishing_gear, policy_class: CompaniesVesselApprovalPolicy
 
             case CompaniesFishingGears::Approve.call(@fishing_gear, actor: current_user)
             in Success(gear)
@@ -33,7 +33,7 @@ module Api
           end
 
           def request_amendment
-            authorize @fishing_gear, policy_class: CompaniesFishingGearApprovalPolicy
+            authorize @fishing_gear, policy_class: CompaniesVesselApprovalPolicy
 
             result = CompaniesFishingGears::RequestAmendment.call(@fishing_gear, actor: current_user,
                                                                                  remarks: params.expect(:remarks))
@@ -48,7 +48,7 @@ module Api
           private
 
           def fishing_gear_scope
-            policy_scope(CompaniesFishingGear, policy_scope_class: CompaniesFishingGearApprovalPolicy::Scope)
+            policy_scope(CompaniesFishingGear, policy_scope_class: CompaniesVesselApprovalPolicy::Scope)
           end
 
           def set_fishing_gear

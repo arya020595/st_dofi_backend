@@ -23,15 +23,15 @@ class ManifestPolicyTest < ActiveSupport::TestCase
     assert_not ManifestPolicy.new(fisherman, other_manifest).update?
   end
 
-  test "fisherman cannot skip capture report on another company's manifest" do
-    permission = create(:permission, code: "manifests.skip_capture_report")
+  test "fisherman cannot update another company's manifest for a state transition" do
+    permission = create(:permission, code: "manifests.update")
     owning_company = create(:company_profile)
     other_manifest = create(:manifest, company_profile: create(:company_profile))
     fisherman = build(:user, company_profile: owning_company,
                              role: create(:role, :fisherman, company_profile: owning_company,
                                                              permissions: [permission]))
 
-    assert_not ManifestPolicy.new(fisherman, other_manifest).skip_capture_report?
+    assert_not ManifestPolicy.new(fisherman, other_manifest).update?
   end
 
   test "fisherman can view their own company's manifest" do
