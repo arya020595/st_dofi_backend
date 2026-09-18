@@ -8,8 +8,7 @@ module Api
           @password = "Password123!"
 
           admin_permission_codes = %w[
-            company_profiles.view company_profiles.update company_profile_contacts.create
-            company_profile_contacts.update company_profile_contacts.delete
+            company_profiles.view company_profiles.create company_profiles.update company_profiles.delete
           ]
           admin_permissions = admin_permission_codes.map do |code|
             Permission.find_or_create_by!(code:) do |permission|

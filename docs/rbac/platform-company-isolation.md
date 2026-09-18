@@ -451,10 +451,9 @@ guards tenant-owned (company-scoped) data — not just `FishermanRolePolicy`/`Fi
 `ApplicationPolicy` has no base `owns_record?`; nothing stops a shared policy's `show?`/`update?`/
 `destroy?` from authorizing purely on the permission bit and never inspecting `record`, which would make
 the policy layer depend entirely on every controller — current and future — fetching the record through
-a `policy_scope(...)`-rooted chain forever. `ManifestPolicy`, `ManifestExpensePolicy`,
-`ManifestMinorFishermanPolicy`, `CompaniesVesselPolicy`, `CompaniesCrewPolicy`,
-`CompaniesFishingGearPolicy`, `CompaniesDocumentPolicy`, `CompanyProfilePolicy`,
-`CompanyProfileContactPolicy`, `CaptureReportPolicy`, `FishCaptureDetailPolicy`, and
+a `policy_scope(...)`-rooted chain forever. `ManifestPolicy`, `CompaniesVesselPolicy`,
+`CompaniesCrewPolicy`, `CompaniesFishingGearPolicy`, `CompaniesDocumentPolicy`,
+`CompanyProfilePolicy`, `CaptureReportPolicy`, `FishCaptureDetailPolicy`, and
 `FishingGearDetailPolicy` all define their own `owns_record?`, bypassed via `user.dofi_officer_platform?`
 to match their own `Scope#resolve`'s existing officer bypass. Add it to every predicate whose action is
 in the catalog and that receives a real record instance; skip `create?`/`index?`/any predicate authorized

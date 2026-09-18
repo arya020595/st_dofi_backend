@@ -13,15 +13,11 @@ module Permission::Catalog
                          request_amendment_port_in] },
       { key: "capture_reports", label: "Capture Reports", fisherman: %w[list view create update resubmit delete] },
       { key: "capture_report_verifications", label: "Capture Report Verifications",
-        dofi_officer: %w[list view verify request_amendment] },
-      { key: "manifest_minor_fishermen", label: "Minor Fishermen", fisherman: %w[list view create delete] },
-      { key: "manifest_expenses", label: "Manifest Expenses", fisherman: %w[view create update] }
+        dofi_officer: %w[list view verify request_amendment] }
     ] },
     { key: "profiling", label: "Profiling", resources: [
       { key: "company_profiles", label: "Company Profiles",
-        dofi_officer: %w[list view create update delete] },
-      { key: "company_profile_contacts", label: "Company Profile Contacts",
-        dofi_officer: %w[create update delete] }
+        dofi_officer: %w[list view create update delete] }
     ] },
     { key: "dictionary", label: "Dictionary", resources: [
       { key: "dictionaries", label: "Dictionaries", dofi_officer: %w[list view create update delete] },
