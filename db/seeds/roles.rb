@@ -12,7 +12,7 @@ ROLE_DEFINITIONS = {
     description: "Port-level authority: manifest list/detail and port-in/out approval actions only.",
     permission_codes: %w[
       manifest_approvals.list manifest_approvals.view
-      manifest_approvals.process_port_out manifest_approvals.process_port_in
+      manifest_approvals.approve manifest_approvals.amendment
     ]
   }
 }.freeze

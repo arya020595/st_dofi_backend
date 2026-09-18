@@ -1,7 +1,7 @@
 module Notifications
   class ManifestRecipients
-    PORT_OUT_APPROVAL_PERMISSION = "manifest_approvals.process_port_out".freeze
-    PORT_IN_APPROVAL_PERMISSION = "manifest_approvals.process_port_in".freeze
+    PORT_OUT_APPROVAL_PERMISSION = "manifest_approvals.approve".freeze
+    PORT_IN_APPROVAL_PERMISSION = "manifest_approvals.approve".freeze
     CAPTURE_VERIFICATION_PERMISSION = "capture_report_verifications.verify".freeze
 
     def self.resolve(...) = new(...).call

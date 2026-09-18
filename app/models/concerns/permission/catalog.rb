@@ -8,7 +8,8 @@ module Permission::Catalog
       { key: "manifests", label: "Manifests",
         fisherman: %w[list view create update delete] },
       { key: "manifest_approvals", label: "Manifest Approvals",
-        dofi_officer: %w[list view process_port_out process_port_in] },
+        dofi_officer: %w[list view approve amendment],
+        action_labels: { "approve" => "Approval Port In/Port Out", "amendment" => "Amendment Port In/Port Out" } },
       { key: "capture_reports", label: "Capture Reports", fisherman: %w[list view create update delete] },
       { key: "capture_report_verifications", label: "Capture Report Verifications",
         dofi_officer: %w[list view request_amendment verify] }
@@ -65,7 +66,7 @@ module Permission::Catalog
       scoped_actions.each_with_index.map do |(scope, action), action_index|
         {
           code: "#{resource[:key]}.#{action}", action: action, action_order: action_index + 1,
-          name: action.humanize, platform_scope: scope.to_s,
+          name: resource.fetch(:action_labels, {}).fetch(action, action.titleize), platform_scope: scope.to_s,
           resource: resource[:key], resource_label: resource[:label], resource_order: resource_index + 1,
           section: section[:key], section_label: section[:label], section_order: section_index + 1
         }.freeze
