@@ -8,13 +8,13 @@ module Manifests
     end
 
     def index
-      authorize @capture_report, :show?, policy_class: capture_report_policy_class
+      authorize @capture_report
       render json: { status: "success",
                      data: FishingGearDetailBlueprint.render_as_hash(@capture_report.fishing_gear_details) }
     end
 
     def show
-      authorize @capture_report, :show?, policy_class: capture_report_policy_class
+      authorize @capture_report
       render json: { status: "success", data: FishingGearDetailBlueprint.render_as_hash(@fishing_gear_detail) }
     end
 
@@ -23,7 +23,5 @@ module Manifests
     def set_fishing_gear_detail
       @fishing_gear_detail = @capture_report.fishing_gear_details.find(params.expect(:id))
     end
-
-    def capture_report_policy_class = CaptureReportPolicy
   end
 end

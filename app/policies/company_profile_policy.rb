@@ -1,5 +1,10 @@
 class CompanyProfilePolicy < ApplicationPolicy
-  def show? = super && owns_record?
+  def show?
+    return true if user.fisherman? && owns_record?
+
+    super
+  end
+
   def update? = super && owns_record?
   def destroy? = super && owns_record?
 

@@ -16,7 +16,7 @@ module MasterData
     end
 
     def show
-      authorize FishingGear
+      authorize @fishing_gear
       render json: { status: "success", data: FishingGearBlueprint.render_as_hash(@fishing_gear) }
     end
 

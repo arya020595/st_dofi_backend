@@ -11,7 +11,7 @@ module Permission::Catalog
       { key: "manifest_approvals", label: "Manifest Approvals",
         dofi_officer: %w[list view approve_port_out request_amendment_port_out approve_port_in
                          request_amendment_port_in] },
-      { key: "capture_reports", label: "Capture Reports", fisherman: %w[list view create update resubmit] },
+      { key: "capture_reports", label: "Capture Reports", fisherman: %w[list view create update resubmit delete] },
       { key: "capture_report_verifications", label: "Capture Report Verifications",
         dofi_officer: %w[list view verify request_amendment] },
       { key: "manifest_minor_fishermen", label: "Minor Fishermen", fisherman: %w[list view create delete] },
