@@ -3,7 +3,6 @@ module Api
     module Fisherman
       class ZonesController < ApplicationController
         include ::MasterData::ZonesReadable
-        include FishermanReferenceDataAccess
       end
     end
   end

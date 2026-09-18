@@ -1,5 +1,5 @@
 class ManifestSkipReasonPolicy < ApplicationPolicy
-  def index
+  def index?
     return true if user.fisherman?
 
     super

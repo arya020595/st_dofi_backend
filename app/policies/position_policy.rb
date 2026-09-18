@@ -1,5 +1,5 @@
 class PositionPolicy < ApplicationPolicy
-  def index
+  def index?
     return true if user.fisherman?
 
     super

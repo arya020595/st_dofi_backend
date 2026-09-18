@@ -1,5 +1,5 @@
 class PortPolicy < ApplicationPolicy
-  def index
+  def index?
     return true if user.fisherman?
 
     super

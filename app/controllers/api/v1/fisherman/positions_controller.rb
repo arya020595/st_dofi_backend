@@ -3,7 +3,6 @@ module Api
     module Fisherman
       class PositionsController < ApplicationController
         include ::MasterData::PositionsReadable
-        include FishermanReferenceDataAccess
       end
     end
   end

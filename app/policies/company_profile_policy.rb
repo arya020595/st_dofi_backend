@@ -1,6 +1,6 @@
 class CompanyProfilePolicy < ApplicationPolicy
   def show?
-    return true if user.fisherman? && owns_record?
+    return owns_record? if user.fisherman?
 
     super
   end
