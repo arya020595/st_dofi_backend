@@ -176,6 +176,21 @@ module Api
           assert_equal "amendment_required", manifest.port_in_status
         end
 
+        test "request_amendment_port_in accepts a skipped capture report" do
+          manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
+          manifest.submit_port_out!
+          manifest.approve_port_out!
+          manifest.update!(capture_report_skipped: true)
+          manifest.submit_port_in!
+
+          post "/api/v1/admin/approvals/manifests/#{manifest.id}/request_amendment_port_in",
+               params: { remarks: "Confirm arrival time" }, headers: @jetty_headers, as: :json
+
+          assert_response :ok
+          assert_equal "amendment_required", manifest.reload.port_in_status
+          assert_equal "awaiting_port_in_approval", manifest.manifest_status
+        end
+
         test "approve_port_in normalizes a stale manifest once all capture reports are verified" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
           manifest.submit_port_out!

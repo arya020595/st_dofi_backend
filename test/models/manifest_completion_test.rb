@@ -60,25 +60,29 @@ class ManifestCompletionTest < ActiveSupport::TestCase
     assert_equal BigDecimal("10"), company_gear.reload.usage_value
   end
 
-  test "skipped manifest auto-completes on submit_port_in!, with no capture report" do
+  test "skipped manifest waits for port-in approval after submit_port_in!" do
     manifest = create(:manifest, fisherman_category: "commercial")
     manifest.submit_port_out!
     manifest.approve_port_out!
     manifest.update!(capture_report_skipped: true)
 
     manifest.submit_port_in!
+    manifest.begin_port_in_review!
+    manifest.approve_port_in!
 
     assert_equal "completed", manifest.manifest_status
   end
 
-  test "small-scale skipped manifest auto-completes on submit_port_in! alone, no Jetty approval" do
+  test "small-scale skipped manifest requires port-in approval" do
     manifest = create(:manifest, :small_scale)
     manifest.submit_port_out!
     manifest.update!(capture_report_skipped: true)
 
     manifest.submit_port_in!
+    manifest.begin_port_in_review!
+    manifest.approve_port_in!
 
-    assert_equal "submitted", manifest.port_in_status
+    assert_equal "approved", manifest.port_in_status
     assert_equal "completed", manifest.manifest_status
   end
 
