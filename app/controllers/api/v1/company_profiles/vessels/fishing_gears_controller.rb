@@ -10,20 +10,21 @@ module Api
           before_action :set_fishing_gear, only: %i[show update destroy]
 
           def index
-            authorize @company_profile
-            result = apply_ransack_search(@vessel.companies_fishing_gears.kept, default_sort: "created_at desc")
+            authorize CompaniesFishingGear, policy_class: CompanyProfilePolicy
+            scope = policy_scope(@vessel.companies_fishing_gears, policy_scope_class: CompanyProfilePolicy::Scope)
+            result = apply_ransack_search(scope, default_sort: "created_at desc")
             pagy, records = pagy(:offset, result)
             render json: { status: "success", data: CompaniesFishingGearBlueprint.render_as_hash(records),
                            meta: pagination_meta(pagy) }
           end
 
           def show
-            authorize @company_profile
+            authorize @fishing_gear, policy_class: CompanyProfilePolicy
             render json: { status: "success", data: CompaniesFishingGearBlueprint.render_as_hash(@fishing_gear) }
           end
 
           def create
-            authorize @company_profile
+            authorize CompaniesFishingGear, policy_class: CompanyProfilePolicy
 
             case CompaniesFishingGears::Create.call(@company_profile, @vessel, fishing_gear_params)
             in Success(gear)
@@ -35,7 +36,7 @@ module Api
           end
 
           def update
-            authorize @company_profile
+            authorize @fishing_gear, policy_class: CompanyProfilePolicy
 
             case CompaniesFishingGears::Update.call(@fishing_gear, fishing_gear_params)
             in Success(gear)
@@ -46,7 +47,7 @@ module Api
           end
 
           def destroy
-            authorize @company_profile
+            authorize @fishing_gear, policy_class: CompanyProfilePolicy
 
             if discard_fishing_gear?
               render json: { status: "success", message: "Fishing gear removed." }

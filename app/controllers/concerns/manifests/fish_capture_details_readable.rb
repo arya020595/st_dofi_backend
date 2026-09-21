@@ -8,13 +8,13 @@ module Manifests
     end
 
     def index
-      authorize @capture_report
+      authorize FishCaptureDetail, policy_class: CaptureReportPolicy
       render json: { status: "success",
                      data: FishCaptureDetailBlueprint.render_as_hash(@capture_report.fish_capture_details) }
     end
 
     def show
-      authorize @capture_report
+      authorize @fish_capture_detail, policy_class: CaptureReportPolicy
       render json: { status: "success", data: FishCaptureDetailBlueprint.render_as_hash(@fish_capture_detail) }
     end
 

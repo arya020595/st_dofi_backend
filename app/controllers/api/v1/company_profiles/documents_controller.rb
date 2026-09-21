@@ -8,16 +8,16 @@ module Api
         before_action :set_document, only: %i[update]
 
         def index
-          authorize @company_profile
-          result = apply_ransack_search(@company_profile.companies_documents.kept,
-                                        default_sort: "created_at desc")
+          authorize CompaniesDocument, policy_class: CompanyProfilePolicy
+          scope = policy_scope(@company_profile.companies_documents, policy_scope_class: CompanyProfilePolicy::Scope)
+          result = apply_ransack_search(scope, default_sort: "created_at desc")
           pagy, records = pagy(:offset, result)
           render json: { status: "success", data: CompaniesDocumentBlueprint.render_as_hash(records),
                          meta: pagination_meta(pagy) }
         end
 
         def create
-          authorize @company_profile
+          authorize CompaniesDocument, policy_class: CompanyProfilePolicy
 
           case CompaniesDocuments::Create.call(@company_profile, document_params)
           in Success(document)
@@ -29,7 +29,7 @@ module Api
         end
 
         def update
-          authorize @company_profile
+          authorize @document, policy_class: CompanyProfilePolicy
 
           case CompaniesDocuments::Update.call(@document, params.expect(document: %i[file])[:file])
           in Success(document)

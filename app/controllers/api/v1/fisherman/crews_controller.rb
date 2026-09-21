@@ -5,7 +5,7 @@ module Api
         include RansackSearchable
 
         def index
-          authorize current_user.company_profile, :show?
+          authorize CompaniesCrew, policy_class: CompanyProfilePolicy
           result = apply_ransack_search(manifest_crews, default_sort: "crew_name asc")
           pagy, records = pagy(:offset, result)
 

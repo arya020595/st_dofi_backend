@@ -8,7 +8,7 @@ module Api
           before_action :set_vessel, only: %i[show approve request_amendment]
 
           def index
-            authorize CompaniesVessel, policy_class: CompaniesVesselApprovalPolicy
+            authorize CompaniesVessel, policy_class: CompaniesVesselFishingGearApprovalPolicy
             result = apply_ransack_search(vessel_scope, default_sort: "created_at desc")
             pagy, records = pagy(:offset, result)
             render json: { status: "success", data: CompaniesVesselApprovalBlueprint.render_as_hash(records),
@@ -16,12 +16,12 @@ module Api
           end
 
           def show
-            authorize @vessel, policy_class: CompaniesVesselApprovalPolicy
+            authorize @vessel, policy_class: CompaniesVesselFishingGearApprovalPolicy
             render json: { status: "success", data: CompaniesVesselApprovalBlueprint.render_as_hash(@vessel) }
           end
 
           def approve
-            authorize @vessel, policy_class: CompaniesVesselApprovalPolicy
+            authorize @vessel, policy_class: CompaniesVesselFishingGearApprovalPolicy
 
             case CompaniesVessels::Approve.call(@vessel, actor: current_user)
             in Success(vessel)
@@ -32,7 +32,7 @@ module Api
           end
 
           def request_amendment
-            authorize @vessel, policy_class: CompaniesVesselApprovalPolicy
+            authorize @vessel, policy_class: CompaniesVesselFishingGearApprovalPolicy
 
             result = CompaniesVessels::RequestAmendment.call(@vessel, actor: current_user,
                                                                       remarks: params.expect(:remarks))
@@ -47,7 +47,7 @@ module Api
           private
 
           def vessel_scope
-            policy_scope(CompaniesVessel, policy_scope_class: CompaniesVesselApprovalPolicy::Scope)
+            policy_scope(CompaniesVessel, policy_scope_class: CompaniesVesselFishingGearApprovalPolicy::Scope)
           end
 
           def set_vessel

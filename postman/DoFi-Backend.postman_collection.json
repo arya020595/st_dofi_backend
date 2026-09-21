@@ -6087,7 +6087,7 @@
                     "crews?page=1&limit=10"
                   ]
                 },
-                "description": "Fisherman-namespace equivalent of List Crews above, scoped to the signed-in fisherman's own company via CompaniesCrewPolicy::Scope (non-officers only see scope.kept.where(company_profile_id: user.company_profile_id)). Run \"BruneiID Login - Active\" in Auth first to populate fisherman_jwt_token and fisherman_company_profile_id. Requires companies_crews.list."
+                "description": "Fisherman-namespace equivalent of List Crews above, scoped to the signed-in fisherman's own company via CompanyProfilePolicy::Scope (non-officers only see scope.kept.where(company_profile_id: user.company_profile_id)). Run \"BruneiID Login - Active\" in Auth first to populate fisherman_jwt_token and fisherman_company_profile_id. No permission code required for fisherman — CompanyProfilePolicy#index? allows any fisherman with a company profile."
               }
             },
             {
@@ -6331,7 +6331,7 @@
     },
     {
       "name": "Approvals - Vessels",
-      "description": "Officer review queue for CompaniesVessel, scoped by CompaniesVesselApprovalPolicy (officers see every company's vessels; non-officers only their own). This is the general-purpose approve/amendment flow — the \"Vessels\" folder further down only calls approve inline as setup for the Manifest demo scenarios. Requires companies_vessel_approvals.*.\n\nRun \"Create Vessel\" in Companies - Vessels first so companies_vessel_id is set.",
+      "description": "Officer review queue for CompaniesVessel, scoped by CompaniesVesselFishingGearApprovalPolicy (officers see every company's vessels; non-officers only their own). This is the general-purpose approve/amendment flow — the \"Vessels\" folder further down only calls approve inline as setup for the Manifest demo scenarios. Requires companies_vessel_approvals.*.\n\nRun \"Create Vessel\" in Companies - Vessels first so companies_vessel_id is set.",
       "item": [
         {
           "name": "List Vessel Approvals",

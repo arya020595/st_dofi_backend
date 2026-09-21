@@ -7,7 +7,7 @@ module Api
             include ::Manifests::FishCaptureDetailsReadable
 
             def create
-              authorize @capture_report
+              authorize FishCaptureDetail, policy_class: CaptureReportPolicy
 
               case FishCaptureDetails::Create.call(@capture_report, fish_capture_detail_params)
               in Success(detail)
@@ -20,7 +20,7 @@ module Api
 
             def update
               set_fish_capture_detail
-              authorize @capture_report
+              authorize @fish_capture_detail, policy_class: CaptureReportPolicy
 
               case FishCaptureDetails::Update.call(@fish_capture_detail, fish_capture_detail_params)
               in Success(detail)
@@ -32,7 +32,7 @@ module Api
 
             def destroy
               set_fish_capture_detail
-              authorize @capture_report
+              authorize @fish_capture_detail, policy_class: CaptureReportPolicy
 
               if @fish_capture_detail.destroy
                 render json: { status: "success", message: "Fish capture detail removed." }
