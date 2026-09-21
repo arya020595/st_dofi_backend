@@ -104,7 +104,7 @@ There is **no `Role::FISHERMAN` kind** — Fisherman roles are per-company, iden
 
 ### 2.4 Permission
 
-Code convention: `"<resource>.<action>"` (`fisherman_roles.create`, `dofi_officer_users.delete`).
+Code convention: `"<resource>.<action>"` (`fisherman_roles.create`, `users.delete`).
 `Permission.assignable_to(role_platform_scope)` returns the codes a role on that platform may hold —
 its own platform's codes plus `shared` ones. This is the read side of the invariant
 `Roles::PermissionPlatformValidation` enforces on write (§4.4).
@@ -421,7 +421,7 @@ end
 
 Admin and Fisherman use the same action names, but their genuinely different resources use explicit
 policies: `RolePolicy` owns `roles.*`, `FishermanRolePolicy` owns `fisherman_roles.*`, `UserPolicy`
-owns `dofi_officer_users.*`, and `FishermanUserPolicy` owns `fisherman_users.*`. The Fisherman
+owns `users.*`, and `FishermanUserPolicy` owns `fisherman_users.*`. The Fisherman
 controllers select their policy and scope with `policy_class:`/`policy_scope_class:`.
 
 Workflow permissions on the same model follow the same rule. `ManifestPolicy` never references

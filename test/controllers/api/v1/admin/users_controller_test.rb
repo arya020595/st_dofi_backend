@@ -8,7 +8,7 @@ module Api
           @password = "Password123!"
 
           admin_permissions = %w[list view create update delete].map do |action|
-            Permission.find_or_create_by!(code: "dofi_officer_users.#{action}") do |permission|
+            Permission.find_or_create_by!(code: "users.#{action}") do |permission|
               permission.name = "Dofi officer users - #{action.capitalize}"
             end
           end

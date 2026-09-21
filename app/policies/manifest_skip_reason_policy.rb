@@ -17,5 +17,5 @@ class ManifestSkipReasonPolicy < ApplicationPolicy
 
   private
 
-  def permission_resource = "skip_reasons"
+  def permission_resource = "manifest_skip_reasons"
 end

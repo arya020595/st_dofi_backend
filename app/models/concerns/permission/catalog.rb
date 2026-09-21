@@ -35,11 +35,11 @@ module Permission::Catalog
       { key: "fishing_gears", label: "Fishing Gears", dofi_officer: %w[list view create update delete] },
       { key: "nationalities", label: "Nationalities", dofi_officer: %w[list view create update delete] },
       { key: "positions", label: "Positions", dofi_officer: %w[list view create update delete] },
-      { key: "skip_reasons", label: "Reasons", dofi_officer: %w[list view create update delete] }
+      { key: "manifest_skip_reasons", label: "Skip Reasons", dofi_officer: %w[list view create update delete] }
     ] },
     { key: "user_management", label: "User Management", resources: [
       { key: "roles", label: "Roles", dofi_officer: %w[list view create update delete] },
-      { key: "dofi_officer_users", label: "DoFi Officer Users", dofi_officer: %w[list view create update delete] },
+      { key: "users", label: "DoFi Officer Users", dofi_officer: %w[list view create update delete] },
       { key: "permissions", label: "Permissions", shared: %w[list] },
       { key: "entity_users", label: "Entity Users", dofi_officer: %w[list] }
     ] },
