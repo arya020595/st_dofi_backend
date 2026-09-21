@@ -31,7 +31,7 @@ module Api
 
           def resubmit
             set_capture_report
-            authorize @capture_report
+            authorize @capture_report, :update?
             render_transition(::CaptureReports::Resubmit.call(@capture_report, actor: current_user))
           end
 

@@ -4,8 +4,8 @@ module Manifests
     include Manifests::ManifestScoped
 
     def index
-      authorize ManifestMinorFisherman
-      minors = policy_scope(ManifestMinorFisherman).where(manifest: @manifest)
+      authorize @manifest
+      minors = @manifest.manifest_minor_fishermen
       render json: { status: "success", data: ManifestMinorFishermanBlueprint.render_as_hash(minors) }
     end
   end

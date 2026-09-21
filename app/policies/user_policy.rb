@@ -11,7 +11,7 @@ class UserPolicy < ApplicationPolicy
 
   private
 
-  def permission_resource = "dofi_officer_users"
+  def permission_resource = "users"
 
   def owns_record? = record.role_id.nil? || !record.role&.external?
 end

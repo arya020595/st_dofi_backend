@@ -8,8 +8,7 @@ module Api
           setup do
             @manifest = create(:manifest)
             @headers = fisherman_headers_for(@manifest,
-                                             permission_codes: %w[manifest_expenses.view manifest_expenses.create
-                                                                  manifest_expenses.update])
+                                             permission_codes: %w[manifests.view manifests.create manifests.update])
           end
 
           test "create upserts the expense record" do

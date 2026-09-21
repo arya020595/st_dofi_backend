@@ -291,7 +291,7 @@ For a concrete, working instance of this exact diagram, see `CompaniesDocument`
 (`app/models/companies_document.rb`, `CompaniesDocumentBlueprint#document_url`,
 `Api::V1::CompanyProfiles::DocumentsController` for upload, `Api::V1::Approvals::DocumentsController`
 for the officer approve/request-amendment side) — company registration and licence PDFs, gated by
-`CompaniesDocumentPolicy#show?`.
+the parent `CompanyProfilePolicy#show?`.
 
 ## 4. How to implement this for a new model
 

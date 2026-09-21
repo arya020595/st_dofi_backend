@@ -34,12 +34,12 @@ invariants, and how to extend it — see
 stays focused on what a new registrant needs to know; that doc is the canonical deep reference.
 
 ```
-Role (e.g. "DoFi Officer") ──has many──> Permission (e.g. "dofi_officer_users.create")
+Role (e.g. "DoFi Officer") ──has many──> Permission (e.g. "users.create")
 ```
 
 - One `User` belongs to exactly one `Role` (single-role model — no multi-role assignment).
 - A `Permission` is identified by a `code` string, conventionally `"<resource>.<action>"`
-  (`dofi_officer_users.create`, `fisherman_approvals.approve`, `positions.list`, ...).
+  (`users.create`, `fisherman_approvals.approve`, `positions.list`, ...).
 - Every controller action calls `user.permission?(*codes)` (via a Pundit policy) — true if the
   user's role has *any* of the listed permission codes.
 - **"Administrator" is not a separate role.** All DoFi Officer/Administrator accounts share the
@@ -127,7 +127,7 @@ sequenceDiagram
 ```
 
 No approval step — an officer creating another officer account is itself the trust boundary (gated
-by the `dofi_officer_users.create` permission), unlike the external actors below whose *registration*
+by the `users.create` permission), unlike the external actors below whose *registration*
 is unauthenticated and therefore always lands `pending`.
 
 **Why no email/password fields in Add User**: mirrored from how Fisherman/Jetty Manager already

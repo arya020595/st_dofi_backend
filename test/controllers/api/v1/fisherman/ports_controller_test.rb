@@ -7,11 +7,7 @@ module Api
         setup do
           @password = "Password123!"
 
-          fisherman_permissions = %w[ports.list ports.view].map do |code|
-            Permission.find_or_create_by!(code: code) { |p| p.name = code }
-          end
-
-          @fisherman_role = create(:role, :fisherman, name: "Fisherman", permissions: fisherman_permissions)
+          @fisherman_role = create(:role, :fisherman, name: "Fisherman")
           @no_access_role = create(:role)
 
           @fisherman = create(:user, role: @fisherman_role, ic_number: "01-800100", registration_type: "Commercial",
@@ -22,7 +18,7 @@ module Api
           @plain_headers = auth_headers_for(@plain_user, password: @password)
         end
 
-        test "index requires ports list permission" do
+        test "index requires the fisherman audience" do
           get "/api/v1/fisherman/master_data/ports", headers: @plain_headers
 
           assert_response :forbidden

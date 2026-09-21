@@ -7,7 +7,7 @@ module Api
             include ::Manifests::FishCaptureDetailsReadable
 
             def create
-              authorize FishCaptureDetail
+              authorize FishCaptureDetail, policy_class: CaptureReportPolicy
 
               case FishCaptureDetails::Create.call(@capture_report, fish_capture_detail_params)
               in Success(detail)
@@ -20,7 +20,7 @@ module Api
 
             def update
               set_fish_capture_detail
-              authorize @fish_capture_detail
+              authorize @fish_capture_detail, policy_class: CaptureReportPolicy
 
               case FishCaptureDetails::Update.call(@fish_capture_detail, fish_capture_detail_params)
               in Success(detail)
@@ -32,7 +32,7 @@ module Api
 
             def destroy
               set_fish_capture_detail
-              authorize @fish_capture_detail
+              authorize @fish_capture_detail, policy_class: CaptureReportPolicy
 
               if @fish_capture_detail.destroy
                 render json: { status: "success", message: "Fish capture detail removed." }
@@ -43,7 +43,7 @@ module Api
             end
 
             def bulk_sync
-              authorize FishCaptureDetail
+              authorize @capture_report, :update?
 
               result = FishCaptureDetails::BulkSync.call(@capture_report, bulk_sync_params)
               render json: { status: "success", data: FishCaptureSyncResultBlueprint.render_as_hash(result.value!) }

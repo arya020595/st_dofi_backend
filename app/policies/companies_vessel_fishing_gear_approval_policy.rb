@@ -1,4 +1,4 @@
-class CompaniesVesselApprovalPolicy < ApplicationPolicy
+class CompaniesVesselFishingGearApprovalPolicy < ApplicationPolicy
   def approve? = permitted?("approve")
   def request_amendment? = permitted?("request_amendment")
 

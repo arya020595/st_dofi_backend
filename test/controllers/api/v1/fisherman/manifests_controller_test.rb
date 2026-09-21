@@ -8,11 +8,7 @@ module Api
           @password = "Password123!"
 
           fisherman_permissions = %w[manifests.view manifests.list manifests.create manifests.update
-                                     manifests.delete manifests.offline_bundle manifests.submit_port_out
-                                     manifests.resubmit_port_out manifests.submit_port_in manifests.resubmit_port_in
-                                     manifests.skip_capture_report
-                                     companies_vessels.view companies_vessels.list
-                                     companies_vessels.create].map do |code|
+                                     manifests.delete].map do |code|
             Permission.find_or_create_by!(code: code) { |p| p.name = code }
           end
 
@@ -263,7 +259,7 @@ module Api
           assert_response :unprocessable_content
         end
 
-        test "skip_capture_report auto-approves port_in and completes the manifest" do
+        test "skip_capture_report keeps the manifest at sea until port-in is submitted" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
           manifest.submit_port_out!
           manifest.approve_port_out!
@@ -274,8 +270,8 @@ module Api
                headers: @fisherman_headers, as: :json
 
           assert_response :ok
-          assert_equal "approved", manifest.reload.port_in_status
-          assert_equal "completed", manifest.reload.manifest_status
+          assert_equal "draft", manifest.reload.port_in_status
+          assert_equal "at_sea", manifest.manifest_status
         end
 
         test "skip_capture_report snapshots the skip reason name" do

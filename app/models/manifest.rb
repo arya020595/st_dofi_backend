@@ -94,6 +94,7 @@ class Manifest < ApplicationRecord
     state :submitted
 
     event :submit_port_in do
+      transitions from: :draft, to: :pending, guard: :capture_report_skipped?, after: :complete_capture_report!
       transitions from: :draft, to: :pending,   guard: %i[commercial? capture_report_ready?],
                   after: :complete_capture_report!
       transitions from: :draft, to: :submitted, guard: %i[small_scale? capture_report_ready?],
@@ -132,8 +133,7 @@ class Manifest < ApplicationRecord
     # which after: callbacks see pre-transition (state is written only once event.fire returns, see
     # AASM::InstanceBase#aasm_fired). success: fires post-write via fire_transition_callbacks.
     event(:complete_capture_report) do
-      transitions from: %i[at_sea awaiting_port_in_approval], to: :capture_report_submitted,
-                  success: :auto_complete_if_skipped!
+      transitions from: %i[at_sea awaiting_port_in_approval], to: :capture_report_submitted
     end
     event(:complete_manifest) do
       transitions from: %i[capture_report_submitted awaiting_port_in_approval], to: :completed,
@@ -194,12 +194,6 @@ class Manifest < ApplicationRecord
   end
 
   private
-
-  # Skipped-report manifests have no CaptureReport to verify — finalize immediately instead of
-  # waiting on a verify event that will never come.
-  def auto_complete_if_skipped!(actor: nil, **)
-    complete_manifest!(actor: actor) if capture_report_skipped? && may_complete_manifest?
-  end
 
   def record_fishing_gear_usage!(*, **)
     usage_totals = FishingGearDetail.joins(:capture_report)

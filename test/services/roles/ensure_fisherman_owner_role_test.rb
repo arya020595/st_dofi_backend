@@ -12,9 +12,9 @@ module Roles
       assert_predicate role, :is_default?
     end
 
-    test "grants every fisherman and shared permission on first call" do
+    test "grants every fisherman permission on first call" do
       fisherman_permission = create(:permission, code: "fisherman_users.view")
-      shared_permission = create(:permission, code: "manifests.view")
+      manifest_permission = create(:permission, code: "manifests.view")
       officer_permission = create(:permission, code: "roles.view")
       legacy_permission = create(
         :permission, code: "manifest.view", platform_scope: Permission::FISHERMAN_PLATFORM
@@ -23,7 +23,7 @@ module Roles
 
       role = EnsureFishermanOwnerRole.call(company_profile)
 
-      assignments = [fisherman_permission, shared_permission, officer_permission, legacy_permission]
+      assignments = [fisherman_permission, manifest_permission, officer_permission, legacy_permission]
                     .map { |permission| role.permissions.include?(permission) }
 
       assert_equal [true, true, false, false], assignments

@@ -4,7 +4,7 @@ module Manifests
     include Manifests::ManifestScoped
 
     def show
-      authorize expense_record, :show?
+      authorize expense_record, :show?, policy_class: ManifestPolicy
 
       expense = @manifest.manifest_expense
       if expense

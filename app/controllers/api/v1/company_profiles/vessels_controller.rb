@@ -8,8 +8,9 @@ module Api
         before_action :set_vessel, only: %i[show update destroy images]
 
         def index
-          authorize CompaniesVessel
-          scope = policy_scope(@company_profile.companies_vessels).includes(images_attachments: :blob)
+          authorize CompaniesVessel, policy_class: CompanyProfilePolicy
+          scope = policy_scope(@company_profile.companies_vessels, policy_scope_class: CompanyProfilePolicy::Scope)
+                  .includes(images_attachments: :blob)
           result = apply_ransack_search(scope, default_sort: "created_at desc")
           pagy, records = pagy(:offset, result)
           render json: { status: "success", data: CompaniesVesselBlueprint.render_as_hash(records),
@@ -17,12 +18,12 @@ module Api
         end
 
         def show
-          authorize @vessel
+          authorize @vessel, policy_class: CompanyProfilePolicy
           render json: { status: "success", data: CompaniesVesselBlueprint.render_as_hash(@vessel) }
         end
 
         def create
-          authorize CompaniesVessel
+          authorize CompaniesVessel, policy_class: CompanyProfilePolicy
 
           case CompaniesVessels::Create.call(@company_profile, vessel_params)
           in Success(vessel)
@@ -33,7 +34,7 @@ module Api
         end
 
         def update
-          authorize @vessel
+          authorize @vessel, policy_class: CompanyProfilePolicy
 
           case CompaniesVessels::Update.call(@vessel, vessel_params)
           in Success(vessel)
@@ -44,7 +45,7 @@ module Api
         end
 
         def destroy
-          authorize @vessel
+          authorize @vessel, policy_class: CompanyProfilePolicy
 
           if discard_vessel
             render json: { status: "success", message: "Vessel removed." }
@@ -54,7 +55,7 @@ module Api
         end
 
         def images
-          authorize @vessel, :images?
+          authorize @vessel, :update?, policy_class: CompanyProfilePolicy
 
           case CompaniesVessels::AttachImages.call(@vessel, image_params)
           in Success(vessel)

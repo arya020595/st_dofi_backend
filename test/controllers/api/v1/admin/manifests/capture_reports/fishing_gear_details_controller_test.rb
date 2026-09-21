@@ -10,7 +10,7 @@ module Api
               @manifest = create(:manifest)
               @report = create(:capture_report, manifest: @manifest)
               @headers = officer_headers_for(
-                permission_codes: %w[fishing_gear_details.view fishing_gear_details.list]
+                permission_codes: %w[capture_report_verifications.view capture_report_verifications.list]
               )
             end
 

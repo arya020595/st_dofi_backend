@@ -12,9 +12,7 @@ module Api
             Permission.find_or_create_by!(code: code) { |p| p.name = code }
           end
           jetty_permissions = %w[manifest_approvals.list manifest_approvals.view
-                                 manifest_approvals.approve_port_out manifest_approvals.request_amendment_port_out
-                                 manifest_approvals.approve_port_in
-                                 manifest_approvals.request_amendment_port_in].map do |code|
+                                 manifest_approvals.approve manifest_approvals.amendment].map do |code|
             Permission.find_or_create_by!(code: code) { |p| p.name = code }
           end
           update_permission = Permission.find_or_create_by!(code: "manifests.update") do |p|
@@ -176,6 +174,21 @@ module Api
           assert_response :ok
           assert_equal "awaiting_port_in_approval", manifest.reload.manifest_status
           assert_equal "amendment_required", manifest.port_in_status
+        end
+
+        test "request_amendment_port_in accepts a skipped capture report" do
+          manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
+          manifest.submit_port_out!
+          manifest.approve_port_out!
+          manifest.update!(capture_report_skipped: true)
+          manifest.submit_port_in!
+
+          post "/api/v1/admin/approvals/manifests/#{manifest.id}/request_amendment_port_in",
+               params: { remarks: "Confirm arrival time" }, headers: @jetty_headers, as: :json
+
+          assert_response :ok
+          assert_equal "amendment_required", manifest.reload.port_in_status
+          assert_equal "awaiting_port_in_approval", manifest.manifest_status
         end
 
         test "approve_port_in normalizes a stale manifest once all capture reports are verified" do

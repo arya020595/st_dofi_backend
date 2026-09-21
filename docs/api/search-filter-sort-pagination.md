@@ -5,7 +5,7 @@ pagination. It currently covers:
 
 | Endpoint | Paginated? | Auth required | Permission needed |
 |---|---|---|---|
-| `GET /api/v1/admin/users` | Yes | Yes (JWT) | `dofi_officer_users.list` |
+| `GET /api/v1/admin/users` | Yes | Yes (JWT) | `users.list` |
 | `GET /api/v1/admin/roles` | Yes | Yes (JWT) | `roles.list` |
 | `GET /api/v1/permissions` | No (returns full filtered list) | Yes (JWT) | any authenticated user |
 | `GET /api/v1/admin/master_data/ports` (also `/api/v1/fisherman/master_data/ports`, read-only) | Yes | Yes (JWT) | `ports.list` |
@@ -13,7 +13,7 @@ pagination. It currently covers:
 | `GET /api/v1/admin/master_data/fishing_gears` (also `/api/v1/fisherman/master_data/fishing_gears`, read-only) | Yes | Yes (JWT) | `fishing_gears.list` |
 | `GET /api/v1/admin/master_data/nationalities` | Yes | Yes (JWT) | `nationalities.list` |
 | `GET /api/v1/admin/master_data/positions` | Yes | Yes (JWT) | `positions.list` |
-| `GET /api/v1/admin/master_data/reasons` | Yes | Yes (JWT) | `skip_reasons.list` |
+| `GET /api/v1/admin/master_data/reasons` | Yes | Yes (JWT) | `manifest_skip_reasons.list` |
 | `GET /api/v1/admin/accounts` | Yes | Yes (JWT) | `admin_accounts.list` |
 
 Send the JWT the same way as every other endpoint: `Authorization: Bearer <token>`.

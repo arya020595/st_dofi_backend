@@ -8,7 +8,7 @@ module Api
           setup do
             @manifest = create(:manifest, :small_scale)
             @headers = officer_headers_for(
-              permission_codes: %w[manifest_minor_fishermen.list manifest_minor_fishermen.view]
+              permission_codes: %w[manifest_approvals.list manifest_approvals.view]
             )
           end
 

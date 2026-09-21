@@ -6,8 +6,7 @@ module Api
       setup do
         @password = "Password123!"
         @shared_permission = create_permission("dashboard.list")
-        @list_permission = create_permission("permissions.list")
-        @role = create(:role, permissions: [@shared_permission, @list_permission])
+        @role = create(:role, permissions: [@shared_permission])
         @user = create(:user, role: @role, password: @password, password_confirmation: @password)
         @headers = auth_headers_for(@user, password: @password)
       end
@@ -61,7 +60,7 @@ module Api
       test "index excludes a permission whose platform_scope column has drifted from the catalog" do
         officer_only = create_permission("roles.create")
         officer_only.update_column(:platform_scope, Permission::SHARED_PLATFORM) # rubocop:disable Rails/SkipsModelValidations
-        fisherman_role = create(:role, :fisherman, permissions: [@list_permission])
+        fisherman_role = create(:role, :fisherman, permissions: [@shared_permission])
         fisherman = create(:user, role: fisherman_role, ic_number: "01-880002", registration_type: "Commercial",
                                   password: @password, password_confirmation: @password)
 
@@ -87,18 +86,25 @@ module Api
       test "fisherman index exposes every canonical fisherman and shared permission" do
         get "/api/v1/permissions", headers: fisherman_headers_for_permissions_test
 
-        assert_response :ok
         codes = response.parsed_body["data"].pluck("code")
+        expected_codes = %w[manifests.create capture_reports.create]
+        expected_codes_present = (expected_codes - codes).empty?
+        admin_profile_access_present = codes.include?("company_profiles.update")
+        admin_role_access_present = codes.include?("roles.create")
+        capture_detail_access_present = codes.any? do |code|
+          code.start_with?("fish_capture_details.") || code.start_with?("fishing_gear_details.")
+        end
 
-        assert_empty %w[manifests.create ports.view capture_reports.create company_profiles.update] - codes
-        assert_not_includes codes, "roles.create"
+        assert_equal [200, true, false, false, false],
+                     [response.status, expected_codes_present, admin_profile_access_present, admin_role_access_present,
+                      capture_detail_access_present]
       end
 
       private
 
       def fisherman_headers_for_permissions_test
         build_fisherman_permission_fixtures
-        fisherman_role = create(:role, :fisherman, permissions: fisherman_permission_set + [@list_permission])
+        fisherman_role = create(:role, :fisherman, permissions: fisherman_permission_set)
         fisherman = create(:user, role: fisherman_role, ic_number: "01-880001", registration_type: "Commercial",
                                   password: @password, password_confirmation: @password)
 
@@ -108,11 +114,8 @@ module Api
       def build_fisherman_permission_fixtures
         @manifest_view = create_permission("manifests.view")
         @manifest_create = create_permission("manifests.create")
-        @port_view = create_permission("ports.view")
         @capture_report_create = create_permission("capture_reports.create")
-        @company_profile_update = create_permission("company_profiles.update")
         @officer_role_create = create_permission("roles.create")
-        @list_permission = create_permission("permissions.list")
       end
 
       def create_permission(code)
@@ -125,8 +128,7 @@ module Api
 
       def fisherman_permission_set
         [
-          @manifest_view, @manifest_create, @port_view, @capture_report_create,
-          @company_profile_update
+          @manifest_view, @manifest_create, @capture_report_create
         ]
       end
     end

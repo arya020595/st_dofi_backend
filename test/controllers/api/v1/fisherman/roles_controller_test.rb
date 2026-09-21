@@ -106,7 +106,7 @@ module Api
         end
 
         test "update replaces the permission set for this company's own role" do
-          another_permission = create(:permission, code: "ports.view")
+          another_permission = create(:permission, code: "capture_reports.view")
 
           patch "/api/v1/fisherman/roles/#{@target.id}", params: { role: { name: "Renamed" },
                                                                    permission_codes: [another_permission.code] },

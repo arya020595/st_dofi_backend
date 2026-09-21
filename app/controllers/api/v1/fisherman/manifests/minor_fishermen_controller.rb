@@ -8,7 +8,7 @@ module Api
           before_action :set_minor_fisherman, only: %i[destroy]
 
           def create
-            authorize ManifestMinorFisherman
+            authorize ManifestMinorFisherman, policy_class: ManifestPolicy
 
             case ManifestMinorFishermen::Create.call(@manifest, minor_fisherman_params)
             in Success(minor)
@@ -20,7 +20,7 @@ module Api
           end
 
           def destroy
-            authorize @minor_fisherman
+            authorize @minor_fisherman, policy_class: ManifestPolicy
 
             if @manifest.editable? && @minor_fisherman.destroy
               render json: { status: "success", message: "Minor fisherman removed." }

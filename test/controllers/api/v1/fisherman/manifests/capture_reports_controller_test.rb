@@ -9,8 +9,7 @@ module Api
             @manifest = create(:manifest)
             @headers = fisherman_headers_for(@manifest,
                                              permission_codes: %w[capture_reports.list capture_reports.view
-                                                                  capture_reports.create capture_reports.update
-                                                                  capture_reports.resubmit])
+                                                                  capture_reports.create capture_reports.update])
           end
 
           test "create adds a capture report to the manifest" do
