@@ -5,7 +5,7 @@ module Api
         include RansackSearchable
 
         def index
-          authorize CompanyProfile
+          authorize current_user.company_profile, :show?
 
           result = apply_ransack_search(manifest_captains, default_sort: "crew_name asc")
           pagy, records = pagy(:offset, result)
@@ -17,10 +17,10 @@ module Api
         private
 
         def manifest_captains
-          policy_scope(CompanyProfile)
-            .companies_crews.kept.joins(:position)
-            .where(approval_status: "approved")
-            .where(positions: { name: "Boat Captain" })
+          current_user.company_profile
+                      .companies_crews.kept.joins(:position)
+                      .where(approval_status: "approved")
+                      .where(positions: { name: "Boat Captain" })
         end
       end
     end

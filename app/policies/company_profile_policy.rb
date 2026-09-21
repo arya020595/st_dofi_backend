@@ -1,6 +1,6 @@
 class CompanyProfilePolicy < ApplicationPolicy
   def index?
-    return owns_record? if user.fisherman?
+    return true if user.fisherman?
 
     super
   end

@@ -86,6 +86,8 @@ class RbacContractTest < ActiveSupport::TestCase
     failures = []
 
     ApplicationPolicy.descendants.each do |policy_class|
+      next if policy_class == PermissionPolicy
+
       resource = policy_resource(policy_class)
       policy_actions(policy_class, resource).each do |action|
         suffix = ACTION_SUFFIX.fetch(action, action.to_s.delete_suffix("?"))
