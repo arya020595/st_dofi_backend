@@ -29,12 +29,12 @@ module Api
           end
 
           def port_out_approval
-            authorize @manifest, :show?, policy_class: ManifestApprovalPolicy
+            authorize @manifest, :approve?, policy_class: ManifestApprovalPolicy
             render_approval_histories("port_out_status")
           end
 
           def port_in_approval
-            authorize @manifest, :show?, policy_class: ManifestApprovalPolicy
+            authorize @manifest, :approve?, policy_class: ManifestApprovalPolicy
             render_approval_histories("port_in_status")
           end
 

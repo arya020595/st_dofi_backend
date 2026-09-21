@@ -29,6 +29,19 @@ module Api
             end
           end
 
+          def destroy
+            set_capture_report
+            authorize @capture_report
+
+            if @capture_report
+              render json: { status: "success", message: "Capture Report removed." }
+            else
+              @capture_report.errors.add(:base, "Manifest is no longer editable") unless @manifest.editable?
+              render json: { status: "fail", errors: @minor_fisherman.errors.full_messages },
+                     status: :unprocessable_content
+            end
+          end
+
           def resubmit
             set_capture_report
             authorize @capture_report, :update?
