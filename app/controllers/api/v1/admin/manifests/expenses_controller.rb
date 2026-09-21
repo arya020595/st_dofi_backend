@@ -4,6 +4,11 @@ module Api
       module Manifests
         class ExpensesController < ApplicationController
           include ::Manifests::ExpenseReadable
+
+          private
+
+          def manifest_policy_class = ManifestApprovalPolicy
+          def manifest_policy_scope_class = ManifestApprovalPolicy::Scope
         end
       end
     end

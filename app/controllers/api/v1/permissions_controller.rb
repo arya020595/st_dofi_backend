@@ -4,8 +4,8 @@ module Api
       include RansackSearchable
 
       def index
-        scope = Permissions::ForPlatformQuery.call(scope: Permission.all, platform: current_user.role&.platform_scope)
-        permissions = apply_ransack_search(scope, default_sort: "code asc")
+        authorize Permission
+        permissions = apply_ransack_search(policy_scope(Permission), default_sort: "code asc")
         render json: { status: "success", data: PermissionBlueprint.render_as_hash(permissions) }
       end
     end
