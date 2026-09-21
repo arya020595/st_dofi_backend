@@ -4,7 +4,7 @@ module Manifests
     include Manifests::ManifestScoped
 
     def show
-      authorize @manifest, policy_class: manifest_policy_class
+      authorize @manifest
 
       expense = @manifest.manifest_expense
       if expense
@@ -13,9 +13,5 @@ module Manifests
         render json: { status: "fail", errors: ["Expense not found"] }, status: :not_found
       end
     end
-
-    private
-
-    def manifest_policy_class = ManifestPolicy
   end
 end
