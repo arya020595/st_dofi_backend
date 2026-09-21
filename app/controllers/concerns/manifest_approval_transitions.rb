@@ -11,7 +11,7 @@ module ManifestApprovalTransitions
   end
 
   def request_amendment_port_out
-    authorize @manifest, :amendment?, policy_class: ManifestApprovalPolicy
+    authorize @manifest, :request_amendment?, policy_class: ManifestApprovalPolicy
     result = ::Manifests::RequestAmendmentPortOut.call(@manifest, actor: current_user,
                                                                   remarks: params.expect(:remarks))
     render_transition(result)
@@ -23,7 +23,7 @@ module ManifestApprovalTransitions
   end
 
   def request_amendment_port_in
-    authorize @manifest, :amendment?, policy_class: ManifestApprovalPolicy
+    authorize @manifest, :request_amendment?, policy_class: ManifestApprovalPolicy
     result = ::Manifests::RequestAmendmentPortIn.call(@manifest, actor: current_user,
                                                                  remarks: params.expect(:remarks))
     render_transition(result)

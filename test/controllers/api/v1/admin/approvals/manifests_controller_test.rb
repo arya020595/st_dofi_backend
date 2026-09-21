@@ -12,7 +12,7 @@ module Api
             Permission.find_or_create_by!(code: code) { |p| p.name = code }
           end
           jetty_permissions = %w[manifest_approvals.list manifest_approvals.view
-                                 manifest_approvals.approve manifest_approvals.amendment].map do |code|
+                                 manifest_approvals.approve manifest_approvals.request_amendment].map do |code|
             Permission.find_or_create_by!(code: code) { |p| p.name = code }
           end
           update_permission = Permission.find_or_create_by!(code: "manifests.update") do |p|
