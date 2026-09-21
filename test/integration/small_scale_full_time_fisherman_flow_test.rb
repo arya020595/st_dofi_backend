@@ -159,7 +159,7 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
 
   test "a commercial fisherman still goes through Jetty Port-Out/Port-In approval, unaffected by small-scale" do
     jetty_permissions = %w[manifest_approvals.list manifest_approvals.view
-                           manifest_approvals.approve manifest_approvals.amendment].map do |code|
+                           manifest_approvals.approve manifest_approvals.request_amendment].map do |code|
       Permission.find_or_create_by!(code: code) { |p| p.name = code }
     end
     jetty_role = create(:role, kind: Role::JETTY_MANAGER, name: "Jetty Manager", permissions: jetty_permissions)

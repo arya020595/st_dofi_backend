@@ -8,8 +8,9 @@ module Permission::Catalog
       { key: "manifests", label: "Manifests",
         fisherman: %w[list view create update delete] },
       { key: "manifest_approvals", label: "Manifest Approvals",
-        dofi_officer: %w[list view approve amendment],
-        action_labels: { "approve" => "Approval Port In/Port Out", "amendment" => "Amendment Port In/Port Out" } },
+        dofi_officer: %w[list view approve request_amendment],
+        action_labels: { "approve" => "Approval Port In/Port Out",
+                         "request_amendment" => "Amendment Port In/Port Out" } },
       { key: "capture_reports", label: "Capture Reports", fisherman: %w[list view create update delete] },
       { key: "capture_report_verifications", label: "Capture Report Verifications",
         dofi_officer: %w[list view request_amendment verify] }
