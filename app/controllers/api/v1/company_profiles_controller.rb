@@ -34,11 +34,12 @@ module Api
       def update
         authorize @company_profile
 
-        case ::CompanyProfiles::Update.call(@company_profile, company_profile_params)
+        case ::CompanyProfiles::Update.call(@company_profile, company_profile_params, updated_by: current_user)
         in Success(profile)
           render json: { status: "success", data: CompanyProfileDetailBlueprint.render_as_hash(profile) }
-        in Failure(profile)
-          render json: { status: "fail", errors: profile.errors.full_messages }, status: :unprocessable_content
+        in Failure(failure)
+          errors = failure.respond_to?(:errors) ? failure.errors.full_messages : [failure.to_s.humanize]
+          render json: { status: "fail", errors: errors }, status: :unprocessable_content
         end
       end
 
@@ -68,12 +69,18 @@ module Api
       end
 
       def company_profile_params
-        company_profile = params.expect(
-          company_profile: %i[registration_type company_name company_address mailing_address rocbn_no contact_no
-                              district mukim village fisherman_card_no issue_date license_expiry_date worker_quota]
-        )
+        company_profile = params.expect(company_profile: profile_fields + profile_contacts)
 
         company_profile.except(:worker_quota)
+      end
+
+      def profile_fields
+        %i[registration_type company_name company_address mailing_address rocbn_no contact_no district mukim village
+           fisherman_card_no issue_date license_expiry_date worker_quota]
+      end
+
+      def profile_contacts
+        [{ owner: %i[full_name gender ic_no ic_colour], admin: %i[full_name gender ic_no ic_colour] }]
       end
 
       def create_params
