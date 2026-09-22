@@ -245,6 +245,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_17_120001) do
     t.string "logo_url"
     t.text "mailing_address"
     t.string "mukim"
+    t.string "profile_number", null: false
     t.string "registration_type", null: false
     t.string "rocbn_no"
     t.datetime "updated_at", null: false
@@ -254,6 +255,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_17_120001) do
     t.index ["approved_by"], name: "index_company_profiles_on_approved_by"
     t.index ["discarded_at"], name: "index_company_profiles_on_discarded_at"
     t.index ["ic_no"], name: "index_company_profiles_on_ic_no"
+    t.index ["profile_number"], name: "index_company_profiles_on_profile_number", unique: true
     t.index ["rocbn_no"], name: "index_company_profiles_on_rocbn_no"
   end
 

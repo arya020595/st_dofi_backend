@@ -1,5 +1,13 @@
 require "test_helper"
 class CompanyProfileTest < ActiveSupport::TestCase
+  test "database assigns a unique sequential profile number" do
+    first_profile = create(:company_profile)
+    second_profile = create(:company_profile)
+
+    assert_match(/\ADOF-\d{4,}\z/, first_profile.reload.profile_number)
+    assert_not_equal first_profile.profile_number, second_profile.reload.profile_number
+  end
+
   test "does not require worker_quota because vessels calculate it" do
     profile = build(:company_profile, worker_quota: nil)
 
@@ -83,6 +91,7 @@ end
 #  logo_url             :string
 #  mailing_address      :text
 #  mukim                :string
+#  profile_number       :string           not null
 #  registration_type    :string           not null
 #  rocbn_no             :string
 #  village              :string
@@ -96,6 +105,7 @@ end
 #  index_company_profiles_on_approved_by      (approved_by)
 #  index_company_profiles_on_discarded_at     (discarded_at)
 #  index_company_profiles_on_ic_no            (ic_no)
+#  index_company_profiles_on_profile_number   (profile_number) UNIQUE
 #  index_company_profiles_on_rocbn_no         (rocbn_no)
 #
 # Foreign Keys

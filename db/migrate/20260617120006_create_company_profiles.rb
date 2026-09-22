@@ -1,7 +1,8 @@
 class CreateCompanyProfiles < ActiveRecord::Migration[8.1]
-  def change
+  def up
     create_table :company_profiles, id: :uuid do |t|
       t.string :reference_id, null: false # REG-DOF-001 (auto-generated, shown in list)
+      t.string :profile_number, null: false # DOF-0001 (database-generated profile number)
       t.string :dofi_registration_no # DOF-2026-001 (official DoFi reg no., shown in detail)
       t.string :registration_type, null: false # "Commercial", "Individual (Part - Time)", "Small - Scale (Full-Time)"
 
@@ -46,10 +47,56 @@ class CreateCompanyProfiles < ActiveRecord::Migration[8.1]
     end
 
     add_index :company_profiles, :reference_id, unique: true
+    add_index :company_profiles, :profile_number, unique: true
     add_index :company_profiles, :rocbn_no
     add_index :company_profiles, :ic_no
     add_index :company_profiles, :approval_status
     add_index :company_profiles, :approved_by
     add_index :company_profiles, :discarded_at
+
+    create_profile_number_generator
+  end
+
+  def down
+    drop_profile_number_generator
+    drop_table :company_profiles
+  end
+
+  private
+
+  def create_profile_number_generator
+    safety_assured do
+      execute <<~SQL.squish
+        CREATE SEQUENCE company_profile_number_sequence START WITH 1 INCREMENT BY 1 NO CYCLE;
+
+        CREATE FUNCTION assign_company_profile_number()
+        RETURNS trigger
+        LANGUAGE plpgsql
+        AS $$
+        BEGIN
+          NEW.profile_number := format(
+            'DOF-%s',
+            lpad(nextval('company_profile_number_sequence')::text, 4, '0')
+          );
+          RETURN NEW;
+        END;
+        $$;
+
+        CREATE TRIGGER set_company_profile_number_before_insert
+        BEFORE INSERT ON company_profiles
+        FOR EACH ROW
+        EXECUTE FUNCTION assign_company_profile_number();
+      SQL
+    end
+  end
+
+  def drop_profile_number_generator
+    safety_assured do
+      execute <<~SQL.squish
+        DROP TRIGGER IF EXISTS set_company_profile_number_before_insert ON company_profiles;
+        DROP FUNCTION IF EXISTS assign_company_profile_number();
+        DROP SEQUENCE IF EXISTS company_profile_number_sequence;
+      SQL
+    end
   end
 end

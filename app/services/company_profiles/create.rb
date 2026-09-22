@@ -33,6 +33,7 @@ module CompanyProfiles
       company_profile = CompanyProfile.create!(
         attributes.except(:owner, :admin).merge(dofi_registration_no: SecureRandom.uuid)
       )
+      company_profile.reload
       owner, owner_user, admin, admin_user = locked_contact_provisioning(company_profile, attributes, created_by)
 
       Result.new(company_profile, owner, admin, owner_user, admin_user)
