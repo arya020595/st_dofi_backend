@@ -16,8 +16,8 @@ class CaptureReportTest < ActiveSupport::TestCase
     first_report = create(:capture_report)
     second_report = create(:capture_report)
 
-    assert_match(/\ACAPTURE-\d{8}-\d{3,}\z/, first_report.capture_report_number)
-    assert_not_equal first_report.capture_report_number, second_report.capture_report_number
+    assert_match(/\ACAPTURE-\d{8}-\d{3,}\z/, first_report.reload.capture_report_number)
+    assert_not_equal first_report.capture_report_number, second_report.reload.capture_report_number
   end
 
   test "verify! raises when the report is not pending_verification" do

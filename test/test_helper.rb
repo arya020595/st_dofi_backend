@@ -1,6 +1,11 @@
 ENV["RAILS_ENV"] ||= "test"
 require_relative "../config/environment"
 require "rails/test_help"
+require_relative "support/postgresql_number_triggers"
+
+# Rails' Ruby schema dump does not retain PostgreSQL functions/triggers. Install the two
+# database-backed number generators after a fresh test schema load, before parallel workers fork.
+PostgreSqlNumberTriggers.install!
 
 # A minimal test double for an Active Storage service, standing in for the real minio_public /
 # minio_assets_public S3 services in tests — those would otherwise try to sign against test env's
@@ -25,6 +30,13 @@ module ActiveSupport
 
     # Run tests in parallel with specified workers
     parallelize(workers: :number_of_processors)
+
+    # Each parallel worker uses its own test database. The Ruby schema dump does
+    # not include PostgreSQL trigger functions, so install the generators again
+    # after Rails connects a worker to its database.
+    parallelize_setup do |_worker|
+      PostgreSqlNumberTriggers.install!
+    end
 
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all

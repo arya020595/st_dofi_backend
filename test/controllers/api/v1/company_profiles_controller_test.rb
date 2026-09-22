@@ -90,6 +90,7 @@ module Api
         data = response.parsed_body["data"]
 
         assert_equal "Owner Person", data.dig("owner_profile", "full_name")
+        assert_match(/\ADOF-\d{4,}\z/, data.dig("company_profile", "profile_number"))
         assert_equal "P.O. Box 1, Serasa", data.dig("company_profile", "mailing_address")
         assert_nil data["admin_profile"]
         assert_equal "pending_approval", data.dig("owner_user", "status")

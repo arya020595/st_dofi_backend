@@ -299,4 +299,5 @@ SEED_COMPANY_PROFILES.each do |attrs|
   upsert_company_profile_contact!(profile, "Admin", attrs[:admin]) if attrs[:admin]
 end
 
-puts "Seeded #{CompanyProfile.count} company profiles with #{CompanyProfileContact.count} contacts"
+puts "Seeded #{CompanyProfile.count} company profiles with DB-generated profile numbers " \
+     "and #{CompanyProfileContact.count} contacts"
