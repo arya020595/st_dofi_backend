@@ -137,6 +137,107 @@ module Api
         assert_equal original_quota, @target.reload.worker_quota
       end
 
+      test "update replaces a claimed owner/admin contact and user, revoking the old identity" do
+        owner = create(
+          :company_profile_contact,
+          company_profile: @target,
+          designation: "Owner",
+          full_name: "Old Owner",
+          ic_no: "01-701001"
+        )
+        admin = create(
+          :company_profile_contact,
+          company_profile: @target,
+          designation: "Admin",
+          full_name: "Old Admin",
+          ic_no: "01-701002"
+        )
+        owner_user = provisioned_contact_user(owner, is_default: true)
+        admin_user = provisioned_contact_user(admin, is_default_admin: true)
+        activate_claimed_user(owner_user)
+        activate_claimed_user(admin_user)
+
+        assert_difference({ "CompanyProfileContact.count" => 2, "User.count" => 2 }) do
+          patch "/api/v1/admin/company_profiles/#{@target.id}",
+                params: profile_update_params,
+                headers: @admin_headers,
+                as: :json
+        end
+
+        assert_response :ok
+
+        assert_predicate owner.reload, :discarded?
+        assert_equal "Old Owner", owner.full_name
+        assert_equal "revoked", owner_user.reload.fisherman_status
+
+        new_owner = @target.owner_contact
+        new_owner_user = new_owner.users.kept.first
+
+        assert_equal "Updated Owner", new_owner.full_name
+        assert_equal "Updated Owner", new_owner_user.name
+        assert_equal "01-701101", new_owner_user.ic_number
+        assert_nil new_owner_user.claimed_at
+
+        assert_predicate admin.reload, :discarded?
+        assert_equal "revoked", admin_user.reload.fisherman_status
+
+        new_admin = @target.admin_contact
+        new_admin_user = new_admin.users.kept.first
+
+        assert_equal "Updated Admin", new_admin.full_name
+        assert_equal "Updated Admin", new_admin_user.name
+        assert_equal "01-701102", new_admin_user.ic_number
+        assert_nil new_admin_user.claimed_at
+      end
+
+      test "update renames an existing not-yet-claimed owner contact and user in place" do
+        owner = create(
+          :company_profile_contact,
+          company_profile: @target,
+          designation: "Owner",
+          full_name: "Old Owner",
+          ic_no: "01-701301"
+        )
+        owner_user = provisioned_contact_user(owner, is_default: true)
+
+        assert_no_difference(["CompanyProfileContact.count", "User.count"]) do
+          patch "/api/v1/admin/company_profiles/#{@target.id}",
+                params: { company_profile: { owner: owner_update_params } },
+                headers: @admin_headers,
+                as: :json
+        end
+
+        assert_response :ok
+        assert_equal "Updated Owner", owner.reload.full_name
+        assert_equal "Updated Owner", owner_user.reload.name
+        assert_equal "01-701101", owner_user.ic_number
+        assert_nil owner_user.claimed_at
+      end
+
+      test "update provisions a missing user for an existing owner contact" do
+        owner = create(
+          :company_profile_contact,
+          company_profile: @target,
+          designation: "Owner",
+          full_name: "Old Owner",
+          ic_no: "01-701201"
+        )
+
+        assert_difference("User.count", 1) do
+          patch "/api/v1/admin/company_profiles/#{@target.id}",
+                params: { company_profile: { owner: owner_update_params } },
+                headers: @admin_headers,
+                as: :json
+        end
+
+        assert_response :ok
+        user = owner.users.kept.first
+
+        assert_equal "Updated Owner", owner.reload.full_name
+        assert_equal "Updated Owner", user.name
+        assert_equal "01-701101", user.ic_number
+      end
+
       test "destroy soft-deletes the target profile and its kept contacts" do
         contact = create(:company_profile_contact, company_profile: @target, designation: "Owner")
 
@@ -145,6 +246,39 @@ module Api
         assert_response :ok
         assert_predicate @target.reload, :discarded?
         assert_predicate contact.reload, :discarded?
+      end
+
+      private
+
+      def provisioned_contact_user(contact, is_default: false, is_default_admin: false)
+        role = provisioned_contact_role(is_default, is_default_admin)
+        create(:user, role:, company_profile: @target, company_profile_contact: contact, name: contact.full_name,
+                      ic_number: contact.ic_no, registration_type: @target.registration_type,
+                      fisherman_status: "pending_approval",
+                      provisioning_source: ::Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE)
+      end
+
+      def provisioned_contact_role(is_default, is_default_admin)
+        create(:role, :fisherman, company_profile: @target, name: (is_default ? "Owner" : "Admin"), is_default:,
+                                  is_default_admin:)
+      end
+
+      def profile_update_params
+        {
+          company_profile: {
+            company_name: "Updated Profiling Co",
+            owner: { full_name: "Updated Owner", gender: "Male", ic_no: "01-701101", ic_colour: "Yellow" },
+            admin: { full_name: "Updated Admin", gender: "Female", ic_no: "01-701102", ic_colour: "Green" }
+          }
+        }
+      end
+
+      def owner_update_params
+        { full_name: "Updated Owner", gender: "Male", ic_no: "01-701101", ic_colour: "Yellow" }
+      end
+
+      def activate_claimed_user(user)
+        user.update!(fisherman_status: "active", claimed_at: Time.current, brunei_id_verified_at: Time.current)
       end
     end
     # rubocop:enable Minitest/MultipleAssertions

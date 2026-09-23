@@ -21,7 +21,7 @@ module Api
       def create
         authorize CompanyProfile
 
-        case ::CompanyProfiles::Create.call(create_params, created_by: current_user)
+        case ::CompanyProfiles::Create.call(company_profile_params, created_by: current_user)
         in Success(result)
           render json: { status: "success", data: create_response_data(result) }, status: :created
         in Failure(profile) if profile.respond_to?(:errors)
@@ -34,11 +34,13 @@ module Api
       def update
         authorize @company_profile
 
-        case ::CompanyProfiles::Update.call(@company_profile, company_profile_params)
+        case ::CompanyProfiles::Update.call(@company_profile, company_profile_params, updated_by: current_user)
         in Success(profile)
           render json: { status: "success", data: CompanyProfileDetailBlueprint.render_as_hash(profile) }
-        in Failure(profile)
+        in Failure(profile) if profile.respond_to?(:errors)
           render json: { status: "fail", errors: profile.errors.full_messages }, status: :unprocessable_content
+        in Failure(reason)
+          render json: { status: "fail", errors: [reason.to_s.humanize] }, status: :unprocessable_content
         end
       end
 
@@ -68,20 +70,16 @@ module Api
       end
 
       def company_profile_params
-        company_profile = params.expect(
-          company_profile: %i[registration_type company_name company_address mailing_address rocbn_no contact_no
-                              district mukim village fisherman_card_no issue_date license_expiry_date worker_quota]
-        )
-
-        company_profile.except(:worker_quota)
+        params.require(:company_profile).permit(profile_fields + profile_contacts)
       end
 
-      def create_params
-        params.expect(company_profile: %i[registration_type company_name company_address mailing_address rocbn_no
-                                          contact_no district mukim village fisherman_card_no issue_date
-                                          license_expiry_date] +
-                                        [{ owner: %i[full_name gender ic_no ic_colour],
-                                           admin: %i[full_name gender ic_no ic_colour] }])
+      def profile_fields
+        %i[registration_type company_name company_address mailing_address rocbn_no contact_no district mukim village
+           fisherman_card_no issue_date license_expiry_date]
+      end
+
+      def profile_contacts
+        [{ owner: %i[full_name gender ic_no ic_colour], admin: %i[full_name gender ic_no ic_colour] }]
       end
     end
   end
