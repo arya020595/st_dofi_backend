@@ -36,9 +36,15 @@ en:
     account_not_found: "Account not found."
     company_contact_not_found: "No company contact matches this IC number."
   activerecord:
+    attributes:
+      user:
+        ic_number: "IC number"
+        normalized_ic_number: "IC number"
     errors:
       models:
         user:
           attributes:
+            normalized_ic_number:
+              taken: "is already used by another user"
             preferred_locale:
               inclusion: "is not included in the list"

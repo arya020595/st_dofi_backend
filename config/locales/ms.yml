@@ -7,9 +7,15 @@ ms:
     account_not_found: "Akaun tidak dijumpai."
     company_contact_not_found: "Tiada kenalan syarikat sepadan dengan nombor IC ini."
   activerecord:
+    attributes:
+      user:
+        ic_number: "Nombor IC"
+        normalized_ic_number: "Nombor IC"
     errors:
       models:
         user:
           attributes:
+            normalized_ic_number:
+              taken: "telah digunakan oleh pengguna lain"
             preferred_locale:
               inclusion: "tidak termasuk dalam senarai"

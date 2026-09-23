@@ -14,7 +14,8 @@ pagination. It currently covers:
 | `GET /api/v1/admin/master_data/nationalities` | Yes | Yes (JWT) | `nationalities.list` |
 | `GET /api/v1/admin/master_data/positions` | Yes | Yes (JWT) | `positions.list` |
 | `GET /api/v1/admin/master_data/reasons` | Yes | Yes (JWT) | `manifest_skip_reasons.list` |
-| `GET /api/v1/admin/accounts` | Yes | Yes (JWT) | `admin_accounts.list` |
+| `GET /api/v1/admin/external_users/jetty_managers` | Yes | Yes (JWT) | `external_users.list` |
+| `GET /api/v1/admin/external_users/fishermen` | Yes | Yes (JWT) | `external_users.list` |
 
 Send the JWT the same way as every other endpoint: `Authorization: Bearer <token>`.
 
@@ -210,32 +211,41 @@ Default sort: `created_at desc`
 
 Soft-deleted via Discard — `DELETE` sets `discarded_at` rather than removing the record.
 
-### Accounts — `GET /api/v1/admin/accounts`
+### External Users — `GET /api/v1/admin/external_users/jetty_managers` and `/fishermen`
 
-Filterable/sortable fields: `id`, `name`, `email`, `ic_number`, `status`, `fisherman_status`,
-`registration_type`, `discarded_at`, `created_at`, `updated_at`, plus two computed fields —
-`account_category` and `account_status` — that unify what would otherwise be several
-category-dependent columns into one filterable value:
+One endpoint per tab of User Management → External Users; the tab itself is fixed by the endpoint, not
+a filter. Every filter is a plain column predicate on `User` (no computed fields), and each tab filters
+on its own lifecycle column — the same value its rows show in the response `status` field.
 
-- `account_category` — `fisherman_account` or `jetty_manager_account`.
-- `account_status` — `active` or `inactive`, regardless of category (internally this reads
-  `fisherman_status` for fisherman accounts and `status` for Jetty Manager accounts, translating
-  fisherman's stored `"suspended"` to the public `"inactive"`; fishermen in
-  `pending_approval`/`claimable`/`revoked` — governed via `/api/v1/admin/approvals/fishermen` instead —
-  never match either value here).
+| Screen control | Jetty Manager tab | Fisherman tab |
+|---|---|---|
+| Search Full Name | `q[name_cont]` | `q[name_cont]` |
+| Search IC No. | `q[ic_number_or_normalized_ic_number_cont]` | same |
+| Select Unit | `q[unit_eq]` | n/a (fishermen have no unit) |
+| Select Position | `q[position_eq]` | n/a (fishermen have no position) |
+| Select Status | `q[status_eq]` — `active` / `inactive` | `q[fisherman_status_eq]` — `active` / `suspended` |
+| Column sort | `q[s]=name\|ic_number\|unit\|position\|status asc\|desc` | `q[s]=name\|ic_number\|fisherman_status asc\|desc` |
+| Reset | drop `q` | drop `q` |
+
+- **IC search** works whether the officer types the dash or not: `01-109878` matches `ic_number`,
+  `01109878` matches `normalized_ic_number`. Trim spaces before sending.
+- **Only Active/Not Active rows**: the Jetty tab also lists pending/rejected self-registrations
+  (until that flow is retired) — send `q[status_in][]=active&q[status_in][]=inactive`. The Fisherman tab
+  also lists `pending_approval`/`claimable`/`revoked` accounts (governed via
+  `/api/v1/admin/approvals/fishermen`) — send `q[fisherman_status_in][]=active&q[fisherman_status_in][]=suspended`.
 
 Default sort: `created_at desc`
 
-Example — active fisherman accounts:
+Example: active or inactive Jetty Managers in the Docks unit, sorted by name:
 
 ```
-GET /api/v1/admin/accounts?q[account_category_eq]=fisherman_account&q[account_status_eq]=active
+GET /api/v1/admin/external_users/jetty_managers?q[status_in][]=active&q[status_in][]=inactive&q[unit_eq]=Docks&q[s]=name asc
 ```
 
-Example — every account (either category) that's currently inactive:
+Example: suspended ("Not Active") fishermen:
 
 ```
-GET /api/v1/admin/accounts?q[account_status_eq]=inactive
+GET /api/v1/admin/external_users/fishermen?q[fisherman_status_eq]=suspended
 ```
 
 ---
@@ -279,6 +289,7 @@ To extend this contract to a new `index` action:
 3. Define `ransackable_attributes` (and `ransackable_associations`, even if `[]`) on the model — Ransack
    raises an error if `ransackable_associations` isn't defined at all, even for attribute-only queries.
 
-If the filter needs business logic beyond a plain column predicate (value translation, a mandatory
-non-client-togglable scope, a cross-table condition), that's a Query object, not more controller code —
-see [`docs/architecture/thin-controllers-and-query-objects.md`](../architecture/thin-controllers-and-query-objects.md).
+If a plain column predicate isn't enough, it's still not more controller code — see
+[`docs/architecture/thin-controllers-and-query-objects.md`](../architecture/thin-controllers-and-query-objects.md) §4:
+a public value that needs translating is a `ransacker` on the model; which rows an endpoint may show at
+all is a policy Scope; an extra business condition on top of that is a Query object.

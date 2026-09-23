@@ -314,6 +314,21 @@
       "key": "fisherman_admin_role_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "external_jetty_manager_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "external_jetty_manager_ic",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "external_fisherman_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -4365,6 +4380,574 @@
         }
       ],
       "description": "CRUD for DoFi officer users. Each user belongs to a Role (assigned via `role_id` on create/update, omitted defaults apply). `DELETE` soft-deletes via Discard rather than removing the row."
+    },
+    {
+      "name": "External Users",
+      "description": "User Management → External Users. One permission resource, `external_users.*` (list view create update delete deactivate reactivate), one endpoint per tab: `/api/v1/admin/external_users/jetty_managers` (full CRUD + deactivate/reactivate) and `/api/v1/admin/external_users/fishermen` (list/show + deactivate/reactivate).",
+      "item": [
+        {
+          "name": "Jetty Manager",
+          "description": "Run in order: Create saves `external_jetty_manager_id`/`external_jetty_manager_ic`, Delete cleans up so the folder is re-runnable.",
+          "item": [
+            {
+              "name": "Create Jetty Manager",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/external_users/jetty_managers",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "external_users",
+                    "jetty_managers"
+                  ]
+                },
+                "description": "Requires `external_users.create`. Jetty Managers are created only by a DoFi Officer: the account starts `active` (no FINS Approval) with `created_by` = current officer, and can log in via BruneiID straight away. Required: `name`, `ic_number`, `unit`, `position`; `contact_no` is optional. The IC must not belong to any other kept user, in any formatting — `01-123456` and `01123456` collide. A random IC is generated per run so the folder is re-runnable.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jetty_manager\": {\n    \"name\": \"Postman External Jetty Manager\",\n    \"ic_number\": \"{{external_jetty_manager_ic}}\",\n    \"unit\": \"Docks\",\n    \"position\": \"Jetty Manager\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('external_jetty_manager_ic', '01-' + Math.floor(100000 + Math.random() * 900000));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                      "const body = pm.response.json();",
+                      "pm.test('Active jetty manager account', () => {",
+                      "  pm.expect(body.data.status).to.eql('active');",
+                      "});",
+                      "pm.collectionVariables.set('external_jetty_manager_id', body.data.id);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Create Jetty Manager - Duplicate IC (422)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/external_users/jetty_managers",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "external_users",
+                    "jetty_managers"
+                  ]
+                },
+                "description": "Same IC as the account just created → 422 `IC number is already used by another user`. To reuse an IC, delete that user or change their IC first.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jetty_manager\": {\n    \"name\": \"Postman Duplicate IC\",\n    \"ic_number\": \"{{external_jetty_manager_ic}}\",\n    \"unit\": \"Docks\",\n    \"position\": \"Jetty Manager\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                      "pm.test('IC taken error', () => pm.expect(pm.response.json().errors).to.include('IC number is already used by another user'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Jetty Manager BruneiID Login (mock)",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/auth/brunei_id",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "brunei_id"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ic_number\": \"{{external_jetty_manager_ic}}\",\n  \"audience\": \"jetty_manager\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "No auth — this is the Jetty Manager themselves. Proves the requirement: a Jetty Manager created by an officer can log in via BruneiID straight away (no registration, no FINS approval). Uses the mock `/auth/brunei_id`; the real flow is `/auth/brunei_id/callback` with `audience: jetty_manager`. The token is not saved, so the officer session used by the rest of this folder is untouched."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "const loginBody = pm.response.json();",
+                      "pm.test('Goes straight to the dashboard', () => pm.expect(loginBody.data.next_action).to.eql('dashboard'));",
+                      "pm.test('Access token issued', () => pm.expect(loginBody.data.access_token).to.be.a('string'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List Jetty Managers",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/external_users/jetty_managers?q[status_in][]=active&q[status_in][]=inactive&q[ic_number_or_normalized_ic_number_cont]={{external_jetty_manager_ic}}&q[s]=name asc&page=1&limit=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "external_users",
+                    "jetty_managers"
+                  ],
+                  "query": [
+                    {
+                      "key": "q[status_in][]",
+                      "value": "active"
+                    },
+                    {
+                      "key": "q[status_in][]",
+                      "value": "inactive"
+                    },
+                    {
+                      "key": "q[ic_number_or_normalized_ic_number_cont]",
+                      "value": "{{external_jetty_manager_ic}}"
+                    },
+                    {
+                      "key": "q[s]",
+                      "value": "name asc"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                },
+                "description": "Requires `external_users.list`. The Jetty Manager tab. Plain column filters: `q[name_cont]`, `q[ic_number_or_normalized_ic_number_cont]` (IC with or without the dash), `q[unit_eq]`, `q[position_eq]`, `q[status_eq|in]` (`active`/`inactive`), sort `q[s]=name asc`. Without the `status_in` filter, pending/rejected self-registrations also appear."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "const ids = pm.response.json().data.map((row) => row.id);",
+                      "pm.test('Contains the created jetty manager', () => pm.expect(ids).to.include(pm.collectionVariables.get('external_jetty_manager_id')));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Show Jetty Manager",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/external_users/jetty_managers/{{external_jetty_manager_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "external_users",
+                    "jetty_managers",
+                    "{{external_jetty_manager_id}}"
+                  ]
+                },
+                "description": "Requires `external_users.view`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Update Jetty Manager",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/external_users/jetty_managers/{{external_jetty_manager_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "external_users",
+                    "jetty_managers",
+                    "{{external_jetty_manager_id}}"
+                  ]
+                },
+                "description": "Requires `external_users.update`. Editable: `name`, `ic_number`, `unit`, `position`, `contact_no`. Status changes go through deactivate/reactivate; role/status in the body are ignored. Only Jetty Manager accounts; a Fisherman account id → 403.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"jetty_manager\": {\n    \"name\": \"Postman External Jetty Manager (edited)\",\n    \"position\": \"Jetty Supervisor\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Position updated', () => pm.expect(pm.response.json().data.position).to.eql('Jetty Supervisor'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Deactivate Jetty Manager",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/external_users/jetty_managers/{{external_jetty_manager_id}}/deactivate",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "external_users",
+                    "jetty_managers",
+                    "{{external_jetty_manager_id}}",
+                    "deactivate"
+                  ]
+                },
+                "description": "Requires `external_users.deactivate`. `active` → `inactive` (\"Not Active\" in the UI)."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Status is inactive', () => pm.expect(pm.response.json().data.status).to.eql('inactive'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Reactivate Jetty Manager",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/external_users/jetty_managers/{{external_jetty_manager_id}}/reactivate",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "external_users",
+                    "jetty_managers",
+                    "{{external_jetty_manager_id}}",
+                    "reactivate"
+                  ]
+                },
+                "description": "Requires `external_users.reactivate`. `inactive` → `active`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Status is active', () => pm.expect(pm.response.json().data.status).to.eql('active'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Delete Jetty Manager",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/external_users/jetty_managers/{{external_jetty_manager_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "external_users",
+                    "jetty_managers",
+                    "{{external_jetty_manager_id}}"
+                  ]
+                },
+                "description": "Requires `external_users.delete`. Soft delete (discard) — frees the IC for reuse."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Show Deleted Jetty Manager (404)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/external_users/jetty_managers/{{external_jetty_manager_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "external_users",
+                    "jetty_managers",
+                    "{{external_jetty_manager_id}}"
+                  ]
+                },
+                "description": "A deleted Jetty Manager is gone from the External Users tab."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Fisherman",
+          "description": "Read + deactivate/reactivate only; Fisherman account data is created/edited via Company Profiling. Deactivate/reactivate (`POST .../fishermen/:id/deactivate|reactivate`, `external_users.deactivate|reactivate`) are not run here because they need a claimed, active Company Profiling Owner/Admin.",
+          "item": [
+            {
+              "name": "List Fishermen",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "description": "Requires `external_users.list`. The Fisherman tab: DoFI Company Profiling-provisioned Owner/Admin accounts. Status filter is `q[fisherman_status_eq|in]` (`active`/`suspended`); `q[fisherman_status_in][]=active&q[fisherman_status_in][]=suspended` hides fishermen still pending approval / claimable / revoked.",
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/external_users/fishermen?q[fisherman_status_in][]=active&q[fisherman_status_in][]=suspended&q[s]=name asc&page=1&limit=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "external_users",
+                    "fishermen"
+                  ],
+                  "query": [
+                    {
+                      "key": "q[fisherman_status_in][]",
+                      "value": "active"
+                    },
+                    {
+                      "key": "q[fisherman_status_in][]",
+                      "value": "suspended"
+                    },
+                    {
+                      "key": "q[s]",
+                      "value": "name asc"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "const rows = pm.response.json().data || [];",
+                      "pm.collectionVariables.set('external_fisherman_id', rows.length > 0 ? rows[0].id : '');"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Show Fisherman",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "description": "Requires `external_users.view`. Uses the first row from List Fishermen; skipped when that list is empty.",
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/external_users/fishermen/{{external_fisherman_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "external_users",
+                    "fishermen",
+                    "{{external_fisherman_id}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "if (!pm.collectionVariables.get('external_fisherman_id')) { pm.execution.skipRequest(); }"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "pm.test('Shows the listed fisherman', () => pm.expect(pm.response.json().data.id).to.eql(pm.collectionVariables.get('external_fisherman_id')));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
     },
     {
       "name": "Profiling",

@@ -12,7 +12,7 @@ get an account, who approves what, and why were the non-obvious decisions made t
 | Actor | Role | How they get an account | How they log in |
 |---|---|---|---|
 | **DoFi Officer / Administrator** | `kind: "DoFi Officer"` | Created by another officer via **User Management → Add User** (internal, authenticated) | `username` + password (real credential check) |
-| **Jetty Manager** | `kind: "Jetty Manager"` | Self-registers via the public registration form (BruneiID-verified) | BruneiID QR re-scan (mocked today) |
+| **Jetty Manager** | `kind: "Jetty Manager"` | Self-registers via the public registration form (BruneiID-verified), or is created by an officer via **User Management → External Users** (§4) | BruneiID QR re-scan (mocked today) |
 | **Fisherman** | `platform_scope: "fisherman"` — company-scoped Owner/Admin/custom roles (see §2) | Provisioned before first login by DoFI Company Profiling or Fisherman Owner User Management | BruneiID QR claim/login (mocked today) |
 
 **The one thing that explains most of this system's design**: officers are an *internal, trusted*
@@ -101,9 +101,10 @@ answer different questions on purpose:
 - `Role#external?`/`Role.external` (`kind == JETTY_MANAGER || fisherman_platform?`) marks every role
   that is external to officer username/password creation — replaces what used to be a
   `Role::EXTERNAL_KINDS` constant back when Fisherman was still a single `kind`. `Users::Create` (the admin "Add User"
-  endpoint) rejects any `role_id` whose role is `external?` via `Role.assignable_by_admin` — the admin
-  portal can create DoFi Officers and any future custom (non-external) internal role, but never a
-  Jetty Manager or Fisherman account. `Role.assignable_by_fisherman(company_profile_id)` is the
+  endpoint) rejects any `role_id` whose role is `external?` via `Role.assignable_by_admin` — Add User
+  can create DoFi Officers and any future custom (non-external) internal role, but never a Jetty
+  Manager or Fisherman account. Officer-created Jetty Managers go through their own External Users
+  endpoint instead (`Users::CreateJettyManager`, §4). `Role.assignable_by_fisherman(company_profile_id)` is the
   fisherman-side mirror, restricting a company's own user-management to that company's own
   fisherman-platform roles only.
 
@@ -145,6 +146,7 @@ actors).
 ```mermaid
 stateDiagram-v2
     [*] --> pending: Self-register (BruneiID-verified)\nname, ic_number, unit, position, contact_no
+    [*] --> active: Officer creates (User Management → External Users)\nname, ic_number, unit, position
     pending --> active: Officer approves
     pending --> rejected: Officer rejects (+ remark)
     active --> inactive: Officer deactivates/revokes access
@@ -159,6 +161,13 @@ before the register form is even shown; the backend receives the *result* of tha
 itself. A cryptographically random password is generated and never surfaced — it exists only because
 Devise's `:database_authenticatable` needs *some* value in `encrypted_password`; nobody ever needs to
 know it, since login is BruneiID re-scan, not this password.
+
+A DoFi Officer creates the Jetty Manager (`POST /api/v1/admin/external_users/jetty_managers`,
+`Users::CreateJettyManager`, `external_users.create`). The officer is the vetting step, so the account
+starts `active` with `created_by` set, never enters the FINS Approval queue, and the Jetty Manager can
+log in via BruneiID straight away. Required: name, ic_number, unit, position; `contact_no` is optional.
+The IC must not belong to any other kept user. To reuse an IC, delete that user or change their IC
+first. (Self-registration above is being retired in a separate change.)
 
 ---
 
