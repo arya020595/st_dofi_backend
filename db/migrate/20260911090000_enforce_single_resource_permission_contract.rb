@@ -27,8 +27,6 @@ class EnforceSingleResourcePermissionContract < ActiveRecord::Migration[8.1]
       section_order: 2, resource_order: 2 },
     { code: "manifest_approvals.request_amendment_port_in", platform_scope: "dofi_officer",
       section: "manifest", section_order: 2, resource_order: 2 },
-    { code: "permissions.list", platform_scope: "shared", section: "user_management", section_order: 6,
-      resource_order: 3 },
     { code: "companies_vessel_approvals.request_amendment", platform_scope: "dofi_officer",
       section: "companies", section_order: 9, resource_order: 2 },
     { code: "companies_crew_approvals.request_amendment", platform_scope: "dofi_officer",
@@ -48,7 +46,6 @@ class EnforceSingleResourcePermissionContract < ActiveRecord::Migration[8.1]
   def up
     create_permissions
     grant("dashboard.list", from: %w[dashboard.view])
-    grant_to_all_roles("permissions.list")
     backfill_manifest_approvals
     backfill_capture_report_verifications
     backfill_request_amendments
@@ -109,15 +106,6 @@ class EnforceSingleResourcePermissionContract < ActiveRecord::Migration[8.1]
       grant("companies_#{resource}_approvals.request_amendment",
             from: ["companies_#{resource}_approvals.amendment"], platform: "dofi_officer")
     end
-  end
-
-  def grant_to_all_roles(target_code)
-    target = MigrationPermission.find_by!(code: target_code)
-    now = Time.current
-    rows = MigrationRole.pluck(:id).map do |role_id|
-      { role_id: role_id, permission_id: target.id, created_at: now, updated_at: now }
-    end
-    insert_grants(rows)
   end
 
   def grant(target_code, from:, platform: nil)

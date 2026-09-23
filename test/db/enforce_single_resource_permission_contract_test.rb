@@ -18,8 +18,8 @@ class EnforceSingleResourcePermissionContractTest < ActiveSupport::TestCase
     migration.suppress_messages { migration.up }
 
     expected = %w[
-      permissions.list manifest_approvals.list manifest_approvals.view
-      manifest_approvals.approve_port_out manifest_approvals.approve_port_in
+      manifest_approvals.list manifest_approvals.view manifest_approvals.approve_port_out
+      manifest_approvals.approve_port_in
       manifest_approvals.request_amendment_port_out manifest_approvals.request_amendment_port_in
       capture_report_verifications.list capture_report_verifications.view
       capture_report_verifications.request_amendment companies_vessel_approvals.request_amendment
@@ -32,7 +32,7 @@ class EnforceSingleResourcePermissionContractTest < ActiveSupport::TestCase
     assert_equal role.permissions.count, role.permission_roles.distinct.count
   end
 
-  test "backfill grants canonical dashboard and permission-list access to existing roles" do
+  test "backfill grants canonical dashboard access to existing roles" do
     dashboard = create(:permission, code: "dashboard.view")
     role = create(:role, permissions: [dashboard])
     other_role = create(:role)
@@ -40,8 +40,8 @@ class EnforceSingleResourcePermissionContractTest < ActiveSupport::TestCase
     run_migration
 
     assert_includes role.reload.permissions.pluck(:code), "dashboard.list"
-    assert_includes role.permissions.pluck(:code), "permissions.list"
-    assert_includes other_role.reload.permissions.pluck(:code), "permissions.list"
+    assert_not_includes role.permissions.pluck(:code), "permissions.list"
+    assert_not_includes other_role.reload.permissions.pluck(:code), "permissions.list"
   end
 
   private
