@@ -98,6 +98,21 @@ admin's own internal organization (`config/routes.rb` comment, admin namespace).
 /api/v1/admin/master_data/positions      index show create update destroy
 ```
 
+### `external_users/` — User Management → External Users (`Api::V1::Admin::ExternalUsers::*`)
+
+One controller per tab, both gated by the one `external_users.*` permission (`ExternalUserPolicy`,
+tab rows via `JettyManagerScope`/`FishermanScope`).
+
+```
+/api/v1/admin/external_users/jetty_managers    index show create update destroy
+  POST   .../:id/deactivate
+  POST   .../:id/reactivate
+
+/api/v1/admin/external_users/fishermen         index show
+  POST   .../:id/deactivate
+  POST   .../:id/reactivate
+```
+
 ### `approvals/` — review queues (`Api::V1::Admin::Approvals::*`)
 
 ```

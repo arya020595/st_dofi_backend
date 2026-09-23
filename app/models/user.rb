@@ -17,7 +17,6 @@ class User < ApplicationRecord
   include AASM
   include User::FishermanLifecycle
   include User::EntityUserCounting
-  include User::AdminAccountFiltering
 
   audited only: %i[
     name ic_number normalized_ic_number status fisherman_status provisioning_source claimed_at
@@ -69,7 +68,7 @@ class User < ApplicationRecord
   validates :normalized_ic_number, uniqueness: { conditions: -> { where(discarded_at: nil) } }, allow_nil: true
   validates :employee_id, uniqueness: true, allow_nil: true
   validates :username, uniqueness: true, allow_nil: true
-  validates :ic_number, :unit, :position, :contact_no, presence: true, if: :jetty_manager?
+  validates :ic_number, :unit, :position, presence: true, if: :jetty_manager?
   validates :ic_number, presence: true, if: :fisherman?
   validates :registration_type, inclusion: { in: VALID_REGISTRATION_TYPES }, if: :fisherman?
   validates :position, :unit, :username, presence: true, if: :officer?
@@ -116,7 +115,7 @@ class User < ApplicationRecord
   def self.ransackable_attributes(_auth_object = nil)
     %w[id name email employee_id status fisherman_status normalized_ic_number preferred_locale unit position contact_no
        role_id doft_registration_no ic_number registration_type username revoked_at revoked_by_id
-       revocation_remark_id discarded_at created_at updated_at account_category account_status]
+       revocation_remark_id discarded_at created_at updated_at]
   end
 
   def self.ransackable_associations(_auth_object = nil)

@@ -11,7 +11,7 @@ FactoryBot.define do
     role
 
     # DOFI_OFFICER/JETTY_MANAGER-kind roles trigger User's role-scoped presence validations
-    # (position/unit always; contact_no/ic_number for jetty_manager too) — these traits exist so
+    # (position/unit always; ic_number for jetty_manager too) — these traits exist so
     # controller tests assigning an officer/jetty_manager-kind role don't each hand-roll the same
     # field set just to satisfy validation, not because the model needs them by default.
     trait :officer_shaped do
@@ -22,8 +22,19 @@ FactoryBot.define do
     trait :jetty_manager_shaped do
       position { "Staff" }
       unit { "HQ" }
-      contact_no { "71999999" }
       sequence(:ic_number) { |n| "71-#{100_000 + n}" }
+    end
+
+    # A DoFI Company Profiling-provisioned Owner — what User#fins_governed_fisherman? and the External
+    # Users Fisherman tab govern. Pass fisherman_status/claimed_at/brunei_id_verified_at to move it along
+    # its lifecycle.
+    trait :fins_governed_fisherman do
+      company_profile
+      role { association :role, :fisherman, company_profile:, is_default: true, name: "Owner" }
+      provisioning_source { Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE }
+      registration_type { "Commercial" }
+      fisherman_status { "pending_approval" }
+      sequence(:ic_number) { |n| "72-#{100_000 + n}" }
     end
   end
 end

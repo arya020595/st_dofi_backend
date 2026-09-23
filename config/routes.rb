@@ -55,10 +55,20 @@ Rails.application.routes.draw do
       # ==================== admin/ : DoFi Officer + Jetty Manager ====================
       namespace :admin, defaults: { audience: "admin" } do
         resources :users, only: %i[index show create update destroy]
-        resources :accounts, only: %i[index show] do
-          member do
-            post :deactivate
-            post :reactivate
+        # User Management → External Users: one controller per tab (their lifecycle/workflow differ),
+        # both gated by the one external_users.* permission resource (ExternalUserPolicy).
+        namespace :external_users do
+          resources :jetty_managers, only: %i[index show create update destroy] do
+            member do
+              post :deactivate
+              post :reactivate
+            end
+          end
+          resources :fishermen, only: %i[index show] do
+            member do
+              post :deactivate
+              post :reactivate
+            end
           end
         end
 

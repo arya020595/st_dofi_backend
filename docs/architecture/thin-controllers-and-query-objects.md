@@ -33,7 +33,8 @@ flowchart TD
     A --> E{"index/search action?"}
     E -->|"Plain column filter"| F["RansackSearchable + q[field_predicate]<br/>no controller code needed"]
     E -->|"Needs translation/computing,<br/>but still opt-in per request"| K["ransacker on the model<br/>(app/models/**.rb)"]
-    E -->|"Mandatory scope that isn't<br/>client-toggleable"| G["Query object (app/queries)<br/>self.call(scope:, ...)"]
+    E -->|"Mandatory, and it's<br/>row visibility"| L["policy Scope<br/>(policy_scope_class:)"]
+    E -->|"Mandatory business condition<br/>on top of visibility"| G["Query object (app/queries)<br/>self.call(scope:, ...)"]
 
     A --> H{"Per-row aggregate needed<br/>alongside pagination?"}
     H -->|"1-2 mutation sites"| I["Persisted column +<br/>explicit sync service call<br/>at each mutation site"]
@@ -65,24 +66,36 @@ for the full frontend contract.
 
 **Before reaching for a Query object, check whether a Ransack `ransacker` covers it.** A `ransacker`
 declares a computed/virtual filterable field backed by an arbitrary SQL expression, whitelisted in
-`ransackable_attributes` exactly like a real column — this is the standard tool for "the public filter
-value needs translating before it hits the database," and it's easy to miss (an earlier version of this
-doc used a hand-rolled `Admin::AccountsQuery` for exactly this, before realizing `ransacker` already
-solved it). `User`'s `account_category`/`account_status` ransackers
-(`app/models/concerns/user/admin_account_filtering.rb`) are the worked example: an admin account's
-"category" depends on `role.kind`/`role.platform_scope` (Jetty Manager and DoFi Officer even share
-`platform_scope`, so `kind` has to be checked first), and its public "active"/"inactive" status maps to
-*different* columns with *different* stored values depending on that category
-(`fisherman_status: "active"/"suspended"` vs `status: "active"/"inactive"` directly). Both collapse to a
-`CASE` expression in a `ransacker` block, and `accounts_controller.rb#index` needs zero filtering code
-at all — `apply_ransack_search(account_scope, ...)`, full stop.
+`ransackable_attributes` exactly like a real column — the standard tool for "the public filter value
+needs translating before it hits the database" (an earlier version of this doc used a hand-rolled
+`Admin::AccountsQuery` for exactly this, before realizing `ransacker` already solved it).
 
-Reach for an actual Query object only when the thing you need **isn't optional per-request** — a
-`ransacker` is still something the client opts into via `q[...]`; it can't express a scope that must
+But first check whether the endpoint's shape makes the translation unnecessary. External Users used to
+be one `/admin/accounts` list for two account types whose status lives in different columns
+(`users.status` vs `users.fisherman_status`), so it needed an `account_status` ransacker to present one
+"active"/"inactive" vocabulary. Once it split into one endpoint per tab, each tab filters its own column
+directly (`q[status_eq]`, `q[fisherman_status_eq]`) and the ransacker was deleted. Likewise, IC search
+that ignores the dash needs no ransacker: `q[ic_number_or_normalized_ic_number_cont]` combines two
+existing columns with Ransack's `_or_`.
+
+If you do write a ransacker, keep it **self-contained**: it must not reference a table the endpoint
+happens to JOIN (e.g. `roles`). `ransackable_attributes` exposes it on every endpoint for that model, and
+on a relation without that JOIN the query fails with "missing FROM-clause entry" (a 500) instead of just
+filtering — which is exactly what the old `account_status` did on `admin/users`.
+
+Reach for an actual Query object only when the thing you need **isn't optional per-request**. A
+`ransacker` is still something the client opts into via `q[...]`, so it can't express a scope that must
 always apply regardless of what the client sends. `EntityUsers::IndividualFishermenQuery`
-(`app/queries/entity_users/individual_fishermen_query.rb`) is the remaining real example: it always
-constrains to individual registration types — that's what defines the endpoint, not something the
-client toggles.
+(`app/queries/entity_users/individual_fishermen_query.rb`) is the example: it always constrains the
+Entity Users visibility scope to individual registration types, a business condition *on top of* what
+the policy lets the officer see.
+
+Not every mandatory narrowing is a Query object, though. If the condition is part of what a policy
+scope already computes, expose it as its own Scope instead. The External Users screen has one tab per
+endpoint (`admin/external_users/{jetty_managers,fishermen}`), and which tab a row shows up on is row
+visibility, so `ExternalUserPolicy` has one scope per tab (`JettyManagerScope`/`FishermanScope`), each
+selected with `policy_scope_class:`. An earlier version built the union of both halves in one policy
+scope and then re-split it with `ExternalUsers::*Query` objects. That wrote every tab condition twice.
 
 Query object convention (when you do need one): `self.call(scope:, ...)` with keyword arguments,
 `private_class_method` for internal steps, returns an ActiveRecord relation (or a plain Hash when the

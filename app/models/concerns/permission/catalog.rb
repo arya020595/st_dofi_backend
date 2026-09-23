@@ -42,7 +42,9 @@ module Permission::Catalog
       { key: "roles", label: "Roles", dofi_officer: %w[list view create update delete] },
       { key: "users", label: "DoFi Officer Users", dofi_officer: %w[list view create update delete] },
       { key: "permissions", label: "Permissions", shared: %w[list] },
-      { key: "entity_users", label: "Entity Users", dofi_officer: %w[list] }
+      { key: "entity_users", label: "Entity Users", dofi_officer: %w[list] },
+      { key: "external_users", label: "External Users",
+        dofi_officer: %w[list view create update delete deactivate reactivate] }
     ] },
     { key: "account_management", label: "Account Management", resources: [
       { key: "fisherman_users", label: "Users", fisherman: %w[list view create update delete] },
@@ -54,8 +56,7 @@ module Permission::Catalog
       { key: "jetty_manager_approvals", label: "Jetty Manager Approval",
         dofi_officer: %w[list view approve reject deactivate reactivate revoke] },
       { key: "approval_remarks", label: "Approval Request",
-        dofi_officer: %w[list view create update delete] },
-      { key: "admin_accounts", label: "Admin Accounts", dofi_officer: %w[list view deactivate reactivate] }
+        dofi_officer: %w[list view create update delete] }
     ] }
   ].freeze
 
