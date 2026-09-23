@@ -7,7 +7,9 @@ module Users
 
     def call(user:, actor:, reason: nil)
       with_audited_user(actor) do
-        user.with_lock { reactivate_locked_user(user, reason) }
+        User.transaction do
+          reactivate_locked_user(User.lock.find(user.id), reason)
+        end
       end
     end
 
