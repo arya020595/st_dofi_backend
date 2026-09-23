@@ -44,7 +44,8 @@ module Fisherman
         old_user.with_lock do
           old_contact.with_lock do
             release_old_identity
-            provision_replacement(new_contact)
+            contact_result = build_new_contact
+            contact_result.success? ? provision_replacement(contact_result.value!) : contact_result
           end
         end
       end
@@ -57,8 +58,11 @@ module Fisherman
       old_contact.discard
     end
 
-    def new_contact
-      old_contact.company_profile.contacts.create!(replacement_contact_attributes)
+    def build_new_contact
+      contact = old_contact.company_profile.contacts.new(replacement_contact_attributes)
+      return Failure(contact) unless contact.save
+
+      Success(contact)
     end
 
     def replacement_contact_attributes

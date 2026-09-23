@@ -37,9 +37,10 @@ module Api
         case ::CompanyProfiles::Update.call(@company_profile, company_profile_params, updated_by: current_user)
         in Success(profile)
           render json: { status: "success", data: CompanyProfileDetailBlueprint.render_as_hash(profile) }
-        in Failure(failure)
-          errors = failure.respond_to?(:errors) ? failure.errors.full_messages : [failure.to_s.humanize]
-          render json: { status: "fail", errors: errors }, status: :unprocessable_content
+        in Failure(profile) if profile.respond_to?(:errors)
+          render json: { status: "fail", errors: profile.errors.full_messages }, status: :unprocessable_content
+        in Failure(reason)
+          render json: { status: "fail", errors: [reason.to_s.humanize] }, status: :unprocessable_content
         end
       end
 

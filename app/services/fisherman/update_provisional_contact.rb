@@ -7,11 +7,10 @@ module Fisherman
 
     def self.call(...) = new.call(...)
 
-    def call(contact:, attributes:, actor:, reason:, allow_claimed_identity_update: false)
+    def call(contact:, attributes:, actor:, reason:)
       @contact = contact
       @attributes = attributes
       @reason = reason
-      @allow_claimed_identity_update = allow_claimed_identity_update
       @user = contact.users.kept.first
 
       eligibility_failure = eligibility_failure_for_update
@@ -24,11 +23,11 @@ module Fisherman
 
     private
 
-    attr_reader :contact, :attributes, :reason, :user, :allow_claimed_identity_update
+    attr_reader :contact, :attributes, :reason, :user
 
     def eligibility_failure_for_update
       return :provisioned_user_not_found if user.nil?
-      return :identity_locked if user.claimed_at.present? && !allow_claimed_identity_update
+      return :identity_locked if user.claimed_at.present?
 
       :source_not_correctable unless source_a_user?
     end

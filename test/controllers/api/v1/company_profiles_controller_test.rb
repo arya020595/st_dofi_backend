@@ -137,7 +137,7 @@ module Api
         assert_equal original_quota, @target.reload.worker_quota
       end
 
-      test "update synchronizes owner and admin contacts with their provisioned users" do
+      test "update replaces a claimed owner/admin contact and user, revoking the old identity" do
         owner = create(
           :company_profile_contact,
           company_profile: @target,
@@ -157,18 +157,61 @@ module Api
         activate_claimed_user(owner_user)
         activate_claimed_user(admin_user)
 
-        patch "/api/v1/admin/company_profiles/#{@target.id}",
-              params: profile_update_params,
-              headers: @admin_headers,
-              as: :json
+        assert_difference({ "CompanyProfileContact.count" => 2, "User.count" => 2 }) do
+          patch "/api/v1/admin/company_profiles/#{@target.id}",
+                params: profile_update_params,
+                headers: @admin_headers,
+                as: :json
+        end
+
+        assert_response :ok
+
+        assert_predicate owner.reload, :discarded?
+        assert_equal "Old Owner", owner.full_name
+        assert_equal "revoked", owner_user.reload.fisherman_status
+
+        new_owner = @target.owner_contact
+        new_owner_user = new_owner.users.kept.first
+
+        assert_equal "Updated Owner", new_owner.full_name
+        assert_equal "Updated Owner", new_owner_user.name
+        assert_equal "01-701101", new_owner_user.ic_number
+        assert_nil new_owner_user.claimed_at
+
+        assert_predicate admin.reload, :discarded?
+        assert_equal "revoked", admin_user.reload.fisherman_status
+
+        new_admin = @target.admin_contact
+        new_admin_user = new_admin.users.kept.first
+
+        assert_equal "Updated Admin", new_admin.full_name
+        assert_equal "Updated Admin", new_admin_user.name
+        assert_equal "01-701102", new_admin_user.ic_number
+        assert_nil new_admin_user.claimed_at
+      end
+
+      test "update renames an existing not-yet-claimed owner contact and user in place" do
+        owner = create(
+          :company_profile_contact,
+          company_profile: @target,
+          designation: "Owner",
+          full_name: "Old Owner",
+          ic_no: "01-701301"
+        )
+        owner_user = provisioned_contact_user(owner, is_default: true)
+
+        assert_no_difference(["CompanyProfileContact.count", "User.count"]) do
+          patch "/api/v1/admin/company_profiles/#{@target.id}",
+                params: { company_profile: { owner: owner_update_params } },
+                headers: @admin_headers,
+                as: :json
+        end
 
         assert_response :ok
         assert_equal "Updated Owner", owner.reload.full_name
         assert_equal "Updated Owner", owner_user.reload.name
-        assert_equal "01-701101", owner_user.reload.ic_number
-        assert_equal "Updated Admin", admin.reload.full_name
-        assert_equal "Updated Admin", admin_user.reload.name
-        assert_equal "01-701102", admin_user.reload.ic_number
+        assert_equal "01-701101", owner_user.ic_number
+        assert_nil owner_user.claimed_at
       end
 
       test "update provisions a missing user for an existing owner contact" do
