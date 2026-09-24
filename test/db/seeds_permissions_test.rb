@@ -5,10 +5,10 @@ require "test_helper"
 # "Add User Role" UI grouping. Runs inside this test's transaction, so nothing seeded here persists
 # beyond it.
 class SeedsPermissionsTest < ActiveSupport::TestCase
-  test "every persisted catalog permission is seeded with canonical metadata" do
+  test "every catalog permission is seeded with canonical metadata" do
     load Rails.root.join("db/seeds/permissions.rb")
 
-    Permission::Catalog::PERSISTED_ENTRIES.each do |entry|
+    Permission::Catalog::ENTRIES.each do |entry|
       permission = Permission.find_by!(code: entry.fetch(:code))
 
       assert_equal entry.values_at(:platform_scope, :resource, :section, :section_order, :resource_order),

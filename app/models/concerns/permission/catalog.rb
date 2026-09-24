@@ -41,10 +41,6 @@ module Permission::Catalog
     { key: "user_management", label: "User Management", resources: [
       { key: "roles", label: "Roles", dofi_officer: %w[list view create update delete] },
       { key: "users", label: "DoFi Officer Users", dofi_officer: %w[list view create update delete] },
-      # Policy-only resource: PermissionPolicy#index? is intentionally unconditional, while its
-      # Scope still limits rows to the caller's platform vocabulary. This code is never seeded or
-      # assignable to a role.
-      { key: "permissions", label: "Permissions", shared: %w[list] },
       { key: "entity_users", label: "Entity Users", dofi_officer: %w[list] },
       { key: "external_users", label: "External Users",
         dofi_officer: %w[list view create update delete deactivate reactivate] }
@@ -64,7 +60,6 @@ module Permission::Catalog
   ].freeze
 
   SCOPE_KEYS = %i[shared dofi_officer fisherman].freeze
-  POLICY_ONLY_CODES = %w[permissions.list].freeze
   ENTRIES = SECTIONS.each_with_index.flat_map do |section, section_index|
     section[:resources].each_with_index.flat_map do |resource, resource_index|
       scoped_actions = SCOPE_KEYS.flat_map do |scope|
@@ -80,8 +75,7 @@ module Permission::Catalog
       end
     end
   end.freeze
-  PERSISTED_ENTRIES = ENTRIES.reject { |entry| POLICY_ONLY_CODES.include?(entry[:code]) }.freeze
-  BY_CODE = PERSISTED_ENTRIES.index_by { |entry| entry[:code] }.freeze
+  BY_CODE = ENTRIES.index_by { |entry| entry[:code] }.freeze
   CODES = BY_CODE.keys.freeze
   RESOURCES = ENTRIES.group_by { |entry| entry[:resource] }.transform_values(&:freeze).freeze
 
@@ -94,6 +88,6 @@ module Permission::Catalog
   # platforms — this module is the sole source of truth, per CLAUDE.md.
   def self.codes_for_platform(platform)
     allowed_scopes = [platform.to_s, "shared"]
-    PERSISTED_ENTRIES.select { |entry| allowed_scopes.include?(entry[:platform_scope]) }.pluck(:code)
+    ENTRIES.select { |entry| allowed_scopes.include?(entry[:platform_scope]) }.pluck(:code)
   end
 end
