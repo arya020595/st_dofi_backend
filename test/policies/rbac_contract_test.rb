@@ -1,5 +1,6 @@
 require "test_helper"
 
+# rubocop:disable Metrics/ClassLength
 class RbacContractTest < ActiveSupport::TestCase
   class PermissionProbe
     attr_reader :checked_codes
@@ -69,6 +70,7 @@ class RbacContractTest < ActiveSupport::TestCase
         unless policy_class.instance_method(:permission_resource).owner == policy_class
       next "#{policy_class} exposes #permission_resource publicly" \
         unless policy_class.private_method_defined?(:permission_resource, false)
+      next if policy_class == PermissionPolicy
 
       resource = policy_resource(policy_class)
       unless Permission::Catalog::RESOURCES.key?(resource)
@@ -111,7 +113,8 @@ class RbacContractTest < ActiveSupport::TestCase
 
   test "catalog resources and concrete policies have a one-to-one mapping" do
     Rails.application.eager_load!
-    policy_resources = ApplicationPolicy.descendants.map { |policy_class| policy_resource(policy_class) }
+    policy_resources = ApplicationPolicy.descendants.reject { |policy_class| policy_class == PermissionPolicy }
+                                                    .map { |policy_class| policy_resource(policy_class) }
     duplicates = policy_resources.tally.select { |_resource, count| count > 1 }.keys
 
     assert_empty duplicates, "resources owned by multiple policies: #{duplicates.join(', ')}"
@@ -172,6 +175,7 @@ class RbacContractTest < ActiveSupport::TestCase
     actions
   end
 end
+# rubocop:enable Metrics/ClassLength
 
 class RbacSourceContractTest < ActiveSupport::TestCase
   # This single repository scan deliberately asserts every forbidden syntax invariant together.

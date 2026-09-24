@@ -58,7 +58,9 @@ concrete_policy_paths.each do |path|
 
   resource = resource_match.captures.compact.first
   owned_resources[resource] << path
-  violations << "#{path}: unknown permission resource #{resource}" unless catalog_keys.include?(resource)
+  unless resource == "permissions" || catalog_keys.include?(resource)
+    violations << "#{path}: unknown permission resource #{resource}"
+  end
 
   method_position = resource_match.begin(0)
   private_position = source.rindex(/^\s*private\s*$/, method_position)

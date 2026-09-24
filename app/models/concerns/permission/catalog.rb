@@ -41,7 +41,6 @@ module Permission::Catalog
     { key: "user_management", label: "User Management", resources: [
       { key: "roles", label: "Roles", dofi_officer: %w[list view create update delete] },
       { key: "users", label: "DoFi Officer Users", dofi_officer: %w[list view create update delete] },
-      { key: "permissions", label: "Permissions", shared: %w[list] },
       { key: "entity_users", label: "Entity Users", dofi_officer: %w[list] },
       { key: "external_users", label: "External Users",
         dofi_officer: %w[list view create update delete deactivate reactivate] }
