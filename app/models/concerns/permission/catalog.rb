@@ -1,5 +1,20 @@
+# Sole source of truth for the permission list: every canonical code, the platform that may hold it,
+# and how the Role editor groups, labels, and orders it. GET /api/v1/permissions renders only codes
+# listed here (PermissionPolicy::Scope), and role create/update rejects any code missing from here.
+# Walkthrough, API response shape, and change checklist: docs/rbac/permission-catalog.md
 module Permission::Catalog
-  # Canonical source for permission codes, role-editor grouping, and platform assignment.
+  # Role-editor tree: section -> resource -> actions. Array order is display order. Each action sits
+  # under exactly one platform key: :shared (both platforms), :dofi_officer, or :fisherman. The
+  # optional :action_labels overrides an action's display name (the default is action.titleize).
+  #
+  #   {
+  #     key: "manifest", label: "Manifest",                              # section
+  #     resources: [
+  #       { key: "manifest_approvals", label: "Manifest Approvals",     # resource = code prefix
+  #         dofi_officer: %w[list view approve request_amendment],       # platform key => actions
+  #         action_labels: { "approve" => "Approval Port In/Port Out" } }
+  #     ]
+  #   }
   SECTIONS = [
     { key: "dashboard", label: "Dashboard", resources: [
       { key: "dashboard", label: "Dashboard", shared: %w[list] }
@@ -61,6 +76,27 @@ module Permission::Catalog
   ].freeze
 
   SCOPE_KEYS = %i[shared dofi_officer fisherman].freeze
+
+  # SECTIONS flattened into one frozen Hash per permission code, in display order. Example element:
+  #
+  #   {
+  #     code: "manifest_approvals.approve",  # "<resource>.<action>"; roles send/store this
+  #     action: "approve",
+  #     action_order: 3,                     # 1-based within the resource (shared, dofi_officer, fisherman)
+  #     name: "Approval Port In/Port Out",   # action_labels override, else action.titleize
+  #     platform_scope: "dofi_officer",      # "shared" | "dofi_officer" | "fisherman"
+  #     resource: "manifest_approvals",
+  #     resource_label: "Manifest Approvals",
+  #     resource_order: 2,                   # 1-based within the section
+  #     section: "manifest",
+  #     section_label: "Manifest",
+  #     section_order: 2                     # 1-based within SECTIONS
+  #   }
+  #
+  # Lookups derived from it:
+  #   BY_CODE   # => { "manifest_approvals.approve" => { code: "manifest_approvals.approve", ... }, ... }
+  #   CODES     # => ["dashboard.list", "manifests.list", "manifests.view", ...]
+  #   RESOURCES # => { "manifest_approvals" => [{ code: "manifest_approvals.list", ... }, ...], ... }
   ENTRIES = SECTIONS.each_with_index.flat_map do |section, section_index|
     section[:resources].each_with_index.flat_map do |resource, resource_index|
       scoped_actions = SCOPE_KEYS.flat_map do |scope|
@@ -87,6 +123,8 @@ module Permission::Catalog
   # anything shared. Computed straight from ENTRIES rather than the persisted `permissions`
   # table, so a stale platform_scope column on an existing row can never leak a code across
   # platforms — this module is the sole source of truth, per CLAUDE.md.
+  #
+  #   codes_for_platform("fisherman") # => ["dashboard.list", "manifests.list", ..., "fisherman_roles.delete"]
   def self.codes_for_platform(platform)
     allowed_scopes = [platform.to_s, "shared"]
     ENTRIES.select { |entry| allowed_scopes.include?(entry[:platform_scope]) }.pluck(:code)
