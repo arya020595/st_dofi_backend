@@ -14,10 +14,6 @@ FactoryBot.define do
     trait :approved do
       approval_status { "approved" }
     end
-
-    trait :non_active do
-      status { "non_active" }
-    end
   end
 end
 
