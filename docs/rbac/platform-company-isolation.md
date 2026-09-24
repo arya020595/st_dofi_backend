@@ -283,6 +283,9 @@ are idempotent (`find_or_create_by!` + drift-correcting `update!`), safe to reru
 Full source: [`db/seeds/permissions.rb`](../../db/seeds/permissions.rb),
 [`db/seeds/roles.rb`](../../db/seeds/roles.rb).
 
+The catalog's shapes, the `GET /api/v1/permissions` response the Role editor renders, and which
+catalog edits need a data migration are covered in [`permission-catalog.md`](permission-catalog.md).
+
 ### 4.4 Services
 
 Three small, single-purpose modules do all the actual invariant enforcement — shown in full because
@@ -567,7 +570,8 @@ end
 
 class PermissionBlueprint < Blueprinter::Base
   identifier :id
-  fields :code, :name, :platform_scope
+  fields :code, :name, :action, :platform_scope, :resource, :section, :section_order, :resource_order,
+         :action_order, :resource_label, :section_label
 end
 
 class UserBlueprint < Blueprinter::Base

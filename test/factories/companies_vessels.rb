@@ -11,14 +11,6 @@ FactoryBot.define do
     trait :support_vessel do
       category { "support_vessel" }
     end
-
-    trait :non_powered do
-      is_powered { false }
-    end
-
-    trait :temporary do
-      boat_type { "temporary" }
-    end
   end
 end
 
