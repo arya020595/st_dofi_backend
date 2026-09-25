@@ -6,6 +6,7 @@ module FishCaptureDetails
 
     def call(detail, attributes)
       return invalid_gear_detail(detail) unless valid_gear_detail?(detail, attributes[:fishing_gear_detail_id])
+      return invalid_dictionary(detail) unless valid_dictionary?(attributes[:dictionary_id])
 
       update_attributes = build_update_attributes(detail, attributes)
       return Success(detail) if detail.update(update_attributes)
@@ -35,7 +36,11 @@ module FishCaptureDetails
     def dictionary_for(dictionary_id)
       return if dictionary_id.blank?
 
-      Dictionary.find_by(id: dictionary_id)
+      Dictionary.kept.find_by(id: dictionary_id)
+    end
+
+    def valid_dictionary?(dictionary_id)
+      dictionary_id.blank? || Dictionary.kept.exists?(id: dictionary_id)
     end
 
     def resolved_local_name(detail, dictionary, attributes)
@@ -58,6 +63,11 @@ module FishCaptureDetails
 
     def invalid_gear_detail(detail)
       detail.errors.add(:fishing_gear_detail_id, "must reference a fishing gear detail on this capture report")
+      Failure(detail)
+    end
+
+    def invalid_dictionary(detail)
+      detail.errors.add(:dictionary_id, "must reference an active species")
       Failure(detail)
     end
   end

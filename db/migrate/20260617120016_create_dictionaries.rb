@@ -21,6 +21,7 @@ class CreateDictionaries < ActiveRecord::Migration[8.1]
       t.string :scientific_name # "Scomberomorus commerson"
       t.references :dictionary_group, null: false, foreign_key: true, type: :uuid
       t.references :dictionary_family, null: false, foreign_key: true, type: :uuid
+      t.datetime :discarded_at
 
       t.timestamps
       # fish_picture: stored via ActiveStorage (has_one_attached), added when ActiveStorage is set up
@@ -28,6 +29,7 @@ class CreateDictionaries < ActiveRecord::Migration[8.1]
 
     add_index :dictionaries, :reference_id, unique: true
     add_index :dictionaries, :local_name
+    add_index :dictionaries, :discarded_at
 
     # Full-text search index using pg_trgm
     add_index :dictionaries, :local_name, using: :gin,
