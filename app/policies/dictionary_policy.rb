@@ -2,7 +2,7 @@ class DictionaryPolicy < ApplicationPolicy
   include FishermanReadable
 
   class Scope < ApplicationPolicy::Scope
-    def resolve = scope.all
+    def resolve = scope.kept
   end
 
   private

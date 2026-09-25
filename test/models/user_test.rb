@@ -76,46 +76,18 @@ class UserTest < ActiveSupport::TestCase
     assert_equal "01123456", user.normalized_ic_number
   end
 
-  test "active fisherman_status requires claimed identity timestamps" do
-    company_profile = create(:company_profile)
-    role = create(:role, :fisherman, company_profile: company_profile)
-    user = build(:user, role: role, company_profile: company_profile, ic_number: "01-444444",
-                        registration_type: "Commercial", fisherman_status: "active")
-
-    assert_not user.valid?
-    assert_includes user.errors.attribute_names, :fisherman_status
-
-    user.claimed_at = Time.current
-    user.brunei_id_verified_at = Time.current
-
-    assert_predicate user, :valid?
-  end
-
-  test "has_fisherman_owner_role remains true for revoked historical owner" do
-    assert_predicate owner_user("revoked"), :has_fisherman_owner_role?
+  test "has_fisherman_owner_role is true for an inactive historical owner" do
+    assert_predicate owner_user("inactive"), :has_fisherman_owner_role?
   end
 
   test "owner slot occupancy uses explicit assignment statuses" do
     assert_predicate owner_user("active"), :occupies_fisherman_owner_slot?
-    assert_predicate owner_user("suspended"), :occupies_fisherman_owner_slot?
-    assert_not owner_user("revoked").occupies_fisherman_owner_slot?
+    assert_not owner_user("inactive").occupies_fisherman_owner_slot?
   end
 
   test "current_fisherman_owner is true only for active owner authorization" do
     assert_predicate owner_user("active"), :current_fisherman_owner?
-    assert_not owner_user("suspended").current_fisherman_owner?
-  end
-
-  test "FINS governed fisherman requires system role and Company Profiling source" do
-    owner = owner_user("pending_approval")
-    owner.provisioning_source = ::Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE
-
-    assert_predicate owner, :fins_governed_fisherman?
-    assert_predicate owner, :fins_approval_required_fisherman?
-
-    owner.provisioning_source = ::Fisherman::ProvisionUser::FISHERMAN_OWNER
-
-    assert_not owner.fins_governed_fisherman?
+    assert_not owner_user("inactive").current_fisherman_owner?
   end
 
   private
@@ -141,7 +113,6 @@ end
 # Database name: primary
 #
 #  id                         :uuid             not null, primary key
-#  approved_at                :datetime
 #  brunei_id_verified_at      :datetime
 #  claimed_at                 :datetime
 #  contact_no                 :string
@@ -159,24 +130,18 @@ end
 #  preferred_locale           :string           default("en"), not null
 #  provisioning_source        :string
 #  registration_type          :string
-#  rejection_reason           :text
 #  remember_created_at        :datetime
 #  reset_password_sent_at     :datetime
 #  reset_password_token       :string
-#  revocation_comment         :text
-#  revoked_at                 :datetime
 #  status                     :string           default("active"), not null
 #  unit                       :string
 #  username                   :string
 #  created_at                 :datetime         not null
 #  updated_at                 :datetime         not null
-#  approved_by_id             :uuid
 #  company_profile_contact_id :uuid
 #  company_profile_id         :uuid
 #  created_by_id              :uuid
 #  employee_id                :string
-#  revocation_remark_id       :uuid
-#  revoked_by_id              :uuid
 #  role_id                    :uuid
 #
 # Indexes
@@ -191,18 +156,13 @@ end
 #  index_users_on_jti                                     (jti) UNIQUE
 #  index_users_on_normalized_ic_number_kept_unique        (normalized_ic_number) UNIQUE WHERE ((normalized_ic_number IS NOT NULL) AND (discarded_at IS NULL))
 #  index_users_on_reset_password_token                    (reset_password_token) UNIQUE
-#  index_users_on_revocation_remark_id                    (revocation_remark_id)
-#  index_users_on_revoked_by_id                           (revoked_by_id)
 #  index_users_on_role_id                                 (role_id)
 #  index_users_on_username                                (username) UNIQUE
 #
 # Foreign Keys
 #
-#  fk_rails_...  (approved_by_id => users.id)
 #  fk_rails_...  (company_profile_contact_id => company_profile_contacts.id)
 #  fk_rails_...  (company_profile_id => company_profiles.id)
 #  fk_rails_...  (created_by_id => users.id)
-#  fk_rails_...  (revocation_remark_id => approval_remarks.id)
-#  fk_rails_...  (revoked_by_id => users.id)
 #  fk_rails_...  (role_id => roles.id)
 #

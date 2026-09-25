@@ -325,6 +325,7 @@ BRUNEI_ID_SANDBOX_FISHERMEN.each do |attributes|
   contact = find_or_upsert_sandbox_contact!(company_profile, attributes)
   owner_role = Roles::EnsureFishermanOwnerRole.call(company_profile)
   owner_role.permissions = Permission.assignable_to(Role::FISHERMAN_PLATFORM)
+  seeded_at = Time.current
 
   user = User.find_or_initialize_by(ic_number: attributes[:ic_number])
   user.assign_attributes(
@@ -335,8 +336,10 @@ BRUNEI_ID_SANDBOX_FISHERMEN.each do |attributes|
     company_profile_contact: contact,
     designation: contact.designation,
     status: "active",
+    fisherman_status: "active",
     preferred_locale: "en",
-    brunei_id_verified_at: Time.current,
+    claimed_at: seeded_at,
+    brunei_id_verified_at: seeded_at,
     password: default_password,
     password_confirmation: default_password
   )

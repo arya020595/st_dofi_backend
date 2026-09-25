@@ -18,7 +18,6 @@ class BackfillResourceSectionOnPermissions < ActiveRecord::Migration[8.1]
       resources: %w[ports zones fishing_gears nationalities positions skip_reasons] },
     { section: "user_management", resources: %w[roles dofi_officer_users] },
     { section: "account_management", resources: %w[fisherman_users fisherman_roles] },
-    { section: "fins_approval", resources: %w[fisherman_approvals jetty_manager_approvals approval_remarks] },
     { section: "companies",
       resources: %w[companies_vessels companies_vessel_approvals companies_crews companies_crew_approvals
                     companies_fishing_gears companies_fishing_gear_approvals companies_documents

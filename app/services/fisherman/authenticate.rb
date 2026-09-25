@@ -20,19 +20,10 @@ module Fisherman
       )
     end
 
-    def resolve_user(user, verified_ic_number)
-      case user.fisherman_status
-      when "pending_approval" then Failure([:pending_approval, { user: user }])
-      when "claimable" then claim_user(user, verified_ic_number)
-      when "active" then Success(user)
-      when "suspended" then Failure([:suspended, { user: user }])
-      when "revoked" then Failure([:revoked, { user: user }])
-      else Failure([:not_claimable, { user: user }])
-      end
-    end
+    def resolve_user(user, _verified_ic_number)
+      return Success(user) if user.active? && user.fisherman_status == "active"
 
-    def claim_user(user, verified_ic_number)
-      ClaimAccount.call(user: user, verified_ic_number: verified_ic_number, verified_at: Time.current)
+      Failure(:inactive)
     end
   end
 end

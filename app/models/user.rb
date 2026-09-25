@@ -8,10 +8,7 @@ class User < ApplicationRecord
   belongs_to :role, optional: true
   belongs_to :company_profile, optional: true
   belongs_to :company_profile_contact, optional: true
-  belongs_to :approved_by, class_name: "User", optional: true, inverse_of: false
   belongs_to :created_by, class_name: "User", optional: true, inverse_of: false
-  belongs_to :revoked_by, class_name: "User", optional: true, inverse_of: false
-  belongs_to :revocation_remark, class_name: "ApprovalRemark", optional: true, inverse_of: false
   has_many :notifications, dependent: :delete_all
 
   include AASM
@@ -20,9 +17,8 @@ class User < ApplicationRecord
 
   audited only: %i[
     name ic_number normalized_ic_number status fisherman_status provisioning_source claimed_at
-    brunei_id_verified_at approved_at approved_by_id created_by_id company_profile_id
-    company_profile_contact_id role_id rejection_reason revoked_at revoked_by_id revocation_remark_id
-    revocation_comment discarded_at
+    brunei_id_verified_at claimed_at created_by_id company_profile_id company_profile_contact_id role_id
+    discarded_at
   ]
 
   VALID_LOCALES = %w[en ms].freeze
@@ -85,24 +81,13 @@ class User < ApplicationRecord
   # a single fixed row. See Role's own kind vs platform_scope comment for the full rationale.
   # Not redundant: db/seeds/roles.rb seeds DoFi Officer and Jetty Manager with the *same*
   # platform_scope ("dofi_officer") — kind is the only column that tells them apart. That's why
-  # fins_governed_jetty_manager? (below) and JettyManagerApprovalPolicy::Scope key off kind, and why
-  # every Users::*Registration service re-checks it — swapping either to dofi_officer_platform? would
-  # let a DoFi Officer's own account flow through Jetty-Manager-only approve/reject/deactivate/
-  # reactivate/revoke.
+  # ExternalUserPolicy scopes by this kind, so a DoFi Officer account is never exposed in the
+  # Jetty Manager management tab.
   def jetty_manager? = role&.kind == Role::JETTY_MANAGER
   def officer? = role&.kind == Role::DOFI_OFFICER
   def fisherman? = role&.fisherman_platform? || false
   def dofi_officer_platform? = role&.dofi_officer_platform? || false
-  def fins_governed_jetty_manager? = kept? && jetty_manager?
   def approval_status_label = APPROVAL_STATUS_LABELS.fetch(status, status.humanize)
-
-  def fisherman_approval_status_label
-    Users::FishermanApprovalStatusLabel.call(fisherman_status)
-  end
-
-  def lifecycle_status
-    fisherman? && fisherman_status.present? ? fisherman_status : status
-  end
 
   # No role in this system requires a real email: DoFi Officers authenticate by `username`,
   # Fisherman/Jetty Manager via BruneiID QR re-scan. `email` stays as an optional legacy/contact
@@ -114,8 +99,7 @@ class User < ApplicationRecord
 
   def self.ransackable_attributes(_auth_object = nil)
     %w[id name email employee_id status fisherman_status normalized_ic_number preferred_locale unit position contact_no
-       role_id doft_registration_no ic_number registration_type username revoked_at revoked_by_id
-       revocation_remark_id discarded_at created_at updated_at]
+       role_id doft_registration_no ic_number registration_type username discarded_at created_at updated_at]
   end
 
   def self.ransackable_associations(_auth_object = nil)
@@ -135,7 +119,6 @@ end
 # Database name: primary
 #
 #  id                         :uuid             not null, primary key
-#  approved_at                :datetime
 #  brunei_id_verified_at      :datetime
 #  claimed_at                 :datetime
 #  contact_no                 :string
@@ -153,24 +136,18 @@ end
 #  preferred_locale           :string           default("en"), not null
 #  provisioning_source        :string
 #  registration_type          :string
-#  rejection_reason           :text
 #  remember_created_at        :datetime
 #  reset_password_sent_at     :datetime
 #  reset_password_token       :string
-#  revocation_comment         :text
-#  revoked_at                 :datetime
 #  status                     :string           default("active"), not null
 #  unit                       :string
 #  username                   :string
 #  created_at                 :datetime         not null
 #  updated_at                 :datetime         not null
-#  approved_by_id             :uuid
 #  company_profile_contact_id :uuid
 #  company_profile_id         :uuid
 #  created_by_id              :uuid
 #  employee_id                :string
-#  revocation_remark_id       :uuid
-#  revoked_by_id              :uuid
 #  role_id                    :uuid
 #
 # Indexes
@@ -185,18 +162,13 @@ end
 #  index_users_on_jti                                     (jti) UNIQUE
 #  index_users_on_normalized_ic_number_kept_unique        (normalized_ic_number) UNIQUE WHERE ((normalized_ic_number IS NOT NULL) AND (discarded_at IS NULL))
 #  index_users_on_reset_password_token                    (reset_password_token) UNIQUE
-#  index_users_on_revocation_remark_id                    (revocation_remark_id)
-#  index_users_on_revoked_by_id                           (revoked_by_id)
 #  index_users_on_role_id                                 (role_id)
 #  index_users_on_username                                (username) UNIQUE
 #
 # Foreign Keys
 #
-#  fk_rails_...  (approved_by_id => users.id)
 #  fk_rails_...  (company_profile_contact_id => company_profile_contacts.id)
 #  fk_rails_...  (company_profile_id => company_profiles.id)
 #  fk_rails_...  (created_by_id => users.id)
-#  fk_rails_...  (revocation_remark_id => approval_remarks.id)
-#  fk_rails_...  (revoked_by_id => users.id)
 #  fk_rails_...  (role_id => roles.id)
 #

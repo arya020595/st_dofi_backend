@@ -7,5 +7,5 @@ class EntityUserBlueprint < Blueprinter::Base
     user.position.presence || user.designation.presence || user.role&.name
   end
 
-  field :status, &:lifecycle_status
+  field :status
 end

@@ -5,7 +5,7 @@ class ExternalUserPolicyTest < ActiveSupport::TestCase
     permissions = %w[update delete].map { |action| create(:permission, code: "external_users.#{action}") }
     @officer = create(:user, :officer_shaped, role: create(:role, permissions:))
     @jetty_manager = create(:user, :jetty_manager_shaped, role: create(:role, kind: Role::JETTY_MANAGER))
-    @fisherman = create(:user, :fins_governed_fisherman)
+    @fisherman = create(:user, :profiled_fisherman)
   end
 
   test "update and destroy are allowed for a kept jetty manager" do

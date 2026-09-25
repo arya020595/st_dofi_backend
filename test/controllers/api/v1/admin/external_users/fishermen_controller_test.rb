@@ -12,10 +12,11 @@ module Api
                                              external_users.list external_users.view
                                              external_users.deactivate external_users.reactivate
                                            ])
-            @fisherman = create(:user, :fins_governed_fisherman, fisherman_status: "active",
-                                                                 claimed_at: Time.current,
-                                                                 brunei_id_verified_at: Time.current)
-            @pending_fisherman = create(:user, :fins_governed_fisherman)
+            @fisherman = create(:user, :profiled_fisherman, fisherman_status: "active",
+                                                            claimed_at: Time.current,
+                                                            brunei_id_verified_at: Time.current)
+            @inactive_fisherman = create(:user, :profiled_fisherman, status: "inactive",
+                                                                     fisherman_status: "inactive")
             @jetty_manager = create(:user, :jetty_manager_shaped,
                                     role: create(:role, kind: Role::JETTY_MANAGER, name: "Jetty Manager"))
           end
@@ -24,11 +25,11 @@ module Api
             get PATH, headers: @headers
 
             assert_response :ok
-            assert_equal [@fisherman.id, @pending_fisherman.id].sort, listed_ids.sort
+            assert_equal [@fisherman.id, @inactive_fisherman.id].sort, listed_ids.sort
           end
 
-          test "active/suspended status filter excludes fishermen still pending approval" do
-            get PATH, params: { q: { fisherman_status_in: %w[active suspended] } }, headers: @headers
+          test "active status filter excludes inactive fishermen" do
+            get PATH, params: { q: { fisherman_status_eq: "active" } }, headers: @headers
 
             assert_response :ok
             assert_equal [@fisherman.id], listed_ids
@@ -41,15 +42,15 @@ module Api
             assert_equal "active", response.parsed_body.dig("data", "status")
           end
 
-          test "deactivate suspends an active fisherman" do
+          test "deactivate makes an active fisherman inactive" do
             post "#{PATH}/#{@fisherman.id}/deactivate", headers: @headers
 
             assert_response :ok
-            assert_equal "suspended", @fisherman.reload.fisherman_status
+            assert_equal "inactive", @fisherman.reload.fisherman_status
           end
 
-          test "reactivate restores a suspended fisherman" do
-            @fisherman.update!(fisherman_status: "suspended")
+          test "reactivate restores an inactive fisherman" do
+            @fisherman.update!(status: "inactive", fisherman_status: "inactive")
 
             post "#{PATH}/#{@fisherman.id}/reactivate", headers: @headers
 

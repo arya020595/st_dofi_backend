@@ -80,10 +80,15 @@ module Fisherman
         company_profile_contact: context.company_profile_contact,
         role: context.role,
         status: request.status,
-        fisherman_status: context.fisherman_status,
+        fisherman_status: request.status,
         provisioning_source: request.provisioning_source,
         created_by: request.created_by
-      }
+      }.merge(active_identity_attributes)
+    end
+
+    def active_identity_attributes
+      timestamp = Time.current
+      { claimed_at: timestamp, brunei_id_verified_at: timestamp }
     end
 
     def conflict_after_unique_race

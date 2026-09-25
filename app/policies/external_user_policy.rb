@@ -2,8 +2,8 @@ class ExternalUserPolicy < ApplicationPolicy
   def show? = super && governed_account?
   # Only Jetty Manager accounts are created/edited/removed here — Fisherman account data is owned by
   # Company Profiling (contact sync), so those rows stay list/view/deactivate/reactivate only.
-  def update? = super && record.fins_governed_jetty_manager?
-  def destroy? = super && record.fins_governed_jetty_manager?
+  def update? = super && record.jetty_manager?
+  def destroy? = super && record.jetty_manager?
   def deactivate? = permitted?("deactivate") && governed_account?
   def reactivate? = permitted?("reactivate") && governed_account?
 
@@ -28,5 +28,5 @@ class ExternalUserPolicy < ApplicationPolicy
 
   def permission_resource = "external_users"
 
-  def governed_account? = record.fins_governed_fisherman? || record.fins_governed_jetty_manager?
+  def governed_account? = record.fisherman? || record.jetty_manager?
 end

@@ -9,7 +9,7 @@ module Fisherman
       @company_profile = create(:company_profile)
     end
 
-    test "source A derives pending approval status and Owner role from contact" do
+    test "source A provisions an active Owner from contact" do
       contact = create(:company_profile_contact, company_profile: @company_profile, designation: "Owner",
                                                  ic_no: "01-111111")
 
@@ -22,14 +22,14 @@ module Fisherman
 
       user = result.value!
 
-      assert_equal "pending_approval", user.fisherman_status
+      assert_equal "active", user.fisherman_status
       assert_equal ["Muhammad Shahrizan Bin Haji Said", "01-111111", "01111111"],
                    [user.name, user.ic_number, user.normalized_ic_number]
       assert_equal [contact, "Owner", @company_profile],
                    [user.company_profile_contact, user.role.name, user.company_profile]
     end
 
-    test "source B derives claimable status and validates role company" do
+    test "source B provisions an active user and validates role company" do
       role = create(:role, :fisherman, company_profile: @company_profile)
 
       result = ProvisionUser.call(company_profile: @company_profile,
@@ -41,7 +41,7 @@ module Fisherman
 
       user = result.value!
 
-      assert_equal "claimable", user.fisherman_status
+      assert_equal "active", user.fisherman_status
       assert_equal role, user.role
     end
 

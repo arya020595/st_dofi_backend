@@ -25,15 +25,15 @@ FactoryBot.define do
       sequence(:ic_number) { |n| "71-#{100_000 + n}" }
     end
 
-    # A DoFI Company Profiling-provisioned Owner — what User#fins_governed_fisherman? and the External
-    # Users Fisherman tab govern. Pass fisherman_status/claimed_at/brunei_id_verified_at to move it along
-    # its lifecycle.
-    trait :fins_governed_fisherman do
+    # A Company Profiling-provisioned Owner shown in the External Users Fisherman tab.
+    trait :profiled_fisherman do
       company_profile
       role { association :role, :fisherman, company_profile:, is_default: true, name: "Owner" }
       provisioning_source { Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE }
       registration_type { "Commercial" }
-      fisherman_status { "pending_approval" }
+      fisherman_status { "active" }
+      claimed_at { Time.current }
+      brunei_id_verified_at { Time.current }
       sequence(:ic_number) { |n| "72-#{100_000 + n}" }
     end
   end
@@ -45,7 +45,6 @@ end
 # Database name: primary
 #
 #  id                         :uuid             not null, primary key
-#  approved_at                :datetime
 #  brunei_id_verified_at      :datetime
 #  claimed_at                 :datetime
 #  contact_no                 :string
@@ -63,24 +62,18 @@ end
 #  preferred_locale           :string           default("en"), not null
 #  provisioning_source        :string
 #  registration_type          :string
-#  rejection_reason           :text
 #  remember_created_at        :datetime
 #  reset_password_sent_at     :datetime
 #  reset_password_token       :string
-#  revocation_comment         :text
-#  revoked_at                 :datetime
 #  status                     :string           default("active"), not null
 #  unit                       :string
 #  username                   :string
 #  created_at                 :datetime         not null
 #  updated_at                 :datetime         not null
-#  approved_by_id             :uuid
 #  company_profile_contact_id :uuid
 #  company_profile_id         :uuid
 #  created_by_id              :uuid
 #  employee_id                :string
-#  revocation_remark_id       :uuid
-#  revoked_by_id              :uuid
 #  role_id                    :uuid
 #
 # Indexes
@@ -95,18 +88,13 @@ end
 #  index_users_on_jti                                     (jti) UNIQUE
 #  index_users_on_normalized_ic_number_kept_unique        (normalized_ic_number) UNIQUE WHERE ((normalized_ic_number IS NOT NULL) AND (discarded_at IS NULL))
 #  index_users_on_reset_password_token                    (reset_password_token) UNIQUE
-#  index_users_on_revocation_remark_id                    (revocation_remark_id)
-#  index_users_on_revoked_by_id                           (revoked_by_id)
 #  index_users_on_role_id                                 (role_id)
 #  index_users_on_username                                (username) UNIQUE
 #
 # Foreign Keys
 #
-#  fk_rails_...  (approved_by_id => users.id)
 #  fk_rails_...  (company_profile_contact_id => company_profile_contacts.id)
 #  fk_rails_...  (company_profile_id => company_profiles.id)
 #  fk_rails_...  (created_by_id => users.id)
-#  fk_rails_...  (revocation_remark_id => approval_remarks.id)
-#  fk_rails_...  (revoked_by_id => users.id)
 #  fk_rails_...  (role_id => roles.id)
 #

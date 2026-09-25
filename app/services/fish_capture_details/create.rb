@@ -5,10 +5,11 @@ module FishCaptureDetails
     def self.call(...) = new.call(...)
 
     def call(capture_report, attributes)
-      dictionary = Dictionary.find_by(id: attributes[:dictionary_id])
       detail = capture_report.fish_capture_details.new
+      dictionary = Dictionary.kept.find_by(id: attributes[:dictionary_id])
       gear_detail = eligible_gear_detail(capture_report, attributes[:fishing_gear_detail_id])
       return invalid_gear_detail(detail) if gear_detail.nil?
+      return invalid_dictionary(detail) if dictionary.nil?
 
       detail.assign_attributes(build_attributes(attributes, dictionary, gear_detail))
       return Failure(detail) unless detail.save
@@ -36,6 +37,11 @@ module FishCaptureDetails
 
     def invalid_gear_detail(detail)
       detail.errors.add(:fishing_gear_detail_id, "must reference a fishing gear detail on this capture report")
+      Failure(detail)
+    end
+
+    def invalid_dictionary(detail)
+      detail.errors.add(:dictionary_id, "must reference an active species")
       Failure(detail)
     end
 

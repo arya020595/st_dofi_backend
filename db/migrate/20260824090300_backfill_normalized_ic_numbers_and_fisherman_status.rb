@@ -10,10 +10,7 @@ class BackfillNormalizedIcNumbersAndFishermanStatus < ActiveRecord::Migration[8.
   FISHERMAN_PLATFORM = "fisherman".freeze
   FISHERMAN_STATUS_MAP = {
     "active" => "active",
-    "pending" => "pending_approval",
-    "rejected" => "revoked",
-    "inactive" => "revoked",
-    "suspended" => "suspended"
+    "inactive" => "inactive"
   }.freeze
 
   def up
@@ -64,6 +61,6 @@ class BackfillNormalizedIcNumbersAndFishermanStatus < ActiveRecord::Migration[8.
   end
 
   def fisherman_status_for(status)
-    FISHERMAN_STATUS_MAP.fetch(status, "pending_approval")
+    FISHERMAN_STATUS_MAP.fetch(status, "inactive")
   end
 end
