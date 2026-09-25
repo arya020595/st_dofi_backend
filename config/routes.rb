@@ -96,28 +96,6 @@ Rails.application.routes.draw do
         end
 
         namespace :approvals do
-          resources :fishermen, only: %i[index show] do
-            member do
-              post :approve
-              post :reject
-              post :deactivate
-              post :reactivate
-              post :revoke
-            end
-          end
-
-          resources :jetty_managers, only: %i[index show] do
-            member do
-              post :approve
-              post :reject
-              post :deactivate
-              post :reactivate
-              post :revoke
-            end
-          end
-
-          resources :approval_remarks, only: %i[index show create update destroy]
-
           resources :vessels, only: %i[index show] do
             member do
               post :approve

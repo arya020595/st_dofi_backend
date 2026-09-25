@@ -2,7 +2,7 @@ module Fisherman
   class ProvisioningContext
     include Dry::Monads[:result]
 
-    Context = Data.define(:fisherman_status, :role, :name, :ic_number, :company_profile_contact, :designation)
+    Context = Data.define(:role, :name, :ic_number, :company_profile_contact, :designation)
 
     def self.call(...) = new.call(...)
 
@@ -42,14 +42,14 @@ module Fisherman
     end
 
     def build_source_a_context(contact, role)
-      Context.new("pending_approval", role, contact.full_name, contact.ic_no, contact, contact.designation)
+      Context.new(role, contact.full_name, contact.ic_no, contact, contact.designation)
     end
 
     def source_b_context(request)
       failure = source_b_role_failure(request)
       return Failure(failure) if failure
 
-      Success(Context.new("claimable", request.role, request.name, request.ic_number, nil, nil))
+      Success(Context.new(request.role, request.name, request.ic_number, nil, nil))
     end
 
     def source_b_role_failure(request)

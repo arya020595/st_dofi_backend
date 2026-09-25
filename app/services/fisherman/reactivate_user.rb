@@ -14,11 +14,12 @@ module Fisherman
     private
 
     def reactivate_locked_user(user, reason)
-      return Failure(:not_fins_governed_fisherman) unless user.fins_governed_fisherman?
-      return Failure(:invalid_transition) unless user.may_reactivate_fisherman?
+      return Failure(:not_fisherman) unless user.fisherman?
+      return Failure(:invalid_transition) unless user.inactive?
 
       user.audit_comment = audit_comment("fisherman_reactivate", reason)
-      user.reactivate_fisherman!
+      user.reactivate!
+      user.update!(fisherman_status: "active")
       Success(user)
     end
   end

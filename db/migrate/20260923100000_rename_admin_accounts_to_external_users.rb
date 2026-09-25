@@ -1,4 +1,4 @@
-# "Admin Accounts" (FINS Approval) became "External Users" (User Management) and gained create/update/
+# "Admin Accounts" became "External Users" (User Management) and gained create/update/
 # delete for the Jetty Manager tab. Deploys only run db:prepare (no re-seed), so this migration carries
 # the change itself: existing admin_accounts.* rows are renamed in place — permission_roles point at the
 # permission id, so every role's existing grant survives untouched — then all seven external_users.*
@@ -25,7 +25,7 @@ class RenameAdminAccountsToExternalUsers < ActiveRecord::Migration[8.1]
     resource_order: 5
   }.freeze
   ADMIN_ACCOUNTS_METADATA = {
-    resource: "admin_accounts", platform_scope: "dofi_officer", section: "fins_approval", section_order: 8,
+    resource: "admin_accounts", platform_scope: "dofi_officer", section: "user_management", section_order: 6,
     resource_order: 4
   }.freeze
 

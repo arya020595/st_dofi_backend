@@ -48,15 +48,9 @@ module Permission::Catalog
     { key: "account_management", label: "Account Management", resources: [
       { key: "fisherman_users", label: "Users", fisherman: %w[list view create update delete] },
       { key: "fisherman_roles", label: "Roles", fisherman: %w[list view create update delete] }
-    ] },
-    { key: "fins_approval", label: "FINS Approval", resources: [
-      { key: "fisherman_approvals", label: "Fisherman Approval",
-        dofi_officer: %w[list view approve reject deactivate reactivate revoke] },
-      { key: "jetty_manager_approvals", label: "Jetty Manager Approval",
-        dofi_officer: %w[list view approve reject deactivate reactivate revoke] },
-      { key: "approval_remarks", label: "Approval Request",
-        dofi_officer: %w[list view create update delete] }
     ] }
+    # External Fisherman and Jetty Manager accounts are provisioned directly by their owning
+    # admin workflow. They do not enter a separate FINS approval queue.
   ].freeze
 
   SCOPE_KEYS = %i[shared dofi_officer fisherman].freeze

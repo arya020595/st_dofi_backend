@@ -52,8 +52,8 @@ module Fisherman
     end
 
     def release_old_identity
-      old_user.audit_comment = audit_comment("fisherman_replacement_revoke", reason)
-      old_user.revoke_fisherman! if old_user.may_revoke_fisherman?
+      old_user.audit_comment = audit_comment("fisherman_replacement_deactivate", reason)
+      old_user.update!(status: "inactive", fisherman_status: "inactive")
       old_contact.audit_comment = audit_comment("fisherman_replacement_contact_release", reason)
       old_contact.discard
     end

@@ -50,7 +50,7 @@ module Api
           end
 
           test "fisherman and officer accounts are not reachable from the jetty manager tab" do
-            fisherman = create(:user, :fins_governed_fisherman)
+            fisherman = create(:user, :profiled_fisherman)
             officer = create(:user, :officer_shaped, role: create(:role))
 
             patch "#{PATH}/#{fisherman.id}", params: { jetty_manager: { name: "X" } }, headers: @headers, as: :json

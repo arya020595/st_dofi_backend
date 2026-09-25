@@ -9,9 +9,7 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
                                capture_reports.create].map do |code|
       Permission.find_or_create_by!(code: code) { |p| p.name = code }
     end
-    officer_permissions = %w[company_profiles.view company_profiles.create fisherman_approvals.view
-                             fisherman_approvals.list
-                             fisherman_approvals.approve companies_vessel_approvals.view
+    officer_permissions = %w[company_profiles.view company_profiles.create companies_vessel_approvals.view
                              companies_vessel_approvals.list companies_vessel_approvals.approve
                              capture_report_verifications.verify].map do |code|
       Permission.find_or_create_by!(code: code) { |p| p.name = code }
@@ -45,22 +43,16 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
     fisherman = User.find(response.parsed_body.dig("data", "owner_user", "id"))
 
     assert_equal company_profile_id, fisherman.company_profile_id
-    assert_equal "pending_approval", fisherman.fisherman_status
+    assert_equal "active", fisherman.fisherman_status
 
-    # 3. DoFi Officer approves the registration.
-    post "/api/v1/admin/approvals/fishermen/#{fisherman.id}/approve", headers: @officer_headers
-
-    assert_response :ok
-    assert_equal "claimable", fisherman.reload.fisherman_status
-
-    # 4. Fisherman claims and logs in via the mocked BruneiID re-scan.
+    # 3. The directly provisioned fisherman logs in via mocked BruneiID.
     post "/api/v1/auth/brunei_id", params: { ic_number: ic_number }, as: :json
 
     assert_response :ok
     assert_equal "active", fisherman.reload.fisherman_status
     fisherman_headers = { "Authorization" => response.headers["Authorization"] }
 
-    # 5. Fisherman registers a vessel under their own (pre-profiled) company profile.
+    # 4. Fisherman registers a vessel under their own (pre-profiled) company profile.
     post "/api/v1/fisherman/company_profiles/#{fisherman.company_profile_id}/vessels",
          params: { vessel: { vessel_name: "Solo Boat", boat_number: "BN 1234" } },
          headers: fisherman_headers, as: :json
@@ -68,12 +60,12 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
     assert_response :created
     vessel_id = response.parsed_body.dig("data", "id")
 
-    # 6. DoFi Officer approves the vessel — required before it can be used on a manifest.
+    # 5. DoFi Officer approves the vessel — required before it can be used on a manifest.
     post "/api/v1/admin/approvals/vessels/#{vessel_id}/approve", headers: @officer_headers
 
     assert_response :ok
 
-    # 7. Fisherman creates a manifest referencing the approved vessel. fisherman_category is
+    # 6. Fisherman creates a manifest referencing the approved vessel. fisherman_category is
     # derived server-side from the company profile's registration_type, not client-submitted.
     post "/api/v1/fisherman/manifests", params: { manifest: { companies_vessel_id: vessel_id } },
                                         headers: fisherman_headers, as: :json
@@ -84,7 +76,7 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
 
     assert_equal "small_scale_full_time", manifest_data["fisherman_category"]
 
-    # 8. Port-out: small-scale skips Jetty approval entirely, advancing straight to sea.
+    # 7. Port-out: small-scale skips Jetty approval entirely, advancing straight to sea.
     post "/api/v1/fisherman/manifests/#{manifest_id}/submit_port_out", headers: fisherman_headers
 
     assert_response :ok
@@ -92,14 +84,14 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
 
     assert_equal %w[submitted at_sea], [data["port_out_status"], data["manifest_status"]]
 
-    # 9. Fisherman submits a capture report while at sea.
+    # 8. Fisherman submits a capture report while at sea.
     post "/api/v1/fisherman/manifests/#{manifest_id}/capture_reports", params: { capture_report: {} },
                                                                        headers: fisherman_headers, as: :json
 
     assert_response :created
     capture_report_id = response.parsed_body.dig("data", "id")
 
-    # 10. Port-in: small-scale again skips Jetty approval, but capture verification still needs to
+    # 9. Port-in: small-scale again skips Jetty approval, but capture verification still needs to
     # complete before the manifest closes.
     post "/api/v1/fisherman/manifests/#{manifest_id}/submit_port_in", headers: fisherman_headers
 
@@ -108,7 +100,7 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
 
     assert_equal %w[submitted capture_report_submitted], [data["port_in_status"], data["manifest_status"]]
 
-    # 11. DoFi Officer verifies the capture report — the manifest auto-completes once every report
+    # 10. DoFi Officer verifies the capture report — the manifest auto-completes once every report
     # on it is verified, with no separate Jetty port-in approval for small-scale.
     post "/api/v1/admin/manifests/#{manifest_id}/capture_reports/#{capture_report_id}/verify", headers: @officer_headers
 
@@ -129,10 +121,6 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
     assert_response :created
 
     fisherman = User.find(response.parsed_body.dig("data", "owner_user", "id"))
-
-    post "/api/v1/admin/approvals/fishermen/#{fisherman.id}/approve", headers: @officer_headers
-
-    assert_response :ok
 
     post "/api/v1/auth/brunei_id", params: { ic_number: ic_number }, as: :json
 

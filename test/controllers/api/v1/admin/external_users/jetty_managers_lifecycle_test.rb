@@ -16,7 +16,7 @@ module Api
             jetty_role = create(:role, kind: Role::JETTY_MANAGER, name: "Jetty Manager")
             @jetty_manager = create(:user, :jetty_manager_shaped, role: jetty_role)
             @inactive_jetty_manager = create(:user, :jetty_manager_shaped, role: jetty_role, status: "inactive")
-            @fisherman = create(:user, :fins_governed_fisherman)
+            @fisherman = create(:user, :profiled_fisherman)
           end
 
           test "index lists only jetty manager accounts" do
@@ -62,15 +62,6 @@ module Api
 
             assert_response :ok
             assert_equal "active", @inactive_jetty_manager.reload.status
-          end
-
-          test "reactivate is blocked for a revoked jetty manager" do
-            @inactive_jetty_manager.update!(revoked_at: Time.current)
-
-            post "#{PATH}/#{@inactive_jetty_manager.id}/reactivate", headers: @headers
-
-            assert_response :unprocessable_content
-            assert_equal "inactive", @inactive_jetty_manager.reload.status
           end
 
           test "a fisherman account cannot be deactivated through the jetty manager tab" do

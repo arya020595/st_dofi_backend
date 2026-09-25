@@ -9,8 +9,8 @@ class BackfillPlatformScopeOnPermissions < ActiveRecord::Migration[8.1]
   # exists in the table today. Keep in sync with db/seeds/permissions.rb's own comment explaining
   # each exception (profiling.delete, manifest_list.update) if this ever needs re-deriving.
   DOFI_OFFICER_ONLY_GROUPS = %w[
-    dictionaries nationalities roles dofi_officer_users fisherman_approvals jetty_manager_approvals
-    skip_reasons approval_remarks manifest_approvals companies_vessel_approvals companies_crew_approvals
+    dictionaries nationalities roles dofi_officer_users skip_reasons manifest_approvals
+    companies_vessel_approvals companies_crew_approvals
     companies_fishing_gear_approvals companies_document_approvals capture_report_verifications
   ].freeze
 

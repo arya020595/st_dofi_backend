@@ -64,13 +64,6 @@ class ExpandCanonicalPermissions < ActiveRecord::Migration[8.1]
       { resource: "fisherman_users", fisherman: %w[list view create update delete] },
       { resource: "fisherman_roles", fisherman: %w[list view create update delete] }
     ] },
-    { section: "fins_approval", resources: [
-      { resource: "fisherman_approvals",
-        dofi_officer: %w[list view approve reject deactivate reactivate revoke] },
-      { resource: "jetty_manager_approvals",
-        dofi_officer: %w[list view approve reject deactivate reactivate revoke] },
-      { resource: "approval_remarks", dofi_officer: %w[list view create update delete] }
-    ] },
     { section: "companies", resources: [
       { resource: "companies_vessels", shared: %w[list view create update delete images] },
       { resource: "companies_vessel_approvals", dofi_officer: %w[list view approve amendment] },
@@ -90,11 +83,11 @@ class ExpandCanonicalPermissions < ActiveRecord::Migration[8.1]
   ].freeze
 
   VIEW_IMPLIES_LIST = %w[
-    approval_remarks companies_vessels companies_vessel_approvals companies_crews
+    companies_vessels companies_vessel_approvals companies_crews
     companies_crew_approvals companies_fishing_gears companies_fishing_gear_approvals
     companies_documents companies_document_approvals dictionaries ports zones fishing_gears
     nationalities positions skip_reasons roles dofi_officer_users fisherman_users fisherman_roles
-    fisherman_approvals jetty_manager_approvals capture_reports manifest_minor_fishermen
+    capture_reports manifest_minor_fishermen
   ].freeze
 
   MANIFEST_READ_SOURCES = %w[

@@ -43,7 +43,7 @@ module Api
           end
 
           test "create rejects an IC number held by a non jetty manager user" do
-            fisherman = create(:user, :fins_governed_fisherman)
+            fisherman = create(:user, :profiled_fisherman)
 
             post PATH, params: { jetty_manager: new_attributes(ic_number: fisherman.ic_number) },
                        headers: @headers, as: :json
