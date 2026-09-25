@@ -7,7 +7,11 @@ module Users
 
     def call(user:, actor:, reason: nil)
       with_audited_user(actor) do
-        user.with_lock { reactivate_locked_user(user, reason) }
+        User.transaction do
+          locked_user = User.lock.find(user.id)
+          locked_user.clear_attribute_changes([:fisherman_status])
+          reactivate_locked_user(locked_user, reason)
+        end
       end
     end
 
