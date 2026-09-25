@@ -124,6 +124,30 @@ module Api
           assert_summary_payload(response.parsed_body["data"])
         end
 
+        test "catch_trend returns continuous daily buckets for this fisherman's verified catch only" do
+          get "/api/v1/fisherman/dashboard/catch_trend",
+              params: { start_date: "2026-08-04", end_date: "2026-08-08" }, headers: @headers
+
+          assert_response :ok
+          assert_equal expected_daily_catch_trend, response.parsed_body.fetch("data")
+        end
+
+        test "catch_trend rejects an invalid date range" do
+          get "/api/v1/fisherman/dashboard/catch_trend",
+              params: { start_date: "2026-08-10", end_date: "2026-08-01" }, headers: @headers
+
+          assert_response :unprocessable_content
+          assert_equal ["start_date must be on or before end_date"], response.parsed_body.fetch("errors")
+        end
+
+        test "catch_trend rejects a range longer than 366 days" do
+          get "/api/v1/fisherman/dashboard/catch_trend",
+              params: { start_date: "2025-08-01", end_date: "2026-08-02" }, headers: @headers
+
+          assert_response :unprocessable_content
+          assert_equal ["date range must not exceed 366 days"], response.parsed_body.fetch("errors")
+        end
+
         test "top_fishes returns aggregated fish rows for the chart" do
           get "/api/v1/fisherman/dashboard/top_fishes",
               params: { start_date: "2026-08-01", end_date: "2026-08-10" }, headers: @headers
@@ -162,6 +186,21 @@ module Api
           get "/api/v1/fisherman/dashboard/summary", headers: no_access_headers
 
           assert_response :forbidden
+        end
+
+        private
+
+        def expected_daily_catch_trend
+          {
+            "granularity" => "daily",
+            "buckets" => [
+              { "start_date" => "2026-08-04", "end_date" => "2026-08-04", "total_catch_kg" => 0.0 },
+              { "start_date" => "2026-08-05", "end_date" => "2026-08-05", "total_catch_kg" => 10.0 },
+              { "start_date" => "2026-08-06", "end_date" => "2026-08-06", "total_catch_kg" => 0.0 },
+              { "start_date" => "2026-08-07", "end_date" => "2026-08-07", "total_catch_kg" => 12.0 },
+              { "start_date" => "2026-08-08", "end_date" => "2026-08-08", "total_catch_kg" => 0.0 }
+            ]
+          }
         end
       end
     end

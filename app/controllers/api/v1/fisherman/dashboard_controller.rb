@@ -9,6 +9,15 @@ module Api
           render json: { status: "success", data: DashboardSummaryBlueprint.render_as_hash(data) }
         end
 
+        def catch_trend
+          case ::Fisherman::Dashboard::CatchTrend.call(**query_attributes)
+          in Success(data)
+            render json: { status: "success", data: DashboardCatchTrendBlueprint.render_as_hash(data) }
+          in Failure(errors)
+            render json: { status: "fail", errors: errors }, status: :unprocessable_content
+          end
+        end
+
         def top_fishes
           data = ::Fisherman::Dashboard::TopFishesQuery.call(**query_attributes)
           render json: { status: "success", data: DashboardTopFishesBlueprint.render_as_hash(data) }
