@@ -208,6 +208,7 @@ Rails.application.routes.draw do
 
         namespace :dashboard do
           get :summary, to: "/api/v1/fisherman/dashboard#summary"
+          get :catch_trend, to: "/api/v1/fisherman/dashboard#catch_trend"
           get :top_fishes, to: "/api/v1/fisherman/dashboard#top_fishes"
           get :fishing_gear_analytics, to: "/api/v1/fisherman/dashboard#fishing_gear_analytics"
           get :zone_analytics, to: "/api/v1/fisherman/dashboard#zone_analytics"
