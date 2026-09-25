@@ -278,11 +278,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_23_100000) do
     t.datetime "created_at", null: false
     t.uuid "dictionary_family_id", null: false
     t.uuid "dictionary_group_id", null: false
+    t.datetime "discarded_at"
     t.string "local_name", null: false
     t.string "scientific_name"
     t.datetime "updated_at", null: false
     t.index ["dictionary_family_id"], name: "index_dictionaries_on_dictionary_family_id"
     t.index ["dictionary_group_id"], name: "index_dictionaries_on_dictionary_group_id"
+    t.index ["discarded_at"], name: "index_dictionaries_on_discarded_at"
     t.index ["local_name"], name: "idx_dictionaries_local_name_trgm", opclass: :gin_trgm_ops, using: :gin
     t.index ["local_name"], name: "index_dictionaries_on_local_name"
     t.index ["scientific_name"], name: "idx_dictionaries_scientific_name_trgm", opclass: :gin_trgm_ops, using: :gin

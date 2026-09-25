@@ -48,7 +48,7 @@ module Api
         def destroy
           authorize @dictionary
 
-          if @dictionary.destroy
+          if @dictionary.discard
             render json: { status: "success", message: "Dictionary entry removed." }
           else
             render json: { status: "fail", errors: @dictionary.errors.full_messages }, status: :unprocessable_content
@@ -58,7 +58,7 @@ module Api
         private
 
         def set_dictionary
-          @dictionary = Dictionary.find(params.expect(:id))
+          @dictionary = policy_scope(Dictionary).find(params.expect(:id))
         end
 
         # Bulk create: POST multipart with `dictionaries[][local_name]`, `dictionaries[][image]`, etc.
