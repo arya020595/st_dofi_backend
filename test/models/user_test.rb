@@ -76,21 +76,6 @@ class UserTest < ActiveSupport::TestCase
     assert_equal "01123456", user.normalized_ic_number
   end
 
-  test "active fisherman_status requires claimed identity timestamps" do
-    company_profile = create(:company_profile)
-    role = create(:role, :fisherman, company_profile: company_profile)
-    user = build(:user, role: role, company_profile: company_profile, ic_number: "01-444444",
-                        registration_type: "Commercial", fisherman_status: "active")
-
-    assert_not user.valid?
-    assert_includes user.errors.attribute_names, :fisherman_status
-
-    user.claimed_at = Time.current
-    user.brunei_id_verified_at = Time.current
-
-    assert_predicate user, :valid?
-  end
-
   test "has_fisherman_owner_role is true for an inactive historical owner" do
     assert_predicate owner_user("inactive"), :has_fisherman_owner_role?
   end

@@ -54,7 +54,7 @@ module Fisherman
     test "source A refuses to provision a second current Owner assignment" do
       role = create(:role, :fisherman, company_profile: @company_profile, name: "Owner", is_default: true)
       create(:user, role: role, company_profile: @company_profile, ic_number: "01-222225",
-                    registration_type: "Commercial", fisherman_status: "inactive", status: "inactive")
+                    registration_type: "Commercial", fisherman_status: "active", status: "active")
       contact = create(:company_profile_contact, company_profile: @company_profile, designation: "Owner",
                                                  ic_no: "01-222226")
 

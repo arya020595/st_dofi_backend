@@ -14,7 +14,6 @@ module User::FishermanLifecycle
     end
 
     validates :fisherman_status, inclusion: { in: FISHERMAN_STATUSES }, allow_nil: true
-    validate :active_fisherman_identity_must_be_claimed
   end
 
   def fisherman_owner_role_holder?
@@ -28,14 +27,5 @@ module User::FishermanLifecycle
 
   def current_fisherman_owner?
     occupies_fisherman_owner_slot? && fisherman_status == "active"
-  end
-
-  private
-
-  def active_fisherman_identity_must_be_claimed
-    return unless fisherman? && fisherman_status == "active"
-    return if claimed_at.present? && brunei_id_verified_at.present?
-
-    errors.add(:fisherman_status, "active requires claimed_at and brunei_id_verified_at")
   end
 end

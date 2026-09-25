@@ -14,7 +14,7 @@ module Api
           in Success(data)
             render json: { status: "success", data: DashboardCatchTrendBlueprint.render_as_hash(data) }
           in Failure(errors)
-            render json: { status: "fail", errors: errors }, status: :unprocessable_content
+            render json: { status: "fail", errors: Array(errors) }, status: :unprocessable_content
           end
         end
 

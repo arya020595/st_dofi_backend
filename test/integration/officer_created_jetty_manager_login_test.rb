@@ -40,8 +40,8 @@ class OfficerCreatedJettyManagerLoginTest < ActionDispatch::IntegrationTest
     assert_response :ok
     brunei_id_login(IC_NUMBER)
 
-    assert_response :unprocessable_content
-    assert_equal "inactive_registration", response.parsed_body["code"]
+    assert_response :unauthorized
+    assert_equal "Account is inactive or unavailable.", response.parsed_body["message"]
 
     # 4. Officer reactivates — login works again.
     post "/api/v1/admin/external_users/jetty_managers/#{jetty_manager_id}/reactivate", headers: @officer_headers

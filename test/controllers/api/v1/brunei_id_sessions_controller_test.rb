@@ -45,7 +45,8 @@ module Api
       def with_oidc_success(ic_number)
         singleton = BruneiId::OidcCallback.singleton_class
         original = BruneiId::OidcCallback.method(:call)
-        singleton.define_method(:call) { |**_params| Success(ic_number) }
+        result = Success(ic_number)
+        singleton.define_method(:call) { |**_params| result }
         yield
       ensure
         singleton.define_method(:call) { |**params| original.call(**params) }

@@ -199,6 +199,7 @@ module Api
           ic_no: "01-701301"
         )
         owner_user = provisioned_contact_user(owner, is_default: true)
+        owner_user.update!(claimed_at: nil, brunei_id_verified_at: nil)
 
         assert_no_difference(["CompanyProfileContact.count", "User.count"]) do
           patch "/api/v1/admin/company_profiles/#{@target.id}",
