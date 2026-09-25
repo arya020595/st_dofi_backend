@@ -14,7 +14,7 @@ module Users
     private
 
     def deactivate_locked_user(user, reason)
-      return Failure(:not_fins_governed_jetty_manager) unless user.fins_governed_jetty_manager?
+      return Failure(:not_jetty_manager) unless user.jetty_manager?
       return Failure(:invalid_transition) unless user.may_deactivate?
 
       user.audit_comment = audit_comment("jetty_manager_deactivate", reason)

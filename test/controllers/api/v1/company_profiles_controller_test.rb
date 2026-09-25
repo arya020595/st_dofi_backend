@@ -93,7 +93,7 @@ module Api
         assert_match(/\ADOF-\d{4,}\z/, data.dig("company_profile", "profile_number"))
         assert_equal "P.O. Box 1, Serasa", data.dig("company_profile", "mailing_address")
         assert_nil data["admin_profile"]
-        assert_equal "pending_approval", data.dig("owner_user", "status")
+        assert_equal "active", data.dig("owner_user", "status")
       end
 
       test "create with both owner and admin persists one company profile, two contacts, and two pending users" do
@@ -108,7 +108,7 @@ module Api
 
         assert_equal "Admin Person", data.dig("admin_profile", "full_name")
         assert_equal data.dig("company_profile", "id"), data.dig("owner_profile", "company_profile_id")
-        assert_equal "pending_approval", data.dig("admin_user", "status")
+        assert_equal "active", data.dig("admin_user", "status")
       end
 
       test "create without permission is forbidden" do
@@ -168,7 +168,7 @@ module Api
 
         assert_predicate owner.reload, :discarded?
         assert_equal "Old Owner", owner.full_name
-        assert_equal "revoked", owner_user.reload.fisherman_status
+        assert_equal "inactive", owner_user.reload.fisherman_status
 
         new_owner = @target.owner_contact
         new_owner_user = new_owner.users.kept.first
@@ -176,10 +176,10 @@ module Api
         assert_equal "Updated Owner", new_owner.full_name
         assert_equal "Updated Owner", new_owner_user.name
         assert_equal "01-701101", new_owner_user.ic_number
-        assert_nil new_owner_user.claimed_at
+        assert_predicate new_owner_user.claimed_at, :present?
 
         assert_predicate admin.reload, :discarded?
-        assert_equal "revoked", admin_user.reload.fisherman_status
+        assert_equal "inactive", admin_user.reload.fisherman_status
 
         new_admin = @target.admin_contact
         new_admin_user = new_admin.users.kept.first
@@ -187,7 +187,7 @@ module Api
         assert_equal "Updated Admin", new_admin.full_name
         assert_equal "Updated Admin", new_admin_user.name
         assert_equal "01-701102", new_admin_user.ic_number
-        assert_nil new_admin_user.claimed_at
+        assert_predicate new_admin_user.claimed_at, :present?
       end
 
       test "update renames an existing not-yet-claimed owner contact and user in place" do
@@ -254,7 +254,7 @@ module Api
         role = provisioned_contact_role(is_default, is_default_admin)
         create(:user, role:, company_profile: @target, company_profile_contact: contact, name: contact.full_name,
                       ic_number: contact.ic_no, registration_type: @target.registration_type,
-                      fisherman_status: "pending_approval",
+                      fisherman_status: "active", claimed_at: Time.current, brunei_id_verified_at: Time.current,
                       provisioning_source: ::Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE)
       end
 

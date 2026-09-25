@@ -2,8 +2,6 @@ module Api
   module V1
     class BruneiIdSessionsController < ApplicationController
       include BruneiIdSessions::CallbackRendering
-      include BruneiIdSessions::LegacyRendering
-      include BruneiIdSessions::ProfilePayload
       include BruneiIdSessions::ResponsePayloads
       include BruneiIdSessions::ResponseRendering
       include BruneiIdSessions::ResultLogging
@@ -37,16 +35,15 @@ module Api
       def render_brunei_id_success(verified_ic_number)
         case params[:audience]
         when "fisherman" then render_fisherman_callback(verified_ic_number)
-        when "jetty_manager" then render_callback_for(jetty_manager_user_for(verified_ic_number),
-                                                      verified_ic_number:, audience: "jetty_manager")
-        else render_for(user_for_verified_ic(verified_ic_number), verified_ic_number: verified_ic_number)
+        when "jetty_manager" then render_callback_for(jetty_manager_user_for(verified_ic_number), verified_ic_number:)
+        else render_callback_for(user_for_verified_ic(verified_ic_number), verified_ic_number:)
         end
       end
 
       def render_callback_success(verified_ic_number, audience)
         return render_fisherman_callback(verified_ic_number) if audience == "fisherman"
 
-        render_callback_for(jetty_manager_user_for(verified_ic_number), verified_ic_number:, audience:)
+        render_callback_for(jetty_manager_user_for(verified_ic_number), verified_ic_number:)
       end
 
       def callback_params

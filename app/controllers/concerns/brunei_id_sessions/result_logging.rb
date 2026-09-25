@@ -24,48 +24,22 @@ module BruneiIdSessions
       {
         next_action: nil,
         resolved_ic_number: nil,
-        registration_status: nil,
         error_code: error[:code],
         error_message: error.fetch(:message)
       }
     end
 
-    def registration_log(verified_ic_number)
-      { next_action: "registration", resolved_ic_number: verified_ic_number, registration_status: "not_found" }
-    end
-
-    def registration_status_log(user, verified_ic_number, message = nil)
-      {
-        next_action: "registration_status",
-        resolved_ic_number: verified_ic_number,
-        registration_status: user.lifecycle_status,
-        error_code: ("inactive_registration" if message),
-        error_message: message
-      }
-    end
-
-    def fisherman_not_provisioned_log(verified_ic_number)
+    def login_unauthorized_log(verified_ic_number)
       {
         next_action: nil,
         resolved_ic_number: verified_ic_number,
-        registration_status: "not_found",
-        error_code: "fisherman_account_not_provisioned",
-        error_message: BruneiIdSessions::ResponseRendering::FISHERMAN_NOT_PROVISIONED_MESSAGE
+        error_code: "account_inactive_or_unavailable",
+        error_message: "Account is inactive or unavailable."
       }
     end
 
-    def fisherman_claim_failed_log(verified_ic_number)
-      {
-        next_action: nil,
-        resolved_ic_number: verified_ic_number,
-        registration_status: "claim_failed",
-        error_code: "fisherman_claim_failed",
-        error_message: "Fisherman account could not be claimed."
-      }
-    end
-
-    def dashboard_log(user, verified_ic_number)
-      { next_action: "dashboard", resolved_ic_number: verified_ic_number, registration_status: user.lifecycle_status }
+    def dashboard_log(_user, verified_ic_number)
+      { next_action: "dashboard", resolved_ic_number: verified_ic_number }
     end
   end
 end

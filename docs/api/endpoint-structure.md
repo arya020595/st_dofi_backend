@@ -55,9 +55,6 @@ PATCH  /api/v1/profile/locale                 # profiles#locale — current_user
 POST   /api/v1/auth/brunei_id                 # brunei_id_sessions#create — mocked BruneiID login
 POST   /api/v1/auth/brunei_id/callback        # brunei_id_sessions#callback — audience-specific BruneiID OIDC callback
 
-POST   /api/v1/registrations/jetty_manager    # registrations/jetty_managers#create
-GET    /api/v1/registrations/status           # registrations/status#show
-
 GET    /api/v1/permissions                    # permissions#index — full catalog, any authenticated user
 
 GET    /api/v1/attachments/:signed_id         # attachments#show — 302 to a freshly-signed MinIO URL,
@@ -116,22 +113,6 @@ tab rows via `JettyManagerScope`/`FishermanScope`).
 ### `approvals/` — review queues (`Api::V1::Admin::Approvals::*`)
 
 ```
-/api/v1/admin/approvals/fishermen              index show
-  POST   .../:id/approve
-  POST   .../:id/reject
-  POST   .../:id/deactivate
-  POST   .../:id/reactivate
-  POST   .../:id/revoke
-
-/api/v1/admin/approvals/jetty_managers         index show
-  POST   .../:id/approve
-  POST   .../:id/reject
-  POST   .../:id/deactivate
-  POST   .../:id/reactivate
-  POST   .../:id/revoke
-
-/api/v1/admin/approvals/approval_remarks       index show create update destroy
-
 /api/v1/admin/approvals/vessels                index show
   POST   .../:id/approve
   POST   .../:id/request_amendment

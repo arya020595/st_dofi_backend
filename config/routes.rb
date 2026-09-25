@@ -29,11 +29,6 @@ Rails.application.routes.draw do
       post "auth/brunei_id", to: "brunei_id_sessions#create"
       post "auth/brunei_id/callback", to: "brunei_id_sessions#callback"
 
-      namespace :registrations do
-        resource :jetty_manager, only: %i[create], controller: "jetty_managers"
-        get "status", to: "status#show"
-      end
-
       resources :permissions, only: %i[index]
       resources :notifications, only: %i[index] do
         member { patch :read }

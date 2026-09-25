@@ -56,13 +56,13 @@ module Api
         assert_response :forbidden
       end
 
-      test "fisherman audience denies revoked Owner even though role is fisherman scoped" do
+      test "fisherman audience denies an inactive Owner even though role is fisherman scoped" do
         company_profile = create(:company_profile)
         permissions = Permission.where(code: %w[company_profiles.list company_profiles.view])
         owner_role = create(:role, :fisherman, company_profile: company_profile, name: "Owner", is_default: true,
                                                permissions: permissions)
         owner = create(:user, role: owner_role, company_profile: company_profile, ic_number: SecureRandom.hex(5),
-                              registration_type: "Commercial", fisherman_status: "revoked",
+                              registration_type: "Commercial", status: "inactive", fisherman_status: "inactive",
                               password: @password, password_confirmation: @password)
 
         get "/api/v1/fisherman/company_profiles", headers: auth_headers_for(owner, password: @password)
