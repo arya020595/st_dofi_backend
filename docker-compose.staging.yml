@@ -35,8 +35,10 @@ services:
   # the internal network) and a reverse proxy running on this same host (via 127.0.0.1) can reach
   # it. Front that loopback port with a reverse proxy and set MINIO_PUBLIC_ENDPOINT (see
   # docs/minio/MINIO.md §2) so presigned image URLs are reachable from a browser.
+  # Image is an unmodified mirror of the upstream release in our GHCR — MinIO withdrew its public
+  # images. See docs/minio/MINIO.md §1 "Image source" before bumping the tag.
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-04-08T15-41-24Z
+    image: ghcr.io/arya020595/minio:RELEASE.2025-04-08T15-41-24Z
     container_name: dofi-backend-staging-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -59,7 +61,9 @@ services:
   # started by `docker compose up -d` (profiles: [init]); the CD deploy script runs it explicitly
   # via `docker compose run --rm mc-init`. See docs/minio/MINIO.md.
   mc-init:
-    image: quay.io/minio/mc:RELEASE.2025-04-08T15-39-49Z
+    # Same image as minio above: it bundles the matching `mc` (RELEASE.2025-04-08T15-39-49Z), and
+    # MinIO no longer publishes a standalone mc image.
+    image: ghcr.io/arya020595/minio:RELEASE.2025-04-08T15-41-24Z
     profiles: ["init"]
     depends_on:
       minio:
