@@ -10,7 +10,6 @@ class CompanyProfile < ApplicationRecord
   # validate for scenarios that can't happen."
   INDIVIDUAL_REGISTRATION_TYPES = ["Small - Scale (Full-Time)", "Small - Scale (Part-Time)"].freeze
 
-  belongs_to :approved_by_user, class_name: "User", foreign_key: "approved_by", inverse_of: false, optional: true
   has_many :users, dependent: :nullify
   has_many :contacts, class_name: "CompanyProfileContact", dependent: :restrict_with_error
   has_many :companies_vessels, dependent: :restrict_with_error
