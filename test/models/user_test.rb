@@ -6,42 +6,6 @@ class UserTest < ActiveSupport::TestCase
     assert_raises(ArgumentError) { user.permission?("ports.view", "manifests.view") }
   end
 
-  test "approve! transitions a pending user to active" do
-    user = create(:user, status: "pending")
-
-    user.approve!
-
-    assert_equal "active", user.status
-  end
-
-  test "approve! raises when the user is not pending" do
-    user = create(:user, status: "active")
-
-    assert_raises(AASM::InvalidTransition) { user.approve! }
-    assert_not user.may_approve?
-  end
-
-  test "reject! transitions a pending user to rejected" do
-    user = create(:user, status: "pending")
-
-    user.reject!
-
-    assert_equal "rejected", user.status
-  end
-
-  test "reject! raises when the user is not pending" do
-    user = create(:user, status: "rejected")
-
-    assert_raises(AASM::InvalidTransition) { user.reject! }
-    assert_not user.may_reject?
-  end
-
-  test "approval_status_label maps AASM states to display labels" do
-    assert_equal "Pending", build(:user, status: "pending").approval_status_label
-    assert_equal "Approved", build(:user, status: "active").approval_status_label
-    assert_equal "Rejected", build(:user, status: "rejected").approval_status_label
-  end
-
   test "officer? is true only for the DoFi Officer role" do
     officer_role = create(:role, kind: Role::DOFI_OFFICER)
     jetty_manager_role = create(:role, kind: Role::JETTY_MANAGER)
@@ -66,6 +30,21 @@ class UserTest < ActiveSupport::TestCase
     user = build(:user, role: officer_role, email: "", position: "Administrator", unit: "HQ")
 
     assert_predicate user, :valid?
+  end
+
+  test "officers and jetty managers get no fisherman_status" do
+    officer = create(:user, :officer_shaped, role: create(:role, kind: Role::DOFI_OFFICER))
+    jetty_manager = create(:user, :jetty_manager_shaped, role: create(:role, kind: Role::JETTY_MANAGER))
+
+    assert_nil officer.reload.fisherman_status
+    assert_nil jetty_manager.reload.fisherman_status
+  end
+
+  test "loading a user with a blank fisherman_status leaves the record unchanged" do
+    user = create(:user)
+    user.update_column(:fisherman_status, nil) # rubocop:disable Rails/SkipsModelValidations
+
+    assert_not_predicate User.find(user.id), :changed?
   end
 
   test "normalizes ic_number before validation" do
@@ -95,6 +74,10 @@ class UserTest < ActiveSupport::TestCase
     assert_predicate owner_user("revoked"), :has_fisherman_owner_role?
   end
 
+  test "a provisioned owner occupies the owner slot before claiming it" do
+    assert_predicate owner_user("claimable"), :occupies_fisherman_owner_slot?
+  end
+
   test "owner slot occupancy uses explicit assignment statuses" do
     assert_predicate owner_user("active"), :occupies_fisherman_owner_slot?
     assert_predicate owner_user("suspended"), :occupies_fisherman_owner_slot?
@@ -107,11 +90,10 @@ class UserTest < ActiveSupport::TestCase
   end
 
   test "FINS governed fisherman requires system role and Company Profiling source" do
-    owner = owner_user("pending_approval")
+    owner = owner_user("claimable")
     owner.provisioning_source = ::Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE
 
     assert_predicate owner, :fins_governed_fisherman?
-    assert_predicate owner, :fins_approval_required_fisherman?
 
     owner.provisioning_source = ::Fisherman::ProvisionUser::FISHERMAN_OWNER
 
@@ -141,7 +123,6 @@ end
 # Database name: primary
 #
 #  id                         :uuid             not null, primary key
-#  approved_at                :datetime
 #  brunei_id_verified_at      :datetime
 #  claimed_at                 :datetime
 #  contact_no                 :string
@@ -159,24 +140,18 @@ end
 #  preferred_locale           :string           default("en"), not null
 #  provisioning_source        :string
 #  registration_type          :string
-#  rejection_reason           :text
 #  remember_created_at        :datetime
 #  reset_password_sent_at     :datetime
 #  reset_password_token       :string
-#  revocation_comment         :text
-#  revoked_at                 :datetime
 #  status                     :string           default("active"), not null
 #  unit                       :string
 #  username                   :string
 #  created_at                 :datetime         not null
 #  updated_at                 :datetime         not null
-#  approved_by_id             :uuid
 #  company_profile_contact_id :uuid
 #  company_profile_id         :uuid
 #  created_by_id              :uuid
 #  employee_id                :string
-#  revocation_remark_id       :uuid
-#  revoked_by_id              :uuid
 #  role_id                    :uuid
 #
 # Indexes
@@ -191,18 +166,13 @@ end
 #  index_users_on_jti                                     (jti) UNIQUE
 #  index_users_on_normalized_ic_number_kept_unique        (normalized_ic_number) UNIQUE WHERE ((normalized_ic_number IS NOT NULL) AND (discarded_at IS NULL))
 #  index_users_on_reset_password_token                    (reset_password_token) UNIQUE
-#  index_users_on_revocation_remark_id                    (revocation_remark_id)
-#  index_users_on_revoked_by_id                           (revoked_by_id)
 #  index_users_on_role_id                                 (role_id)
 #  index_users_on_username                                (username) UNIQUE
 #
 # Foreign Keys
 #
-#  fk_rails_...  (approved_by_id => users.id)
 #  fk_rails_...  (company_profile_contact_id => company_profile_contacts.id)
 #  fk_rails_...  (company_profile_id => company_profiles.id)
 #  fk_rails_...  (created_by_id => users.id)
-#  fk_rails_...  (revocation_remark_id => approval_remarks.id)
-#  fk_rails_...  (revoked_by_id => users.id)
 #  fk_rails_...  (role_id => roles.id)
 #

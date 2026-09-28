@@ -22,7 +22,7 @@ module Fisherman
 
       user = result.value!
 
-      assert_equal "pending_approval", user.fisherman_status
+      assert_equal "claimable", user.fisherman_status
       assert_equal ["Muhammad Shahrizan Bin Haji Said", "01-111111", "01111111"],
                    [user.name, user.ic_number, user.normalized_ic_number]
       assert_equal [contact, "Owner", @company_profile],

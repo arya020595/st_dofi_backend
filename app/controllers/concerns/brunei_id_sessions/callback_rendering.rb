@@ -2,12 +2,13 @@ module BruneiIdSessions
   module CallbackRendering
     extend ActiveSupport::Concern
 
-    def render_callback_for(user, verified_ic_number:, audience:)
-      return render_callback_registration(verified_ic_number, audience) unless user
-      return render_inactive_registration(user, verified_ic_number) if inactive_registration?(user)
-      return render_callback_dashboard(user, verified_ic_number) if user.active?
+    # Jetty Managers are created by a DoFi Officer only (User Management → External Users), so an unknown
+    # IC is terminal — there is no self-registration to fall back to.
+    def render_jetty_manager_callback(user, verified_ic_number)
+      return render_jetty_manager_account_not_provisioned(verified_ic_number) unless user
+      return render_inactive_registration(user, verified_ic_number) unless user.active?
 
-      render_callback_registration_status(user, verified_ic_number)
+      render_callback_dashboard(user, verified_ic_number)
     end
 
     def render_fisherman_callback(verified_ic_number)
@@ -26,7 +27,6 @@ module BruneiIdSessions
     def fisherman_failure_handlers
       {
         not_found: method(:render_fisherman_account_not_provisioned),
-        pending_approval: method(:render_pending_fisherman_registration),
         suspended: method(:render_suspended_fisherman_registration),
         revoked: method(:render_revoked_fisherman_registration),
         not_claimable: method(:render_fisherman_claim_failed),
@@ -35,20 +35,12 @@ module BruneiIdSessions
       }
     end
 
-    def render_pending_fisherman_registration(verified_ic_number, payload)
-      render_callback_registration_status(payload.fetch(:user), verified_ic_number)
-    end
-
     def render_suspended_fisherman_registration(verified_ic_number, payload)
       render_inactive_registration(payload.fetch(:user), verified_ic_number)
     end
 
     def render_revoked_fisherman_registration(verified_ic_number, payload)
       render_revoked_registration(payload.fetch(:user), verified_ic_number)
-    end
-
-    def inactive_registration?(user)
-      user.inactive? || user.suspended?
     end
   end
 end

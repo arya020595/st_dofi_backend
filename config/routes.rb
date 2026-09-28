@@ -29,11 +29,6 @@ Rails.application.routes.draw do
       post "auth/brunei_id", to: "brunei_id_sessions#create"
       post "auth/brunei_id/callback", to: "brunei_id_sessions#callback"
 
-      namespace :registrations do
-        resource :jetty_manager, only: %i[create], controller: "jetty_managers"
-        get "status", to: "status#show"
-      end
-
       resources :permissions, only: %i[index]
       resources :notifications, only: %i[index] do
         member { patch :read }
@@ -96,28 +91,6 @@ Rails.application.routes.draw do
         end
 
         namespace :approvals do
-          resources :fishermen, only: %i[index show] do
-            member do
-              post :approve
-              post :reject
-              post :deactivate
-              post :reactivate
-              post :revoke
-            end
-          end
-
-          resources :jetty_managers, only: %i[index show] do
-            member do
-              post :approve
-              post :reject
-              post :deactivate
-              post :reactivate
-              post :revoke
-            end
-          end
-
-          resources :approval_remarks, only: %i[index show create update destroy]
-
           resources :vessels, only: %i[index show] do
             member do
               post :approve
@@ -208,6 +181,7 @@ Rails.application.routes.draw do
 
         namespace :dashboard do
           get :summary, to: "/api/v1/fisherman/dashboard#summary"
+          get :catch_trend, to: "/api/v1/fisherman/dashboard#catch_trend"
           get :top_fishes, to: "/api/v1/fisherman/dashboard#top_fishes"
           get :fishing_gear_analytics, to: "/api/v1/fisherman/dashboard#fishing_gear_analytics"
           get :zone_analytics, to: "/api/v1/fisherman/dashboard#zone_analytics"

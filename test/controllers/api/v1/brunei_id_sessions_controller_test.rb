@@ -28,14 +28,19 @@ module Api
         assert_equal "01-123456", response.parsed_body.dig("data", "ic_number")
       end
 
-      test "unknown jetty manager IC still returns registration action" do
+      test "unknown jetty manager IC stops as not provisioned" do
         with_oidc_success("01-123456") do
-          post "/api/v1/auth/brunei_id/callback",
-               params: CALLBACK_PARAMS.merge(audience: "jetty_manager"), as: :json
+          assert_no_difference("User.count") do
+            post "/api/v1/auth/brunei_id/callback",
+                 params: CALLBACK_PARAMS.merge(audience: "jetty_manager"), as: :json
+          end
         end
 
-        assert_response :ok
-        assert_equal "registration", response.parsed_body.dig("data", "next_action")
+        assert_response :not_found
+        assert_equal "jetty_manager_account_not_provisioned", response.parsed_body["code"]
+        assert_equal "registration_status", response.parsed_body.dig("data", "next_action")
+        assert_equal "not_found", response.parsed_body.dig("data", "registration_status")
+        assert_equal "01-123456", response.parsed_body.dig("data", "ic_number")
       end
 
       test "jetty manager QR ignores fisherman account in audience-scoped lookup" do
@@ -49,24 +54,8 @@ module Api
                params: CALLBACK_PARAMS.merge(audience: "jetty_manager"), as: :json
         end
 
-        assert_response :ok
-        assert_equal "registration", response.parsed_body.dig("data", "next_action")
-      end
-
-      test "pending fisherman uses fisherman_status, not raw status" do
-        company_profile = create(:company_profile)
-        role = create(:role, :fisherman, company_profile: company_profile)
-        create(:user, role: role, company_profile: company_profile, ic_number: "01-654321",
-                      registration_type: "Commercial", status: "active", fisherman_status: "pending_approval")
-
-        with_oidc_success("01654321") do
-          post "/api/v1/auth/brunei_id/callback",
-               params: CALLBACK_PARAMS.merge(audience: "fisherman"), as: :json
-        end
-
-        assert_response :ok
-        assert_equal "registration_status", response.parsed_body.dig("data", "next_action")
-        assert_equal "pending_approval", response.parsed_body.dig("data", "registration_status")
+        assert_response :not_found
+        assert_equal "jetty_manager_account_not_provisioned", response.parsed_body["code"]
       end
 
       test "claimable fisherman claims then logs in" do

@@ -231,10 +231,9 @@ on its own lifecycle column — the same value its rows show in the response `st
 
 - **IC search** works whether the officer types the dash or not: `01-109878` matches `ic_number`,
   `01109878` matches `normalized_ic_number`. Trim spaces before sending.
-- **Only Active/Not Active rows**: the Jetty tab also lists pending/rejected self-registrations
-  (until that flow is retired) — send `q[status_in][]=active&q[status_in][]=inactive`. The Fisherman tab
-  also lists `pending_approval`/`claimable`/`revoked` accounts (governed via
-  `/api/v1/admin/approvals/fishermen`) — send `q[fisherman_status_in][]=active&q[fisherman_status_in][]=suspended`.
+- **Only Active/Not Active rows**: the Fisherman tab also lists `claimable` (provisioned by Company
+  Profiling, not yet claimed via BruneiID) and `revoked` (replaced contact) accounts — send
+  `q[fisherman_status_in][]=active&q[fisherman_status_in][]=suspended`.
 
 Default sort: `created_at desc`
 

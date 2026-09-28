@@ -37,8 +37,8 @@ module Api
       def render_brunei_id_success(verified_ic_number)
         case params[:audience]
         when "fisherman" then render_fisherman_callback(verified_ic_number)
-        when "jetty_manager" then render_callback_for(jetty_manager_user_for(verified_ic_number),
-                                                      verified_ic_number:, audience: "jetty_manager")
+        when "jetty_manager" then render_jetty_manager_callback(jetty_manager_user_for(verified_ic_number),
+                                                                verified_ic_number)
         else render_for(user_for_verified_ic(verified_ic_number), verified_ic_number: verified_ic_number)
         end
       end
@@ -46,7 +46,7 @@ module Api
       def render_callback_success(verified_ic_number, audience)
         return render_fisherman_callback(verified_ic_number) if audience == "fisherman"
 
-        render_callback_for(jetty_manager_user_for(verified_ic_number), verified_ic_number:, audience:)
+        render_jetty_manager_callback(jetty_manager_user_for(verified_ic_number), verified_ic_number)
       end
 
       def callback_params

@@ -1,4 +1,6 @@
 class Dictionary < ApplicationRecord
+  include Discard::Model
+
   ALLOWED_IMAGE_TYPES = %w[image/jpeg image/png image/webp].freeze
   MAX_IMAGE_SIZE = 5.megabytes
 
@@ -42,6 +44,7 @@ end
 # Database name: primary
 #
 #  id                   :uuid             not null, primary key
+#  discarded_at         :datetime
 #  local_name           :string           not null
 #  scientific_name      :string
 #  created_at           :datetime         not null
@@ -55,6 +58,7 @@ end
 #  idx_dictionaries_scientific_name_trgm       (scientific_name) USING gin
 #  index_dictionaries_on_dictionary_family_id  (dictionary_family_id)
 #  index_dictionaries_on_dictionary_group_id   (dictionary_group_id)
+#  index_dictionaries_on_discarded_at          (discarded_at)
 #  index_dictionaries_on_local_name            (local_name)
 #
 # Foreign Keys

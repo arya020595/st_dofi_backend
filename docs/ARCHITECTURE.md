@@ -242,42 +242,37 @@ stateDiagram-v2
     amendment_requested --> pending: resubmit
 ```
 
-This is the same shape as the Fisherman/Jetty Manager registration approval queue described in
-[`docs/registration/business-flow.md`](registration/business-flow.md) §7 — one recurring engine, applied
-independently per resource type via each resource's own policy/service pair rather than one shared
-conditional (Open/Closed — see `CLAUDE.md`'s SOLID section).
+One recurring engine, applied independently per resource type via each resource's own policy/service
+pair rather than one shared conditional (Open/Closed — see `CLAUDE.md`'s SOLID section).
 
-### FINS Approval and audience-aware QR
+### External users and audience-aware QR
 
-FINS Approval is the DoFI Officer governance module for two user audiences that intentionally keep
-different lifecycle columns:
+No external account is self-registered or approved: a DoFi Officer provisions every one, and
+User Management → External Users only deactivates/reactivates them afterwards. The two audiences
+intentionally keep different lifecycle columns:
 
 ```mermaid
 graph TB
-    FINS["FINS Approval<br/>DoFI Officer governance"]
-    FISH["Fisherman<br/>Company Profiling Owner/Admin only"]
-    JETTY["Jetty Manager<br/>QR-first registrations"]
-    REMARKS["Approval Remarks<br/>reject/revoke reasons"]
+    OFFICER["DoFi Officer"]
+    FISH["Fisherman<br/>Company Profiling Owner/Admin"]
+    JETTY["Jetty Manager<br/>External Users → Jetty Manager"]
 
-    FINS --> FISH
-    FINS --> JETTY
-    FINS --> REMARKS
-    FISH -->|"users.fisherman_status"| FISHSTATE["pending_approval -> claimable<br/>active/suspended/revoked"]
-    JETTY -->|"users.status"| JETTYSTATE["pending -> active/rejected<br/>inactive/revocation metadata"]
+    OFFICER -->|"provisions"| FISH
+    OFFICER -->|"creates"| JETTY
+    FISH -->|"users.fisherman_status"| FISHSTATE["claimable -> active (BruneiID claim)<br/>active <-> suspended, revoked"]
+    JETTY -->|"users.status"| JETTYSTATE["active <-> inactive"]
 ```
 
-Fisherman FINS targets are kept users with a Fisherman system Owner/Admin role that were provisioned
-from Company Profiling (`provisioning_source: dofi_company_profile`). Fisherman custom-role teammates
-created from Fisherman User Management start `claimable` and never enter FINS. Jetty Manager FINS
-targets are kept users with the system Jetty Manager role and continue to use the existing
-`users.status` lifecycle.
+Company Profiling Owner/Admin users (`provisioning_source: dofi_company_profile`) and Fisherman User
+Management teammates both start `claimable`; the first QR + BruneiID scan claims the account. Jetty
+Managers start `active` and log in on their first scan.
 
 QR + BruneiID is shared infrastructure, but identity resolution is audience-aware:
 
-- Fisherman QR resolves only eligible Fisherman accounts; when no eligible Fisherman account is
-  resolved for the verified IC, registration is never opened.
-- Jetty Manager QR resolves only users with the system Jetty Manager role in the Jetty/admin resource
-  context; when none exists, the existing Jetty Manager registration flow opens.
+- Fisherman QR resolves only eligible Fisherman accounts; an unknown IC is terminal
+  (`fisherman_account_not_provisioned`).
+- Jetty Manager QR resolves only users with the system Jetty Manager role; an unknown IC is terminal
+  (`jetty_manager_account_not_provisioned`).
 - Create/provision/correction paths still enforce global `normalized_ic_number` uniqueness across all
   kept users. That invariant is not used as a global login router.
 
@@ -313,9 +308,9 @@ erDiagram
 ```
 
 **Master/reference data** — `Port`, `Zone`, `FishingGear`, `Nationality`, `Position`, `Dictionary`
-(fish-species photos, public bucket — see [`docs/minio/MINIO-WHY-TWO-BUCKETS.md`](minio/MINIO-WHY-TWO-BUCKETS.md)),
-and `ApprovalRemark` are lookup tables referenced from many places above (`Manifest.port_out`,
-`CaptureReport.zone`, rejection reasons, etc.) rather than owned by any one domain area. All six
+(fish-species photos, public bucket — see [`docs/minio/MINIO-WHY-TWO-BUCKETS.md`](minio/MINIO-WHY-TWO-BUCKETS.md))
+are lookup tables referenced from many places above (`Manifest.port_out`, `CaptureReport.zone`, etc.)
+rather than owned by any one domain area. All six
 share the same CRUD/search shape — see [`docs/api/master-data.md`](api/master-data.md) and
 [`docs/api/search-filter-sort-pagination.md`](api/search-filter-sort-pagination.md). Because these
 are editable after the fact, `Manifest`/`CrewManifest`/`CompaniesFishingGear` and friends freeze the

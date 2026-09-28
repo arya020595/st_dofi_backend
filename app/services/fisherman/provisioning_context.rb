@@ -42,7 +42,7 @@ module Fisherman
     end
 
     def build_source_a_context(contact, role)
-      Context.new("pending_approval", role, contact.full_name, contact.ic_no, contact, contact.designation)
+      Context.new("claimable", role, contact.full_name, contact.ic_no, contact, contact.designation)
     end
 
     def source_b_context(request)

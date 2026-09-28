@@ -27,7 +27,7 @@ module FishCaptureDetails
     end
 
     def synced_attributes(attributes)
-      dictionary = Dictionary.find_by(id: attributes[:dictionary_id])
+      dictionary = Dictionary.kept.find_by(id: attributes[:dictionary_id])
       price = attributes[:price_per_kg].to_f
       amount = attributes[:amount_captured_kg].to_f
 
@@ -41,6 +41,7 @@ module FishCaptureDetails
       unless valid_gear_detail?(detail.capture_report, attributes[:fishing_gear_detail_id])
         return invalid_gear_result(attributes[:id])
       end
+      return invalid_dictionary_result(attributes[:id]) unless active_dictionary?(attributes[:dictionary_id])
 
       detail.assign_attributes(synced_attributes(attributes))
 
@@ -55,12 +56,20 @@ module FishCaptureDetails
       gear_detail_id.present? && capture_report.fishing_gear_details.exists?(id: gear_detail_id)
     end
 
+    def active_dictionary?(dictionary_id)
+      dictionary_id.present? && Dictionary.kept.exists?(id: dictionary_id)
+    end
+
     def invalid_gear_result(local_id)
       {
         id: local_id,
         status: "fail",
         errors: ["fishing_gear_detail_id must reference a fishing gear detail on this capture report"]
       }
+    end
+
+    def invalid_dictionary_result(local_id)
+      { id: local_id, status: "fail", errors: ["dictionary_id must reference an active species"] }
     end
   end
 end

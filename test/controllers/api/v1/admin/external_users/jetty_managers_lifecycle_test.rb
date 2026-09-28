@@ -57,20 +57,31 @@ module Api
             assert_equal "inactive", @jetty_manager.reload.status
           end
 
+          # Seeded/legacy Jetty Manager rows have a NULL fisherman_status. Loading one must not leave the
+          # record dirty, or the service's `with_lock` raises instead of transitioning the account.
+          test "deactivate works for a jetty manager with no fisherman_status" do
+            @jetty_manager.update_column(:fisherman_status, nil) # rubocop:disable Rails/SkipsModelValidations
+
+            post "#{PATH}/#{@jetty_manager.id}/deactivate", headers: @headers
+
+            assert_response :ok
+            assert_equal ["inactive", nil], @jetty_manager.reload.values_at(:status, :fisherman_status)
+          end
+
+          test "reactivate works for a jetty manager with no fisherman_status" do
+            @inactive_jetty_manager.update_column(:fisherman_status, nil) # rubocop:disable Rails/SkipsModelValidations
+
+            post "#{PATH}/#{@inactive_jetty_manager.id}/reactivate", headers: @headers
+
+            assert_response :ok
+            assert_equal ["active", nil], @inactive_jetty_manager.reload.values_at(:status, :fisherman_status)
+          end
+
           test "reactivate restores an inactive jetty manager" do
             post "#{PATH}/#{@inactive_jetty_manager.id}/reactivate", headers: @headers
 
             assert_response :ok
             assert_equal "active", @inactive_jetty_manager.reload.status
-          end
-
-          test "reactivate is blocked for a revoked jetty manager" do
-            @inactive_jetty_manager.update!(revoked_at: Time.current)
-
-            post "#{PATH}/#{@inactive_jetty_manager.id}/reactivate", headers: @headers
-
-            assert_response :unprocessable_content
-            assert_equal "inactive", @inactive_jetty_manager.reload.status
           end
 
           test "a fisherman account cannot be deactivated through the jetty manager tab" do

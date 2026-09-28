@@ -212,6 +212,7 @@ catalog, so a stale column can show an outdated value but can never leak a code 
 | Add an action or resource | action array / `resources` | **Yes**: create the rows and grant them to roles (see [RBAC §9.1](platform-company-isolation.md#91-adding-a-permission)) |
 | Rename a code | resource `key` or action name | **Yes**: rename the rows in place so `permission_roles` grants survive. The precedent is `db/migrate/20260923100000_rename_admin_accounts_to_external_users.rb`. |
 | Move an action to another platform | move it to another platform key | **Yes**: resync `platform_scope` and strip now-invalid grants (see `20260916100000_strip_cross_platform_permission_grants.rb`) |
+| Remove a resource or section | delete it from `SECTIONS`, and delete its policy | **Yes**: delete the `permission_roles` grants, then the rows. The precedent is `db/migrate/20260928100000_remove_fins_approval_permissions.rb`. |
 
 Inserting a section, resource, or action in the middle of its array shifts the order of the siblings
 after it, so resync those rows too.
