@@ -22,15 +22,14 @@ graph TB
     ROOT --> ADMIN["admin/<br/>audience: admin<br/>DoFi Officer + Jetty Manager"]
     ROOT --> FISH["fisherman/<br/>audience: fisherman<br/>Fisherman PWA"]
 
-    ADMIN --> A1["users, roles, dictionaries"]
-    ADMIN --> A2["ports, zones, fishing_gears<br/>(flat, full CRUD)"]
-    ADMIN --> A3["master_data/<br/>reasons, nationalities, positions"]
-    ADMIN --> A4["approvals/<br/>vessels, crews, captains,<br/>fishing_gears, documents, manifests"]
+    ADMIN --> A1["users, roles, external_users,<br/>entity_users, dictionaries<br/>(+ groups, families)"]
+    ADMIN --> A3["master_data/<br/>ports, zones, fishing_gears,<br/>reasons, nationalities, positions"]
+    ADMIN --> A4["approvals/<br/>vessels, crews, fishing_gears,<br/>documents, manifests"]
     ADMIN --> A5["company_profiles/ (+ nested)"]
     ADMIN --> A6["manifests/ (only: [])<br/>→ minor_fishermen, expense,<br/>capture_reports (+ nested)"]
 
     FISH --> F1["manifests<br/>(full CRUD + lifecycle)"]
-    FISH --> F2["ports, zones, fishing_gears<br/>(flat, read-only)"]
+    FISH --> F2["master_data/<br/>ports, zones, fishing_gears,<br/>reasons, nationalities, positions<br/>(read-only)"]
     FISH --> F3["vessels, captains, crews<br/>(index only)"]
     FISH --> F4["company_profiles/ (+ nested)"]
     FISH --> F5["manifests/ (nested, scope module: manifests)<br/>→ minor_fishermen, expense,<br/>capture_reports (+ nested)"]
@@ -67,33 +66,28 @@ GET    /api/v1/attachments/:signed_id         # attachments#show — 302 to a fr
 
 Controllers live under `Api::V1::Admin::*`.
 
-### Reference data — flat (full CRUD)
+### Users, roles and dictionaries (full CRUD)
 
 ```
-/api/v1/admin/users                index show create update destroy
-/api/v1/admin/roles                index show create update destroy
-/api/v1/admin/dictionaries         index show create update destroy
-/api/v1/admin/ports                index show create update destroy
-/api/v1/admin/zones                index show create update destroy
-/api/v1/admin/fishing_gears        index show create update destroy
+/api/v1/admin/users                 index show create update destroy
+/api/v1/admin/roles                 index show create update destroy
+/api/v1/admin/dictionaries          index show create update destroy
+/api/v1/admin/dictionary_groups     index show create update destroy
+/api/v1/admin/dictionary_families   index show create update destroy
 ```
 
-Ports/zones/fishing_gears are flat here — **not** under `master_data/` below — because they're
-also dual-mounted as flat resources on the fisherman side (see below); reasons/nationalities/
-positions have no fisherman-facing equivalent, so they stay grouped under `master_data/` purely as
-admin's own internal organization (`config/routes.rb` comment, admin namespace).
-
-> ⚠️ `master-data.md` and `search-filter-sort-pagination.md` currently document Port/Zone/Fishing
-> Gear at `/api/v1/admin/master_data/...` — that's stale relative to the routes above. Worth fixing
-> those two docs separately; flagging here rather than silently editing them.
-
-### `master_data/` — no fisherman equivalent
+### `master_data/` — reference data (full CRUD)
 
 ```
+/api/v1/admin/master_data/ports          index show create update destroy
+/api/v1/admin/master_data/zones          index show create update destroy
+/api/v1/admin/master_data/fishing_gears  index show create update destroy
 /api/v1/admin/master_data/reasons        index show create update destroy
 /api/v1/admin/master_data/nationalities  index show create update destroy
 /api/v1/admin/master_data/positions      index show create update destroy
 ```
+
+The fisherman side mounts the same six resources read-only under its own `master_data/` (below).
 
 ### `external_users/` — User Management → External Users (`Api::V1::Admin::ExternalUsers::*`)
 
@@ -121,10 +115,6 @@ tab rows via `JettyManagerScope`/`FishermanScope`).
   POST   .../:id/approve
   POST   .../:id/request_amendment
 
-/api/v1/admin/approvals/captains               index show
-  POST   .../:id/approve
-  POST   .../:id/request_amendment
-
 /api/v1/admin/approvals/fishing_gears          index show
   POST   .../:id/approve
   POST   .../:id/request_amendment
@@ -141,10 +131,6 @@ tab rows via `JettyManagerScope`/`FishermanScope`).
   POST   .../:id/request_amendment_port_in
 ```
 
-`Api::V1::Admin::ManifestsController` (bare, `only: []`) subclasses
-`Api::V1::Admin::Approvals::ManifestsController` — it exists purely as the parent for the nested
-`manifests/` routes below, not to expose any action of its own.
-
 ### `company_profiles/` — dual-mounted with fisherman
 
 Same controllers as the fisherman side (`controller: "/api/v1/company_profiles"` etc.); each
@@ -157,7 +143,6 @@ resource's own `Policy::Scope` decides what's visible per audience, not the rout
   POST   .../:vessel_id/images
   /api/v1/admin/company_profiles/:id/vessels/:vessel_id/fishing_gears   full CRUD
 /api/v1/admin/company_profiles/:id/crews              index show create update destroy
-/api/v1/admin/company_profiles/:id/captains           index show create update destroy
 /api/v1/admin/company_profiles/:id/documents          index create update
 ```
 
@@ -208,29 +193,35 @@ Controllers live under `Api::V1::Fisherman::*`.
   /api/v1/fisherman/manifests/:manifest_id/capture_reports/:id/fishing_gear_details    index show create update destroy
 ```
 
-### Reference data — flat, read-only
+### Reference data — read-only
 
 ```
-/api/v1/fisherman/ports            index show
-/api/v1/fisherman/zones            index show
-/api/v1/fisherman/fishing_gears    index show
-/api/v1/fisherman/vessels          index
-/api/v1/fisherman/captains         index
-/api/v1/fisherman/crews            index
+/api/v1/fisherman/master_data/ports          index show
+/api/v1/fisherman/master_data/zones          index show
+/api/v1/fisherman/master_data/fishing_gears  index show
+/api/v1/fisherman/master_data/reasons        index show
+/api/v1/fisherman/master_data/nationalities  index show
+/api/v1/fisherman/master_data/positions      index show
+/api/v1/fisherman/vessels                    index
+/api/v1/fisherman/captains                   index
+/api/v1/fisherman/crews                      index
+/api/v1/fisherman/dictionaries               index
+/api/v1/fisherman/dictionary_groups          index
+/api/v1/fisherman/dictionary_families        index
 ```
 
 ### `company_profiles/` — dual-mounted with admin
 
-Identical shape to the admin side above (same controllers, `Policy::Scope`-gated):
+Same controllers as the admin side above (`Policy::Scope`-gated); a fisherman can't create a company
+profile — that's DoFI Company Profiling:
 
 ```
-/api/v1/fisherman/company_profiles                     index show create update destroy
+/api/v1/fisherman/company_profiles                     index show update destroy
 /api/v1/fisherman/company_profiles/:id/contacts        create update destroy
 /api/v1/fisherman/company_profiles/:id/vessels         index show create update destroy
   POST   .../:vessel_id/images
   /api/v1/fisherman/company_profiles/:id/vessels/:vessel_id/fishing_gears   full CRUD
 /api/v1/fisherman/company_profiles/:id/crews           index show create update destroy
-/api/v1/fisherman/company_profiles/:id/captains        index show create update destroy
 /api/v1/fisherman/company_profiles/:id/documents       index create update
 ```
 
