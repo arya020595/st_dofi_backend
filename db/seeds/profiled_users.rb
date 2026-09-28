@@ -1,6 +1,5 @@
 jetty_manager_role = Role.find_by!(kind: Role::JETTY_MANAGER)
 default_password = ENV.fetch("ADMIN_DEFAULT_PASSWORD", "ChangeMe123!")
-dofi_officer = User.find_by(role: Role.find_by(kind: Role::DOFI_OFFICER))
 
 # Matched to the Owner/Admin CompanyProfileContact rows from company_profiles.rb by ic_number so
 # these accounts are ready to log in via mock BruneiID without Fisherman self-registration.
@@ -32,8 +31,6 @@ FISHERMAN_USERS.each do |attrs|
     user.status = "active"
     user.fisherman_status = "active"
     user.provisioning_source = Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE
-    user.approved_at = seeded_at
-    user.approved_by = dofi_officer
     user.claimed_at = seeded_at
     user.preferred_locale = "en"
     user.brunei_id_verified_at = seeded_at
@@ -71,10 +68,8 @@ end
 def pending_profile_status_attributes
   {
     status: "active",
-    fisherman_status: "pending_approval",
+    fisherman_status: "claimable",
     provisioning_source: Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE,
-    approved_at: nil,
-    approved_by: nil,
     claimed_at: nil,
     preferred_locale: "en",
     brunei_id_verified_at: nil

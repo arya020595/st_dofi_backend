@@ -22,7 +22,6 @@ module Fisherman
 
     def resolve_user(user, verified_ic_number)
       case user.fisherman_status
-      when "pending_approval" then Failure([:pending_approval, { user: user }])
       when "claimable" then claim_user(user, verified_ic_number)
       when "active" then Success(user)
       when "suspended" then Failure([:suspended, { user: user }])

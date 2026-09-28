@@ -3,7 +3,7 @@
 This is the business-level companion to [`registration-flow.md`](registration-flow.md) (endpoint
 request/response contracts) and [`testing-mock-brunei-id-login.md`](testing-mock-brunei-id-login.md)
 (how to exercise it). This doc answers a different question: **who are the actors, how does each one
-get an account, who approves what, and why were the non-obvious decisions made this way.**
+get an account, who governs it afterwards, and why were the non-obvious decisions made this way.**
 
 ---
 
@@ -12,17 +12,17 @@ get an account, who approves what, and why were the non-obvious decisions made t
 | Actor | Role | How they get an account | How they log in |
 |---|---|---|---|
 | **DoFi Officer / Administrator** | `kind: "DoFi Officer"` | Created by another officer via **User Management → Add User** (internal, authenticated) | `username` + password (real credential check) |
-| **Jetty Manager** | `kind: "Jetty Manager"` | Self-registers via the public registration form (BruneiID-verified), or is created by an officer via **User Management → External Users** (§4) | BruneiID QR re-scan (mocked today) |
+| **Jetty Manager** | `kind: "Jetty Manager"` | Created by an officer via **User Management → External Users** (§4) | BruneiID QR re-scan (mocked today) |
 | **Fisherman** | `platform_scope: "fisherman"` — company-scoped Owner/Admin/custom roles (see §2) | Provisioned before first login by DoFI Company Profiling or Fisherman Owner User Management | BruneiID QR claim/login (mocked today) |
 
 **The one thing that explains most of this system's design**: officers are an *internal, trusted*
 population managed by other officers, so they get a real credential (`username`/password) chosen by
-the system, no external identity check. Jetty Managers remain an external QR-first population that
-can self-register when no account exists. Fishermen are also BruneiID-authenticated, but they are no
-longer self-service for account creation: a Fisherman `User` must already be provisioned before the
-first QR scan can claim/login. Every other decision below (no email requirement, no manual
-passwords, separate lifecycle fields, and no Fisherman registration fallback) follows from this
-split.
+the system, no external identity check. Jetty Managers and Fishermen are external, BruneiID-
+authenticated populations, but neither is self-service for account creation: an officer (or, for
+Fisherman teammates, the company's Owner) provisions the `User` before the first QR scan, and that
+provisioning is the vetting step — there is no approval queue afterwards. Every other decision below
+(no email requirement, no manual passwords, separate lifecycle fields, and no registration fallback
+on an unknown IC) follows from this split.
 
 ---
 
@@ -39,7 +39,7 @@ Role (e.g. "DoFi Officer") ──has many──> Permission (e.g. "users.create"
 
 - One `User` belongs to exactly one `Role` (single-role model — no multi-role assignment).
 - A `Permission` is identified by a `code` string, conventionally `"<resource>.<action>"`
-  (`users.create`, `fisherman_approvals.approve`, `positions.list`, ...).
+  (`users.create`, `external_users.deactivate`, `positions.list`, ...).
 - Every controller action calls `user.permission?(*codes)` (via a Pundit policy) — true if the
   user's role has *any* of the listed permission codes.
 - **"Administrator" is not a separate role.** All DoFi Officer/Administrator accounts share the
@@ -61,7 +61,7 @@ answer different questions on purpose:
   roles: `Role::DOFI_OFFICER` / `Role::JETTY_MANAGER` (`Role::SYSTEM_KINDS`) — exactly one row each,
   seeded once via `db/seeds/roles.rb`, never created through the API. **`kind` is never accepted by
   `RolesController#role_params`** on either the admin or fisherman controller. `User#officer?/
-  jetty_manager?`, the approval policies' scopes, and which role `Users::RegisterJettyManager`
+  jetty_manager?`, `ExternalUserPolicy::JettyManagerScope`, and which role `Users::CreateJettyManager`
   assigns all key off `kind` — see §9 for why this is a dedicated column rather than reusing a
   display code.
 - **`platform_scope`** (`Role::DOFI_OFFICER_PLATFORM`/`FISHERMAN_PLATFORM`, required on every role —
@@ -78,11 +78,10 @@ answer different questions on purpose:
 - DoFI Company Profiling provisions the company's system-managed Owner/Admin users. Owner contacts
   derive the company's default Owner role via `Roles::EnsureFishermanOwnerRole`; Admin contacts
   derive the company's default Admin role via `Roles::EnsureFishermanAdminRole`. These users start
-  with `fisherman_status: "pending_approval"` because the provisioning source is
-  `dofi_company_profile`.
+  with `fisherman_status: "claimable"`.
 - Fisherman Owner User Management provisions teammates using an explicit custom role from the same
-  company. These users start with `fisherman_status: "claimable"` because the provisioning
-  source is `fisherman_owner`. The Owner role cannot be assigned through Fisherman User Management.
+  company. These users also start with `fisherman_status: "claimable"`. The Owner role cannot be
+  assigned through Fisherman User Management.
 - A company can also create additional custom fisherman-platform roles for its teammates via
   `POST /api/v1/fisherman/roles` (`Fisherman::RolesController`) — `platform_scope: "fisherman"` and
   `company_profile_id` are always forced from the acting user server-side (`Roles::Create`/`Update`),
@@ -128,8 +127,8 @@ sequenceDiagram
 ```
 
 No approval step — an officer creating another officer account is itself the trust boundary (gated
-by the `users.create` permission), unlike the external actors below whose *registration*
-is unauthenticated and therefore always lands `pending`.
+by the `users.create` permission). The same holds for the external actors below: an officer creates
+or profiles them, so none of them waits in an approval queue either.
 
 **Why no email/password fields in Add User**: mirrored from how Fisherman/Jetty Manager already
 never set their own password (see §1). Since there's no mailer configured in this app, "email them a
@@ -145,29 +144,18 @@ actors).
 
 ```mermaid
 stateDiagram-v2
-    [*] --> pending: Self-register (BruneiID-verified)\nname, ic_number, unit, position, contact_no
     [*] --> active: Officer creates (User Management → External Users)\nname, ic_number, unit, position
-    pending --> active: Officer approves
-    pending --> rejected: Officer rejects (+ remark)
-    active --> inactive: Officer deactivates/revokes access
-    active --> suspended: Officer suspends
+    active --> inactive: Officer deactivates
     inactive --> active: Officer reactivates
-    suspended --> active: Officer reactivates
 ```
-
-Registration is public (no `Authorization` header) — BruneiID verification happens on the frontend
-before the register form is even shown; the backend receives the *result* of that verification
-(`brunei_id_verified_at` gets set unconditionally at registration time), not a token to re-verify
-itself. A cryptographically random password is generated and never surfaced — it exists only because
-Devise's `:database_authenticatable` needs *some* value in `encrypted_password`; nobody ever needs to
-know it, since login is BruneiID re-scan, not this password.
 
 A DoFi Officer creates the Jetty Manager (`POST /api/v1/admin/external_users/jetty_managers`,
 `Users::CreateJettyManager`, `external_users.create`). The officer is the vetting step, so the account
-starts `active` with `created_by` set, never enters the FINS Approval queue, and the Jetty Manager can
-log in via BruneiID straight away. Required: name, ic_number, unit, position; `contact_no` is optional.
-The IC must not belong to any other kept user. To reuse an IC, delete that user or change their IC
-first. (Self-registration above is being retired in a separate change.)
+starts `active` with `created_by` set, and the Jetty Manager can log in via BruneiID straight away.
+Required: name, ic_number, unit, position; `contact_no` is optional. The IC must not belong to any
+other kept user. To reuse an IC, delete that user or change their IC first. A cryptographically random
+password is generated and never surfaced — it exists only because Devise's `:database_authenticatable`
+needs *some* value in `encrypted_password`; login is BruneiID re-scan, not this password.
 
 ---
 
@@ -178,29 +166,31 @@ reuse Jetty Manager's `users.status` semantics.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> pending_approval: DoFI Company Profile provisioning
+    [*] --> claimable: DoFI Company Profile provisioning
     [*] --> claimable: Fisherman Owner User Management provisioning
-    pending_approval --> claimable: DoFI approves
-    pending_approval --> revoked: DoFI rejects
     claimable --> active: QR + BruneiID claim
     active --> suspended: administrative suspension
     suspended --> active: administrative reactivation
-    claimable --> revoked: revoke/replacement
-    active --> revoked: revoke/replacement
-    suspended --> revoked: revoke/replacement
+    claimable --> revoked: contact replacement
+    active --> revoked: contact replacement
+    suspended --> revoked: contact replacement
 ```
 
-Provisioning source determines the initial state:
+Both provisioning sources start `claimable`; the source only decides which roles may be assigned:
 
-| Source | Initial state | Approval |
+| Source | Initial state | Roles |
 |---|---|---|
-| `dofi_company_profile` | `pending_approval` | DoFI approval required |
-| `fisherman_owner` | `claimable` | No DoFI approval; custom-role teammates only |
+| `dofi_company_profile` | `claimable` | System Owner/Admin, derived from the contact's designation |
+| `fisherman_owner` | `claimable` | Custom company roles only |
+
+Until the first claim, Company Profiling can correct the contact's name/IC and the provisioned user
+follows it; once claimed, the identity is locked. Replacing a contact revokes the old user and
+provisions a new, claimable one.
 
 QR + BruneiID verification is shared infrastructure, but identity resolution is audience-aware.
-Fisherman QR resolves only eligible Fisherman accounts and never falls through to Jetty Manager
-registration or CompanyProfileContact lookup. Jetty Manager QR resolves only users with the system
-Jetty Manager role; if none exists, the existing Jetty Manager registration flow may open.
+Fisherman QR resolves only eligible Fisherman accounts and never falls through to a Jetty Manager
+account or CompanyProfileContact lookup. Jetty Manager QR resolves only users with the system Jetty
+Manager role; an unknown IC is terminal for it too (`jetty_manager_account_not_provisioned`).
 
 Unknown Fisherman IC is terminal:
 
@@ -236,7 +226,6 @@ Owner role != current Owner assignment != actual Fisherman access
 `occupies_fisherman_owner_slot?` identifies the current Owner slot occupant using an allowlist:
 
 ```text
-pending_approval
 claimable
 active
 suspended
@@ -286,9 +275,9 @@ sequenceDiagram
     Note over Officer: During create — Owner/Admin Users are provisioned
     API->>DB: Fisherman::ProvisionUser for Owner contact
     API->>DB: Fisherman::ProvisionUser for Admin contact if submitted
-    DB-->>API: owner_user/admin_user with fisherman_status: pending_approval
+    DB-->>API: owner_user/admin_user with fisherman_status: claimable
 
-    Note over Fisherman: Later — QR + BruneiID claims an approved provisioned user
+    Note over Fisherman: Later — QR + BruneiID claims the provisioned user
     participant Fisherman
     Fisherman->>API: POST /api/v1/auth/brunei_id or /auth/brunei_id/callback
     API->>DB: lookup kept Fisherman User by normalized_ic_number
@@ -318,32 +307,22 @@ migration for how existing data was reconciled.
 
 ---
 
-## 7. FINS Approval
+## 7. External Users — governing accounts after creation
 
-FINS Approval is a governance module, not a generic registration fallback. It has Fisherman,
-Jetty Manager, and Approval Remarks submodules, but the two user audiences still transition
-different lifecycle fields.
+User Management → External Users (`external_users.*`, `ExternalUserPolicy`) is where an officer
+governs external accounts once they exist. It has one tab per audience because the two still
+transition different lifecycle fields:
 
-- **Fisherman List/Show**: officer sees Company Profiling-provisioned Owner/Admin users only
-  (`provisioning_source: dofi_company_profile`, system-managed Owner/Admin role).
-- **Jetty Manager List/Show**: officer sees kept users with the system Jetty Manager role
-  (`jetty_manager_approvals.list/.view`).
-- **Fisherman approve/reject** uses `users.fisherman_status`: `pending_approval -> claimable` or
-  `pending_approval -> revoked`. Approval makes the user `claimable`; QR + BruneiID claim is still
-  required before access becomes `active`.
-- **Jetty Manager approve/reject** keeps using `users.status`: `pending -> active` or
-  `pending -> rejected`. Approval directly allows login.
-- **Deactivate/reactivate/revoke** are explicit FINS actions with separate permission codes.
-  Fisherman deactivate/reactivate uses `active <-> suspended`; Fisherman revoke moves
-  `claimable/active/suspended -> revoked`. Jetty deactivate uses `active/suspended -> inactive`,
-  reactivation restores `inactive/suspended -> active` unless revocation metadata is present, and
-  revoke stores revocation metadata while leaving Jetty on the existing `users.status` lifecycle.
-- Reject uses rejection audit/remark and does not set `revoked_at`. Revoke sets `revoked_at`,
-  `revoked_by_id`, `revocation_remark_id`, and `revocation_comment`.
-- Reject/revoke require an applicable kept `approval_remark_id` from **Approval Remarks**.
-- Security-sensitive FINS services lock the user row, recheck target and lifecycle eligibility
-  inside the lock, transition lifecycle state, and audit actor/reason. Owner rejection/revocation
-  releases the current Owner slot atomically; suspended Owner still occupies the slot.
+- **Jetty Manager tab** (`/api/v1/admin/external_users/jetty_managers`): full CRUD, plus
+  deactivate/reactivate on `users.status` (`active <-> inactive`).
+- **Fisherman tab** (`/api/v1/admin/external_users/fishermen`): list/show of Company
+  Profiling-provisioned Owner/Admin users, plus deactivate/reactivate on `users.fisherman_status`
+  (`active <-> suspended`). Their account data is edited through Company Profiling, not here.
+- Deactivate/reactivate services lock the user row, recheck the target inside the lock, transition
+  the lifecycle, and audit actor/reason. A suspended Owner still occupies the Owner slot.
+
+There is no approval queue: the FINS Approval module (Fisherman Approval, Jetty Manager Approval,
+Approval Remarks) was removed on 2026-09-28 — see §9.
 
 ---
 
@@ -354,7 +333,7 @@ different lifecycle fields.
 | Endpoint | `POST /api/v1/auth/sign_in` | `POST /api/v1/auth/brunei_id` or callback | `POST /api/v1/auth/brunei_id` or callback |
 | Credential | `username` + real password | `ic_number` only (BruneiID-verified externally) | `ic_number` only (BruneiID-verified externally) |
 | Lifecycle gate | Devise credential success | `users.status` | `users.fisherman_status` |
-| Missing IC behavior | N/A | registration is allowed only after Jetty-scoped lookup misses | terminal no-provisioned-account response |
+| Missing IC behavior | N/A | terminal no-provisioned-account response | terminal no-provisioned-account response |
 | Today's implementation | Real (`encrypted_password` check via Devise) | Mock/callback plumbing | Mock/callback plumbing plus claim for `claimable` users |
 
 The mock exists behind one small class (`app/services/brunei_id/client.rb`) specifically so swapping
@@ -408,8 +387,13 @@ A few choices made along the way that aren't obvious just from reading the code:
 - **Email is optional everywhere, for everyone** — no role's login depends on it, so it was relaxed
   from "required unless BruneiID-verified" to simply never required. It remains on the model as a
   legacy/contact field (the original seeded admin still has one).
-- **Rejection reasons come from a fixed master-data list (Approval Remarks), not free text** — keeps
-  rejection reasons consistent and reportable rather than one-off officer phrasing each time.
+- **No approval step for external accounts** (2026-09-28) — Jetty Managers used to self-register
+  into a FINS Approval queue, and Company Profiling Owner/Admin users used to start
+  `pending_approval`. Once Jetty Managers became officer-created, both approvals only re-checked an
+  account the same officer body had just vetted, so the module (with its Approval Remarks master
+  data and the reject/revoke columns on `users`) was removed rather than kept as ceremony. If an
+  approval tier is ever needed again, add it as a new lifecycle state behind its own policy — don't
+  resurrect a self-registration path.
 
 ---
 
@@ -417,10 +401,9 @@ A few choices made along the way that aren't obvious just from reading the code:
 
 | Piece | Status |
 |---|---|
-| BruneiID identity verification at registration | Trusted unconditionally (FE hands over the result; no callback verification) |
 | BruneiID "login" (`/api/v1/auth/brunei_id`) | **Mock** — looks up by `ic_number` directly, no external call |
 | DoFi Officer username/password login | Real |
-| Officer→Officer account creation, approval workflows, profiling | Real, no mocks |
+| Officer-created accounts (officers, Jetty Managers), profiling, External Users | Real, no mocks |
 
 The `faraday`/`jwt` gems and `BRUNEIID_*` env vars are already reserved in the Gemfile/`.env.example`
 for when a real BruneiID integration replaces the mock — see `app/services/brunei_id/client.rb` for

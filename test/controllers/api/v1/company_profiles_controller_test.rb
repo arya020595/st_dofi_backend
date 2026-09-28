@@ -82,7 +82,7 @@ module Api
         assert_nil response.parsed_body["data"].first["admin_profile"]
       end
 
-      test "create with only an owner persists one company profile, one contact, and one pending user" do
+      test "create with only an owner persists one company profile, one contact, and one claimable user" do
         assert_difference({ "CompanyProfile.count" => 1, "CompanyProfileContact.count" => 1, "User.count" => 1 }) do
           post "/api/v1/admin/company_profiles", params: valid_params, headers: @admin_headers, as: :json
         end
@@ -93,10 +93,10 @@ module Api
         assert_match(/\ADOF-\d{4,}\z/, data.dig("company_profile", "profile_number"))
         assert_equal "P.O. Box 1, Serasa", data.dig("company_profile", "mailing_address")
         assert_nil data["admin_profile"]
-        assert_equal "pending_approval", data.dig("owner_user", "status")
+        assert_equal "claimable", data.dig("owner_user", "status")
       end
 
-      test "create with both owner and admin persists one company profile, two contacts, and two pending users" do
+      test "create with both owner and admin persists one company profile, two contacts, and two claimable users" do
         params = valid_params(admin: { full_name: "Admin Person", gender: "Female", ic_no: "01-700011",
                                        ic_colour: "Green" })
 
@@ -108,7 +108,7 @@ module Api
 
         assert_equal "Admin Person", data.dig("admin_profile", "full_name")
         assert_equal data.dig("company_profile", "id"), data.dig("owner_profile", "company_profile_id")
-        assert_equal "pending_approval", data.dig("admin_user", "status")
+        assert_equal "claimable", data.dig("admin_user", "status")
       end
 
       test "create without permission is forbidden" do
@@ -254,7 +254,7 @@ module Api
         role = provisioned_contact_role(is_default, is_default_admin)
         create(:user, role:, company_profile: @target, company_profile_contact: contact, name: contact.full_name,
                       ic_number: contact.ic_no, registration_type: @target.registration_type,
-                      fisherman_status: "pending_approval",
+                      fisherman_status: "claimable",
                       provisioning_source: ::Fisherman::ProvisionUser::DOFI_COMPANY_PROFILE)
       end
 

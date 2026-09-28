@@ -577,7 +577,7 @@ end
 class UserBlueprint < Blueprinter::Base
   identifier :id
   fields :name, :email, :employee_id, :username, :status, :preferred_locale, :unit, :position,
-         :contact_no, :designation, :registration_type, :rejection_reason, :created_at, :updated_at
+         :contact_no, :designation, :registration_type, :created_at, :updated_at
   association :role, blueprint: RoleBlueprint
   association :company_profile, blueprint: CompanyProfileBlueprint
 end
@@ -624,16 +624,13 @@ sequenceDiagram
     participant Officer as DoFI Officer
     participant Profile as Company Profiling
     participant Provision as Fisherman::ProvisionUser
-    participant Approval as Fisherman Approvals
     participant BID as QR + BruneiID
     participant DB
 
     Officer->>Profile: POST /admin/company_profiles with Owner/Admin contacts
     Profile->>Provision: provisioning_source: dofi_company_profile
     Provision->>DB: derive Owner/Admin role, global normalized IC check
-    DB-->>Profile: User(fisherman_status: pending_approval)
-    Officer->>Approval: approve
-    Approval->>DB: pending_approval -> claimable
+    DB-->>Profile: User(fisherman_status: claimable)
     BID->>DB: lookup kept Fisherman User by normalized_ic_number
     BID->>DB: Fisherman::ClaimAccount, claimable -> active
     DB-->>BID: dashboard token
@@ -657,10 +654,9 @@ sequenceDiagram
     DB-->>BID: dashboard token
 ```
 
-There is no Fisherman self-registration in Flow B. `POST /api/v1/registrations/fisherman`,
-`Users::RegisterFisherman`, and `CompanyProfileContact` authentication fallback are retired runtime
-paths. Missing Fisherman IC stops with the no-provisioned-account response; Jetty Manager missing IC
-still goes to registration.
+There is no self-registration or officer approval for either external audience. Missing Fisherman
+and Jetty Manager ICs both stop with a no-provisioned-account response (see
+[`business-flow.md` §8](../registration/business-flow.md)).
 
 ### 5.2 A company creates a custom role
 
@@ -776,13 +772,13 @@ mechanism can be checked/tested and an intent can't.
 | The default Owner/Admin roles cannot be renamed or deleted | `Role#system_managed?` / role policy/service validations reject modifying system-managed Fisherman roles | Model + Policy + Service |
 | Custom roles cannot be named Owner/Admin | `Role` validates reserved Fisherman role names case-insensitively for non-system roles | Model |
 | Fisherman User Management cannot manage Owner users | `FishermanUserPolicy` plus `Fisherman::OwnerManagementGuard` block Owner targets and Owner role assignment | Policy + Service |
-| Source A requires approval, Source B does not | `Fisherman::ProvisioningContext` derives `pending_approval` for `dofi_company_profile` and `claimable` for `fisherman_owner` | Service |
+| Both provisioning sources are claimable without approval | `Fisherman::ProvisioningContext` derives `claimable` for `dofi_company_profile` and `fisherman_owner` | Service |
 | Normalized IC uniqueness is global across kept users | `users.normalized_ic_number` kept-row unique index; `Fisherman::CheckIcAvailability` checks `User.kept` globally, not per company/platform/role | Model + Database + Service |
 | Provisioning races become domain conflicts | `Fisherman::ProvisionUser` rescues `ActiveRecord::RecordNotUnique`, rechecks normalized IC, and returns deterministic conflict symbols | Service |
 | Reaching for another company's role/user by id never confirms it exists | `policy_scope(...).find` raises `RecordNotFound` (404), not `Pundit::NotAuthorizedError` (403) | Controller + Policy |
 | Role creation/update is atomic — never a saved role with a dropped permission set | `Roles::Create`/`Update` wrap `role.save!` + permission assignment in `ActiveRecord::Base.transaction` | Service |
 | A shared (dofi_officer + fisherman) policy never authorizes `show?`/`update?`/`destroy?` on another company's tenant-owned record from the permission bit alone | Each policy's own `owns_record?`, bypassed for `user.dofi_officer_platform?`; locked in by `rbac_contract_test.rb`'s ownership-guard test | Policy |
-| DoFi Officer and Jetty Manager accounts share one `platform_scope` (`"dofi_officer"`) but must never be treated interchangeably by Jetty-Manager-only workflows | `User#jetty_manager?`/`#fins_governed_jetty_manager?` (kind-based, not platform_scope-based); `JettyManagerApprovalPolicy::Scope` filters by `kind` via `Role.find_by(kind: Role::JETTY_MANAGER)`; each of the 5 `Users::*Registration` services independently re-checks `fins_governed_jetty_manager?`; locked in by `test/services/users/jetty_manager_registration_guard_test.rb` | Model + Policy + Service |
+| DoFi Officer and Jetty Manager accounts share one `platform_scope` (`"dofi_officer"`) but must never be treated interchangeably by Jetty-Manager-only workflows | `User#jetty_manager?`/`#fins_governed_jetty_manager?` (kind-based, not platform_scope-based); `ExternalUserPolicy::JettyManagerScope` filters by `roles.kind`; `Users::DeactivateRegistration`/`ReactivateRegistration` independently re-check `fins_governed_jetty_manager?`; locked in by `test/services/users/jetty_manager_registration_guard_test.rb` | Model + Policy + Service |
 
 ---
 
@@ -812,9 +808,9 @@ dofi_officer-platform resource (403 via `RequireAudience` before Pundit is even 
 ### 7.3 Company Teammate
 
 A user assigned to one of the company's custom roles by the Owner (or another teammate who holds the
-relevant permission). Source B teammate provisioning starts directly as
-`fisherman_status: "claimable"` and does not enter DoFI approval. System-managed Owner/Admin roles
-are Company Profiling/FINS-governed, not assignable from Fisherman User Management. Their
+relevant permission). Source B teammate provisioning starts as `fisherman_status: "claimable"`, the
+same as Company Profiling's Owner/Admin. System-managed Owner/Admin roles are governed by Company
+Profiling, not assignable from Fisherman User Management. Their
 permissions are exactly
 whatever that role was granted — anywhere from full `fisherman_roles`/`fisherman_users` access down
 to zero permissions. Same company-isolation and Owner-protection guarantees apply regardless of how
@@ -989,8 +985,8 @@ npx newman run postman/DoFi-Backend.postman_collection.json \
 
 ## 13. Where to go deeper
 
-- [`docs/registration/business-flow.md`](../registration/business-flow.md) — actors, registration &
-  approval lifecycle, and the `kind`/`platform_scope` incident narrative (§2/§9)
+- [`docs/registration/business-flow.md`](../registration/business-flow.md) — actors, provisioning
+  lifecycle, and the `kind`/`platform_scope` incident narrative (§2/§9)
 - [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) — how this feature fits into the app as a whole
 - [`CLAUDE.md`](../../CLAUDE.md) — the layering/SOLID rules this doc's diagrams illustrate
 - `test/controllers/api/v1/admin/roles_controller_test.rb`,

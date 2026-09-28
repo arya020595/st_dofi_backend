@@ -227,7 +227,7 @@ list:
 docs/
 ├── ARCHITECTURE.md  system context, deployment topology, layers, domain model — start here
 ├── rbac/            role-based access control: platform/company isolation & authorization
-├── registration/    actors, roles, self-registration & login flow
+├── registration/    actors, roles, provisioning & login flow
 ├── api/             frontend-facing request/response contracts
 ├── minio/           MinIO/file-storage architecture & setup
 ├── ci-cd/           CI/CD & deployment
@@ -241,7 +241,7 @@ docs/
 ### [`docs/registration/`](docs/registration/) — actors, roles & registration flow
 
 - [Business flow — actors, roles & lifecycles](docs/registration/business-flow.md) — who the three actors are (DoFi Officer, Jetty Manager, Fisherman), how each gets an account, who approves what, and the reasoning behind non-obvious decisions (`Role#kind`, single-role model, why passwords are never manually chosen).
-- [Registration flow](docs/registration/registration-flow.md) — endpoint request/response contracts for self-registration, officer profiling/approval, and login, for all three actors.
+- [Registration flow](docs/registration/registration-flow.md) — endpoint request/response contracts for Jetty Manager creation, Fisherman provisioning, and login, for all three actors.
 - [Testing mock BruneiID login](docs/registration/testing-mock-brunei-id-login.md) — copy-pasteable curl walkthrough for the full register → approve → login loop, plus pending/rejected/not-found cases.
 
 ### [`docs/api/`](docs/api/) — frontend-facing API contracts

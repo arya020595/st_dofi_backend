@@ -2,10 +2,6 @@ module BruneiIdSessions
   module ProfilePayload
     extend ActiveSupport::Concern
 
-    def registration_callback_extras(verified_ic_number, _audience)
-      brunei_id_profile_response(verified_ic_number)
-    end
-
     def brunei_id_profile_response(verified_ic_number)
       {
         full_name: brunei_id_full_name,

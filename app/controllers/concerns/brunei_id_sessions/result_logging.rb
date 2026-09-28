@@ -30,27 +30,23 @@ module BruneiIdSessions
       }
     end
 
-    def registration_log(verified_ic_number)
-      { next_action: "registration", resolved_ic_number: verified_ic_number, registration_status: "not_found" }
-    end
-
-    def registration_status_log(user, verified_ic_number, message = nil)
+    def registration_status_log(user, verified_ic_number, message)
       {
         next_action: "registration_status",
         resolved_ic_number: verified_ic_number,
         registration_status: user.lifecycle_status,
-        error_code: ("inactive_registration" if message),
+        error_code: "inactive_registration",
         error_message: message
       }
     end
 
-    def fisherman_not_provisioned_log(verified_ic_number)
+    def not_provisioned_log(verified_ic_number, code:, message:)
       {
         next_action: nil,
         resolved_ic_number: verified_ic_number,
         registration_status: "not_found",
-        error_code: "fisherman_account_not_provisioned",
-        error_message: BruneiIdSessions::ResponseRendering::FISHERMAN_NOT_PROVISIONED_MESSAGE
+        error_code: code,
+        error_message: message
       }
     end
 

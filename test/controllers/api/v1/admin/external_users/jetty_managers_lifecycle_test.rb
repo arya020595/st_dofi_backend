@@ -64,15 +64,6 @@ module Api
             assert_equal "active", @inactive_jetty_manager.reload.status
           end
 
-          test "reactivate is blocked for a revoked jetty manager" do
-            @inactive_jetty_manager.update!(revoked_at: Time.current)
-
-            post "#{PATH}/#{@inactive_jetty_manager.id}/reactivate", headers: @headers
-
-            assert_response :unprocessable_content
-            assert_equal "inactive", @inactive_jetty_manager.reload.status
-          end
-
           test "a fisherman account cannot be deactivated through the jetty manager tab" do
             post "#{PATH}/#{@fisherman.id}/deactivate", headers: @headers
 

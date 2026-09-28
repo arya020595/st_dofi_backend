@@ -1,24 +1,20 @@
 module User::FishermanLifecycle
   extend ActiveSupport::Concern
 
-  FISHERMAN_STATUSES = %w[pending_approval claimable active suspended revoked].freeze
-  OWNER_SLOT_STATUSES = %w[pending_approval claimable active suspended].freeze
+  FISHERMAN_STATUSES = %w[claimable active suspended revoked].freeze
+  OWNER_SLOT_STATUSES = %w[claimable active suspended].freeze
 
   included do
     aasm(:fisherman, column: :fisherman_status, namespace: :fisherman) do
-      state :pending_approval
       state :claimable
       state :active
       state :suspended
       state :revoked
 
-      event(:approve_fisherman) { transitions from: :pending_approval, to: :claimable }
-      event(:reject_fisherman) { transitions from: :pending_approval, to: :revoked }
-      event(:reset_approval_fisherman) { transitions from: :claimable, to: :pending_approval }
       event(:claim_fisherman) { transitions from: :claimable, to: :active }
       event(:suspend_fisherman) { transitions from: :active, to: :suspended }
       event(:reactivate_fisherman) { transitions from: :suspended, to: :active }
-      event(:revoke_fisherman) { transitions from: %i[pending_approval claimable active suspended], to: :revoked }
+      event(:revoke_fisherman) { transitions from: %i[claimable active suspended], to: :revoked }
     end
 
     validates :fisherman_status, inclusion: { in: FISHERMAN_STATUSES }, allow_nil: true
@@ -40,10 +36,6 @@ module User::FishermanLifecycle
 
   def fins_governed_fisherman?
     kept? && fisherman? && dofi_company_profile_source? && system_managed_fisherman_role?
-  end
-
-  def fins_approval_required_fisherman?
-    fins_governed_fisherman? && fisherman_status == "pending_approval"
   end
 
   private
