@@ -148,6 +148,15 @@ module Api
           assert_equal ["date range must not exceed 366 days"], response.parsed_body.fetch("errors")
         end
 
+        test "catch_trend reports every malformed date instead of failing the request" do
+          get "/api/v1/fisherman/dashboard/catch_trend",
+              params: { start_date: "01/08/2026", end_date: "2026-13-40" }, headers: @headers
+
+          assert_response :unprocessable_content
+          assert_equal ["start_date must use YYYY-MM-DD format", "end_date must use YYYY-MM-DD format"],
+                       response.parsed_body.fetch("errors")
+        end
+
         test "top_fishes returns aggregated fish rows for the chart" do
           get "/api/v1/fisherman/dashboard/top_fishes",
               params: { start_date: "2026-08-01", end_date: "2026-08-10" }, headers: @headers

@@ -13,7 +13,9 @@ module Api
           case ::Fisherman::Dashboard::CatchTrend.call(**query_attributes)
           in Success(data)
             render json: { status: "success", data: DashboardCatchTrendBlueprint.render_as_hash(data) }
-          in Failure(errors)
+          # dry-monads deconstructs a Failure wrapping an Array into its elements, so capture them all:
+          # Failure(errors) would bind only the first message, and fail to match when there are two.
+          in Failure[*errors]
             render json: { status: "fail", errors: errors }, status: :unprocessable_content
           end
         end
