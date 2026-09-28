@@ -190,7 +190,8 @@ pattern and the enforced regression test.
 section, label, and ordering. Seeds persist that catalog and role mutation accepts only catalog codes
 available to the role's platform. Legacy codes may remain temporarily in the database during an
 expand/cutover/contract rollout, but are never returned by the permission endpoint or accepted by
-role create/update.
+role create/update. See [`docs/rbac/permission-catalog.md`](rbac/permission-catalog.md) for the
+catalog's shape and how the permission list is rendered from it.
 
 ### A concrete request, end to end
 

@@ -160,10 +160,12 @@ GET /api/v1/admin/roles?q[created_at_gteq]=2026-05-20&q[s]=created_at desc
 
 Filterable/sortable fields (`ransackable_attributes` on `Permission`):
 
-`id`, `code`, `name`, `created_at`, `updated_at`
+`id`, `code`, `name`, `platform_scope`, `created_at`, `updated_at`
 
 This endpoint is **not paginated** — `page`/`limit` are ignored, `data` always contains every
-permission matching the filter.
+permission matching the filter. Default sort is `code asc`, which is not the Role editor's display
+order; see [`docs/rbac/permission-catalog.md`](../rbac/permission-catalog.md) §4 for grouping and
+ordering the list.
 
 Example — permissions whose code contains "export":
 
