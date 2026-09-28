@@ -22,8 +22,10 @@ services:
 
   # S3-compatible object storage (replaces Cloudinary). Only api/jobs talk to it — never publish
   # its port to the host.
+  # Image is an unmodified mirror of the upstream release in our GHCR — MinIO withdrew its public
+  # images. See docs/minio/MINIO.md §1 "Image source" before bumping the tag.
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-04-08T15-41-24Z
+    image: ghcr.io/arya020595/minio:RELEASE.2025-04-08T15-41-24Z
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -41,7 +43,9 @@ services:
   # `docker compose up -d` (profiles: [init]) — run it explicitly with
   # `docker compose -f docker-compose.production.local.yml run --rm mc-init`.
   mc-init:
-    image: quay.io/minio/mc:RELEASE.2025-04-08T15-39-49Z
+    # Same image as minio above: it bundles the matching `mc` (RELEASE.2025-04-08T15-39-49Z), and
+    # MinIO no longer publishes a standalone mc image.
+    image: ghcr.io/arya020595/minio:RELEASE.2025-04-08T15-41-24Z
     profiles: ["init"]
     depends_on:
       minio:

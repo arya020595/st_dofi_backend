@@ -22,6 +22,29 @@ itself is free and open-source (AGPLv3). Only its optional web admin *Console* (
 behind a paid tier in 2025 — irrelevant here, since everything in this repo is driven by the `mc`
 CLI and the S3 API, never the Console.
 
+**Image source.** MinIO has since stopped distributing prebuilt community artifacts: the Docker Hub
+`minio/minio`/`minio/mc` repos are gone, `quay.io/minio/*` stopped allowing anonymous pulls in
+September 2026 (which broke `docker compose pull` on staging), and `dl.min.io` release binaries
+return 410. Only the source tags on GitHub remain. So every compose file pulls an **unmodified
+mirror** of the pinned upstream release from our own GHCR: `ghcr.io/arya020595/minio` (public
+package, same tag as upstream), copied from the image still cached on the staging server. There is
+no separate `mc` image: the server image bundles the matching `mc` at `/usr/bin/mc`
+(`RELEASE.2025-04-08T15-39-49Z` for the current tag), so `mc-init` runs on the same image, and
+ad-hoc `mc` commands use `--entrypoint mc` (see §7 "Inspecting bucket contents"). To bump the
+version, get the new upstream image onto a machine (a pull from wherever it's still published, or a
+build from the GitHub source tag), then re-tag and push it, and only then change the tag in the
+compose files:
+
+```bash
+echo "$GHCR_PAT" | docker login ghcr.io -u arya020595 --password-stdin   # classic PAT, write:packages
+docker tag <upstream-image>:<RELEASE.tag> ghcr.io/arya020595/minio:<RELEASE.tag>
+docker push ghcr.io/arya020595/minio:<RELEASE.tag>
+docker logout ghcr.io
+```
+
+A newly pushed GHCR package starts **private** — set it to Public in its package settings, or the
+deploy's pull fails the same way it did with quay.io.
+
 ## 2. Architecture
 
 MinIO always runs **on the same server as `api`/`jobs`**, never the database server:
@@ -406,7 +429,7 @@ path locally:
   ```bash
   docker run -d --name test-minio --network dofi-backend_default \
     -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin123 \
-    minio/minio:RELEASE.2025-04-08T15-41-24Z server /data --console-address ":9001"
+    ghcr.io/arya020595/minio:RELEASE.2025-04-08T15-41-24Z server /data --console-address ":9001"
 
   docker compose exec \
     -e MINIO_ENDPOINT=http://test-minio:9000 \
@@ -532,7 +555,7 @@ Works the same for either bucket — swap in the assets credentials/bucket name 
 ```bash
 docker run --rm --network <the compose network, e.g. dofi-backend-staging-net> \
   -e MC_HOST_local="http://<MINIO_ACCESS_KEY_ID>:<MINIO_SECRET_ACCESS_KEY>@minio:9000" \
-  minio/mc ls local/<MINIO_BUCKET>
+  --entrypoint mc ghcr.io/arya020595/minio:RELEASE.2025-04-08T15-41-24Z ls local/<MINIO_BUCKET>
 ```
 
 ### Rotating credentials

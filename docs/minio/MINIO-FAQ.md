@@ -85,7 +85,8 @@ ssh -L 9001:127.0.0.1:9001 <user>@<server>
 
 **Caveat:** per `docs/minio/MINIO.md` §1, MinIO moved the full Console GUI behind a paid tier in 2025
 (the product rebrand to AIStor) — the pinned image
-(`minio/minio:RELEASE.2025-04-08T15-41-24Z`) may show a reduced feature set or an upgrade prompt.
+(`ghcr.io/arya020595/minio:RELEASE.2025-04-08T15-41-24Z`) may show a reduced feature set or an
+upgrade prompt.
 This is exactly why this repo never relies on the Console for anything — provisioning
 (`docker/mc-init.sh`) and inspection both go through the `mc` CLI / S3 API instead, which stays
 free regardless of Console licensing changes.
@@ -96,7 +97,7 @@ bucket contents"):
 ```bash
 docker run --rm --network <compose network, e.g. dofi-backend-staging-net> \
   -e MC_HOST_local="http://<ACCESS_KEY_ID>:<SECRET_ACCESS_KEY>@minio:9000" \
-  minio/mc ls local/<BUCKET>
+  --entrypoint mc ghcr.io/arya020595/minio:RELEASE.2025-04-08T15-41-24Z ls local/<BUCKET>
 ```
 
 Swap in either bucket's credentials/name — works the same for private or public.
