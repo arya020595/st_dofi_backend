@@ -21,11 +21,6 @@
       "type": "string"
     },
     {
-      "key": "admin_email",
-      "value": "admin@dofi.gov.bn",
-      "type": "string"
-    },
-    {
       "key": "admin_password",
       "value": "ChangeMe123!",
       "type": "string"
@@ -43,11 +38,6 @@
     {
       "key": "permission_code",
       "value": "dashboard.list",
-      "type": "string"
-    },
-    {
-      "key": "dictionary_id",
-      "value": "",
       "type": "string"
     },
     {
@@ -134,11 +124,6 @@
       "type": "string"
     },
     {
-      "key": "admin_contact_id",
-      "value": "",
-      "type": "string"
-    },
-    {
       "key": "admin_username",
       "value": "mprt/dof-001",
       "type": "string"
@@ -150,11 +135,6 @@
     },
     {
       "key": "owner_only_company_profile_id",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "individual_company_profile_id",
       "value": "",
       "type": "string"
     },
@@ -5858,7 +5838,6 @@
                   "    pm.expect(data.admin_profile.company_profile_id).to.eql(data.company_profile.id);",
                   "});",
                   "if (pm.response.json().data.company_profile) { pm.collectionVariables.set('company_profile_id', pm.response.json().data.company_profile.id); }",
-                  "if (pm.response.json().data.admin_profile) { pm.collectionVariables.set('admin_contact_id', pm.response.json().data.admin_profile.id); }",
                   "const profileData = pm.response.json().data;",
                   "pm.test('Owner user is provisioned claimable', () => pm.expect(profileData.owner_user.fisherman_status).to.eql('claimable'));"
                 ]
@@ -5981,10 +5960,8 @@
                 "exec": [
                   "pm.test('Status is 201', () => pm.response.to.have.status(201));",
                   "pm.test('registration_type is Small - Scale (Full-Time)', () => pm.expect(pm.response.json().data.company_profile.registration_type).to.eql('Small - Scale (Full-Time)'));",
-                  "if (pm.response.json().data.company_profile) { pm.collectionVariables.set('individual_company_profile_id', pm.response.json().data.company_profile.id); }",
                   "const profileData = pm.response.json().data;",
-                  "pm.test('Owner user is provisioned claimable', () => pm.expect(profileData.owner_user.fisherman_status).to.eql('claimable'));",
-                  "if (profileData && profileData.owner_user) { pm.collectionVariables.set('individual_fisherman_user_id', profileData.owner_user.id); }"
+                  "pm.test('Owner user is provisioned claimable', () => pm.expect(profileData.owner_user.fisherman_status).to.eql('claimable'));"
                 ]
               }
             },
@@ -14285,8 +14262,7 @@
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
-                      "if (pm.response.json().data.length) pm.collectionVariables.set('dictionary_id', pm.response.json().data[0].id);"
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));"
                     ]
                   }
                 }
