@@ -99,6 +99,15 @@ class User < ApplicationRecord
 
   private
 
+  # Overrides AASM's after_initialize hook, which enters every state machine's initial state whenever
+  # its column is blank, including on rows loaded from the database. For the fisherman machine
+  # that stamped a fisherman_status onto DoFi Officers and Jetty Managers and left freshly loaded rows
+  # dirty, so the lifecycle services' `with_lock` raised. Fishermen always get an explicit status from
+  # Fisherman::ProvisionUser, so only the account-status machine (users.status) keeps this default.
+  def aasm_ensure_initial_state
+    aasm(:default).enter_initial_state if aasm_column_is_blank?(:default)
+  end
+
   def normalize_ic_number
     self.normalized_ic_number = IcNumbers::Normalize.call(ic_number).presence if will_save_change_to_ic_number?
   end

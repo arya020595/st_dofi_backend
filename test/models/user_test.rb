@@ -32,6 +32,21 @@ class UserTest < ActiveSupport::TestCase
     assert_predicate user, :valid?
   end
 
+  test "officers and jetty managers get no fisherman_status" do
+    officer = create(:user, :officer_shaped, role: create(:role, kind: Role::DOFI_OFFICER))
+    jetty_manager = create(:user, :jetty_manager_shaped, role: create(:role, kind: Role::JETTY_MANAGER))
+
+    assert_nil officer.reload.fisherman_status
+    assert_nil jetty_manager.reload.fisherman_status
+  end
+
+  test "loading a user with a blank fisherman_status leaves the record unchanged" do
+    user = create(:user)
+    user.update_column(:fisherman_status, nil) # rubocop:disable Rails/SkipsModelValidations
+
+    assert_not_predicate User.find(user.id), :changed?
+  end
+
   test "normalizes ic_number before validation" do
     user = build(:user, ic_number: "01-123 456")
 
