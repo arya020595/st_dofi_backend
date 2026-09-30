@@ -19,15 +19,13 @@ module Manifests
     def normalize_manifest_review_state!(manifest, actor:)
       return unless manifest.capture_report_submitted?
       return unless manifest.port_in_pending?
-      return unless skipped_or_verified?(manifest)
+      return unless all_capture_reports_verified?(manifest)
       return unless manifest.may_begin_port_in_review?
 
       manifest.begin_port_in_review!(actor: actor)
     end
 
-    def skipped_or_verified?(manifest)
-      return true if manifest.capture_report_skipped?
-
+    def all_capture_reports_verified?(manifest)
       manifest.capture_reports.exists? && manifest.capture_reports.all?(&:verified?)
     end
 

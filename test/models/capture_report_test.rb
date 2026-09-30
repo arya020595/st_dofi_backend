@@ -12,6 +12,13 @@ class CaptureReportTest < ActiveSupport::TestCase
     assert_not_nil report.reviewed_at
   end
 
+  test "cannot be created once the manifest's capture report was skipped" do
+    report = build(:capture_report, manifest: create(:manifest, capture_report_skipped: true))
+
+    assert_not report.valid?
+    assert_includes report.errors[:base], "Capture report was skipped for this manifest"
+  end
+
   test "database-generated numbers are unique for separate capture report inserts" do
     first_report = create(:capture_report)
     second_report = create(:capture_report)

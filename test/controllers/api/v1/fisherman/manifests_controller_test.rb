@@ -289,6 +289,31 @@ module Api
                        manifest.reload.values_at(:skip_reason_id, :skip_reason_name)
         end
 
+        test "submit_port_in after a skip sends a commercial manifest straight to port-in approval" do
+          manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel,
+                                       fisherman_category: "commercial")
+          manifest.submit_port_out!
+          manifest.approve_port_out!
+          manifest.update!(capture_report_skipped: true)
+
+          post "/api/v1/fisherman/manifests/#{manifest.id}/submit_port_in", headers: @fisherman_headers
+
+          assert_response :ok
+          assert_equal %w[pending awaiting_port_in_approval],
+                       manifest.reload.values_at(:port_in_status, :manifest_status)
+        end
+
+        test "submit_port_in after a skip completes a small-scale manifest with no approval" do
+          manifest = create(:manifest, :small_scale, company_profile: @company_profile, companies_vessel: @vessel)
+          manifest.submit_port_out!
+          manifest.update!(capture_report_skipped: true)
+
+          post "/api/v1/fisherman/manifests/#{manifest.id}/submit_port_in", headers: @fisherman_headers
+
+          assert_response :ok
+          assert_equal %w[submitted completed], manifest.reload.values_at(:port_in_status, :manifest_status)
+        end
+
         test "submit_port_in resets all capture reports to pending_verification" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
           manifest.submit_port_out!

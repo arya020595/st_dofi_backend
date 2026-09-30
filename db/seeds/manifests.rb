@@ -182,8 +182,9 @@ if manifest3.port_in_draft? && !manifest3.capture_report_skipped?
                     skip_reason_remarks: "No fish caught during this trip due to rough sea conditions.",
                     port_in: lumut_port, port_in_area: lumut_port.port_name, port_in_datetime: 1.hour.ago)
 end
-# Skipped reports have no CaptureReport to verify — submit_port_in! completes the manifest immediately
-# via Manifest#auto_complete_if_skipped!.
+# Skipped reports have no CaptureReport to verify — for a small-scale manifest submit_port_in! completes it
+# immediately with no approval (a commercial one goes straight to Jetty Manager review instead). See
+# docs/manifests/approval-rules-by-category.md.
 manifest3.submit_port_in!(actor: full_time_owner) if manifest3.may_submit_port_in?
 
 # --- Manifest 4: Commercial, port_out submitted and awaiting Jetty Manager approval -----------------

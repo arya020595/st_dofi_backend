@@ -102,6 +102,48 @@ class ManifestTest < ActiveSupport::TestCase
     assert_predicate manifest, :may_submit_port_in?
   end
 
+  test "capture_report_skipped cannot be set once capture reports exist" do
+    manifest = create(:manifest)
+    create(:capture_report, manifest: manifest)
+
+    manifest.capture_report_skipped = true
+
+    assert_not manifest.valid?
+    assert_includes manifest.errors[:base], "Capture report cannot be skipped once capture reports have been created"
+  end
+
+  test "an already-skipped manifest that also has reports stays saveable" do
+    manifest = create(:manifest)
+    create(:capture_report, manifest: manifest)
+    manifest.update_column(:capture_report_skipped, true) # rubocop:disable Rails/SkipsModelValidations
+
+    assert manifest.update(port_in_area: "Serasa Port")
+  end
+
+  test "exactly one submit_port_in transition applies to each category and capture report state" do
+    %w[commercial small_scale_company small_scale_full_time small_scale_part_time].each do |category|
+      [true, false].each do |skipped|
+        manifest = create(:manifest, fisherman_category: category, capture_report_skipped: skipped)
+        create(:capture_report, manifest: manifest) unless skipped
+
+        assert_equal 1, matching_submit_port_in_transitions(manifest).size, "#{category} skipped=#{skipped}"
+      end
+    end
+  end
+
+  test "chained port-in transitions on a skipped manifest record the actor" do
+    actor = create(:user)
+    manifest = create(:manifest, fisherman_category: "small_scale_full_time", capture_report_skipped: true)
+    manifest.submit_port_out!
+
+    manifest.submit_port_in!(actor: actor)
+
+    histories = manifest.manifest_histories.where(action: %w[complete_capture_report! complete_manifest!])
+
+    assert_equal [actor.id], histories.pluck(:changed_by_id).uniq
+    assert_equal 2, histories.count
+  end
+
   test "commercial? is true only for the commercial category" do
     assert_predicate build(:manifest, fisherman_category: "commercial"), :commercial?
     assert_not build(:manifest, fisherman_category: "commercial").small_scale?
@@ -153,6 +195,13 @@ class ManifestTest < ActiveSupport::TestCase
     manifest = create(:manifest)
 
     assert manifest.destroy
+  end
+
+  private
+
+  def matching_submit_port_in_transitions(manifest)
+    manifest.aasm(:port_in).events.find { |event| event.name == :submit_port_in }
+                                  .transitions.select { |transition| transition.allowed?(manifest) }
   end
 end
 

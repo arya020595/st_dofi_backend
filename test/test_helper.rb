@@ -54,6 +54,13 @@ module ActiveSupport
       services.singleton_class.send(:remove_method, :fetch)
     end
 
+    # An officer-platform user whose role holds exactly one permission — a notification recipient that is only
+    # reachable through that code.
+    def create_admin_recipient(permission_code)
+      permission = create(:permission, code: permission_code)
+      create(:user, role: create(:role, permissions: [permission]))
+    end
+
     # Add more helper methods to be used by all tests here...
   end
 end
