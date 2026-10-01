@@ -10,12 +10,9 @@ module Manifests
       reason = ManifestSkipReason.kept.find_by(id: skip_reason_id)
       return invalid_reason(manifest) if reason.nil?
 
-      ActiveRecord::Base.transaction do
-        manifest.update!(capture_report_skipped: true, skip_reason: reason, skip_reason_name: reason.name,
-                         skip_reason_remarks: remarks)
-      end
-
-      Success(manifest)
+      skipped = manifest.update(capture_report_skipped: true, skip_reason: reason, skip_reason_name: reason.name,
+                                skip_reason_remarks: remarks)
+      skipped ? Success(manifest) : Failure(manifest)
     end
 
     private

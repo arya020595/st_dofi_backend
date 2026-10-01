@@ -10,6 +10,7 @@ class CaptureReport < ApplicationRecord
   has_many :fishing_gear_details, dependent: :destroy
 
   before_validation :assign_number_without_database_trigger, on: :create
+  validate :manifest_not_skipped, on: :create
 
   def self.ransackable_attributes(_auth_object = nil)
     %w[id capture_report_number manifest_id zone_id zone_area capture_report_status capture_report_remarks
@@ -37,8 +38,7 @@ class CaptureReport < ApplicationRecord
     state :needs_amendment
 
     # success: (not after:) — stamp_review_and_maybe_complete! checks this report's own verified?
-    # state via manifest.capture_reports.all?(&:verified?), which after: callbacks see pre-persist
-    # (same reasoning as Manifest#auto_complete_if_skipped!, see app/models/manifest.rb).
+    # state via manifest.capture_reports.all?(&:verified?), which after: callbacks see pre-persist.
     event(:verify) do
       transitions from: :pending_verification, to: :verified, success: :stamp_review_and_maybe_complete!
     end
@@ -52,6 +52,10 @@ class CaptureReport < ApplicationRecord
   end
 
   private
+
+  def manifest_not_skipped
+    errors.add(:base, "Capture report was skipped for this manifest") if manifest&.capture_report_skipped?
+  end
 
   # PostgreSQL functions and triggers are not represented by db/schema.rb. The normal application
   # path uses the BEFORE INSERT trigger from the migration; this fallback keeps schema-loaded test

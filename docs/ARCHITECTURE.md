@@ -324,6 +324,8 @@ fields that matter onto their own rows rather than only holding the foreign key 
 - [`docs/rbac/`](rbac/) — role-based access control: platform/company isolation, authorization vs.
   isolation, permissions model
 - [`docs/registration/`](registration/) — actors, roles, registration & approval flow
+- [`docs/manifests/`](manifests/) — which Port-Out / Port-In / Capture Report steps need approval, per
+  fisherman category
 - [`docs/api/`](api/) — frontend-facing request/response contracts
 - [`docs/data-model/`](data-model/) — denormalized historical snapshots vs. live master-data references
 - [`docs/minio/`](minio/) — file storage architecture & setup

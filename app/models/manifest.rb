@@ -29,6 +29,7 @@ class Manifest < ApplicationRecord
 
   validates :manifest_number, presence: true, uniqueness: true
   validates :fisherman_category, presence: true
+  validate :capture_reports_absent_when_skipped, if: :capture_report_skipped_changed?
 
   def self.ransackable_attributes(_auth_object = nil)
     %w[id manifest_number fisherman_category manifest_status port_out_status port_in_status
@@ -43,6 +44,14 @@ class Manifest < ApplicationRecord
   def commercial?  = fisherman_category == COMMERCIAL
   def small_scale? = SMALL_SCALE.include?(fisherman_category)
   def capture_report_ready? = capture_report_skipped? || capture_reports.exists?
+
+  # True only when there are real reports for a DoFi Officer to verify. Mutually exclusive with
+  # capture_report_skipped?, so the submit_port_in guards never depend on row order.
+  def capture_report_verifiable?
+    return false if capture_report_skipped?
+
+    capture_reports.exists?
+  end
 
   # True while an amendment request is outstanding — the fisherman edits this same record (via
   # Manifests::Update) then calls the matching resubmit event; there's no separate "amendment form."
@@ -93,11 +102,17 @@ class Manifest < ApplicationRecord
     state :approved
     state :submitted
 
+    # A skipped report has nothing for a DoFi Officer to verify: commercial goes straight to Jetty Manager
+    # review, small-scale completes with no approval at all. The guards are mutually exclusive, so row
+    # order does not matter. See docs/manifests/approval-rules-by-category.md.
     event :submit_port_in do
-      transitions from: :draft, to: :pending, guard: :capture_report_skipped?, after: :complete_capture_report!
-      transitions from: :draft, to: :pending,   guard: %i[commercial? capture_report_ready?],
+      transitions from: :draft, to: :pending,   guard: %i[commercial? capture_report_skipped?],
+                  after: %i[complete_capture_report! begin_port_in_review!]
+      transitions from: :draft, to: :pending,   guard: %i[commercial? capture_report_verifiable?],
                   after: :complete_capture_report!
-      transitions from: :draft, to: :submitted, guard: %i[small_scale? capture_report_ready?],
+      transitions from: :draft, to: :submitted, guard: %i[small_scale? capture_report_skipped?],
+                  after: %i[complete_capture_report! complete_manifest!]
+      transitions from: :draft, to: :submitted, guard: %i[small_scale? capture_report_verifiable?],
                   after: :complete_capture_report!
     end
     event(:approve_port_in) do
@@ -129,12 +144,11 @@ class Manifest < ApplicationRecord
     event(:begin_port_out_review)   { transitions from: :draft, to: :awaiting_port_out_approval }
     event(:advance_to_sea)          { transitions from: %i[draft awaiting_port_out_approval], to: :at_sea }
     event(:begin_port_in_review)    { transitions from: :capture_report_submitted, to: :awaiting_port_in_approval }
-    # success: (not after:) — auto_complete_if_skipped! checks this same machine's current_state,
-    # which after: callbacks see pre-transition (state is written only once event.fire returns, see
-    # AASM::InstanceBase#aasm_fired). success: fires post-write via fire_transition_callbacks.
     event(:complete_capture_report) do
       transitions from: %i[at_sea awaiting_port_in_approval], to: :capture_report_submitted
     end
+    # success: (not after:) — it fires once the new state is written, whereas after: callbacks still see the
+    # pre-transition state (see AASM::InstanceBase#aasm_fired).
     event(:complete_manifest) do
       transitions from: %i[capture_report_submitted awaiting_port_in_approval], to: :completed,
                   success: %i[record_fishing_gear_usage! clear_capture_report_amendment_snapshot!]
@@ -155,6 +169,14 @@ class Manifest < ApplicationRecord
 
   def record_manifest_history(actor: nil, remarks: nil, **)
     record_history!("manifest_status", aasm_name: :manifest, actor: actor, remarks: remarks)
+  end
+
+  # A report is either skipped or submitted, never both — otherwise skipping would silently drop reports
+  # that were never verified. CaptureReport enforces the other direction.
+  def capture_reports_absent_when_skipped
+    return unless capture_report_skipped? && capture_reports.exists?
+
+    errors.add(:base, "Capture report cannot be skipped once capture reports have been created")
   end
 
   def store_port_out_amendment_snapshot!(*, remarks: nil, **)

@@ -64,12 +64,6 @@ class Notifications::ManifestPublisherTest < ActiveSupport::TestCase
 
   private
 
-  def create_admin_recipient(permission_code)
-    permission = create(:permission, code: permission_code)
-    role = create(:role, permissions: [permission])
-    create(:user, role: role)
-  end
-
   def create_fisherman_recipient(company_profile, default_owner: false)
     role = fisherman_role_for(company_profile, default_owner:)
     create(:user, **fisherman_user_attributes(company_profile, role))

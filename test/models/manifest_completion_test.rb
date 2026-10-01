@@ -60,30 +60,33 @@ class ManifestCompletionTest < ActiveSupport::TestCase
     assert_equal BigDecimal("10"), company_gear.reload.usage_value
   end
 
-  test "skipped manifest waits for port-in approval after submit_port_in!" do
+  test "commercial skipped manifest goes straight to jetty review without DoFi verification" do
     manifest = create(:manifest, fisherman_category: "commercial")
     manifest.submit_port_out!
     manifest.approve_port_out!
     manifest.update!(capture_report_skipped: true)
 
     manifest.submit_port_in!
-    manifest.begin_port_in_review!
+
+    assert_equal %w[pending awaiting_port_in_approval], manifest.reload.values_at(:port_in_status, :manifest_status)
+
     manifest.approve_port_in!
 
-    assert_equal "completed", manifest.manifest_status
+    assert_equal %w[approved completed], manifest.values_at(:port_in_status, :manifest_status)
   end
 
-  test "small-scale skipped manifest requires port-in approval" do
-    manifest = create(:manifest, :small_scale)
-    manifest.submit_port_out!
-    manifest.update!(capture_report_skipped: true)
+  %w[small_scale_company small_scale_full_time small_scale_part_time].each do |category|
+    test "#{category} skipped manifest completes port-in with no approval" do
+      manifest = create(:manifest, fisherman_category: category)
+      manifest.submit_port_out!
+      manifest.update!(capture_report_skipped: true)
 
-    manifest.submit_port_in!
-    manifest.begin_port_in_review!
-    manifest.approve_port_in!
+      manifest.submit_port_in!
 
-    assert_equal "approved", manifest.port_in_status
-    assert_equal "completed", manifest.manifest_status
+      assert_equal "submitted", manifest.port_in_status
+      assert_equal "completed", manifest.reload.manifest_status
+      assert_not manifest.may_approve_port_in?
+    end
   end
 
   test "small-scale completion increments usage_value after final capture report verification" do
