@@ -42,9 +42,22 @@ module CompanyProfiles
 
       contact_user = contact.users.kept.first
       return update_and_provision_contact(company_profile, contact, attributes, updated_by) if contact_user.nil?
+      # The edit form resubmits the whole owner/admin block even when only profile fields changed.
+      # Re-syncing an identical contact would needlessly revoke a claimed identity (or be rejected).
+      return Success(nil) unless contact_changed?(contact, attributes)
       return replace_claimed_contact(contact, attributes, updated_by) if contact_user.claimed_at.present?
 
       update_provisioned_contact(contact, attributes, updated_by)
+    end
+
+    def contact_changed?(contact, attributes)
+      attributes.to_h.any? do |field, value|
+        normalized_contact_value(field, contact[field]) != normalized_contact_value(field, value)
+      end
+    end
+
+    def normalized_contact_value(field, value)
+      field.to_s == "ic_no" ? IcNumbers::Normalize.call(value) : value.to_s.strip
     end
 
     # A claimed identity has already been verified via BruneiID for the OLD data — overwriting it in
