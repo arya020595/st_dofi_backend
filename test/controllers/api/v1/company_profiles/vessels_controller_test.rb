@@ -33,6 +33,20 @@ module Api
           assert_response :ok
         end
 
+        test "show returns vessel images as authorized attachment paths, never storage URLs" do
+          vessel = create(:companies_vessel, company_profile: @company_profile)
+          png = Base64.decode64(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+          )
+          vessel.images.attach(io: StringIO.new(png), filename: "boat.png", content_type: "image/png")
+
+          get "/api/v1/admin/company_profiles/#{@company_profile.id}/vessels/#{vessel.id}", headers: @admin_headers
+
+          assert_response :ok
+          assert_equal ["/api/v1/attachments/#{vessel.images.first.blob.signed_id}"],
+                       response.parsed_body.dig("data", "image_urls")
+        end
+
         test "create adds a pending vessel under the company" do
           params = { vessel: { vessel_name: "Kapal Laut I", boat_number: "BN 9283", capacity: 10 } }
 

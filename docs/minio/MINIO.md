@@ -391,6 +391,14 @@ public bucket has no authorization check at all by design (§3).
      owning record via `ActiveStorage::Attachment#record` and calls `authorize record, :show?`, so
      it works for any attachable model as long as that model has a policy with `show?`. See
      `CompaniesDocumentBlueprint`/`CompaniesDocumentApprovalBlueprint` for the worked example.
+     Company-owned records with no policy of their own (`CompaniesDocument`, `CompaniesVessel` — a
+     company's whole profile is gated by `CompanyProfilePolicy`) are registered in
+     `Api::V1::AttachmentsController::POLICY_CLASS_BY_RECORD_TYPE`; add a new company-owned model
+     there, otherwise the redirect raises `Pundit::NotDefinedError`. `CompaniesVessel#images`
+     (`image_urls` in `CompaniesVesselBlueprint`) is the second private-tier model: each entry is an
+     `/api/v1/attachments/:signed_id` path, so the client must fetch it with its `Authorization`
+     header. Never call `blob.url`/`attachment.url` in a Blueprint for a private-tier file — that
+     returns the internal `http://minio:9000/...` address, which no browser can resolve.
 
 A second model on an *existing* tier doesn't need a new bucket — it shares `MINIO_BUCKET` or
 `MINIO_ASSETS_BUCKET` with whatever else is already on that tier, unless there's a reason to

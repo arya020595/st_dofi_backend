@@ -8,10 +8,11 @@ class CompaniesVesselBlueprint < Blueprinter::Base
 
   association :zone, blueprint: ZoneBlueprint
 
+  # Vessel images live in the private bucket, so they are never embedded as storage URLs (the blob's own
+  # service URL is the internal minio:9000 address, unreachable from a browser). Each entry is the
+  # authorized redirect path, same as CompaniesDocumentBlueprint#document_url — the client requests it
+  # with its Authorization header.
   field :image_urls do |vessel|
-    vessel.images.map(&:url)
-  rescue ActiveStorage::Error, Aws::Errors::ServiceError => e
-    Rails.logger.error("CompaniesVessel##{vessel.id} image URL generation failed: #{e.message}")
-    []
+    vessel.images.map { |image| Rails.application.routes.url_helpers.api_v1_attachment_path(image.blob.signed_id) }
   end
 end
