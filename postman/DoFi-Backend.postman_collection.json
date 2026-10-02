@@ -821,14 +821,14 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"ic_number\": \"01-123456\"\n}",
+              "raw": "{\n  \"ic_number\": \"00-100035\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
             },
-            "description": "Mock stand-in for BruneiID QR login. Uses a pre-seeded active Fisherman, so this succeeds without setup. In Flow B, Fisherman users are provisioned before login; this request authenticates an existing active user and saves `fisherman_jwt_token` plus `fisherman_company_profile_id`."
+            "description": "Mock stand-in for BruneiID QR login. Uses the pre-seeded active Commercial Fisherman 00-100035 (the same IC registered in BruneiID sandbox), so this succeeds without setup. In Flow B, Fisherman users are provisioned before login; this request authenticates an existing active user and saves `fisherman_jwt_token` plus `fisherman_company_profile_id`."
           },
           "event": [
             {

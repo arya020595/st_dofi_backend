@@ -214,6 +214,43 @@ module Api
         assert_nil owner_user.claimed_at
       end
 
+      test "update leaves a claimed owner untouched when the resubmitted owner identity is unchanged" do
+        owner = create(:company_profile_contact, company_profile: @target, designation: "Owner",
+                                                 full_name: "Same Owner", gender: "Male", ic_no: "01-701401",
+                                                 ic_colour: "Yellow")
+        owner_user = provisioned_contact_user(owner, is_default: true)
+        activate_claimed_user(owner_user)
+
+        assert_no_difference(["CompanyProfileContact.count", "User.count"]) do
+          patch "/api/v1/admin/company_profiles/#{@target.id}",
+                params: { company_profile: { company_name: "Renamed Co",
+                                             owner: { full_name: "Same Owner", gender: "Male",
+                                                      ic_no: "01 701401", ic_colour: "Yellow" } } },
+                headers: @admin_headers,
+                as: :json
+        end
+
+        assert_response :ok
+        assert_equal "Renamed Co", @target.reload.company_name
+        assert_not_predicate owner.reload, :discarded?
+        assert_equal "active", owner_user.reload.fisherman_status
+      end
+
+      test "update accepts an unchanged owner whose user has no provisioning source" do
+        owner = create(:company_profile_contact, company_profile: @target, designation: "Owner",
+                                                 full_name: "Legacy Owner", gender: "Male", ic_no: "01-701501",
+                                                 ic_colour: "Yellow")
+        provisioned_contact_user(owner, is_default: true).update!(provisioning_source: nil)
+
+        patch "/api/v1/admin/company_profiles/#{@target.id}",
+              params: { company_profile: { owner: { full_name: "Legacy Owner", gender: "Male",
+                                                    ic_no: "01-701501", ic_colour: "Yellow" } } },
+              headers: @admin_headers,
+              as: :json
+
+        assert_response :ok
+      end
+
       test "update provisions a missing user for an existing owner contact" do
         owner = create(
           :company_profile_contact,

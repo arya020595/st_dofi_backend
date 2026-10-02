@@ -7,11 +7,11 @@
 # idempotent number, not the date-scoped one real submissions get.
 admin = User.find_by!(email: "admin@dofi.gov.bn")
 
-commercial_profile = CompanyProfile.find_by!(company_name: "Sinar Jaya Fisheries Sdn Bhd")
 small_scale_company_profile = CompanyProfile.find_by!(company_name: "Pantai Emas Enterprise")
 full_time_profile = CompanyProfileContact.find_by!(ic_no: "51-456789").company_profile
 
-commercial_owner = User.find_by!(ic_number: "01-123456")
+commercial_owner = User.find_by!(ic_number: "00-100035")
+commercial_profile = commercial_owner.company_profile
 small_scale_owner = User.find_by!(ic_number: "51-345678")
 full_time_owner = User.find_by!(ic_number: "51-456789")
 
