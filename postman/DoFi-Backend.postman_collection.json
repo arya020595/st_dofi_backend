@@ -6816,7 +6816,7 @@
                 "{{companies_vessel_id}}"
               ]
             },
-            "description": "image_urls is a computed array of URLs for any images attached via \"Upload Vessel Images\" below (empty array if none). Requires companies_vessels.view."
+            "description": "image_urls is a computed array of `/api/v1/attachments/:signed_id` paths for any images attached via \"Upload Vessel Images\" below (empty array if none). Vessel images are private: request each path with the same Authorization header — it answers 302 to a short-lived signed storage URL after re-checking company_profiles.view (and company ownership for fishermen). Requires companies_vessels.view."
           },
           "event": [
             {

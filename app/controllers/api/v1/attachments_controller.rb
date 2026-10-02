@@ -3,6 +3,14 @@ module Api
     class AttachmentsController < ApplicationController
       DISPOSITIONS = %w[inline attachment].freeze
 
+      # Company-owned files have no policy of their own: company_profiles.* is the single gate for a
+      # company's whole profile (see CompanyProfilePolicy), dispatched here by the owning record's type.
+      # Anything absent from this table (e.g. Dictionary) resolves its own policy the Pundit default way.
+      POLICY_CLASS_BY_RECORD_TYPE = {
+        "CompaniesDocument" => CompanyProfilePolicy,
+        "CompaniesVessel" => CompanyProfilePolicy
+      }.freeze
+
       # find_signed! raises this directly (rather than ActiveRecord::RecordNotFound, which
       # ApplicationController already rescues) for a tampered, malformed, or expired signed_id.
       rescue_from ActiveSupport::MessageVerifier::InvalidSignature, with: :render_not_found
@@ -16,7 +24,7 @@ module Api
         blob = ActiveStorage::Blob.find_signed!(params.expect(:signed_id))
         attachment = attachment_for(blob)
 
-        authorize attachment.record, :show?
+        authorize attachment.record, :show?, policy_class: POLICY_CLASS_BY_RECORD_TYPE[attachment.record_type]
         log_attachment_access(attachment, granted: true)
 
         response.headers["Cache-Control"] = "private, max-age=0"
