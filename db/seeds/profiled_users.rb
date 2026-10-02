@@ -7,7 +7,7 @@ default_password = ENV.fetch("ADMIN_DEFAULT_PASSWORD", "ChangeMe123!")
 # exception: already claimed and BruneiID-verified so they can log in via mock BruneiID without
 # going through the claim step. Re-running converges existing rows (role, source, status) and never
 # resets a user who has really claimed a different, non-listed identity.
-CLAIMED_FISHERMAN_ICS = %w[01-123456 01-234567 51-345678 51-456789 51-567892].freeze
+CLAIMED_FISHERMAN_ICS = %w[00-100035 01-234567 51-345678 51-456789 51-567892].freeze
 
 def fisherman_role_for(contact)
   case contact.designation

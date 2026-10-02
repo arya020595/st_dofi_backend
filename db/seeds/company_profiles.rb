@@ -31,7 +31,7 @@ SEED_COMPANY_PROFILES = [
     fisherman_card_no: "FC-000123",
     issue_date: years_ago_date(2),
     license_expiry_date: years_from_now_date(1),
-    owner: { full_name: "Haji Ahmad bin Salleh", gender: "Male", ic_no: "01-123456", ic_colour: "Yellow" },
+    owner: { full_name: "Haji Ahmad bin Salleh", gender: "Male", ic_no: "00-100035", ic_colour: "Yellow" },
     admin: { full_name: "Siti Aminah binti Yusof", gender: "Female", ic_no: "01-234567", ic_colour: "Yellow" }
   },
   {
