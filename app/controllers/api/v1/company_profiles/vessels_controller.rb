@@ -5,12 +5,12 @@ module Api
         include RansackSearchable
 
         before_action :set_company_profile
-        before_action :set_vessel, only: %i[show update destroy images]
+        before_action :set_vessel, only: %i[show update destroy images destroy_image]
 
         def index
           authorize CompaniesVessel, policy_class: CompanyProfilePolicy
           scope = policy_scope(@company_profile.companies_vessels, policy_scope_class: CompanyProfilePolicy::Scope)
-                  .includes(images_attachments: :blob)
+                  .includes(CompaniesVessel::IMAGE_VIEWS.map { |view| { "#{view}_image_attachment": :blob } })
           result = apply_ransack_search(scope, default_sort: "created_at desc")
           pagy, records = pagy(:offset, result)
           render json: { status: "success", data: CompaniesVesselBlueprint.render_as_hash(records),
@@ -65,6 +65,17 @@ module Api
           end
         end
 
+        def destroy_image
+          authorize @vessel, :update?, policy_class: CompanyProfilePolicy
+
+          case CompaniesVessels::DetachImage.call(@vessel, params.expect(:view))
+          in Success(vessel)
+            render json: { status: "success", data: CompaniesVesselBlueprint.render_as_hash(vessel) }
+          in Failure(vessel)
+            render json: { status: "fail", errors: vessel.errors.full_messages }, status: :unprocessable_content
+          end
+        end
+
         private
 
         def set_company_profile
@@ -83,7 +94,7 @@ module Api
         end
 
         def image_params
-          params.expect(images: [])
+          params.expect(images: CompaniesVessel::IMAGE_VIEWS.map(&:to_sym))
         end
 
         def discard_vessel

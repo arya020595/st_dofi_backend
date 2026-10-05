@@ -140,7 +140,8 @@ resource's own `Policy::Scope` decides what's visible per audience, not the rout
 /api/v1/admin/company_profiles                       index show create update destroy
 /api/v1/admin/company_profiles/:id/contacts           create update destroy
 /api/v1/admin/company_profiles/:id/vessels            index show create update destroy
-  POST   .../:vessel_id/images
+  POST   .../:vessel_id/images            (images[front|back|left|right], replaces that slot)
+  DELETE .../:vessel_id/images/:view      (view = front|back|left|right)
   /api/v1/admin/company_profiles/:id/vessels/:vessel_id/fishing_gears   full CRUD
 /api/v1/admin/company_profiles/:id/crews              index show create update destroy
 /api/v1/admin/company_profiles/:id/documents          index create update
@@ -219,7 +220,8 @@ profile — that's DoFI Company Profiling:
 /api/v1/fisherman/company_profiles                     index show update destroy
 /api/v1/fisherman/company_profiles/:id/contacts        create update destroy
 /api/v1/fisherman/company_profiles/:id/vessels         index show create update destroy
-  POST   .../:vessel_id/images
+  POST   .../:vessel_id/images            (images[front|back|left|right], replaces that slot)
+  DELETE .../:vessel_id/images/:view      (view = front|back|left|right)
   /api/v1/fisherman/company_profiles/:id/vessels/:vessel_id/fishing_gears   full CRUD
 /api/v1/fisherman/company_profiles/:id/crews           index show create update destroy
 /api/v1/fisherman/company_profiles/:id/documents       index create update

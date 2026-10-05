@@ -6816,7 +6816,7 @@
                 "{{companies_vessel_id}}"
               ]
             },
-            "description": "image_urls is a computed array of `/api/v1/attachments/:signed_id` paths for any images attached via \"Upload Vessel Images\" below (empty array if none). Vessel images are private: request each path with the same Authorization header — it answers 302 to a short-lived signed storage URL after re-checking company_profiles.view (and company ownership for fishermen). Requires companies_vessels.view."
+            "description": "`images` is an object keyed by view (`front`, `back`, `left`, `right`); each value is `null` or `{ url, filename }` where `url` is a `/api/v1/attachments/:signed_id` path, for images attached via \"Upload Vessel Images\" below. Vessel images are private: request each path with the same Authorization header — it answers 302 to a short-lived signed storage URL after re-checking company_profiles.view (and company ownership for fishermen). Requires companies_vessels.view."
           },
           "event": [
             {
@@ -6912,13 +6912,54 @@
               "mode": "formdata",
               "formdata": [
                 {
-                  "key": "images[]",
+                  "key": "images[front]",
                   "type": "file",
                   "src": "postman/fixtures/sample-vessel.png"
                 }
               ]
             },
-            "description": "Multipart upload — attach one or more files under the repeated images[] field. Each file must be JPEG or PNG and under 2MB (CompaniesVessel::IMAGE_ALLOWED_TYPES/IMAGE_MAX_SIZE), or the request fails with a 422 listing which constraint was violated. Uploaded images are appended to the vessel's existing images (not replaced). Requires companies_vessels.update. The file comes from `postman/fixtures/` — in the Postman app set **Settings → General → Working directory** to the repo root so the relative path resolves (newman: run from the repo root)."
+            "description": "Multipart upload — one file per view under `images[front]`, `images[back]`, `images[left]`, `images[right]` (send any subset). Uploading to a view replaces that slot; other slots are untouched. Each file must be JPEG or PNG and under 2MB (CompaniesVessel::IMAGE_ALLOWED_TYPES/IMAGE_MAX_SIZE), or the request fails with a 422 naming the slot (e.g. \"Front image must be a JPEG or PNG\"). Requires companies_vessels.update. The file comes from `postman/fixtures/` — in the Postman app set **Settings → General → Working directory** to the repo root so the relative path resolves (newman: run from the repo root)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Vessel Image",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/company_profiles/{{company_profile_id}}/vessels/{{companies_vessel_id}}/images/front",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "company_profiles",
+                "{{company_profile_id}}",
+                "vessels",
+                "{{companies_vessel_id}}",
+                "images",
+                "front"
+              ]
+            },
+            "description": "Removes one slot's image (`front`, `back`, `left`, `right`); an unknown view returns 422. Returns the vessel with the updated `images` hash. Requires companies_vessels.update."
           },
           "event": [
             {

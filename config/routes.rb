@@ -139,7 +139,10 @@ Rails.application.routes.draw do
                                      controller: "/api/v1/company_profiles" do
           resources :contacts, only: %i[create update destroy], controller: "/api/v1/company_profiles/contacts"
           resources :vessels, controller: "/api/v1/company_profiles/vessels" do
-            member { post :images }
+            member do
+              post :images
+              delete "images/:view", action: :destroy_image
+            end
             resources :fishing_gears, controller: "/api/v1/company_profiles/vessels/fishing_gears"
           end
           resources :crews, controller: "/api/v1/company_profiles/crews"
@@ -241,7 +244,10 @@ Rails.application.routes.draw do
                                      controller: "/api/v1/company_profiles" do
           resources :contacts, only: %i[create update destroy], controller: "/api/v1/company_profiles/contacts"
           resources :vessels, controller: "/api/v1/company_profiles/vessels" do
-            member { post :images }
+            member do
+              post :images
+              delete "images/:view", action: :destroy_image
+            end
             resources :fishing_gears, controller: "/api/v1/company_profiles/vessels/fishing_gears"
           end
           resources :crews, controller: "/api/v1/company_profiles/crews"
