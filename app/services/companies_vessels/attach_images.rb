@@ -4,13 +4,22 @@ module CompaniesVessels
 
     def self.call(...) = new.call(...)
 
+    # images: { "front" => file, "back" => file, ... } — each present view replaces that slot.
     def call(vessel, images)
-      vessel.images.attach(images)
-      return Failure(vessel) unless vessel.valid?
+      unknown = images.keys.map(&:to_s) - CompaniesVessel::IMAGE_VIEWS
+      return reject_unknown(vessel, unknown) if unknown.any?
 
-      Success(vessel)
+      images.each { |view, file| vessel.image_attachment(view).attach(file) }
+      vessel.valid? ? Success(vessel) : Failure(vessel)
     rescue ActiveStorage::IntegrityError, Aws::Errors::ServiceError, Seahorse::Client::NetworkingError => e
       vessel.errors.add(:images, "could not be uploaded: #{e.message}")
+      Failure(vessel)
+    end
+
+    private
+
+    def reject_unknown(vessel, unknown)
+      vessel.errors.add(:images, "has unknown view(s): #{unknown.join(', ')}")
       Failure(vessel)
     end
   end

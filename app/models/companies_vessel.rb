@@ -8,13 +8,14 @@ class CompaniesVessel < ApplicationRecord
   CHARTER_TYPES = %w[own charter].freeze
   BOAT_TYPES = %w[permanent temporary].freeze
 
+  IMAGE_VIEWS = %w[front back left right].freeze
   IMAGE_ALLOWED_TYPES = %w[image/jpeg image/png].freeze
   IMAGE_MAX_SIZE = 2.megabytes
 
   belongs_to :company_profile
   belongs_to :zone, optional: true
   has_many :companies_fishing_gears, dependent: :restrict_with_error
-  has_many_attached :images
+  IMAGE_VIEWS.each { |view| has_one_attached :"#{view}_image" }
 
   validates :vessel_name, :boat_number, presence: true
   validates :status, inclusion: { in: STATUSES }
@@ -35,12 +36,17 @@ class CompaniesVessel < ApplicationRecord
     %w[zone]
   end
 
+  def image_attachment(view) = public_send(:"#{view}_image")
+
   private
 
   def images_content_type_and_size
-    images.each do |image|
-      errors.add(:images, "must be a JPEG or PNG") unless IMAGE_ALLOWED_TYPES.include?(image.content_type)
-      errors.add(:images, "must be smaller than 2 MB") if image.byte_size > IMAGE_MAX_SIZE
+    IMAGE_VIEWS.each do |view|
+      image = image_attachment(view)
+      next unless image.attached?
+
+      errors.add(:"#{view}_image", "must be a JPEG or PNG") unless IMAGE_ALLOWED_TYPES.include?(image.content_type)
+      errors.add(:"#{view}_image", "must be smaller than 2 MB") if image.byte_size > IMAGE_MAX_SIZE
     end
   end
 end

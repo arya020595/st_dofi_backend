@@ -87,8 +87,8 @@ module Api
 
       def vessel_image
         vessel = create(:companies_vessel)
-        vessel.images.attach(io: StringIO.new(png_bytes), filename: "boat.png", content_type: "image/png")
-        vessel.images.first
+        vessel.front_image.attach(io: StringIO.new(png_bytes), filename: "boat.png", content_type: "image/png")
+        vessel.front_image
       end
 
       def fisherman_for(company_profile)

@@ -394,8 +394,9 @@ public bucket has no authorization check at all by design (§3).
      Company-owned records with no policy of their own (`CompaniesDocument`, `CompaniesVessel` — a
      company's whole profile is gated by `CompanyProfilePolicy`) are registered in
      `Api::V1::AttachmentsController::POLICY_CLASS_BY_RECORD_TYPE`; add a new company-owned model
-     there, otherwise the redirect raises `Pundit::NotDefinedError`. `CompaniesVessel#images`
-     (`image_urls` in `CompaniesVesselBlueprint`) is the second private-tier model: each entry is an
+     there, otherwise the redirect raises `Pundit::NotDefinedError`. `CompaniesVessel`'s four
+     single attachments (`front_image`/`back_image`/`left_image`/`right_image`, exposed as the keyed `images`
+     hash in `CompaniesVesselBlueprint`) are the second private-tier model: each non-null slot's `url` is an
      `/api/v1/attachments/:signed_id` path, so the client must fetch it with its `Authorization`
      header. Never call `blob.url`/`attachment.url` in a Blueprint for a private-tier file — that
      returns the internal `http://minio:9000/...` address, which no browser can resolve.
