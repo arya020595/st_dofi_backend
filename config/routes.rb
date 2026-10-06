@@ -26,7 +26,7 @@ Rails.application.routes.draw do
       resource :profile, only: [], controller: "profiles" do
         patch :locale
       end
-      post "auth/brunei_id", to: "brunei_id_sessions#create"
+      post "auth/brunei_id", to: "brunei_id_sessions#create" if Rails.configuration.x.brunei_id_mock_enabled
       post "auth/brunei_id/callback", to: "brunei_id_sessions#callback"
 
       resources :permissions, only: %i[index]

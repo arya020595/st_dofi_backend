@@ -2,6 +2,11 @@ module Notifications
   class CreateAndBroadcast
     def self.call(...) = new.call(...)
 
+    def initialize(broadcaster: NotificationsChannel, error_reporter: Rails.error)
+      @broadcaster = broadcaster
+      @error_reporter = error_reporter
+    end
+
     def call(user:, attributes:, resource: nil)
       notification = persist!(user:, attributes:, resource:)
 
@@ -10,6 +15,8 @@ module Notifications
     end
 
     private
+
+    attr_reader :broadcaster, :error_reporter
 
     def persist!(user:, attributes:, resource:)
       Notification.transaction do
@@ -30,9 +37,9 @@ module Notifications
     end
 
     def broadcast(notification)
-      NotificationsChannel.broadcast_to(notification.user, payload_for(notification))
+      broadcaster.broadcast_to(notification.user, payload_for(notification))
     rescue StandardError => e
-      Rails.logger.error("Notification broadcast failed: notification_id=#{notification.id} error=#{e.class}")
+      error_reporter.report(e, handled: true, context: { notification_id: notification.id })
     end
 
     def payload_for(notification)

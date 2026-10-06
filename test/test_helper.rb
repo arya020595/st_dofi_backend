@@ -1,7 +1,13 @@
 ENV["RAILS_ENV"] ||= "test"
+# Keep tests independent of the developer's .env; mock tests enable the route explicitly.
+ENV["BRUNEIID_MOCK_ENABLED"] = "false"
 require_relative "../config/environment"
+# The Rails test command may load application.rb before this helper sets ENV.
+Rails.configuration.x.brunei_id_mock_enabled = false
+Rails.application.reload_routes!
 require "rails/test_help"
 require_relative "support/postgresql_number_triggers"
+require_relative "support/brunei_id_callback_helper"
 
 # Rails' Ruby schema dump does not retain PostgreSQL functions/triggers. Install the two
 # database-backed number generators after a fresh test schema load, before parallel workers fork.
@@ -66,6 +72,8 @@ module ActiveSupport
 end
 
 class ActionDispatch::IntegrationTest
+  include BruneiIdCallbackHelper
+
   def auth_headers_for(user, password:)
     post "/api/v1/auth/sign_in", params: { user: { username: user.username, password: password } }, as: :json
     { "Authorization" => response.headers["Authorization"] }

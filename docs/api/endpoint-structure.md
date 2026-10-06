@@ -51,7 +51,7 @@ GET    /api/v1/auth/me                        # api/v1/sessions#me
 
 PATCH  /api/v1/profile/locale                 # profiles#locale — current_user only
 
-POST   /api/v1/auth/brunei_id                 # brunei_id_sessions#create — mocked BruneiID login
+POST   /api/v1/auth/brunei_id                 # brunei_id_sessions#create — mock only when BRUNEIID_MOCK_ENABLED=true
 POST   /api/v1/auth/brunei_id/callback        # brunei_id_sessions#callback — audience-specific BruneiID OIDC callback
 
 GET    /api/v1/permissions                    # permissions#index — full catalog, any authenticated user

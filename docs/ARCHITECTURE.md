@@ -19,8 +19,12 @@ stays intentionally at the "one screen" level rather than duplicating those.
 | Search / pagination       | Ransack / Pagy                                                                                        |
 | Audit trail / soft delete | Audited / Discard                                                                                     |
 | File storage              | MinIO (self-hosted, S3-compatible) via Active Storage; Cloudinary kept only until migration completes |
-| External identity         | BruneiID (government ID verification) via `Faraday`/`jwt` — **mocked today**, see §1                  |
+| External identity         | BruneiID (government ID verification) via `Faraday`/`jwt` — OIDC, see §1                  |
 | Monitoring                | Sentry (errors) + Lograge (structured JSON request logs)                                              |
+
+Operational logs go to container stdout, viewed with `docker compose logs api -f`; requests and
+responses are not persisted to a logging database. See [server logging](operations/server-logging.md)
+and [log management](operations/log-management.md). Business audit history remains separate.
 
 ## 1. System context
 
@@ -32,7 +36,7 @@ graph LR
     API["DoFi Backend<br/>Rails 8.1.3 API-only"]
     DB[("PostgreSQL<br/>+ Solid Queue/Cache")]
     MINIO[("MinIO<br/>self-hosted S3-compatible storage")]
-    BID["BruneiID<br/>gov identity verification<br/>(mocked today)"]
+    BID["BruneiID<br/>gov identity verification"]
     SENTRY["Sentry<br/>error monitoring"]
     GH["GitHub Actions<br/>CI/CD"]
     GHCR[("GHCR<br/>image registry")]
@@ -41,19 +45,22 @@ graph LR
     API --> DB
     API -->|SigV4 signed, uploads/downloads| MINIO
     FE -.->|presigned / direct public URLs| MINIO
-    API -.->|IC number verification<br/>app/services/brunei_id/client.rb, mocked| BID
+    API -->|OIDC code exchange + signed ID token<br/>BruneiId::OidcHttpClient| BID
     API -->|errors, 10% trace sampling| SENTRY
     GH -->|build & push image| GHCR
     GH -->|SSH, pull + migrate + up| API
 ```
 
-BruneiID is dashed because it's not a real integration yet — `app/services/brunei_id/client.rb`
-trusts the frontend-supplied IC number as already verified. That is the same verified-IC trust
-boundary used by Jetty Manager registration and Fisherman claim/login; Fisherman account creation
-itself is provision-before-login in Flow B. The `faraday`/`jwt` gems and `BRUNEIID_*` env vars are
-reserved for when it becomes real; the swap only touches that one class. See
-[`docs/registration/business-flow.md`](registration/business-flow.md) §10 for the full mocked-vs-real
-breakdown across the app.
+BruneiID verifies external identity through OIDC discovery, authorization-code exchange with PKCE,
+and signed ID-token validation against JWKS, issuer, audience, expiry, and nonce. The callback
+resolves only Fisherman or Jetty Manager accounts provisioned before login; it never trusts a
+frontend-supplied IC number as verification. See
+[`docs/registration/testing-brunei-id-login.md`](registration/testing-brunei-id-login.md) for testing.
+
+Developers can separately enable mock IC login with `BRUNEIID_MOCK_ENABLED=true` on local/staging.
+The flag defaults to disabled and production sets it to `false`. Mock and OIDC use the same
+audience-specific account resolver; only OIDC contacts the provider. The mock has its own stdout
+event and never acts as a fallback for failed real authentication.
 
 ## 2. Deployment topology
 

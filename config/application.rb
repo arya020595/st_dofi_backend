@@ -29,6 +29,9 @@ module DofiBackend
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
 
+    # Staging also uses RAILS_ENV=production; mock login is controlled independently.
+    config.x.brunei_id_mock_enabled = ENV.fetch("BRUNEIID_MOCK_ENABLED", "false") == "true"
+
     # Bilingual support: English (default) and Malay.
     config.i18n.available_locales = %i[en ms]
     config.i18n.default_locale = :en
