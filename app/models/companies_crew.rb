@@ -12,7 +12,7 @@ class CompaniesCrew < ApplicationRecord
   validates :foreign_worker_license_no, :foreign_worker_license_start_date, :foreign_worker_license_end_date,
             presence: true, unless: :local_citizen?
   validates :status, inclusion: { in: STATUSES }
-  validate :position_must_be_crew_category
+  validate :position_must_be_fisherman_category
 
   def self.ransackable_attributes(_auth_object = nil)
     %w[id crew_name date_of_birth ic_number passport_number nationality gender status
@@ -26,10 +26,10 @@ class CompaniesCrew < ApplicationRecord
 
   private
 
-  def position_must_be_crew_category
-    return if position.nil? || position.category == "Crew"
+  def position_must_be_fisherman_category
+    return if position.nil? || position.category == "Fisherman"
 
-    errors.add(:position, "must be a crew position")
+    errors.add(:position, "must be a fisherman position")
   end
 
   def local_citizen?

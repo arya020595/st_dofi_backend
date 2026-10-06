@@ -31,6 +31,13 @@ class CompaniesCrewTest < ActiveSupport::TestCase
     end
   end
 
+  test "is invalid with a position outside the Fisherman category" do
+    crew = build(:companies_crew, position: create(:position, category: "Jetty Manager"))
+
+    assert_not crew.valid?
+    assert_includes crew.errors.attribute_names, :position
+  end
+
   test "does not require foreign worker licence fields for a local citizen" do
     Nationality.create!(code: "BN", name: "Bruneian", is_local_citizenship: true)
     crew = build(:companies_crew, nationality: "Bruneian", foreign_worker_license_no: nil,

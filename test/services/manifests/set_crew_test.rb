@@ -43,7 +43,7 @@ module Manifests
 
     test "crew manifest blueprint falls back to the companies_crew position name for legacy bad snapshots" do
       manifest = create(:manifest)
-      position = create(:position, name: "Deckhand", category: "Crew")
+      position = create(:position, name: "Deckhand", category: "Fisherman")
       crew = create(:companies_crew, :approved, company_profile: manifest.company_profile, position: position)
       snapshot = manifest.crew_manifests.create!(
         companies_crew: crew,
