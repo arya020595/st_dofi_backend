@@ -35,10 +35,13 @@ module Api
         end
 
         test "approve transitions the crew member from pending to approved" do
+          owner = create_fisherman_owner(@crew.company_profile)
+
           post "/api/v1/admin/approvals/crews/#{@crew.id}/approve", headers: @admin_headers
 
           assert_response :ok
           assert_equal "approved", @crew.reload.approval_status
+          assert_equal "profiling.crew_approved", owner.notifications.sole.notification_type
         end
 
         test "request_amendment records the remarks and moves the crew member to amendment_required" do
@@ -55,6 +58,15 @@ module Api
           assert_response :ok
           assert response.parsed_body["data"].key?("gender")
           assert response.parsed_body["data"].key?("status")
+        end
+
+        private
+
+        def create_fisherman_owner(company_profile)
+          role = create(:role, :fisherman, company_profile:, is_default: true, name: "Owner")
+          create(:user, role:, company_profile:, fisherman_status: "active", registration_type: "Commercial",
+                        ic_number: "01-#{SecureRandom.random_number(10**8).to_s.rjust(8, '0')}",
+                        claimed_at: Time.current, brunei_id_verified_at: Time.current)
         end
       end
     end

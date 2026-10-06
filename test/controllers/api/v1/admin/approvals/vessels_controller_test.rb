@@ -35,10 +35,13 @@ module Api
         end
 
         test "approve transitions the vessel from pending to approved" do
+          owner = create_fisherman_owner(@vessel.company_profile)
+
           post "/api/v1/admin/approvals/vessels/#{@vessel.id}/approve", headers: @admin_headers
 
           assert_response :ok
           assert_equal "approved", @vessel.reload.approval_status
+          assert_equal "profiling.vessel_approved", owner.notifications.sole.notification_type
         end
 
         test "approve also approves the vessel's fishing gears" do
@@ -72,6 +75,15 @@ module Api
 
           assert_equal "amendment_required", @vessel.approval_status
           assert_equal "Boat number mismatch", @vessel.amendment_remarks
+        end
+
+        private
+
+        def create_fisherman_owner(company_profile)
+          role = create(:role, :fisherman, company_profile:, is_default: true, name: "Owner")
+          create(:user, role:, company_profile:, fisherman_status: "active", registration_type: "Commercial",
+                        ic_number: "01-#{SecureRandom.random_number(10**8).to_s.rjust(8, '0')}",
+                        claimed_at: Time.current, brunei_id_verified_at: Time.current)
         end
       end
     end

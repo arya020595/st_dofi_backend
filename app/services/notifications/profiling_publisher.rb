@@ -1,19 +1,25 @@
 module Notifications
   class ProfilingPublisher
     EVENTS = {
-      vessel_amendment_required: ["Vessel / Boat Amendment Required", "Vessel / Boat"],
-      fishing_gear_amendment_required: ["Fishing Gear Amendment Required", "Fishing Gear"],
-      crew_amendment_required: ["Crew Amendment Required", "Crew"],
-      document_amendment_required: ["Document Amendment Required", "Document"]
+      vessel_amendment_required: ["Vessel / Boat Amendment Required", "Vessel / Boat",
+                                  "%<resource>s requires an amendment."],
+      vessel_approved: ["Vessel / Boat Approved", "Vessel / Boat", "%<resource>s has been approved."],
+      fishing_gear_amendment_required: ["Fishing Gear Amendment Required", "Fishing Gear",
+                                        "%<resource>s requires an amendment."],
+      crew_amendment_required: ["Crew Amendment Required", "Crew", "%<resource>s requires an amendment."],
+      crew_approved: ["Crew Approved", "Crew", "%<resource>s has been approved."],
+      document_amendment_required: ["Document Amendment Required", "Document",
+                                    "%<resource>s requires an amendment."],
+      document_approved: ["Document Approved", "Document", "%<resource>s has been approved."]
     }.freeze
 
     def self.call(...) = new.call(...)
 
     def call(event:, resource:)
-      title, resource_label = EVENTS.fetch(event.to_sym)
+      title, resource_label, message_template = EVENTS.fetch(event.to_sym)
       PublishToUsers.call(
         users: recipients_for(resource.company_profile_id),
-        attributes: notification_attributes(event, resource, title, resource_label),
+        attributes: notification_attributes(event, resource, title, resource_label, message_template),
         resource:
       )
     end
@@ -29,11 +35,11 @@ module Notifications
           .distinct
     end
 
-    def notification_attributes(event, resource, title, resource_label)
+    def notification_attributes(event, resource, title, resource_label, message_template)
       {
         notification_type: "profiling.#{event}",
         title:,
-        message: "#{resource_label} #{resource_name(resource)} requires an amendment.",
+        message: "#{resource_label} #{format(message_template, resource: resource_name(resource))}",
         metadata: resource_metadata(resource)
       }
     end

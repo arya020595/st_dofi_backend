@@ -16,6 +16,23 @@ class Notifications::ProfilingPublisherTest < ActiveSupport::TestCase
     assert_equal "Please attach the current vessel licence.", notification.metadata["amendment_remarks"]
   end
 
+  test "sends vessel, crew, and document approval notifications to the default profile owner" do
+    company_profile = create(:company_profile)
+    owner = create_fisherman_recipient(company_profile, default_owner: true)
+    vessel = create(:companies_vessel, company_profile:)
+    crew = create(:companies_crew, company_profile:)
+    document = create(:companies_document, company_profile:)
+
+    Notifications::ProfilingPublisher.call(event: :vessel_approved, resource: vessel)
+    Notifications::ProfilingPublisher.call(event: :crew_approved, resource: crew)
+    Notifications::ProfilingPublisher.call(event: :document_approved, resource: document)
+
+    assert_equal %w[profiling.crew_approved profiling.document_approved profiling.vessel_approved],
+                 owner.notifications.order(:notification_type).pluck(:notification_type)
+    assert_equal "Vessel / Boat #{vessel.vessel_name} has been approved.",
+                 owner.notifications.find_by!(resource_type: "CompaniesVessel", resource_id: vessel.id).message
+  end
+
   private
 
   def create_fisherman_recipient(company_profile, default_owner: false)
