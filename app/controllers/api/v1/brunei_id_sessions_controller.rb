@@ -1,52 +1,37 @@
 module Api
   module V1
     class BruneiIdSessionsController < ApplicationController
-      include BruneiIdSessions::CallbackRendering
-      include BruneiIdSessions::LegacyRendering
-      include BruneiIdSessions::ProfilePayload
-      include BruneiIdSessions::ResponsePayloads
-      include BruneiIdSessions::ResponseRendering
-      include BruneiIdSessions::ResultLogging
-
       skip_before_action :authenticate_user!, only: %i[create callback]
       skip_before_action :require_correct_audience, only: %i[create callback]
 
       def create
-        case BruneiId::Client.call(ic_number: params.expect(:ic_number))
-        in Success(verified_ic_number)
-          render_brunei_id_success(verified_ic_number)
-        in Failure(_reason)
-          render json: { status: "fail", message: "Identity verification failed." }, status: :unauthorized
+        case BruneiIdSessions::MockAuthenticate.call(ic_number: params.expect(:ic_number), audience: params[:audience])
+        in Success(session)
+          render json: BruneiIdSessionBlueprint.render_as_hash(session, **sign_in_and_issue_tokens(session)),
+                 status: :ok
+        in Failure(error)
+          render json: BruneiIdSessionBlueprint.render_as_hash(error), status: error.fetch(:status)
         end
       end
 
       def callback
-        audience = callback_params[:audience]
-        return render_invalid_audience unless supported_callback_audience?(audience)
-
-        case BruneiId::OidcCallback.call(**callback_params.except(:audience).symbolize_keys)
-        in Success(verified_ic_number)
-          render_callback_success(verified_ic_number, audience)
+        case BruneiIdSessions::Authenticate.call(**callback_params)
+        in Success(session)
+          render json: BruneiIdSessionBlueprint.render_as_hash(session, **sign_in_and_issue_tokens(session)),
+                 status: :ok
         in Failure(error)
-          render_callback_error(error)
+          render json: BruneiIdSessionBlueprint.render_as_hash(error), status: error.fetch(:status)
         end
       end
 
       private
 
-      def render_brunei_id_success(verified_ic_number)
-        case params[:audience]
-        when "fisherman" then render_fisherman_callback(verified_ic_number)
-        when "jetty_manager" then render_jetty_manager_callback(jetty_manager_user_for(verified_ic_number),
-                                                                verified_ic_number)
-        else render_for(user_for_verified_ic(verified_ic_number), verified_ic_number: verified_ic_number)
-        end
-      end
+      def sign_in_and_issue_tokens(session)
+        return {} unless %i[dashboard mock_dashboard].include?(session.fetch(:kind))
 
-      def render_callback_success(verified_ic_number, audience)
-        return render_fisherman_callback(verified_ic_number) if audience == "fisherman"
-
-        render_jetty_manager_callback(jetty_manager_user_for(verified_ic_number), verified_ic_number)
+        user = session.fetch(:user)
+        sign_in(:user, user, store: false)
+        { access_token: request.env["warden-jwt_auth.token"], realtime_tokens: Realtime::CableToken.issue(user) }
       end
 
       def callback_params
@@ -57,21 +42,6 @@ module Api
           nonce: params.expect(:nonce),
           audience: params.expect(:audience)
         }
-      end
-
-      def supported_callback_audience?(audience)
-        %w[fisherman jetty_manager].include?(audience)
-      end
-
-      def user_for_verified_ic(ic_number)
-        User.kept.find_by(normalized_ic_number: IcNumbers::Normalize.call(ic_number))
-      end
-
-      def jetty_manager_user_for(ic_number)
-        User.kept.joins(:role).find_by(
-          normalized_ic_number: IcNumbers::Normalize.call(ic_number),
-          roles: { kind: Role::JETTY_MANAGER }
-        )
       end
     end
   end

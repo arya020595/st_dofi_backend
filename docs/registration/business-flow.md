@@ -1,7 +1,7 @@
 # Business Flow — Actors, Roles & Lifecycles
 
 This is the business-level companion to [`registration-flow.md`](registration-flow.md) (endpoint
-request/response contracts) and [`testing-mock-brunei-id-login.md`](testing-mock-brunei-id-login.md)
+request/response contracts) and [`testing-brunei-id-login.md`](testing-brunei-id-login.md)
 (how to exercise it). This doc answers a different question: **who are the actors, how does each one
 get an account, who governs it afterwards, and why were the non-obvious decisions made this way.**
 
@@ -12,8 +12,8 @@ get an account, who governs it afterwards, and why were the non-obvious decision
 | Actor | Role | How they get an account | How they log in |
 |---|---|---|---|
 | **DoFi Officer / Administrator** | `kind: "DoFi Officer"` | Created by another officer via **User Management → Add User** (internal, authenticated) | `username` + password (real credential check) |
-| **Jetty Manager** | `kind: "Jetty Manager"` | Created by an officer via **User Management → External Users** (§4) | BruneiID QR re-scan (mocked today) |
-| **Fisherman** | `platform_scope: "fisherman"` — company-scoped Owner/Admin/custom roles (see §2) | Provisioned before first login by DoFI Company Profiling or Fisherman Owner User Management | BruneiID QR claim/login (mocked today) |
+| **Jetty Manager** | `kind: "Jetty Manager"` | Created by an officer via **User Management → External Users** (§4) | BruneiID QR re-scan |
+| **Fisherman** | `platform_scope: "fisherman"` — company-scoped Owner/Admin/custom roles (see §2) | Provisioned before first login by DoFI Company Profiling or Fisherman Owner User Management | BruneiID QR claim/login |
 
 **The one thing that explains most of this system's design**: officers are an *internal, trusted*
 population managed by other officers, so they get a real credential (`username`/password) chosen by
@@ -279,7 +279,7 @@ sequenceDiagram
 
     Note over Fisherman: Later — QR + BruneiID claims the provisioned user
     participant Fisherman
-    Fisherman->>API: POST /api/v1/auth/brunei_id or /auth/brunei_id/callback
+    Fisherman->>API: POST /api/v1/auth/brunei_id/callback
     API->>DB: lookup kept Fisherman User by normalized_ic_number
     DB-->>API: claimable user
     API->>DB: Fisherman::ClaimAccount -> fisherman_status: active
@@ -330,15 +330,15 @@ Approval Remarks) was removed on 2026-09-28 — see §9.
 
 | | DoFi Officer / Administrator | Jetty Manager | Fisherman |
 |---|---|---|---|
-| Endpoint | `POST /api/v1/auth/sign_in` | `POST /api/v1/auth/brunei_id` or callback | `POST /api/v1/auth/brunei_id` or callback |
-| Credential | `username` + real password | `ic_number` only (BruneiID-verified externally) | `ic_number` only (BruneiID-verified externally) |
+| Endpoint | `POST /api/v1/auth/sign_in` | `POST /api/v1/auth/brunei_id/callback` | `POST /api/v1/auth/brunei_id/callback` |
+| Credential | `username` + real password | OIDC code + PKCE verifier + nonce + redirect URI | OIDC code + PKCE verifier + nonce + redirect URI |
 | Lifecycle gate | Devise credential success | `users.status` | `users.fisherman_status` |
 | Missing IC behavior | N/A | terminal no-provisioned-account response | terminal no-provisioned-account response |
-| Today's implementation | Real (`encrypted_password` check via Devise) | Mock/callback plumbing | Mock/callback plumbing plus claim for `claimable` users |
+| Today's implementation | Real (`encrypted_password` check via Devise) | OIDC callback | OIDC callback plus claim for `claimable` users |
 
-The mock exists behind one small class (`app/services/brunei_id/client.rb`) specifically so swapping
-in a real BruneiID integration later only touches that one file, not every place that currently calls
-it.
+Identity comes from a signed BruneiID ID token verified against the provider's JWKS, issuer,
+audience, expiry, and nonce. The frontend supplies an authorization code and PKCE verifier,
+never an IC number as proof of identity.
 
 ---
 
@@ -397,14 +397,15 @@ A few choices made along the way that aren't obvious just from reading the code:
 
 ---
 
-## 10. What's mocked vs. real today
+## 10. Identity integration
 
-| Piece | Status |
-|---|---|
-| BruneiID "login" (`/api/v1/auth/brunei_id`) | **Mock** — looks up by `ic_number` directly, no external call |
-| DoFi Officer username/password login | Real |
-| Officer-created accounts (officers, Jetty Managers), profiling, External Users | Real, no mocks |
+BruneiID login uses `POST /api/v1/auth/brunei_id/callback` with the configured OIDC provider.
+`BruneiId::OidcHttpClient` handles discovery, token exchange, JWKS, and optional userinfo;
+`BruneiId::OidcTokenValidator` verifies the ID token. `BruneiIdSessions::Authenticate` resolves
+only the requested external audience and delegates Fisherman claiming to its existing service.
 
-The `faraday`/`jwt` gems and `BRUNEIID_*` env vars are already reserved in the Gemfile/`.env.example`
-for when a real BruneiID integration replaces the mock — see `app/services/brunei_id/client.rb` for
-the exact swap-in point.
+Local and staging developers can explicitly enable `POST /api/v1/auth/brunei_id` with
+`BRUNEIID_MOCK_ENABLED=true`; production sets it to `false`. Missing or invalid values disable
+the route. The mock trusts a supplied IC and never calls the provider. It shares audience-scoped
+account resolution with OIDC, while preserving its optional-audience developer contract.
+The real callback never falls back to the mock. See the testing guide for configuration and responses.

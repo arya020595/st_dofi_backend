@@ -8,10 +8,9 @@ class ApplicationController < ActionController::API
   include ActiveStorage::SetCurrent
 
   before_action :authenticate_user!
-  before_action :set_current_context
   before_action :set_locale
   before_action :set_active_storage_url_options
-  around_action :log_inbound_api_request
+  prepend_around_action :with_request_context
   include RequireAudience # after authenticate_user! — needs current_user to already be set
 
   rescue_from Pundit::NotAuthorizedError, with: :render_forbidden
@@ -32,11 +31,6 @@ class ApplicationController < ActionController::API
     request.headers["Accept-Language"]
   end
 
-  def set_current_context
-    Current.request_id = request.request_id
-    Current.user_id = current_user&.id
-  end
-
   # Only the local Disk service (used in development/test) needs this — it serves files through a
   # Rails route, so generating a URL requires a host. This is an ActionController::API app, which
   # (unlike ActionController::Base) never auto-populates ActiveStorage::Current.url_options from the
@@ -54,15 +48,10 @@ class ApplicationController < ActionController::API
     payload[:user_id] = current_user&.id
   end
 
-  def log_inbound_api_request
-    exception = nil
+  def with_request_context
+    Current.request_id = request.request_id
     yield
-  rescue StandardError => e
-    exception = e
-    raise
   ensure
-    ApiRequestLogs::Recorder.log_inbound(request:, response:, current_user: current_user,
-                                         controller_name: "#{self.class.name}##{action_name}", exception:)
     Current.reset
   end
 
@@ -86,7 +75,7 @@ class ApplicationController < ActionController::API
   end
 
   def render_storage_error(exception)
-    Rails.logger.error(exception.full_message)
+    Rails.error.report(exception, handled: true)
     render_error(I18n.t("errors.storage_failed"), :unprocessable_content)
   end
 

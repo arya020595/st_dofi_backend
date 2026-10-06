@@ -56,6 +56,6 @@ class OfficerCreatedJettyManagerLoginTest < ActionDispatch::IntegrationTest
   private
 
   def brunei_id_login(ic_number)
-    post "/api/v1/auth/brunei_id", params: { ic_number: ic_number, audience: "jetty_manager" }, as: :json
+    post_brunei_id_callback(ic_number:, audience: "jetty_manager")
   end
 end

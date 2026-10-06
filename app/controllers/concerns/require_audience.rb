@@ -22,9 +22,9 @@ module RequireAudience
   def require_correct_audience
     case params[:audience]
     when "admin"
-      deny_wrong_audience("admin") unless current_user.dofi_officer_platform?
+      render_forbidden unless current_user.dofi_officer_platform?
     when "fisherman"
-      deny_wrong_audience("fisherman") unless allowed_fisherman_audience?
+      render_forbidden unless allowed_fisherman_audience?
     end
   end
 
@@ -33,17 +33,5 @@ module RequireAudience
     return current_user.current_fisherman_owner? if current_user.has_fisherman_owner_role?
 
     true
-  end
-
-  # Denial is logged deliberately: an ordinary grant here is just normal traffic already captured
-  # by Lograge's per-request line, but a wrong-audience attempt is the same kind of signal worth
-  # seeing on its own that Api::V1::AttachmentsController already logs for document access.
-  def deny_wrong_audience(required_audience)
-    platform_scope = current_user.role&.platform_scope || "none"
-    Rails.logger.warn(
-      "Audience access denied: user=#{current_user.id} role_platform_scope=#{platform_scope} " \
-      "required_audience=#{required_audience} path=#{request.path}"
-    )
-    render_forbidden
   end
 end
