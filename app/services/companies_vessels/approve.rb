@@ -11,6 +11,7 @@ module CompaniesVessels
         vessel.approve!(actor: actor)
         approve_fishing_gears!(vessel, actor)
         CompanyProfiles::SyncApprovalStatus.refresh_after_review!(vessel.company_profile, actor: actor)
+        Notifications::ProfilingPublisher.call(event: :vessel_approved, resource: vessel)
       end
 
       Success(vessel)

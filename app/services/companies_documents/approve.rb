@@ -10,6 +10,7 @@ module CompaniesDocuments
       ActiveRecord::Base.transaction do
         document.approve!(actor: actor)
         CompanyProfiles::SyncApprovalStatus.refresh_after_review!(document.company_profile, actor: actor)
+        Notifications::ProfilingPublisher.call(event: :document_approved, resource: document)
       end
 
       Success(document)
