@@ -39,6 +39,26 @@ class ManifestCompletionTest < ActiveSupport::TestCase
     assert_equal "completed", manifest.reload.manifest_status
   end
 
+  test "commercial manifest completes only after a post-port-in amendment is resubmitted and verified" do
+    manifest = create(:manifest, fisherman_category: "commercial")
+    manifest.submit_port_out!
+    manifest.approve_port_out!
+    report = create(:capture_report, manifest: manifest)
+
+    manifest.submit_port_in!
+    manifest.approve_port_in!
+
+    assert_equal %w[approved capture_report_submitted pending_verification],
+                 [manifest.port_in_status, manifest.manifest_status, report.capture_report_status]
+
+    report.request_amendment!(remarks: "Correct the catch quantity")
+    report.resubmit!
+    report.verify!
+
+    assert_equal %w[approved completed verified],
+                 [manifest.reload.port_in_status, manifest.manifest_status, report.reload.capture_report_status]
+  end
+
   test "complete_manifest increments usage_value from capture report fishing gear quantities" do
     manifest = create(:manifest, fisherman_category: "commercial")
     manifest.submit_port_out!

@@ -95,35 +95,33 @@ class Manifest < ApplicationRecord
     after_all_transitions :record_port_out_history
   end
 
+  # A skipped report has nothing for a DoFi Officer to verify: commercial goes straight to Jetty Manager
+  # review, small-scale completes with no approval at all. The guards are mutually exclusive, so row
+  # order does not matter. See docs/manifests/approval-rules-by-category.md.
   aasm(:port_in, column: :port_in_status, namespace: :port_in) do
     state :draft, initial: true
     state :pending
     state :amendment_required
     state :approved
     state :submitted
-
-    # A skipped report has nothing for a DoFi Officer to verify: commercial goes straight to Jetty Manager
-    # review, small-scale completes with no approval at all. The guards are mutually exclusive, so row
-    # order does not matter. See docs/manifests/approval-rules-by-category.md.
     event :submit_port_in do
       transitions from: :draft, to: :pending,   guard: %i[commercial? capture_report_skipped?],
                   after: %i[complete_capture_report! begin_port_in_review!]
       transitions from: :draft, to: :pending,   guard: %i[commercial? capture_report_verifiable?],
                   after: :complete_capture_report!
       transitions from: :draft, to: :submitted, guard: %i[small_scale? capture_report_skipped?],
-                  after: %i[complete_capture_report! complete_manifest!]
+                  after: :complete_capture_report!, success: :finalize_completion_if_ready!
       transitions from: :draft, to: :submitted, guard: %i[small_scale? capture_report_verifiable?],
                   after: :complete_capture_report!
     end
     event(:approve_port_in) do
-      transitions from: :pending, to: :approved, after: %i[clear_port_in_amendment_snapshot! complete_manifest!]
+      transitions from: :pending, to: :approved, after: :clear_port_in_amendment!,
+                  success: :finalize_completion_if_ready!
     end
     event(:request_amendment_port_in) do
       transitions from: :pending, to: :amendment_required, after: :store_port_in_amendment_snapshot!
     end
-    event(:resubmit_port_in) do
-      transitions from: :amendment_required, to: :pending, after: :clear_port_in_amendment_snapshot!
-    end
+    event(:resubmit_port_in) { transitions from: :amendment_required, to: :pending, after: :clear_port_in_amendment! }
 
     after_all_transitions :record_port_in_history
   end
@@ -151,6 +149,7 @@ class Manifest < ApplicationRecord
     # pre-transition state (see AASM::InstanceBase#aasm_fired).
     event(:complete_manifest) do
       transitions from: %i[capture_report_submitted awaiting_port_in_approval], to: :completed,
+                  guard: :ready_for_completion?,
                   success: %i[record_fishing_gear_usage! clear_capture_report_amendment_snapshot!]
     end
 
@@ -191,11 +190,27 @@ class Manifest < ApplicationRecord
     update!(port_in_amendment_remarks: remarks)
   end
 
-  def clear_port_in_amendment_snapshot!(*, **)
+  def clear_port_in_amendment!(*, **)
     update!(port_in_amendment_remarks: nil)
   end
 
   public
+
+  # Commercial Port-In approval and Capture Report verification complete independently. Either event
+  # calls this shared finalizer; only their combined terminal conditions may complete the manifest.
+  def finalize_completion_if_ready!(*, actor: nil, **)
+    return unless ready_for_completion?
+    return unless capture_report_submitted? || awaiting_port_in_approval?
+
+    complete_manifest!(actor: actor)
+  end
+
+  def begin_port_in_review_if_ready!(*, actor: nil, **)
+    return unless commercial? && port_in_pending? && all_capture_reports_verified?
+    return unless may_begin_port_in_review?
+
+    begin_port_in_review!(actor: actor)
+  end
 
   def sync_capture_report_amendment_snapshot!
     update!(capture_report_amendment_remarks: latest_capture_report_amendment_remarks)
@@ -216,6 +231,16 @@ class Manifest < ApplicationRecord
   end
 
   private
+
+  def ready_for_completion?
+    return false unless capture_report_skipped? || all_capture_reports_verified?
+
+    commercial? ? port_in_status == "approved" : small_scale? && port_in_status == "submitted"
+  end
+
+  def all_capture_reports_verified?
+    capture_reports.exists? && capture_reports.where.not(capture_report_status: "verified").none?
+  end
 
   def record_fishing_gear_usage!(*, **)
     usage_totals = FishingGearDetail.joins(:capture_report)

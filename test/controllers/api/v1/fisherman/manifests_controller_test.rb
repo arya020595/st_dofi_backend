@@ -39,7 +39,8 @@ module Api
         end
 
         test "index scopes a fisherman to their own company's manifests" do
-          create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
+          manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
+          report = create(:capture_report, manifest: manifest)
           other_company = create(:company_profile)
           other_vessel = create(:companies_vessel, :approved, company_profile: other_company)
           create(:manifest, company_profile: other_company, companies_vessel: other_vessel)
@@ -48,6 +49,7 @@ module Api
 
           assert_response :ok
           assert_equal 1, response.parsed_body["data"].size
+          assert_equal [report.id], response.parsed_body.dig("data", 0, "capture_reports").pluck("id")
         end
 
         test "show includes is_draft and expense data" do

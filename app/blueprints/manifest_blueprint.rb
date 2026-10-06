@@ -9,6 +9,7 @@ class ManifestBlueprint < Blueprinter::Base
 
   field(:capture_report_overview_status, &:capture_report_overview_status)
   field(:is_draft, &:draft?)
+  association :capture_reports, blueprint: CaptureReportBlueprint
   field :support_vessels do |manifest|
     ManifestSupportVesselBlueprint.render_as_hash(manifest.manifest_support_vessels)
   end

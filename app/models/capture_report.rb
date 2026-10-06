@@ -84,7 +84,7 @@ class CaptureReport < ApplicationRecord
 
   def stamp_review_and_maybe_complete!(*, actor: nil, **)
     update!(reviewed_by_id: actor&.id, reviewed_at: Time.current)
-    advance_manifest_after_verification!(actor: actor) if manifest.capture_reports.all?(&:verified?)
+    advance_manifest_after_verification!(actor: actor)
   end
 
   def clear_review!(*, **)
@@ -92,18 +92,8 @@ class CaptureReport < ApplicationRecord
   end
 
   def advance_manifest_after_verification!(actor:)
-    return complete_small_scale_manifest!(actor: actor) if complete_small_scale_manifest?(manifest)
-    return unless manifest.may_begin_port_in_review?
-
-    manifest.begin_port_in_review!(actor: actor)
-  end
-
-  def complete_small_scale_manifest?(manifest)
-    manifest.small_scale? && manifest.may_complete_manifest?
-  end
-
-  def complete_small_scale_manifest!(actor:)
-    manifest.complete_manifest!(actor: actor)
+    manifest.finalize_completion_if_ready!(actor: actor)
+    manifest.begin_port_in_review_if_ready!(actor: actor)
   end
 end
 
