@@ -5,10 +5,10 @@ module CaptureReports
     test "verifying the last report does not re-notify jetty approvers already told at port-in submit" do
       approver = create_admin_recipient("manifest_approvals.approve")
       manifest = create(:manifest, fisherman_category: "commercial")
-      manifest.submit_port_out!
-      manifest.approve_port_out!
+      fire_manifest(manifest, :submit_port_out)
+      fire_manifest(manifest, :approve_port_out)
       report = create(:capture_report, manifest: manifest)
-      manifest.submit_port_in!
+      fire_manifest(manifest, :submit_port_in)
 
       assert_predicate Verify.call(report, actor: create(:user)), :success?
 

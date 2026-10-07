@@ -6,12 +6,10 @@ module Manifests
 
     def call(manifest, actor:)
       return resubmit_capture_reports(manifest, actor: actor) if capture_report_amendment_resubmittable?(manifest)
-      return Failure(manifest) unless manifest.may_resubmit_port_in?
 
-      manifest.resubmit_port_in!(actor: actor)
-      manifest.advance_lifecycle!(actor: actor)
-      Notifications::ManifestPublisher.call(event: :port_in_resubmitted, manifest:)
-      Success(manifest)
+      Transition.call(manifest, :resubmit_port_in, actor: actor).tap do |result|
+        Notifications::ManifestPublisher.call(event: :port_in_resubmitted, manifest:) if result.success?
+      end
     end
 
     private

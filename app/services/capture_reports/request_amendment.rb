@@ -5,15 +5,15 @@ module CaptureReports
     def self.call(...) = new.call(...)
 
     def call(report, actor:, remarks:)
-      return Failure(report) unless report.may_request_amendment?
+      Transition.call(report, :request_amendment, actor: actor, remarks: remarks).tap do |result|
+        next unless result.success?
 
-      report.request_amendment!(actor: actor, remarks: remarks)
-      Notifications::ManifestPublisher.call(
-        event: :capture_report_amendment_required,
-        manifest: report.manifest,
-        capture_report: report
-      )
-      Success(report)
+        Notifications::ManifestPublisher.call(
+          event: :capture_report_amendment_required,
+          manifest: report.manifest,
+          capture_report: report
+        )
+      end
     end
   end
 end

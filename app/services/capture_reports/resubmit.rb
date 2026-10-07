@@ -5,15 +5,15 @@ module CaptureReports
     def self.call(...) = new.call(...)
 
     def call(report, actor:)
-      return Failure(report) unless report.may_resubmit?
+      Transition.call(report, :resubmit, actor: actor).tap do |result|
+        next unless result.success?
 
-      report.resubmit!(actor: actor)
-      Notifications::ManifestPublisher.call(
-        event: :capture_report_resubmitted,
-        manifest: report.manifest,
-        capture_report: report
-      )
-      Success(report)
+        Notifications::ManifestPublisher.call(
+          event: :capture_report_resubmitted,
+          manifest: report.manifest,
+          capture_report: report
+        )
+      end
     end
   end
 end

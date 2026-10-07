@@ -5,11 +5,9 @@ module Manifests
     def self.call(...) = new.call(...)
 
     def call(manifest, actor:, remarks:)
-      return Failure(manifest) unless manifest.may_request_amendment_port_out?
-
-      manifest.request_amendment_port_out!(actor: actor, remarks: remarks)
-      Notifications::ManifestPublisher.call(event: :port_out_amendment_required, manifest:)
-      Success(manifest)
+      Transition.call(manifest, :request_amendment_port_out, actor: actor, remarks: remarks).tap do |result|
+        Notifications::ManifestPublisher.call(event: :port_out_amendment_required, manifest:) if result.success?
+      end
     end
   end
 end

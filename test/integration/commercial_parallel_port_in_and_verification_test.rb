@@ -17,10 +17,10 @@ class CommercialParallelPortInAndVerificationTest < ActionDispatch::IntegrationT
                            capture_report_verifications.verify]
     )
     @manifest = create(:manifest, fisherman_category: "commercial")
-    @manifest.submit_port_out!
-    @manifest.approve_port_out!
+    fire_manifest(@manifest, :submit_port_out)
+    fire_manifest(@manifest, :approve_port_out)
     @report = create(:capture_report, manifest: @manifest)
-    @manifest.submit_port_in!
+    fire_manifest(@manifest, :submit_port_in)
   end
 
   test "jetty manager approves port-in before the DoFi officer verifies, then verification completes it" do

@@ -5,7 +5,7 @@ class CaptureReportTest < ActiveSupport::TestCase
     officer = create(:user)
     report = create(:capture_report)
 
-    report.verify!(actor: officer)
+    fire_report(report, :verify, actor: officer)
 
     assert_equal "verified", report.capture_report_status
     assert_equal officer.id, report.reviewed_by_id
@@ -29,7 +29,7 @@ class CaptureReportTest < ActiveSupport::TestCase
 
   test "verify! raises when the report is not pending_verification" do
     report = create(:capture_report)
-    report.verify!
+    fire_report(report, :verify)
 
     assert_raises(AASM::InvalidTransition) { report.verify! }
     assert_not report.may_verify?
@@ -38,16 +38,16 @@ class CaptureReportTest < ActiveSupport::TestCase
   test "request_amendment! moves to needs_amendment, records remarks, and reopens editing" do
     report = create(:capture_report)
 
-    report.request_amendment!(remarks: "Fishing gear section invalid for this zone")
+    fire_report(report, :request_amendment, remarks: "Fishing gear section invalid for this zone")
 
     assert_amended_report(report)
   end
 
   test "resubmit! returns an amended report to pending_verification" do
     report = create(:capture_report)
-    report.request_amendment!
+    fire_report(report, :request_amendment)
 
-    report.resubmit!
+    fire_report(report, :resubmit)
 
     assert_resubmitted_report(report)
   end
@@ -56,7 +56,7 @@ class CaptureReportTest < ActiveSupport::TestCase
     report = create(:capture_report)
 
     assert_difference -> { report.manifest.manifest_histories.count }, 1 do
-      report.verify!
+      fire_report(report, :verify)
     end
 
     history = report.manifest.manifest_histories.last
@@ -67,17 +67,17 @@ class CaptureReportTest < ActiveSupport::TestCase
 
   test "verify! moves the manifest to awaiting_port_in_approval only once ALL reports are verified" do
     manifest = create(:manifest, fisherman_category: "commercial")
-    manifest.submit_port_out!
-    manifest.approve_port_out!
+    fire_manifest(manifest, :submit_port_out)
+    fire_manifest(manifest, :approve_port_out)
     report_one = create(:capture_report, manifest: manifest)
     report_two = create(:capture_report, manifest: manifest)
-    manifest.submit_port_in!
+    fire_manifest(manifest, :submit_port_in)
 
-    report_one.verify!
+    fire_report(report_one, :verify)
 
     assert_equal "capture_report_submitted", manifest.reload.manifest_status
 
-    report_two.verify!
+    fire_report(report_two, :verify)
 
     assert_equal "awaiting_port_in_approval", manifest.reload.manifest_status
   end

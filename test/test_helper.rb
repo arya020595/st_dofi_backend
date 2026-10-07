@@ -8,6 +8,7 @@ Rails.application.reload_routes!
 require "rails/test_help"
 require_relative "support/postgresql_number_triggers"
 require_relative "support/brunei_id_callback_helper"
+require_relative "support/lifecycle_helper"
 
 # Rails' Ruby schema dump does not retain PostgreSQL functions/triggers. Install the two
 # database-backed number generators after a fresh test schema load, before parallel workers fork.
@@ -33,6 +34,7 @@ end
 module ActiveSupport
   class TestCase
     include FactoryBot::Syntax::Methods
+    include LifecycleHelper
 
     # Run tests in parallel with specified workers
     parallelize(workers: :number_of_processors)

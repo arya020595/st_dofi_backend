@@ -10,7 +10,7 @@ module Manifests
 
       ActiveRecord::Base.transaction do
         reset_capture_reports_for_port_in!(manifest)
-        manifest.submit_port_in!(actor: actor)
+        Transition.call(manifest, :submit_port_in, actor: actor).value!
       end
 
       notify_reviewers(manifest)

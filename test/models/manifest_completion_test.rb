@@ -4,11 +4,11 @@ require "test_helper"
 class ManifestCompletionTest < ActiveSupport::TestCase
   test "submit_port_in lands on capture_report_submitted while a report is still pending verification" do
     manifest = create(:manifest, fisherman_category: "commercial")
-    manifest.submit_port_out!
-    manifest.approve_port_out!
+    fire_manifest(manifest, :submit_port_out)
+    fire_manifest(manifest, :approve_port_out)
     create(:capture_report, manifest: manifest)
 
-    manifest.submit_port_in!
+    fire_manifest(manifest, :submit_port_in)
 
     assert_equal "pending", manifest.port_in_status
     assert_equal "capture_report_submitted", manifest.manifest_status
@@ -16,44 +16,44 @@ class ManifestCompletionTest < ActiveSupport::TestCase
 
   test "manifest moves to awaiting_port_in_approval once every capture report is verified" do
     manifest = create(:manifest, fisherman_category: "commercial")
-    manifest.submit_port_out!
-    manifest.approve_port_out!
+    fire_manifest(manifest, :submit_port_out)
+    fire_manifest(manifest, :approve_port_out)
     report = create(:capture_report, manifest: manifest)
 
-    manifest.submit_port_in!
-    report.verify!
+    fire_manifest(manifest, :submit_port_in)
+    fire_report(report, :verify)
 
     assert_equal "awaiting_port_in_approval", manifest.reload.manifest_status
   end
 
   test "approve_port_in completes the manifest once capture reports are verified" do
     manifest = create(:manifest, fisherman_category: "commercial")
-    manifest.submit_port_out!
-    manifest.approve_port_out!
+    fire_manifest(manifest, :submit_port_out)
+    fire_manifest(manifest, :approve_port_out)
     report = create(:capture_report, manifest: manifest)
 
-    manifest.submit_port_in!
-    report.verify!
-    manifest.approve_port_in!
+    fire_manifest(manifest, :submit_port_in)
+    fire_report(report, :verify)
+    fire_manifest(manifest, :approve_port_in)
 
     assert_equal "completed", manifest.reload.manifest_status
   end
 
   test "commercial manifest completes only after a post-port-in amendment is resubmitted and verified" do
     manifest = create(:manifest, fisherman_category: "commercial")
-    manifest.submit_port_out!
-    manifest.approve_port_out!
+    fire_manifest(manifest, :submit_port_out)
+    fire_manifest(manifest, :approve_port_out)
     report = create(:capture_report, manifest: manifest)
 
-    manifest.submit_port_in!
-    manifest.approve_port_in!
+    fire_manifest(manifest, :submit_port_in)
+    fire_manifest(manifest, :approve_port_in)
 
     assert_equal %w[approved capture_report_submitted pending_verification],
                  [manifest.port_in_status, manifest.manifest_status, report.capture_report_status]
 
-    report.request_amendment!(remarks: "Correct the catch quantity")
-    report.resubmit!
-    report.verify!
+    fire_report(report, :request_amendment, remarks: "Correct the catch quantity")
+    fire_report(report, :resubmit)
+    fire_report(report, :verify)
 
     assert_equal %w[approved completed verified],
                  [manifest.reload.port_in_status, manifest.manifest_status, report.reload.capture_report_status]
@@ -61,36 +61,36 @@ class ManifestCompletionTest < ActiveSupport::TestCase
 
   test "port-in amendment requested while a report is pending resumes review once resubmitted and verified" do
     manifest = create(:manifest, fisherman_category: "commercial")
-    manifest.submit_port_out!
-    manifest.approve_port_out!
+    fire_manifest(manifest, :submit_port_out)
+    fire_manifest(manifest, :approve_port_out)
     report = create(:capture_report, manifest: manifest)
-    manifest.submit_port_in!
+    fire_manifest(manifest, :submit_port_in)
 
-    manifest.request_amendment_port_in!(remarks: "Fix the port-in time")
-    report.verify!
+    fire_manifest(manifest, :request_amendment_port_in, remarks: "Fix the port-in time")
+    fire_report(report, :verify)
 
     assert_equal %w[amendment_required capture_report_submitted verified],
                  [manifest.reload.port_in_status, manifest.manifest_status, report.reload.capture_report_status]
 
-    manifest.resubmit_port_in!
-    manifest.advance_lifecycle!
+    fire_manifest(manifest, :resubmit_port_in)
+    Manifests::Advance.call(manifest)
 
     assert_equal "awaiting_port_in_approval", manifest.reload.manifest_status
 
-    manifest.approve_port_in!
+    fire_manifest(manifest, :approve_port_in)
 
     assert_equal %w[approved completed], [manifest.reload.port_in_status, manifest.manifest_status]
   end
 
   test "commercial manifest with a skipped capture report completes on port-in approval" do
     manifest = create(:manifest, fisherman_category: "commercial", capture_report_skipped: true)
-    manifest.submit_port_out!
-    manifest.approve_port_out!
-    manifest.submit_port_in!
+    fire_manifest(manifest, :submit_port_out)
+    fire_manifest(manifest, :approve_port_out)
+    fire_manifest(manifest, :submit_port_in)
 
     assert_equal "awaiting_port_in_approval", manifest.manifest_status
 
-    manifest.approve_port_in!
+    fire_manifest(manifest, :approve_port_in)
 
     assert_equal %w[approved completed], [manifest.reload.port_in_status, manifest.manifest_status]
   end
@@ -99,31 +99,31 @@ class ManifestCompletionTest < ActiveSupport::TestCase
   # finalizer must act on the committed state of the other, not on a manifest instance loaded before it.
   test "verifying the last report completes the manifest even if port-in was approved after the report loaded" do
     manifest = create(:manifest, fisherman_category: "commercial")
-    manifest.submit_port_out!
-    manifest.approve_port_out!
+    fire_manifest(manifest, :submit_port_out)
+    fire_manifest(manifest, :approve_port_out)
     create(:capture_report, manifest: manifest)
-    manifest.submit_port_in!
+    fire_manifest(manifest, :submit_port_in)
 
     report = CaptureReport.find_by!(manifest: manifest)
     report.manifest # the DoFi Officer's request has loaded the manifest while Port-In was still pending
-    Manifest.find(manifest.id).approve_port_in!
-    report.verify!
+    fire_manifest(Manifest.find(manifest.id), :approve_port_in)
+    fire_report(report, :verify)
 
     assert_equal "completed", manifest.reload.manifest_status
   end
 
   test "verifying the last report starts port-in review even if port-in was resubmitted after the report loaded" do
     manifest = create(:manifest, fisherman_category: "commercial")
-    manifest.submit_port_out!
-    manifest.approve_port_out!
+    fire_manifest(manifest, :submit_port_out)
+    fire_manifest(manifest, :approve_port_out)
     create(:capture_report, manifest: manifest)
-    manifest.submit_port_in!
-    manifest.request_amendment_port_in!(remarks: "Fix the port-in time")
+    fire_manifest(manifest, :submit_port_in)
+    fire_manifest(manifest, :request_amendment_port_in, remarks: "Fix the port-in time")
 
     report = CaptureReport.find_by!(manifest: manifest)
     report.manifest # loaded while Port-In still awaited the fisherman's amendment
-    Manifest.find(manifest.id).resubmit_port_in!
-    report.verify!
+    fire_manifest(Manifest.find(manifest.id), :resubmit_port_in)
+    fire_report(report, :verify)
 
     assert_equal %w[pending awaiting_port_in_approval],
                  [manifest.reload.port_in_status, manifest.manifest_status]
@@ -131,8 +131,8 @@ class ManifestCompletionTest < ActiveSupport::TestCase
 
   test "complete_manifest increments usage_value from capture report fishing gear quantities" do
     manifest = create(:manifest, fisherman_category: "commercial")
-    manifest.submit_port_out!
-    manifest.approve_port_out!
+    fire_manifest(manifest, :submit_port_out)
+    fire_manifest(manifest, :approve_port_out)
     report_one = create(:capture_report, manifest: manifest)
     report_two = create(:capture_report, manifest: manifest)
     company_gear = create(:companies_fishing_gear, :approved,
@@ -142,25 +142,25 @@ class ManifestCompletionTest < ActiveSupport::TestCase
     create(:fishing_gear_detail, capture_report: report_one, companies_fishing_gear: company_gear, quantity: 2)
     create(:fishing_gear_detail, capture_report: report_two, companies_fishing_gear: company_gear, quantity: 3)
 
-    manifest.submit_port_in!
-    report_one.verify!
-    report_two.verify!
-    manifest.approve_port_in!
+    fire_manifest(manifest, :submit_port_in)
+    fire_report(report_one, :verify)
+    fire_report(report_two, :verify)
+    fire_manifest(manifest, :approve_port_in)
 
     assert_equal BigDecimal("10"), company_gear.reload.usage_value
   end
 
   test "commercial skipped manifest goes straight to jetty review without DoFi verification" do
     manifest = create(:manifest, fisherman_category: "commercial")
-    manifest.submit_port_out!
-    manifest.approve_port_out!
+    fire_manifest(manifest, :submit_port_out)
+    fire_manifest(manifest, :approve_port_out)
     manifest.update!(capture_report_skipped: true)
 
-    manifest.submit_port_in!
+    fire_manifest(manifest, :submit_port_in)
 
     assert_equal %w[pending awaiting_port_in_approval], manifest.reload.values_at(:port_in_status, :manifest_status)
 
-    manifest.approve_port_in!
+    fire_manifest(manifest, :approve_port_in)
 
     assert_equal %w[approved completed], manifest.values_at(:port_in_status, :manifest_status)
   end
@@ -168,10 +168,10 @@ class ManifestCompletionTest < ActiveSupport::TestCase
   %w[small_scale_company small_scale_full_time small_scale_part_time].each do |category|
     test "#{category} skipped manifest completes port-in with no approval" do
       manifest = create(:manifest, fisherman_category: category)
-      manifest.submit_port_out!
+      fire_manifest(manifest, :submit_port_out)
       manifest.update!(capture_report_skipped: true)
 
-      manifest.submit_port_in!
+      fire_manifest(manifest, :submit_port_in)
 
       assert_equal "submitted", manifest.port_in_status
       assert_equal "completed", manifest.reload.manifest_status
@@ -181,7 +181,7 @@ class ManifestCompletionTest < ActiveSupport::TestCase
 
   test "small-scale completion increments usage_value after final capture report verification" do
     manifest = create(:manifest, :small_scale)
-    manifest.submit_port_out!
+    fire_manifest(manifest, :submit_port_out)
     report = create(:capture_report, manifest: manifest)
     company_gear = create(:companies_fishing_gear, :approved,
                           company_profile: manifest.company_profile,
@@ -189,8 +189,8 @@ class ManifestCompletionTest < ActiveSupport::TestCase
                           usage_value: nil)
     create(:fishing_gear_detail, capture_report: report, companies_fishing_gear: company_gear, quantity: 4)
 
-    manifest.submit_port_in!
-    report.verify!
+    fire_manifest(manifest, :submit_port_in)
+    fire_report(report, :verify)
 
     assert_equal "completed", manifest.reload.manifest_status
     assert_equal BigDecimal("4"), company_gear.reload.usage_value
@@ -215,12 +215,12 @@ class ManifestCompletionTest < ActiveSupport::TestCase
 
     assert_equal "pending_verification", manifest.capture_report_overview_status
 
-    report.request_amendment!
+    fire_report(report, :request_amendment)
 
     assert_equal "amendment_required", manifest.reload.capture_report_overview_status
 
-    report.resubmit!
-    report.verify!
+    fire_report(report, :resubmit)
+    fire_report(report, :verify)
 
     assert_equal "verified", manifest.reload.capture_report_overview_status
   end
@@ -229,7 +229,7 @@ class ManifestCompletionTest < ActiveSupport::TestCase
     manifest = create(:manifest, fisherman_category: "commercial")
 
     assert_difference -> { manifest.manifest_histories.count }, 2 do
-      manifest.submit_port_out!
+      fire_manifest(manifest, :submit_port_out)
     end
 
     history = manifest.manifest_histories.order(:created_at).last

@@ -59,8 +59,8 @@ module Manifests
 
     def at_sea_manifest(category, skipped:)
       manifest = create(:manifest, fisherman_category: category)
-      manifest.submit_port_out!
-      manifest.approve_port_out! if manifest.may_approve_port_out?
+      fire_manifest(manifest, :submit_port_out)
+      fire_manifest(manifest, :approve_port_out) if manifest.may_approve_port_out?
       manifest.update!(capture_report_skipped: skipped)
       manifest
     end

@@ -4,7 +4,7 @@ class ManifestTest < ActiveSupport::TestCase
   test "submit_port_out! sends a commercial manifest to pending approval, not straight to sea" do
     manifest = create(:manifest, fisherman_category: "commercial")
 
-    manifest.submit_port_out!
+    fire_manifest(manifest, :submit_port_out)
 
     assert_equal "pending", manifest.port_out_status
     assert_equal "awaiting_port_out_approval", manifest.manifest_status
@@ -13,7 +13,7 @@ class ManifestTest < ActiveSupport::TestCase
   test "submit_port_out! sends a small-scale manifest straight to sea, skipping approval" do
     manifest = create(:manifest, :small_scale)
 
-    manifest.submit_port_out!
+    fire_manifest(manifest, :submit_port_out)
 
     assert_equal "submitted", manifest.port_out_status
     assert_equal "at_sea", manifest.manifest_status
@@ -21,7 +21,7 @@ class ManifestTest < ActiveSupport::TestCase
 
   test "submit_port_out! raises when the manifest is not in draft" do
     manifest = create(:manifest, fisherman_category: "commercial")
-    manifest.submit_port_out!
+    fire_manifest(manifest, :submit_port_out)
 
     assert_raises(AASM::InvalidTransition) { manifest.submit_port_out! }
     assert_not manifest.may_submit_port_out?
@@ -29,9 +29,9 @@ class ManifestTest < ActiveSupport::TestCase
 
   test "approve_port_out! approves and advances a commercial manifest to sea" do
     manifest = create(:manifest, fisherman_category: "commercial")
-    manifest.submit_port_out!
+    fire_manifest(manifest, :submit_port_out)
 
-    manifest.approve_port_out!
+    fire_manifest(manifest, :approve_port_out)
 
     assert_equal "approved", manifest.port_out_status
     assert_equal "at_sea", manifest.manifest_status
@@ -39,9 +39,9 @@ class ManifestTest < ActiveSupport::TestCase
 
   test "request_amendment_port_out! moves to amendment_required and reopens editing" do
     manifest = create(:manifest, fisherman_category: "commercial")
-    manifest.submit_port_out!
+    fire_manifest(manifest, :submit_port_out)
 
-    manifest.request_amendment_port_out!(remarks: "Fix the date")
+    fire_manifest(manifest, :request_amendment_port_out, remarks: "Fix the date")
 
     assert_equal "amendment_required", manifest.port_out_status
     assert_equal "Fix the date", manifest.port_out_amendment_remarks
@@ -50,10 +50,10 @@ class ManifestTest < ActiveSupport::TestCase
 
   test "resubmit_port_out! returns an amended manifest to pending" do
     manifest = create(:manifest, fisherman_category: "commercial")
-    manifest.submit_port_out!
-    manifest.request_amendment_port_out!
+    fire_manifest(manifest, :submit_port_out)
+    fire_manifest(manifest, :request_amendment_port_out)
 
-    manifest.resubmit_port_out!
+    fire_manifest(manifest, :resubmit_port_out)
 
     assert_equal "pending", manifest.port_out_status
     assert_nil manifest.port_out_amendment_remarks
@@ -62,32 +62,32 @@ class ManifestTest < ActiveSupport::TestCase
   test "request_amendment_port_in! stores remarks and resubmit_port_in! clears them" do
     manifest = create(:manifest, fisherman_category: "commercial")
     report = create(:capture_report, manifest: manifest)
-    manifest.submit_port_out!
-    manifest.approve_port_out!
-    manifest.submit_port_in!
-    report.verify!
+    fire_manifest(manifest, :submit_port_out)
+    fire_manifest(manifest, :approve_port_out)
+    fire_manifest(manifest, :submit_port_in)
+    fire_report(report, :verify)
 
-    manifest.request_amendment_port_in!(remarks: "Fix port-in time")
+    fire_manifest(manifest, :request_amendment_port_in, remarks: "Fix port-in time")
 
     assert_equal "Fix port-in time", manifest.port_in_amendment_remarks
 
-    manifest.resubmit_port_in!
+    fire_manifest(manifest, :resubmit_port_in)
 
     assert_nil manifest.port_in_amendment_remarks
   end
 
   test "may_submit_port_in? is false with no capture report and not skipped" do
     manifest = create(:manifest, fisherman_category: "commercial")
-    manifest.submit_port_out!
-    manifest.approve_port_out!
+    fire_manifest(manifest, :submit_port_out)
+    fire_manifest(manifest, :approve_port_out)
 
     assert_not manifest.may_submit_port_in?
   end
 
   test "may_submit_port_in? is true once capture_report_skipped is set" do
     manifest = create(:manifest, fisherman_category: "commercial")
-    manifest.submit_port_out!
-    manifest.approve_port_out!
+    fire_manifest(manifest, :submit_port_out)
+    fire_manifest(manifest, :approve_port_out)
     manifest.update!(capture_report_skipped: true)
 
     assert_predicate manifest, :may_submit_port_in?
@@ -95,8 +95,8 @@ class ManifestTest < ActiveSupport::TestCase
 
   test "may_submit_port_in? is true once a capture report exists" do
     manifest = create(:manifest, fisherman_category: "commercial")
-    manifest.submit_port_out!
-    manifest.approve_port_out!
+    fire_manifest(manifest, :submit_port_out)
+    fire_manifest(manifest, :approve_port_out)
     create(:capture_report, manifest: manifest)
 
     assert_predicate manifest, :may_submit_port_in?
@@ -134,9 +134,9 @@ class ManifestTest < ActiveSupport::TestCase
   test "chained port-in transitions on a skipped manifest record the actor" do
     actor = create(:user)
     manifest = create(:manifest, fisherman_category: "small_scale_full_time", capture_report_skipped: true)
-    manifest.submit_port_out!
+    fire_manifest(manifest, :submit_port_out)
 
-    manifest.submit_port_in!(actor: actor)
+    fire_manifest(manifest, :submit_port_in, actor: actor)
 
     histories = manifest.manifest_histories.where(action: %w[complete_capture_report! complete_manifest!])
 
@@ -163,11 +163,11 @@ class ManifestTest < ActiveSupport::TestCase
 
     assert_predicate manifest, :editable?
 
-    manifest.submit_port_out!
+    fire_manifest(manifest, :submit_port_out)
 
     assert_not manifest.editable?
 
-    manifest.request_amendment_port_out!
+    fire_manifest(manifest, :request_amendment_port_out)
 
     assert_predicate manifest, :editable?
   end

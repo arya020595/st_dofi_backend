@@ -5,11 +5,9 @@ module Manifests
     def self.call(...) = new.call(...)
 
     def call(manifest, actor:)
-      return Failure(manifest) unless manifest.may_approve_port_in?
-
-      manifest.approve_port_in!(actor: actor)
-      Notifications::ManifestPublisher.call(event: :port_in_approved, manifest:)
-      Success(manifest)
+      Transition.call(manifest, :approve_port_in, actor: actor).tap do |result|
+        Notifications::ManifestPublisher.call(event: :port_in_approved, manifest:) if result.success?
+      end
     end
   end
 end

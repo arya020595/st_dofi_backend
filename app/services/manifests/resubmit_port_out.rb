@@ -5,11 +5,9 @@ module Manifests
     def self.call(...) = new.call(...)
 
     def call(manifest, actor:)
-      return Failure(manifest) unless manifest.may_resubmit_port_out?
-
-      manifest.resubmit_port_out!(actor: actor)
-      Notifications::ManifestPublisher.call(event: :port_out_resubmitted, manifest:)
-      Success(manifest)
+      Transition.call(manifest, :resubmit_port_out, actor: actor).tap do |result|
+        Notifications::ManifestPublisher.call(event: :port_out_resubmitted, manifest:) if result.success?
+      end
     end
   end
 end

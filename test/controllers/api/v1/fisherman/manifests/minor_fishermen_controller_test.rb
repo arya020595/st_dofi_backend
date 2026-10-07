@@ -44,7 +44,7 @@ module Api
           end
 
           test "create fails once the manifest is no longer editable" do
-            @manifest.submit_port_out!
+            fire_manifest(@manifest, :submit_port_out)
             params = { minor_fisherman: { full_name: "Ali", date_of_birth: "2010-03-15", gender: "male",
                                           relationship_with_owner: "Son" } }
 
