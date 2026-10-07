@@ -34,9 +34,9 @@ class CaptureReport < ApplicationRecord
   def manifest_id_for_history = manifest_id
   def editable? = pending_verification? || needs_amendment?
 
-  # Only the transition table lives here; stamping the review and moving the manifest on is
-  # CaptureReports::Transition's job.
-  aasm column: :capture_report_status do
+  # Only the transition table lives here; the services in app/services/capture_reports fire the events, stamp the
+  # review and let the manifest move on.
+  aasm column: :capture_report_status, whiny_persistence: true do
     state :pending_verification, initial: true
     state :verified
     state :needs_amendment

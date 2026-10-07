@@ -1,10 +1,10 @@
 # Port-Out states. Commercial manifests wait for Jetty Manager approval, small-scale ones need none.
-# Only the transition table lives here; what follows a transition is Manifests::Transition's job.
+# Only the transition table lives here; the services in app/services/manifests fire the events and what follows.
 module Manifest::PortOutWorkflow
   extend ActiveSupport::Concern
 
   included do
-    aasm(:port_out, column: :port_out_status, namespace: :port_out) do
+    aasm(:port_out, column: :port_out_status, namespace: :port_out, whiny_persistence: true) do
       state :draft, initial: true
       state :pending
       state :amendment_required

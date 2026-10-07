@@ -9,8 +9,9 @@ A manifest records one fishing trip. Four status columns describe where it stand
 | `capture_report_status` | `capture_reports` (one per report) | The catch report | `pending_verification`, `verified`, `needs_amendment` |
 | `manifest_status` | `manifests` | **Summary** of the three above | `draft`, `awaiting_port_out_approval`, `at_sea`, `awaiting_port_in_approval`, `capture_report_submitted`, `completed` |
 
-`manifest_status` is never set directly. It follows the other three, and moves only through
-`Manifests::Advance` (see [Where the code lives](#where-the-code-lives)).
+`manifest_status` is never set directly. It follows the other three: after a leg changes, the per-action service
+fires the `manifest_status` event that applies, and the guards on those events decide whether the manifest may move
+(see [Where the code lives](#where-the-code-lives)).
 
 **Who acts**
 
@@ -104,18 +105,18 @@ stateDiagram-v2
     awaiting_port_in_approval --> completed: both legs settled
 ```
 
-`Manifests::LifecycleRules#next_event` is this table, one method per status:
+The `manifest_status` events, who fires them and when. The guards live in
+[`Manifest::StatusWorkflow`](../../app/models/concerns/manifest/status_workflow.rb); a service fires an event only
+when `may_<event>?` is true.
 
-| `manifest_status` | Next event, when | Becomes |
-|---|---|---|
-| `draft` | Port-Out is `pending` | `awaiting_port_out_approval` |
-| `draft` | Port-Out is `submitted` | `at_sea` |
-| `awaiting_port_out_approval` | Port-Out is `approved` | `at_sea` |
-| `at_sea` | Port-In is `pending` or `submitted` | `capture_report_submitted` |
-| `capture_report_submitted` | both legs settled (below) | `completed` |
-| `capture_report_submitted` | commercial, Port-In `pending`, reports settled | `awaiting_port_in_approval` |
-| `awaiting_port_in_approval` | both legs settled | `completed` |
-| `completed` | nothing: final | — |
+| Event | `manifest_status` | Fired by | When |
+|---|---|---|---|
+| `begin_port_out_review` | `draft` → `awaiting_port_out_approval` | `SubmitPortOut` | commercial: Port-Out is `pending` |
+| `advance_to_sea` | `draft` → `at_sea` | `SubmitPortOut` | small-scale: Port-Out is `submitted` |
+| `advance_to_sea` | `awaiting_port_out_approval` → `at_sea` | `ApprovePortOut` | the Port-Out was approved |
+| `complete_capture_report` | `at_sea` → `capture_report_submitted` | `SubmitPortIn` | Port-In submitted |
+| `begin_port_in_review` | `capture_report_submitted` → `awaiting_port_in_approval` | `SubmitPortIn`, `Verify`, `ResubmitPortIn`, `RequestAmendmentPortIn` | guard: commercial, Port-In `pending`, reports settled |
+| `complete_manifest` | `capture_report_submitted` or `awaiting_port_in_approval` → `completed` | `SubmitPortIn`, `ApprovePortIn`, `Verify` | guard: both legs settled (below) |
 
 ## Completion rules
 
@@ -141,8 +142,8 @@ fishing gear details are added to each gear's `usage_value` (`Manifests::RecordF
 `pending_verification` or `needs_amendment` the officer can send it back and the fisherman can resubmit it, and the
 manifest completes once every report is verified. A `verified` report is final.
 
-The rules are executable in [`test/models/manifest_completion_rules_test.rb`](../../test/models/manifest_completion_rules_test.rb)
-and [`test/services/manifests/lifecycle_rules_test.rb`](../../test/services/manifests/lifecycle_rules_test.rb). Who has to
+The rules are executable in [`test/models/manifest_completion_rules_test.rb`](../../test/models/manifest_completion_rules_test.rb).
+Who has to
 approve what per fisherman category: [approval-rules-by-category.md](approval-rules-by-category.md).
 
 ## Amendments
@@ -154,10 +155,12 @@ fisherman edits the **same record**, then calls the matching `resubmit_*`.
 |---|---|---|
 | `port_out_amendment_remarks` | `request_amendment_port_out` | `approve_port_out`, `resubmit_port_out` |
 | `port_in_amendment_remarks` | `request_amendment_port_in` | `approve_port_in`, `resubmit_port_in` |
-| `capture_report_amendment_remarks` | any Capture Report event (the latest report in `needs_amendment`) | the manifest completing |
+| `capture_report_amendment_remarks` | any Capture Report event, recomputed from the latest report in `needs_amendment` | the last report being verified (none left in `needs_amendment`) |
 
 These are denormalised copies so list and detail responses don't query the history table; see
-[denormalized-snapshots.md](../data-model/denormalized-snapshots.md). `Manifests::AmendmentSnapshot` owns them.
+[denormalized-snapshots.md](../data-model/denormalized-snapshots.md). The Port-Out / Port-In services write their own column when they fire the event;
+[`Manifest::AmendmentSnapshots`](../../app/models/concerns/manifest/amendment_snapshots.rb) recomputes the Capture
+Report one.
 
 ## History and notifications
 
@@ -181,33 +184,47 @@ never depend on a caller remembering it. The cascaded manifest-status rows carry
 
 ## Where the code lives
 
-The rule of the repo applies: **controller → service → model → blueprint**. The models only describe the
-shape of the state machines; services do the work.
+The rule of the repo applies: **controller → service → model → blueprint**. The models describe the shape of the
+state machines; the per-action service fires the events.
 
 ```
 Controller -> per-action service (Manifests::ApprovePortIn, CaptureReports::Verify, ...)
-                 -> Manifests::Transition / CaptureReports::Transition
-                      lock -> may_<event>? -> fire the AASM event -> amendment snapshot -> advance the manifest
-                      -> Manifests::Advance          loops LifecycleRules#next_event under a row lock
-                           -> Manifests::LifecycleRules   the rules above, read-only
-                           -> Manifests::RecordFishingGearUsage   on completion
+                 lock the manifest -> may_<event>? -> fire the AASM event -> write the remarks column
+                   -> fire the manifest_status events the guards now allow (may_complete_manifest? ...)
+                   -> Manifests::RecordFishingGearUsage   when the manifest completes
+                 then notify (Notifications::ManifestPublisher)
 ```
+
+Each service fires its events literally, in this order:
+
+| Service | Events it fires |
+|---|---|
+| `Manifests::SubmitPortOut` | `submit_port_out!`, then `begin_port_out_review!` (commercial) or `advance_to_sea!` (small-scale) |
+| `Manifests::ApprovePortOut` | `approve_port_out!`, `advance_to_sea!` |
+| `Manifests::RequestAmendmentPortOut` | `request_amendment_port_out!` |
+| `Manifests::ResubmitPortOut` | `resubmit_port_out!` |
+| `Manifests::SubmitPortIn` | `submit_port_in!`, `complete_capture_report!`, then `complete_manifest!` if allowed, otherwise `begin_port_in_review!` if allowed |
+| `Manifests::ApprovePortIn` | `approve_port_in!`, then `complete_manifest!` if allowed |
+| `Manifests::RequestAmendmentPortIn` | `begin_port_in_review!` if allowed (heals a manifest left behind its legs), then `request_amendment_port_in!` |
+| `Manifests::ResubmitPortIn` | `resubmit_port_in!`, then `begin_port_in_review!` if allowed |
+| `CaptureReports::Verify` | `report.verify!`, then `complete_manifest!` if allowed, otherwise `begin_port_in_review!` if allowed |
+| `CaptureReports::RequestAmendment` | `report.request_amendment!` |
+| `CaptureReports::Resubmit` | `report.resubmit!` |
 
 | Piece | File |
 |---|---|
-| Port-Out / Port-In / manifest-status tables (AASM, no callbacks except history) | [`app/models/concerns/manifest/`](../../app/models/concerns/manifest/) (`port_out_workflow`, `port_in_workflow`, `status_workflow`) |
+| Port-Out / Port-In / manifest-status tables, guards, history | [`app/models/concerns/manifest/`](../../app/models/concerns/manifest/) (`port_out_workflow`, `port_in_workflow`, `status_workflow`) |
+| Which leg is settled | `port_in_settled?` in `port_in_workflow`, `capture_reports_settled?` in [`capture_report_state`](../../app/models/concerns/manifest/capture_report_state.rb) |
 | Capture Report table, `unverified` scope | [`app/models/capture_report.rb`](../../app/models/capture_report.rb) |
-| Fire a Port-Out / Port-In event and everything that follows | [`Manifests::Transition`](../../app/services/manifests/transition.rb) |
-| Fire a Capture Report event, stamp the review | [`CaptureReports::Transition`](../../app/services/capture_reports/transition.rb) |
-| Which manifest-status event is next; completion rules | [`Manifests::LifecycleRules`](../../app/services/manifests/lifecycle_rules.rb) |
-| Execute that, safely under concurrency | [`Manifests::Advance`](../../app/services/manifests/advance.rb) |
-| Amendment remarks columns | [`Manifests::AmendmentSnapshot`](../../app/services/manifests/amendment_snapshot.rb) |
-| Notifications and the user-facing action | `app/services/manifests/*`, `app/services/capture_reports/*` |
+| The user-facing actions | `app/services/manifests/*`, `app/services/capture_reports/*` |
 
 **Why a lock.** Jetty approval and DoFi verification are separate requests. Without it each could judge the other's
-step unfinished and leave a fully approved manifest stuck. `Advance` re-reads the manifest under `with_lock`, so it
-always sees the other leg's committed state.
+step unfinished and leave a fully approved manifest stuck. `SubmitPortIn`, `ApprovePortIn` and `Verify` re-read the
+manifest under `with_lock`, so the guards always see the other leg's committed state.
 
-**Never fire an event directly.** `manifest.approve_port_in!` changes `port_in_status` only; the cascade belongs to
-`Manifests::Transition`. [`test/architecture/lifecycle_events_only_in_services_test.rb`](../../test/architecture/lifecycle_events_only_in_services_test.rb)
-fails if production code does. Tests and seeds use `fire_manifest` / `fire_report` (or the same services).
+**Only these services fire events.** Nothing else (controller, model, job, another service) may call a lifecycle
+event: it would skip the remarks, the manifest status follow-up and the notification.
+[`test/architecture/lifecycle_events_only_in_services_test.rb`](../../test/architecture/lifecycle_events_only_in_services_test.rb)
+fails if one does, and also if a service completes a manifest without calling `RecordFishingGearUsage`. Tests and
+seeds drive the lifecycle through the same services. The machines set `whiny_persistence: true`, so an event that
+cannot save raises instead of returning `false`.

@@ -18,12 +18,13 @@ Statuses, diagrams and the completion rules in full: [lifecycle-status.md](lifec
   [`Manifest::PortOutWorkflow`](../../app/models/concerns/manifest/port_out_workflow.rb) and
   [`Manifest::PortInWorkflow`](../../app/models/concerns/manifest/port_in_workflow.rb). Their guards
   (`commercial?` / `small_scale?`, plus `capture_report_ready?` for Port-In) are the single source of truth.
-- **When the manifest moves on** — [`Manifests::LifecycleRules`](../../app/services/manifests/lifecycle_rules.rb).
-  Two conditions decide everything: Port-In settled (commercial: Jetty Manager approved; small-scale: submitted)
-  and Capture Reports settled (skipped, or every report verified). Both settled means `completed`; for a commercial
-  manifest, only the report leg settled means `awaiting_port_in_approval`.
-  [`Manifests::Advance`](../../app/services/manifests/advance.rb) fires whatever those rules now allow, and runs
-  after Port-In is submitted, approved or resubmitted and after a report is verified — whichever leg finishes last wins.
+- **When the manifest moves on** — the guards on `complete_manifest` and `begin_port_in_review` in
+  [`Manifest::StatusWorkflow`](../../app/models/concerns/manifest/status_workflow.rb). Two conditions decide
+  everything: Port-In settled (commercial: Jetty Manager approved; small-scale: submitted) and Capture Reports
+  settled (skipped, or every report verified). Both settled means `completed`; for a commercial manifest, only the
+  report leg settled means `awaiting_port_in_approval`. The services ask `may_complete_manifest?` /
+  `may_begin_port_in_review?` after Port-In is submitted, approved or resubmitted and after a report is verified,
+  so whichever leg finishes last wins.
 - **Who is notified** — [`app/services/manifests/submit_port_in.rb`](../../app/services/manifests/submit_port_in.rb):
   capture-report verifiers when there are reports to verify, and Jetty Managers as soon as a commercial
   Port-In is submitted (they never wait for DoFi verification), nobody for a skipped small-scale manifest.

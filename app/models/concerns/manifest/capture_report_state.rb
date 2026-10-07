@@ -23,6 +23,12 @@ module Manifest::CaptureReportState
 
   private
 
+  # The Capture Report leg is done: skipped (nothing for a DoFi Officer to verify) or every report verified.
+  def capture_reports_settled? = capture_report_skipped? || all_capture_reports_verified?
+
+  # Reads the database (not the loaded association) so it judges committed state, never a stale instance.
+  def all_capture_reports_verified? = capture_reports.exists? && !capture_reports.unverified.exists?
+
   # A report is either skipped or submitted, never both — otherwise skipping would silently drop reports
   # that were never verified. CaptureReport enforces the other direction.
   def capture_reports_absent_when_skipped

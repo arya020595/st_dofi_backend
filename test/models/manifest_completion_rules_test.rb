@@ -30,7 +30,7 @@ class ManifestCompletionRulesTest < ActiveSupport::TestCase
 
       test label do
         manifest, report = submitted_manifest(category, skipped: reports == :skipped)
-        steps = [-> { fire_manifest(manifest, :approve_port_in) if jetty_approved }, -> { review(report, reports) }]
+        steps = [-> { approve_port_in(manifest) if jetty_approved }, -> { review(report, reports) }]
         steps.reverse! if order == :verify_first
         steps.each(&:call)
 
@@ -43,17 +43,21 @@ class ManifestCompletionRulesTest < ActiveSupport::TestCase
 
   def submitted_manifest(category, skipped:)
     manifest = create(:manifest, fisherman_category: category, capture_report_skipped: skipped)
-    fire_manifest(manifest, :submit_port_out)
-    fire_manifest(manifest, :approve_port_out) if manifest.may_approve_port_out?
+    Manifests::SubmitPortOut.call(manifest, actor: nil).value!
+    Manifests::ApprovePortOut.call(manifest, actor: nil).value! if manifest.may_approve_port_out?
     report = create(:capture_report, manifest: manifest) unless skipped
-    fire_manifest(manifest, :submit_port_in)
+    Manifests::SubmitPortIn.call(manifest, actor: nil).value!
     [manifest, report]
   end
 
+  def approve_port_in(manifest) = Manifests::ApprovePortIn.call(manifest, actor: nil).value!
+
   def review(report, reports)
     case reports
-    when :verified then fire_report(report, :verify)
-    when :needs_amendment then fire_report(report, :request_amendment, remarks: "Correct the catch quantity")
+    when :verified
+      CaptureReports::Verify.call(report, actor: nil).value!
+    when :needs_amendment
+      CaptureReports::RequestAmendment.call(report, actor: nil, remarks: "Correct the catch quantity").value!
     end
   end
 end

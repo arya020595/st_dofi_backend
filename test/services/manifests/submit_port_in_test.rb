@@ -59,15 +59,20 @@ module Manifests
 
     def at_sea_manifest(category, skipped:)
       manifest = create(:manifest, fisherman_category: category)
-      fire_manifest(manifest, :submit_port_out)
-      fire_manifest(manifest, :approve_port_out) if manifest.may_approve_port_out?
+      Manifests::SubmitPortOut.call(manifest, actor: nil).value!
+      Manifests::ApprovePortOut.call(manifest, actor: nil).value! if manifest.may_approve_port_out?
       manifest.update!(capture_report_skipped: skipped)
+      @sent_during_setup = Notification.pluck(:id)
       manifest
     end
 
+    # Only what the action under test sent; the Port-Out services notified the approver during setup.
     def notifications_by_recipient
-      { approver: @approver.notifications.pluck(:notification_type),
-        verifier: @verifier.notifications.pluck(:notification_type) }
+      { approver: new_notification_types(@approver), verifier: new_notification_types(@verifier) }
+    end
+
+    def new_notification_types(user)
+      user.notifications.where.not(id: @sent_during_setup).pluck(:notification_type)
     end
   end
 end

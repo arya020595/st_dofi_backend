@@ -5,15 +5,27 @@ module CaptureReports
     def self.call(...) = new.call(...)
 
     def call(report, actor:, remarks:)
-      Transition.call(report, :request_amendment, actor: actor, remarks: remarks).tap do |result|
-        next unless result.success?
+      result = ActiveRecord::Base.transaction do
+        next Failure(report) unless report.may_request_amendment?
 
-        Notifications::ManifestPublisher.call(
-          event: :capture_report_amendment_required,
-          manifest: report.manifest,
-          capture_report: report
-        )
+        report.request_amendment!(actor: actor, remarks: remarks)
+        report.update!(reviewed_by_id: actor&.id, reviewed_at: Time.current, capture_report_remarks: remarks)
+        report.manifest.sync_capture_report_amendment_snapshot!
+        Success(report)
       end
+
+      notify_fisherman(report) if result.success?
+      result
+    end
+
+    private
+
+    def notify_fisherman(report)
+      Notifications::ManifestPublisher.call(
+        event: :capture_report_amendment_required,
+        manifest: report.manifest,
+        capture_report: report
+      )
     end
   end
 end

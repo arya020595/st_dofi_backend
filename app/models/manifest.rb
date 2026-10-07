@@ -4,6 +4,7 @@ class Manifest < ApplicationRecord
   include HasManifestHistory
   include Manifest::FishermanCategory
   include Manifest::CaptureReportState
+  include Manifest::AmendmentSnapshots
   include Manifest::PortOutWorkflow
   include Manifest::PortInWorkflow
   include Manifest::StatusWorkflow

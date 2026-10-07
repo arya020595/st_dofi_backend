@@ -60,11 +60,11 @@ module Api
 
           test "request_amendment remains available after commercial port-in approval" do
             @manifest.update!(fisherman_category: "commercial")
-            fire_manifest(@manifest, :submit_port_out)
-            fire_manifest(@manifest, :approve_port_out)
+            ::Manifests::SubmitPortOut.call(@manifest, actor: nil).value!
+            ::Manifests::ApprovePortOut.call(@manifest, actor: nil).value!
             report = create(:capture_report, manifest: @manifest)
-            fire_manifest(@manifest, :submit_port_in)
-            fire_manifest(@manifest, :approve_port_in)
+            ::Manifests::SubmitPortIn.call(@manifest, actor: nil).value!
+            ::Manifests::ApprovePortIn.call(@manifest, actor: nil).value!
             headers = officer_headers_for(
               permission_codes: %w[capture_report_verifications.list capture_report_verifications.view
                                    capture_report_verifications.request_amendment]
