@@ -10,8 +10,7 @@ module Api
 
         def index
           authorize Manifest
-          result = apply_ransack_search(policy_scope(Manifest).includes(capture_reports: :reviewed_by),
-                                        default_sort: "created_at desc")
+          result = apply_ransack_search(policy_scope(Manifest), default_sort: "created_at desc")
           pagy, records = pagy(:offset, result)
           render json: { status: "success", data: ManifestBlueprint.render_as_hash(records),
                          meta: pagination_meta(pagy) }
