@@ -84,16 +84,11 @@ class CaptureReport < ApplicationRecord
 
   def stamp_review_and_maybe_complete!(*, actor: nil, **)
     update!(reviewed_by_id: actor&.id, reviewed_at: Time.current)
-    advance_manifest_after_verification!(actor: actor)
+    manifest.advance_lifecycle!(actor: actor)
   end
 
   def clear_review!(*, **)
     update!(reviewed_by_id: nil, reviewed_at: nil, capture_report_remarks: nil)
-  end
-
-  def advance_manifest_after_verification!(actor:)
-    manifest.finalize_completion_if_ready!(actor: actor)
-    manifest.begin_port_in_review_if_ready!(actor: actor)
   end
 end
 

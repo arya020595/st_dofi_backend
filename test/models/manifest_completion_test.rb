@@ -73,7 +73,7 @@ class ManifestCompletionTest < ActiveSupport::TestCase
                  [manifest.reload.port_in_status, manifest.manifest_status, report.reload.capture_report_status]
 
     manifest.resubmit_port_in!
-    manifest.begin_port_in_review_if_ready!
+    manifest.advance_lifecycle!
 
     assert_equal "awaiting_port_in_approval", manifest.reload.manifest_status
 

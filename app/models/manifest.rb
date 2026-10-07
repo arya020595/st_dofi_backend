@@ -1,10 +1,13 @@
-# rubocop:disable Metrics/ClassLength -- three related AASM state machines (port_out/port_in/manifest)
-# read most clearly kept together; splitting would scatter one cohesive state design across files
-# for a marginal line-count win.
 class Manifest < ApplicationRecord
   include Discard::Model
   include AASM
   include HasManifestHistory
+  include Manifest::FishermanCategory
+  include Manifest::CaptureReportState
+  include Manifest::AmendmentSnapshots
+  include Manifest::PortOutWorkflow
+  include Manifest::PortInWorkflow
+  include Manifest::Lifecycle
 
   belongs_to :companies_vessel
   belongs_to :captain_crew, class_name: "CompaniesCrew", optional: true
@@ -24,12 +27,8 @@ class Manifest < ApplicationRecord
   has_many :manifest_histories, dependent: :restrict_with_error
   has_one :manifest_expense, dependent: :restrict_with_error
 
-  COMMERCIAL = "commercial".freeze
-  SMALL_SCALE = %w[small_scale_company small_scale_full_time small_scale_part_time].freeze
-
   validates :manifest_number, presence: true, uniqueness: true
   validates :fisherman_category, presence: true
-  validate :capture_reports_absent_when_skipped, if: :capture_report_skipped_changed?
 
   def self.ransackable_attributes(_auth_object = nil)
     %w[id manifest_number fisherman_category manifest_status port_out_status port_in_status
@@ -41,240 +40,7 @@ class Manifest < ApplicationRecord
     []
   end
 
-  def commercial?  = fisherman_category == COMMERCIAL
-  def small_scale? = SMALL_SCALE.include?(fisherman_category)
-  def capture_report_ready? = capture_report_skipped? || capture_reports.exists?
-
-  # True only when there are real reports for a DoFi Officer to verify. Mutually exclusive with
-  # capture_report_skipped?, so the submit_port_in guards never depend on row order.
-  def capture_report_verifiable?
-    return false if capture_report_skipped?
-
-    capture_reports.exists?
-  end
-
-  # True while an amendment request is outstanding — the fisherman edits this same record (via
-  # Manifests::Update) then calls the matching resubmit event; there's no separate "amendment form."
-  def editable? = draft? || port_out_amendment_required? || port_in_amendment_required?
-
   def manifest_id_for_history = id
-
-  # Row-level aggregate for the Manifest List "Catch Report" column: worst-status-wins across this
-  # manifest's capture_reports, mirroring CompanyProfile#owner_contact's simple has_many-aggregation
-  # pattern.
-  def capture_report_overview_status
-    return "skipped" if capture_report_skipped?
-    return "not_initiated" if capture_reports.none?
-    return "amendment_required" if capture_reports.any?(&:needs_amendment?)
-    return "verified" if capture_reports.all?(&:verified?)
-
-    "pending_verification"
-  end
-
-  aasm(:port_out, column: :port_out_status, namespace: :port_out) do
-    state :draft, initial: true
-    state :pending
-    state :amendment_required
-    state :approved
-    state :submitted
-
-    event :submit_port_out do
-      transitions from: :draft, to: :pending,   guard: :commercial?,  after: :begin_port_out_review!
-      transitions from: :draft, to: :submitted, guard: :small_scale?, after: :advance_to_sea!
-    end
-    event(:approve_port_out) do
-      transitions from: :pending, to: :approved, after: %i[advance_to_sea! clear_port_out_amendment_snapshot!]
-    end
-    event(:request_amendment_port_out) do
-      transitions from: :pending, to: :amendment_required, after: :store_port_out_amendment_snapshot!
-    end
-    event(:resubmit_port_out) do
-      transitions from: :amendment_required, to: :pending, after: :clear_port_out_amendment_snapshot!
-    end
-
-    after_all_transitions :record_port_out_history
-  end
-
-  # A skipped report has nothing for a DoFi Officer to verify: commercial goes straight to Jetty Manager
-  # review, small-scale completes with no approval at all. The guards are mutually exclusive, so row
-  # order does not matter. See docs/manifests/approval-rules-by-category.md.
-  aasm(:port_in, column: :port_in_status, namespace: :port_in) do
-    state :draft, initial: true
-    state :pending
-    state :amendment_required
-    state :approved
-    state :submitted
-    event :submit_port_in do
-      transitions from: :draft, to: :pending,   guard: %i[commercial? capture_report_skipped?],
-                  after: %i[complete_capture_report! begin_port_in_review!]
-      transitions from: :draft, to: :pending,   guard: %i[commercial? capture_report_verifiable?],
-                  after: :complete_capture_report!
-      transitions from: :draft, to: :submitted, guard: %i[small_scale? capture_report_skipped?],
-                  after: :complete_capture_report!, success: :finalize_completion_if_ready!
-      transitions from: :draft, to: :submitted, guard: %i[small_scale? capture_report_verifiable?],
-                  after: :complete_capture_report!
-    end
-    event(:approve_port_in) do
-      transitions from: :pending, to: :approved, after: :clear_port_in_amendment!,
-                  success: :finalize_completion_if_ready!
-    end
-    event(:request_amendment_port_in) do
-      transitions from: :pending, to: :amendment_required, after: :store_port_in_amendment_snapshot!
-    end
-    event(:resubmit_port_in) { transitions from: :amendment_required, to: :pending, after: :clear_port_in_amendment! }
-
-    after_all_transitions :record_port_in_history
-  end
-
-  # State names deliberately avoid "port_out_pending"/"port_in_pending" — those exact strings
-  # collide with the auto-generated namespaced predicates from the :port_out/:port_in machines
-  # above (namespace "port_out" + state "pending" => method "port_out_pending?"), which would
-  # silently overwrite each other (confirmed via `Manifest.new.methods.grep(/port_out/)` emitting
-  # an AASM "overriding method" warning before this rename).
-  aasm(:manifest, column: :manifest_status) do
-    state :draft, initial: true
-    state :awaiting_port_out_approval
-    state :at_sea
-    state :awaiting_port_in_approval
-    state :capture_report_submitted
-    state :completed
-
-    event(:begin_port_out_review)   { transitions from: :draft, to: :awaiting_port_out_approval }
-    event(:advance_to_sea)          { transitions from: %i[draft awaiting_port_out_approval], to: :at_sea }
-    event(:begin_port_in_review)    { transitions from: :capture_report_submitted, to: :awaiting_port_in_approval }
-    event(:complete_capture_report) do
-      transitions from: %i[at_sea awaiting_port_in_approval], to: :capture_report_submitted
-    end
-    # success: (not after:) — it fires once the new state is written, whereas after: callbacks still see the
-    # pre-transition state (see AASM::InstanceBase#aasm_fired).
-    event(:complete_manifest) do
-      transitions from: %i[capture_report_submitted awaiting_port_in_approval], to: :completed,
-                  guard: :ready_for_completion?,
-                  success: %i[record_fishing_gear_usage! clear_capture_report_amendment_snapshot!]
-    end
-
-    after_all_transitions :record_manifest_history
-  end
-
-  private
-
-  def record_port_out_history(actor: nil, remarks: nil, **)
-    record_history!("port_out_status", aasm_name: :port_out, actor: actor, remarks: remarks)
-  end
-
-  def record_port_in_history(actor: nil, remarks: nil, **)
-    record_history!("port_in_status", aasm_name: :port_in, actor: actor, remarks: remarks)
-  end
-
-  def record_manifest_history(actor: nil, remarks: nil, **)
-    record_history!("manifest_status", aasm_name: :manifest, actor: actor, remarks: remarks)
-  end
-
-  # A report is either skipped or submitted, never both — otherwise skipping would silently drop reports
-  # that were never verified. CaptureReport enforces the other direction.
-  def capture_reports_absent_when_skipped
-    return unless capture_report_skipped? && capture_reports.exists?
-
-    errors.add(:base, "Capture report cannot be skipped once capture reports have been created")
-  end
-
-  def store_port_out_amendment_snapshot!(*, remarks: nil, **)
-    update!(port_out_amendment_remarks: remarks)
-  end
-
-  def clear_port_out_amendment_snapshot!(*, **)
-    update!(port_out_amendment_remarks: nil)
-  end
-
-  def store_port_in_amendment_snapshot!(*, remarks: nil, **)
-    update!(port_in_amendment_remarks: remarks)
-  end
-
-  def clear_port_in_amendment!(*, **)
-    update!(port_in_amendment_remarks: nil)
-  end
-
-  public
-
-  # Commercial Port-In approval (Jetty Manager) and Capture Report verification (DoFi Officer) complete
-  # independently, in separate requests. Either event calls this shared finalizer; only their combined terminal
-  # conditions may complete the manifest. It re-reads the row under a lock (`with_lock`) so it judges the other
-  # side's committed state, not the instance this request loaded earlier — otherwise two concurrent finalizers
-  # could each see the other's step as unfinished and leave a fully approved manifest stuck.
-  def finalize_completion_if_ready!(*, actor: nil, **)
-    with_lock { complete_manifest!(actor: actor) if completable? }
-  end
-
-  def begin_port_in_review_if_ready!(*, actor: nil, **)
-    with_lock { begin_port_in_review!(actor: actor) if ready_for_port_in_review? }
-  end
-
-  def sync_capture_report_amendment_snapshot!
-    update!(capture_report_amendment_remarks: latest_capture_report_amendment_remarks)
-  end
-
-  def clear_capture_report_amendment_snapshot!(*, **)
-    update!(capture_report_amendment_remarks: nil)
-  end
-
-  def refresh_amendment_snapshots!
-    update!(
-      port_out_amendment_remarks: latest_manifest_amendment_remarks_for(
-        "port_out_status", port_out_amendment_required?
-      ),
-      port_in_amendment_remarks: latest_manifest_amendment_remarks_for("port_in_status", port_in_amendment_required?),
-      capture_report_amendment_remarks: latest_capture_report_amendment_remarks
-    )
-  end
-
-  private
-
-  def completable?
-    ready_for_completion? && (capture_report_submitted? || awaiting_port_in_approval?)
-  end
-
-  def ready_for_port_in_review?
-    commercial? && port_in_pending? && all_capture_reports_verified? && may_begin_port_in_review?
-  end
-
-  def ready_for_completion?
-    return false unless capture_report_skipped? || all_capture_reports_verified?
-
-    commercial? ? port_in_status == "approved" : small_scale? && port_in_status == "submitted"
-  end
-
-  def all_capture_reports_verified?
-    capture_reports.exists? && capture_reports.where.not(capture_report_status: "verified").none?
-  end
-
-  def record_fishing_gear_usage!(*, **)
-    usage_totals = FishingGearDetail.joins(:capture_report)
-                                    .where(capture_reports: { manifest_id: id })
-                                    .where.not(companies_fishing_gear_id: nil)
-                                    .group(:companies_fishing_gear_id)
-                                    .sum(:quantity)
-
-    usage_totals.each do |gear_id, quantity|
-      CompaniesFishingGear.where(id: gear_id)
-                          .update_all(["usage_value = COALESCE(usage_value, 0) + ?", quantity]) # rubocop:disable Rails/SkipsModelValidations
-    end
-  end
-
-  def latest_manifest_amendment_remarks_for(status_type, active)
-    return nil unless active
-
-    manifest_histories.where(status_type: status_type, to_state: "amendment_required")
-                      .order(created_at: :desc)
-                      .limit(1)
-                      .pick(:remarks)
-  end
-
-  def latest_capture_report_amendment_remarks
-    capture_reports.where(capture_report_status: "needs_amendment")
-                   .order(reviewed_at: :desc, updated_at: :desc)
-                   .limit(1)
-                   .pick(:capture_report_remarks)
-  end
 end
 
 # == Schema Information
@@ -358,4 +124,3 @@ end
 #  fk_rails_...  (support_vessel_id => companies_vessels.id)
 #  fk_rails_...  (zone_id => zones.id)
 #
-# rubocop:enable Metrics/ClassLength
