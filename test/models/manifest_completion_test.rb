@@ -39,6 +39,96 @@ class ManifestCompletionTest < ActiveSupport::TestCase
     assert_equal "completed", manifest.reload.manifest_status
   end
 
+  test "commercial manifest completes only after a post-port-in amendment is resubmitted and verified" do
+    manifest = create(:manifest, fisherman_category: "commercial")
+    manifest.submit_port_out!
+    manifest.approve_port_out!
+    report = create(:capture_report, manifest: manifest)
+
+    manifest.submit_port_in!
+    manifest.approve_port_in!
+
+    assert_equal %w[approved capture_report_submitted pending_verification],
+                 [manifest.port_in_status, manifest.manifest_status, report.capture_report_status]
+
+    report.request_amendment!(remarks: "Correct the catch quantity")
+    report.resubmit!
+    report.verify!
+
+    assert_equal %w[approved completed verified],
+                 [manifest.reload.port_in_status, manifest.manifest_status, report.reload.capture_report_status]
+  end
+
+  test "port-in amendment requested while a report is pending resumes review once resubmitted and verified" do
+    manifest = create(:manifest, fisherman_category: "commercial")
+    manifest.submit_port_out!
+    manifest.approve_port_out!
+    report = create(:capture_report, manifest: manifest)
+    manifest.submit_port_in!
+
+    manifest.request_amendment_port_in!(remarks: "Fix the port-in time")
+    report.verify!
+
+    assert_equal %w[amendment_required capture_report_submitted verified],
+                 [manifest.reload.port_in_status, manifest.manifest_status, report.reload.capture_report_status]
+
+    manifest.resubmit_port_in!
+    manifest.begin_port_in_review_if_ready!
+
+    assert_equal "awaiting_port_in_approval", manifest.reload.manifest_status
+
+    manifest.approve_port_in!
+
+    assert_equal %w[approved completed], [manifest.reload.port_in_status, manifest.manifest_status]
+  end
+
+  test "commercial manifest with a skipped capture report completes on port-in approval" do
+    manifest = create(:manifest, fisherman_category: "commercial", capture_report_skipped: true)
+    manifest.submit_port_out!
+    manifest.approve_port_out!
+    manifest.submit_port_in!
+
+    assert_equal "awaiting_port_in_approval", manifest.manifest_status
+
+    manifest.approve_port_in!
+
+    assert_equal %w[approved completed], [manifest.reload.port_in_status, manifest.manifest_status]
+  end
+
+  # Port-In approval (Jetty Manager) and report verification (DoFi Officer) are separate requests. Each one's
+  # finalizer must act on the committed state of the other, not on a manifest instance loaded before it.
+  test "verifying the last report completes the manifest even if port-in was approved after the report loaded" do
+    manifest = create(:manifest, fisherman_category: "commercial")
+    manifest.submit_port_out!
+    manifest.approve_port_out!
+    create(:capture_report, manifest: manifest)
+    manifest.submit_port_in!
+
+    report = CaptureReport.find_by!(manifest: manifest)
+    report.manifest # the DoFi Officer's request has loaded the manifest while Port-In was still pending
+    Manifest.find(manifest.id).approve_port_in!
+    report.verify!
+
+    assert_equal "completed", manifest.reload.manifest_status
+  end
+
+  test "verifying the last report starts port-in review even if port-in was resubmitted after the report loaded" do
+    manifest = create(:manifest, fisherman_category: "commercial")
+    manifest.submit_port_out!
+    manifest.approve_port_out!
+    create(:capture_report, manifest: manifest)
+    manifest.submit_port_in!
+    manifest.request_amendment_port_in!(remarks: "Fix the port-in time")
+
+    report = CaptureReport.find_by!(manifest: manifest)
+    report.manifest # loaded while Port-In still awaited the fisherman's amendment
+    Manifest.find(manifest.id).resubmit_port_in!
+    report.verify!
+
+    assert_equal %w[pending awaiting_port_in_approval],
+                 [manifest.reload.port_in_status, manifest.manifest_status]
+  end
+
   test "complete_manifest increments usage_value from capture report fishing gear quantities" do
     manifest = create(:manifest, fisherman_category: "commercial")
     manifest.submit_port_out!

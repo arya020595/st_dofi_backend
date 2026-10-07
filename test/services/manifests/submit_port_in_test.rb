@@ -26,8 +26,20 @@ module Manifests
       assert_equal "completed", manifest.manifest_status
     end
 
-    test "manifest with capture reports notifies capture verifiers" do
+    test "commercial manifest with capture reports notifies jetty approvers and capture verifiers" do
       manifest = at_sea_manifest("commercial", skipped: false)
+      create(:capture_report, manifest: manifest)
+
+      assert_predicate SubmitPortIn.call(manifest, actor: @actor), :success?
+
+      assert_equal({ approver: ["manifest.port_in_review_required"],
+                     verifier: ["manifest.capture_report_review_required"] },
+                   notifications_by_recipient)
+      assert_equal "capture_report_submitted", manifest.manifest_status
+    end
+
+    test "small-scale manifest with capture reports notifies capture verifiers only" do
+      manifest = at_sea_manifest("small_scale_full_time", skipped: false)
       create(:capture_report, manifest: manifest)
 
       assert_predicate SubmitPortIn.call(manifest, actor: @actor), :success?

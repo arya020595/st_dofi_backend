@@ -19,14 +19,12 @@ module Manifests
 
     private
 
-    # Reports to verify go to DoFi Officers; a skipped commercial manifest has nothing to verify and goes
-    # straight to Jetty Manager review. A skipped small-scale manifest completes with nobody to notify.
+    # Reports to verify go to DoFi Officers. A commercial Port-In goes to the Jetty Manager right away: the two
+    # reviews run in parallel, so approval never waits on verification. A skipped small-scale manifest completes
+    # with nobody to notify.
     def notify_reviewers(manifest)
-      if manifest.capture_report_submitted?
-        notify_capture_verifiers(manifest)
-      elsif manifest.awaiting_port_in_approval?
-        notify_port_in_approvers(manifest)
-      end
+      notify_capture_verifiers(manifest) if manifest.capture_report_submitted?
+      notify_port_in_approvers(manifest) if manifest.port_in_pending?
     end
 
     def reset_capture_reports_for_port_in!(manifest)

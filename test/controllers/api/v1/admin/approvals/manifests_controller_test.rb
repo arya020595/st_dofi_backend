@@ -145,7 +145,7 @@ module Api
           assert_approval_payload(manifest.id, "port_in_status", "approve_port_in!", @jetty_manager.name)
         end
 
-        test "approve_port_in is rejected before capture reports are fully verified" do
+        test "approve_port_in is allowed before capture reports are fully verified" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
           manifest.submit_port_out!
           manifest.approve_port_out!
@@ -154,8 +154,23 @@ module Api
 
           post "/api/v1/admin/approvals/manifests/#{manifest.id}/approve_port_in", headers: @jetty_headers
 
-          assert_response :unprocessable_content
-          assert_equal "pending", manifest.reload.port_in_status
+          assert_response :ok
+          assert_equal "approved", manifest.reload.port_in_status
+          assert_equal "capture_report_submitted", manifest.manifest_status
+        end
+
+        test "request_amendment_port_in is allowed before capture reports are fully verified" do
+          manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
+          manifest.submit_port_out!
+          manifest.approve_port_out!
+          create(:capture_report, manifest: manifest)
+          manifest.submit_port_in!
+
+          post "/api/v1/admin/approvals/manifests/#{manifest.id}/request_amendment_port_in",
+               params: { remarks: "Correct the port-in time" }, headers: @jetty_headers, as: :json
+
+          assert_response :ok
+          assert_equal "amendment_required", manifest.reload.port_in_status
           assert_equal "capture_report_submitted", manifest.manifest_status
         end
 

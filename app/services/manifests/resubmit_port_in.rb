@@ -9,6 +9,7 @@ module Manifests
       return Failure(manifest) unless manifest.may_resubmit_port_in?
 
       manifest.resubmit_port_in!(actor: actor)
+      manifest.begin_port_in_review_if_ready!(actor: actor)
       Notifications::ManifestPublisher.call(event: :port_in_resubmitted, manifest:)
       Success(manifest)
     end

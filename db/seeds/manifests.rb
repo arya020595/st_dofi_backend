@@ -9,11 +9,13 @@ admin = User.find_by!(email: "admin@dofi.gov.bn")
 
 small_scale_company_profile = CompanyProfile.find_by!(company_name: "Pantai Emas Enterprise")
 full_time_profile = CompanyProfileContact.find_by!(ic_no: "51-456789").company_profile
+part_time_profile = CompanyProfileContact.find_by!(ic_no: "51-567892").company_profile
 
 commercial_owner = User.find_by!(ic_number: "00-100035")
 commercial_profile = commercial_owner.company_profile
 small_scale_owner = User.find_by!(ic_number: "51-345678")
 full_time_owner = User.find_by!(ic_number: "51-456789")
+part_time_owner = User.find_by!(ic_number: "51-567892")
 
 serasa_port = Port.find_by!(port_name: "Serasa Port")
 mifl_port = Port.find_by!(port_name: "Muara International Fish Landing (MIFL)")
@@ -122,7 +124,7 @@ end
 report1 = manifest1.capture_reports.first
 report1.verify!(actor: admin) if report1&.may_verify?
 
-# --- Manifest 2: Small-Scale (Company), mid-lifecycle at sea, no captain, capture report pending ---
+# --- Manifest 2: Small-Scale (Company), capture report pending after Port-In submission -------------
 vessel2 = small_scale_company_profile.companies_vessels.approved.find_by!(boat_number: "TUT-2001")
 
 manifest2 = Manifest.find_or_create_by!(manifest_number: "DOF-SEED-0002") do |m|
@@ -149,6 +151,16 @@ end
 
 # Small-scale skips Jetty Manager approval at port-out — submit_port_out! jumps straight to :submitted.
 manifest2.submit_port_out!(actor: small_scale_owner) if manifest2.may_submit_port_out?
+
+if manifest2.capture_reports.none?
+  manifest2.capture_reports.create!(zone: inshore_zone, zone_area: inshore_zone.name,
+                                    latitude: 4.72, longitude: 114.92)
+end
+
+if manifest2.may_submit_port_in?
+  manifest2.update!(port_in: lumut_port, port_in_area: lumut_port.port_name, port_in_datetime: 2.hours.ago)
+  manifest2.submit_port_in!(actor: small_scale_owner)
+end
 
 # --- Manifest 3: Small - Scale (Full-Time), minor fisherman aboard, capture report skipped ---------
 vessel3 = full_time_profile.companies_vessels.approved.find_by!(boat_number: "TUT-3001")
@@ -249,8 +261,7 @@ if manifest5.may_submit_port_out?
                                         remarks: "Vessel boat number does not match jetty log — please confirm.")
 end
 
-# --- Manifest 6: Commercial, port_out approved (at sea), capture report awaiting verification, ------
-# --- port_in submitted and awaiting Jetty Manager approval -------------------------------------------
+# --- Manifest 6: Commercial, Port-In and Capture Report both pending ---------------------------------
 manifest6 = Manifest.find_or_create_by!(manifest_number: "DOF-SEED-0006") do |m|
   m.company_profile = commercial_profile
   m.companies_vessel = vessel1
@@ -310,7 +321,7 @@ if manifest6.may_submit_port_in?
   manifest6.submit_port_in!(actor: commercial_owner)
 end
 
-# --- Manifest 7: Commercial, port_in amendment requested by the Jetty Manager -----------------------
+# --- Manifest 7: Commercial, Port-In approved while Capture Report needs amendment ------------------
 manifest7 = Manifest.find_or_create_by!(manifest_number: "DOF-SEED-0007") do |m|
   m.company_profile = commercial_profile
   m.companies_vessel = vessel1
@@ -365,8 +376,15 @@ end
 if manifest7.may_submit_port_in?
   manifest7.update!(port_in: lumut_port, port_in_area: lumut_port.port_name, port_in_datetime: 3.hours.ago)
   manifest7.submit_port_in!(actor: commercial_owner)
-  manifest7.request_amendment_port_in!(actor: admin,
-                                       remarks: "Port-in time is earlier than port-out — please verify.")
+end
+
+manifest7.resubmit_port_in!(actor: commercial_owner) if manifest7.may_resubmit_port_in?
+manifest7.approve_port_in!(actor: admin) if manifest7.may_approve_port_in?
+
+report7 = manifest7.capture_reports.first
+if report7&.may_request_amendment?
+  report7.request_amendment!(actor: admin,
+                             remarks: "Catch quantity needs correction before final verification.")
 end
 
 # --- Manifest 8: Small-Scale (Company), at sea, capture report sent back for amendment --------------
@@ -494,10 +512,44 @@ end
 if manifest10.may_submit_port_in?
   manifest10.update!(port_in: mifl_port, port_in_area: mifl_port.port_name, port_in_datetime: 2.days.ago)
   manifest10.submit_port_in!(actor: commercial_owner)
-  manifest10.approve_port_in!(actor: admin)
 end
 
-[manifest1, manifest2, manifest3, manifest4, manifest5, manifest6, manifest7, manifest8, manifest10]
+manifest10.approve_port_in!(actor: admin) if manifest10.may_approve_port_in?
+
+# --- Manifest 11: Small - Scale (Part-Time), verified capture report completes after Port-In --------
+vessel11 = part_time_profile.companies_vessels.approved.order(:boat_number).first!
+
+manifest11 = Manifest.find_or_create_by!(manifest_number: "DOF-SEED-0011") do |m|
+  m.company_profile = part_time_profile
+  m.companies_vessel = vessel11
+  m.company_name = part_time_profile.company_name
+  m.vessel_boat_name = vessel11.vessel_name
+  m.vessel_boat_no = vessel11.boat_number
+  m.fisherman_category = FISHERMAN_CATEGORY_BY_REGISTRATION_TYPE.fetch(part_time_profile.registration_type)
+  m.created_by = part_time_owner
+  m.port_out = lumut_port
+  m.port_out_area = lumut_port.port_name
+  m.port_out_datetime = 3.days.ago
+  m.zone = inshore_zone
+  m.zone_area = inshore_zone.name
+end
+
+manifest11.submit_port_out!(actor: part_time_owner) if manifest11.may_submit_port_out?
+
+if manifest11.capture_reports.none?
+  manifest11.capture_reports.create!(zone: inshore_zone, zone_area: inshore_zone.name,
+                                     latitude: 4.75, longitude: 114.95)
+end
+
+if manifest11.may_submit_port_in?
+  manifest11.update!(port_in: lumut_port, port_in_area: lumut_port.port_name, port_in_datetime: 1.day.ago)
+  manifest11.submit_port_in!(actor: part_time_owner)
+end
+
+report11 = manifest11.capture_reports.first
+report11.verify!(actor: admin) if report11&.may_verify?
+
+[manifest1, manifest2, manifest3, manifest4, manifest5, manifest6, manifest7, manifest8, manifest10, manifest11]
   .compact
   .each(&:refresh_amendment_snapshots!)
 
