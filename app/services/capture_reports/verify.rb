@@ -13,16 +13,7 @@ module CaptureReports
         manifest: report.manifest,
         capture_report: report
       )
-      notify_port_in_approvers(report.manifest)
       Success(report)
-    end
-
-    private
-
-    def notify_port_in_approvers(manifest)
-      return unless manifest.awaiting_port_in_approval?
-
-      Notifications::ManifestPublisher.call(event: :port_in_review_required, manifest:)
     end
   end
 end

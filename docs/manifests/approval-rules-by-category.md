@@ -18,8 +18,8 @@ Part-Time, Full-Time and Small-Scale (Company) follow identical rules, so they s
 - **Completing a small-scale manifest after verification** —
   [`app/models/capture_report.rb`](../../app/models/capture_report.rb) (`advance_manifest_after_verification!`).
 - **Who is notified** — [`app/services/manifests/submit_port_in.rb`](../../app/services/manifests/submit_port_in.rb):
-  capture-report verifiers when there are reports to verify, Jetty Managers when a skipped commercial
-  manifest needs Port-In approval, nobody for a skipped small-scale manifest.
+  capture-report verifiers when there are reports to verify, and Jetty Managers as soon as a commercial
+  Port-In is submitted (they never wait for DoFi verification), nobody for a skipped small-scale manifest.
 - **A report is either skipped or submitted, never both** — enforced by model validations, so no write
   path can bypass it: [`Manifest`](../../app/models/manifest.rb) refuses `capture_report_skipped` once
   reports exist, and [`CaptureReport`](../../app/models/capture_report.rb) refuses creation once skipped.

@@ -196,20 +196,17 @@ class Manifest < ApplicationRecord
 
   public
 
-  # Commercial Port-In approval and Capture Report verification complete independently. Either event
-  # calls this shared finalizer; only their combined terminal conditions may complete the manifest.
+  # Commercial Port-In approval (Jetty Manager) and Capture Report verification (DoFi Officer) complete
+  # independently, in separate requests. Either event calls this shared finalizer; only their combined terminal
+  # conditions may complete the manifest. It re-reads the row under a lock (`with_lock`) so it judges the other
+  # side's committed state, not the instance this request loaded earlier — otherwise two concurrent finalizers
+  # could each see the other's step as unfinished and leave a fully approved manifest stuck.
   def finalize_completion_if_ready!(*, actor: nil, **)
-    return unless ready_for_completion?
-    return unless capture_report_submitted? || awaiting_port_in_approval?
-
-    complete_manifest!(actor: actor)
+    with_lock { complete_manifest!(actor: actor) if completable? }
   end
 
   def begin_port_in_review_if_ready!(*, actor: nil, **)
-    return unless commercial? && port_in_pending? && all_capture_reports_verified?
-    return unless may_begin_port_in_review?
-
-    begin_port_in_review!(actor: actor)
+    with_lock { begin_port_in_review!(actor: actor) if ready_for_port_in_review? }
   end
 
   def sync_capture_report_amendment_snapshot!
@@ -231,6 +228,14 @@ class Manifest < ApplicationRecord
   end
 
   private
+
+  def completable?
+    ready_for_completion? && (capture_report_submitted? || awaiting_port_in_approval?)
+  end
+
+  def ready_for_port_in_review?
+    commercial? && port_in_pending? && all_capture_reports_verified? && may_begin_port_in_review?
+  end
 
   def ready_for_completion?
     return false unless capture_report_skipped? || all_capture_reports_verified?

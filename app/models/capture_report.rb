@@ -37,8 +37,8 @@ class CaptureReport < ApplicationRecord
     state :verified
     state :needs_amendment
 
-    # success: (not after:) — stamp_review_and_maybe_complete! checks this report's own verified?
-    # state via manifest.capture_reports.all?(&:verified?), which after: callbacks see pre-persist.
+    # success: (not after:) — the manifest finalizers query every report's verified state from the database,
+    # which after: callbacks would still see pre-persist (this report not yet verified).
     event(:verify) do
       transitions from: :pending_verification, to: :verified, success: :stamp_review_and_maybe_complete!
     end
