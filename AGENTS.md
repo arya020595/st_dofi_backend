@@ -30,6 +30,14 @@ Controllers, models, and business logic each have one job. Don't let logic leak 
 - **Services** (`app/services`, create as needed) — business logic and multi-step workflows. Use `dry-monads` `Success`/`Failure` results instead of raising for expected failure paths; controllers pattern-match on the result instead of branching on exceptions. Delegate non-trivial SQL construction to a Query object.
 - **Queries** (`app/queries`, create as needed) — read-only SQL/ActiveRecord construction. A `*Query` exposes `self.call(...)`; it contains no authorization, business rules, response formatting, or side effects.
 - **Models** (`app/models`) — associations, validations, scopes, and persistence concerns only. If a method coordinates multiple models or external calls, it belongs in a service, not the model.
+- **State machines** (AASM) — the model holds only the transition table (states, `from`/`to`, the guards that pick
+  the target state) and the automatic audit-history callback. What follows a transition — cascading to other
+  status columns or models, amendment snapshots, review stamps — is a service. For machines that cascade (Manifest,
+  CaptureReport) fire events through `Manifests::Transition` / `CaptureReports::Transition`, never
+  `manifest.approve_port_in!` / `report.verify!` directly (`test/architecture/lifecycle_events_only_in_services_test.rb`
+  enforces it); simple machines such as `Approvable` may keep firing their own events. Business conditions
+  ("is this ready to complete?") live in a read-only rules object (`Manifests::LifecycleRules`), not in model
+  predicates. See [`docs/manifests/lifecycle-status.md`](docs/manifests/lifecycle-status.md).
 - **Blueprints** (`app/blueprints`, create as needed) — response shaping only, via Blueprinter. Don't compute business values inline in a blueprint field that aren't simple presentation logic.
 
 ## Mandatory controller/query shape contract
