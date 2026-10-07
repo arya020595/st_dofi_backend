@@ -184,7 +184,7 @@ GET    /api/v1/fisherman/master_data/ports/:id   # show, read-only
 ```json
 {
   "position": {
-    "name": "Crew",
+    "name": "Boat Captain",
     "category": "Fisherman"
   }
 }

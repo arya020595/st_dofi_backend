@@ -7585,7 +7585,7 @@
                 }
               ]
             },
-            "description": "Looks up the seeded Crew-category \"Boat Captain\" position so Create Crew below can send a real `position_id` (position is now a `Position` association, not a free string — see `Master Data - Position`)."
+            "description": "Looks up the seeded Fisherman-category \"Boat Captain\" position so Create Crew below can send a real `position_id` (position is now a `Position` association, not a free string — see `Master Data - Position`)."
           },
           "event": [
             {
@@ -7638,7 +7638,7 @@
                 }
               }
             },
-            "description": "crew_name, date_of_birth, ic_number, nationality, position_id, gender, foreign_worker_license_no, foreign_worker_license_start_date, and foreign_worker_license_end_date are all required (passport_number is optional). position_id must reference a Crew-category Position (see \"Setup - Get Crew Position\" above and Master Data - Position). status defaults to active if omitted and must be active or non_active if present. Always created with approval_status: pending, regardless of who creates it. Requires companies_crews.create."
+            "description": "crew_name, date_of_birth, ic_number, nationality, position_id, gender, foreign_worker_license_no, foreign_worker_license_start_date, and foreign_worker_license_end_date are all required (passport_number is optional). position_id must reference a Fisherman-category Position (see \"Setup - Get Crew Position\" above and Master Data - Position). status defaults to active if omitted and must be active or non_active if present. Always created with approval_status: pending, regardless of who creates it. Requires companies_crews.create."
           },
           "event": [
             {
@@ -7948,7 +7948,7 @@
                     }
                   }
                 },
-                "description": "Fisherman-namespace equivalent of Create Crew above — same controller, same required fields (position_id must reference a Crew-category Position, see \"Setup - Get Crew Position (Fisherman)\" above), same permission requirement (companies_crews.create), same pending approval_status regardless of who creates it. The fisherman can only create crew under their own company_profile (enforced by set_company_profile's policy_scope, not by trusting company_profile_id in the URL)."
+                "description": "Fisherman-namespace equivalent of Create Crew above — same controller, same required fields (position_id must reference a Fisherman-category Position, see \"Setup - Get Crew Position (Fisherman)\" above), same permission requirement (companies_crews.create), same pending approval_status regardless of who creates it. The fisherman can only create crew under their own company_profile (enforced by set_company_profile's policy_scope, not by trusting company_profile_id in the URL)."
               },
               "event": [
                 {
@@ -9915,7 +9915,7 @@
                 }
               ]
             },
-            "description": "Crew-profiling position picker (`GET /api/v1/fisherman/master_data/positions`). Requires `positions.list`. Returns all positions (same convention as List Ports/List Zones) — the mobile \"Add New Fisherman\" form filters client-side to `category == \"Crew\"` (Boat Captain, Full-Time Fisherman, Part-Time Fisherman, Ice & Storage Assistant, Logistic Assistant); `q[category_eq]=Crew` works server-side too. Use the selected `id` as `position_id` on `POST/PATCH .../crews`."
+            "description": "Crew-profiling position picker (`GET /api/v1/fisherman/master_data/positions`). Requires `positions.list`. Returns all positions (same convention as List Ports/List Zones) — the mobile \"Add New Fisherman\" form filters client-side to `category == \"Fisherman\"` (Boat Captain, Full-Time Fisherman, Part-Time Fisherman, Ice & Storage Assistant, Logistic Assistant); `q[category_eq]=Fisherman` works server-side too. Use the selected `id` as `position_id` on `POST/PATCH .../crews`."
           },
           "event": [
             {
@@ -13385,7 +13385,7 @@
                     }
                   }
                 },
-                "description": "Creates a position with a unique `name` and `category` (one of `Fisherman`/`Jetty Manager`/`DoFi Officer`/`Crew`). `Crew`-category positions back the fisherman crew-profiling form (Boat Captain, Full-Time Fisherman, Part-Time Fisherman, Ice & Storage Assistant, Logistic Assistant) and Manifest's captain picker (Boat Captain specifically). Requires `positions.create`."
+                "description": "Creates a position with a unique `name` and `category` (one of `Fisherman`/`Jetty Manager`/`DoFi Officer`). `Fisherman`-category positions back the fisherman crew-profiling form (Boat Captain, Full-Time Fisherman, Part-Time Fisherman, Ice & Storage Assistant, Logistic Assistant) and Manifest's captain picker (Boat Captain specifically). Requires `positions.create`."
               },
               "event": [
                 {
