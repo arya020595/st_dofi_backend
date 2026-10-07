@@ -45,8 +45,8 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
     assert_equal company_profile_id, fisherman.company_profile_id
     assert_equal "claimable", fisherman.fisherman_status
 
-    # 3. Fisherman claims and logs in via the mocked BruneiID re-scan.
-    post "/api/v1/auth/brunei_id", params: { ic_number: ic_number }, as: :json
+    # 3. Fisherman claims and logs in via the BruneiID callback (provider verification is stubbed in this test).
+    post_brunei_id_callback(ic_number:, audience: "fisherman")
 
     assert_response :ok
     assert_equal "active", fisherman.reload.fisherman_status
@@ -122,7 +122,7 @@ class SmallScaleFullTimeFishermanFlowTest < ActionDispatch::IntegrationTest
 
     fisherman = User.find(response.parsed_body.dig("data", "owner_user", "id"))
 
-    post "/api/v1/auth/brunei_id", params: { ic_number: ic_number }, as: :json
+    post_brunei_id_callback(ic_number:, audience: "fisherman")
 
     assert_response :ok
     fisherman_headers = { "Authorization" => response.headers["Authorization"] }

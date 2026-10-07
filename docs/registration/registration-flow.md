@@ -15,7 +15,7 @@ teammates, the company's Owner) provisions every account before its first Brunei
 
 Shared infrastructure:
 
-- BruneiID callback/mock verification.
+- BruneiID OIDC callback verification.
 - IC normalization.
 - Global kept-user IC uniqueness through `normalized_ic_number`.
 
@@ -216,59 +216,12 @@ Source B role validation:
 - Role must have `platform_scope = "fisherman"`.
 - System Owner/Admin role assignment is blocked. Source B is for custom-role teammates only.
 
-## 4. Mock BruneiID Login
+## 4. BruneiID OIDC Callback
 
-```
-POST /api/v1/auth/brunei_id
-```
-
-Request:
-
-```json
-{ "ic_number": "01-192839", "audience": "jetty_manager" }
-```
-
-When `audience` is provided, lookup is audience-scoped and behaves exactly like the callback in §5:
-`fisherman` resolves Fisherman accounts through `Fisherman::Authenticate`, while `jetty_manager`
-resolves only a user with the system Jetty Manager role. Without `audience`, this legacy/mock
-endpoint looks the IC up across all kept users:
-
-**Active response - 200 OK**
-
-```json
-{
-  "status": "success",
-  "data": {
-    "access_token": "<jwt>",
-    "user": {
-      "id": "uuid",
-      "status": "active",
-      "fisherman_status": "active"
-    }
-  }
-}
-```
-
-**Not active (suspended/revoked Fisherman, inactive Jetty Manager) - 200 OK, no token**
-
-```json
-{
-  "status": "success",
-  "data": {
-    "id": "uuid",
-    "status": "active",
-    "fisherman_status": "suspended"
-  }
-}
-```
-
-**Not found - 404 Not Found**
-
-```json
-{ "status": "fail", "message": "Account not found." }
-```
-
-## 5. BruneiID OIDC Callback
+Developers may enable the separate IC-only mock endpoint with `BRUNEIID_MOCK_ENABLED=true`
+on local/staging. Production sets `false`; omitted/invalid values also hide the mock route.
+See [testing BruneiID login](testing-brunei-id-login.md#mock-login-for-local-and-staging) for its
+optional-audience compatibility contract. The real callback below always performs OIDC verification.
 
 ```
 POST /api/v1/auth/brunei_id/callback
@@ -333,7 +286,7 @@ Unknown Jetty Manager IC:
 Both not-provisioned responses also carry the BruneiID profile fields (`full_name`,
 `brunei_id_profile`, `brunei_id_token_metadata`) in `data`.
 
-## 6. Identity And Uniqueness
+## 5. Identity And Uniqueness
 
 `normalized_ic_number` is globally unique across all kept users. It is not scoped by Fisherman
 company, platform, or role. This means a Fisherman and Jetty Manager cannot share the same
@@ -351,7 +304,7 @@ Application services still check availability first, but the database is the fin
 Provisioning catches `ActiveRecord::RecordNotUnique`, rechecks the IC, and returns the
 deterministic domain conflict symbol instead of leaking a database exception.
 
-## 7. Owner/Admin User Management Rules
+## 6. Owner/Admin User Management Rules
 
 Fisherman User Management may manage custom-role users only. System-managed Owner/Admin users are
 created and governed from DoFI Company Profiling and are not assignable from Fisherman User
@@ -372,7 +325,7 @@ It must not:
 
 Owner access governance is a DoFI Profiling responsibility.
 
-## 8. DoFI Officer Login
+## 7. DoFI Officer Login
 
 Officers log in separately:
 

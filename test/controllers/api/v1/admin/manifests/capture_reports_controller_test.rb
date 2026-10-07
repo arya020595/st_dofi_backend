@@ -58,6 +58,26 @@ module Api
             assert_equal "Fishing gear section invalid", report.capture_report_remarks
           end
 
+          test "request_amendment remains available after commercial port-in approval" do
+            @manifest.update!(fisherman_category: "commercial")
+            ::Manifests::SubmitPortOut.call(@manifest, actor: nil).value!
+            ::Manifests::ApprovePortOut.call(@manifest, actor: nil).value!
+            report = create(:capture_report, manifest: @manifest)
+            ::Manifests::SubmitPortIn.call(@manifest, actor: nil).value!
+            ::Manifests::ApprovePortIn.call(@manifest, actor: nil).value!
+            headers = officer_headers_for(
+              permission_codes: %w[capture_report_verifications.list capture_report_verifications.view
+                                   capture_report_verifications.request_amendment]
+            )
+
+            post "/api/v1/admin/manifests/#{@manifest.id}/capture_reports/#{report.id}/request_amendment",
+                 params: { remarks: "Correct the catch quantity" }, headers: headers, as: :json
+
+            assert_response :ok
+            assert_equal "needs_amendment", report.reload.capture_report_status
+            assert_equal "capture_report_submitted", @manifest.reload.manifest_status
+          end
+
           test "index lists capture reports for the manifest" do
             reviewer = create(:user)
             create(:capture_report, manifest: @manifest, reviewed_by: reviewer, reviewed_at: Time.current)

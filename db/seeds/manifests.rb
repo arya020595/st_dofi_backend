@@ -1,6 +1,6 @@
-# Drives each manifest through the real AASM events (Manifest#submit_port_out!/approve_port_out!/...,
-# CaptureReport#verify!) rather than writing status columns directly, so every row seeded here is
-# guaranteed reachable under the guards in app/models/manifest.rb / app/models/capture_report.rb —
+# Drives each manifest through the real lifecycle services (Manifests::SubmitPortOut, CaptureReports::Verify, ...,
+# the same ones the API uses, notifications included) rather than writing status columns directly, so every row
+# seeded here is guaranteed reachable under the guards in app/models/manifest.rb / app/models/capture_report.rb —
 # and each transition still writes its ManifestHistory row via HasManifestHistory, so that table gets
 # realistic data too without a dedicated seed file. manifest_number is a fixed "DOF-SEED-…" value
 # rather than SequenceGenerator (see app/services/manifests/create.rb) — seeds need a stable,
@@ -9,11 +9,13 @@ admin = User.find_by!(email: "admin@dofi.gov.bn")
 
 small_scale_company_profile = CompanyProfile.find_by!(company_name: "Pantai Emas Enterprise")
 full_time_profile = CompanyProfileContact.find_by!(ic_no: "51-456789").company_profile
+part_time_profile = CompanyProfileContact.find_by!(ic_no: "51-567892").company_profile
 
 commercial_owner = User.find_by!(ic_number: "00-100035")
 commercial_profile = commercial_owner.company_profile
 small_scale_owner = User.find_by!(ic_number: "51-345678")
 full_time_owner = User.find_by!(ic_number: "51-456789")
+part_time_owner = User.find_by!(ic_number: "51-567892")
 
 serasa_port = Port.find_by!(port_name: "Serasa Port")
 mifl_port = Port.find_by!(port_name: "Muara International Fish Landing (MIFL)")
@@ -85,8 +87,8 @@ if manifest1.crew_manifests.none?
 end
 
 if manifest1.may_submit_port_out?
-  manifest1.submit_port_out!(actor: commercial_owner)
-  manifest1.approve_port_out!(actor: admin)
+  Manifests::SubmitPortOut.call(manifest1, actor: commercial_owner).value!
+  Manifests::ApprovePortOut.call(manifest1, actor: admin).value!
 end
 
 if manifest1.capture_reports.none?
@@ -115,14 +117,14 @@ end
 
 if manifest1.may_submit_port_in?
   manifest1.update!(port_in: mifl_port, port_in_area: mifl_port.port_name, port_in_datetime: 1.day.ago)
-  manifest1.submit_port_in!(actor: commercial_owner)
-  manifest1.approve_port_in!(actor: admin)
+  Manifests::SubmitPortIn.call(manifest1, actor: commercial_owner).value!
+  Manifests::ApprovePortIn.call(manifest1, actor: admin).value!
 end
 
 report1 = manifest1.capture_reports.first
-report1.verify!(actor: admin) if report1&.may_verify?
+CaptureReports::Verify.call(report1, actor: admin).value! if report1&.may_verify?
 
-# --- Manifest 2: Small-Scale (Company), mid-lifecycle at sea, no captain, capture report pending ---
+# --- Manifest 2: Small-Scale (Company), capture report pending after Port-In submission -------------
 vessel2 = small_scale_company_profile.companies_vessels.approved.find_by!(boat_number: "TUT-2001")
 
 manifest2 = Manifest.find_or_create_by!(manifest_number: "DOF-SEED-0002") do |m|
@@ -148,7 +150,17 @@ if manifest2.crew_manifests.none?
 end
 
 # Small-scale skips Jetty Manager approval at port-out — submit_port_out! jumps straight to :submitted.
-manifest2.submit_port_out!(actor: small_scale_owner) if manifest2.may_submit_port_out?
+Manifests::SubmitPortOut.call(manifest2, actor: small_scale_owner).value! if manifest2.may_submit_port_out?
+
+if manifest2.capture_reports.none?
+  manifest2.capture_reports.create!(zone: inshore_zone, zone_area: inshore_zone.name,
+                                    latitude: 4.72, longitude: 114.92)
+end
+
+if manifest2.may_submit_port_in?
+  manifest2.update!(port_in: lumut_port, port_in_area: lumut_port.port_name, port_in_datetime: 2.hours.ago)
+  Manifests::SubmitPortIn.call(manifest2, actor: small_scale_owner).value!
+end
 
 # --- Manifest 3: Small - Scale (Full-Time), minor fisherman aboard, capture report skipped ---------
 vessel3 = full_time_profile.companies_vessels.approved.find_by!(boat_number: "TUT-3001")
@@ -175,7 +187,7 @@ if manifest3.manifest_minor_fishermen.none?
                                              relationship_with_owner: "Son")
 end
 
-manifest3.submit_port_out!(actor: full_time_owner) if manifest3.may_submit_port_out?
+Manifests::SubmitPortOut.call(manifest3, actor: full_time_owner).value! if manifest3.may_submit_port_out?
 
 if manifest3.port_in_draft? && !manifest3.capture_report_skipped?
   manifest3.update!(capture_report_skipped: true, skip_reason: no_fish_caught,
@@ -185,7 +197,7 @@ end
 # Skipped reports have no CaptureReport to verify — for a small-scale manifest submit_port_in! completes it
 # immediately with no approval (a commercial one goes straight to Jetty Manager review instead). See
 # docs/manifests/approval-rules-by-category.md.
-manifest3.submit_port_in!(actor: full_time_owner) if manifest3.may_submit_port_in?
+Manifests::SubmitPortIn.call(manifest3, actor: full_time_owner).value! if manifest3.may_submit_port_in?
 
 # --- Manifest 4: Commercial, port_out submitted and awaiting Jetty Manager approval -----------------
 manifest4 = Manifest.find_or_create_by!(manifest_number: "DOF-SEED-0004") do |m|
@@ -214,7 +226,7 @@ if manifest4.crew_manifests.none?
                                    nationality: crew_aliff.nationality)
 end
 
-manifest4.submit_port_out!(actor: commercial_owner) if manifest4.may_submit_port_out?
+Manifests::SubmitPortOut.call(manifest4, actor: commercial_owner).value! if manifest4.may_submit_port_out?
 
 # --- Manifest 5: Commercial, port_out amendment requested by the Jetty Manager ----------------------
 manifest5 = Manifest.find_or_create_by!(manifest_number: "DOF-SEED-0005") do |m|
@@ -244,13 +256,12 @@ if manifest5.crew_manifests.none?
 end
 
 if manifest5.may_submit_port_out?
-  manifest5.submit_port_out!(actor: commercial_owner)
-  manifest5.request_amendment_port_out!(actor: admin,
-                                        remarks: "Vessel boat number does not match jetty log — please confirm.")
+  Manifests::SubmitPortOut.call(manifest5, actor: commercial_owner).value!
+  amendment = "Vessel boat number does not match jetty log — please confirm."
+  Manifests::RequestAmendmentPortOut.call(manifest5, actor: admin, remarks: amendment).value!
 end
 
-# --- Manifest 6: Commercial, port_out approved (at sea), capture report awaiting verification, ------
-# --- port_in submitted and awaiting Jetty Manager approval -------------------------------------------
+# --- Manifest 6: Commercial, Port-In and Capture Report both pending ---------------------------------
 manifest6 = Manifest.find_or_create_by!(manifest_number: "DOF-SEED-0006") do |m|
   m.company_profile = commercial_profile
   m.companies_vessel = vessel1
@@ -278,8 +289,8 @@ if manifest6.crew_manifests.none?
 end
 
 if manifest6.may_submit_port_out?
-  manifest6.submit_port_out!(actor: commercial_owner)
-  manifest6.approve_port_out!(actor: admin)
+  Manifests::SubmitPortOut.call(manifest6, actor: commercial_owner).value!
+  Manifests::ApprovePortOut.call(manifest6, actor: admin).value!
 end
 
 if manifest6.capture_reports.none?
@@ -307,10 +318,10 @@ end
 
 if manifest6.may_submit_port_in?
   manifest6.update!(port_in: mifl_port, port_in_area: mifl_port.port_name, port_in_datetime: 1.hour.ago)
-  manifest6.submit_port_in!(actor: commercial_owner)
+  Manifests::SubmitPortIn.call(manifest6, actor: commercial_owner).value!
 end
 
-# --- Manifest 7: Commercial, port_in amendment requested by the Jetty Manager -----------------------
+# --- Manifest 7: Commercial, Port-In approved while Capture Report needs amendment ------------------
 manifest7 = Manifest.find_or_create_by!(manifest_number: "DOF-SEED-0007") do |m|
   m.company_profile = commercial_profile
   m.companies_vessel = vessel1
@@ -338,8 +349,8 @@ if manifest7.crew_manifests.none?
 end
 
 if manifest7.may_submit_port_out?
-  manifest7.submit_port_out!(actor: commercial_owner)
-  manifest7.approve_port_out!(actor: admin)
+  Manifests::SubmitPortOut.call(manifest7, actor: commercial_owner).value!
+  Manifests::ApprovePortOut.call(manifest7, actor: admin).value!
 end
 
 if manifest7.capture_reports.none?
@@ -364,9 +375,16 @@ end
 
 if manifest7.may_submit_port_in?
   manifest7.update!(port_in: lumut_port, port_in_area: lumut_port.port_name, port_in_datetime: 3.hours.ago)
-  manifest7.submit_port_in!(actor: commercial_owner)
-  manifest7.request_amendment_port_in!(actor: admin,
-                                       remarks: "Port-in time is earlier than port-out — please verify.")
+  Manifests::SubmitPortIn.call(manifest7, actor: commercial_owner).value!
+end
+
+Manifests::ResubmitPortIn.call(manifest7, actor: commercial_owner).value! if manifest7.may_resubmit_port_in?
+Manifests::ApprovePortIn.call(manifest7, actor: admin).value! if manifest7.may_approve_port_in?
+
+report7 = manifest7.capture_reports.first
+if report7&.may_request_amendment?
+  amendment = "Catch quantity needs correction before final verification."
+  CaptureReports::RequestAmendment.call(report7, actor: admin, remarks: amendment).value!
 end
 
 # --- Manifest 8: Small-Scale (Company), at sea, capture report sent back for amendment --------------
@@ -394,7 +412,7 @@ if manifest8.crew_manifests.none?
 end
 
 # Small-scale skips Jetty Manager approval at port-out — submit_port_out! jumps straight to :submitted.
-manifest8.submit_port_out!(actor: small_scale_owner) if manifest8.may_submit_port_out?
+Manifests::SubmitPortOut.call(manifest8, actor: small_scale_owner).value! if manifest8.may_submit_port_out?
 
 if manifest8.capture_reports.none?
   report8 = manifest8.capture_reports.create!(zone: inshore_zone, zone_area: inshore_zone.name,
@@ -421,8 +439,8 @@ end
 # catch report and resubmit before this manifest can move on to port-in.
 report8 = manifest8.capture_reports.first
 if report8&.may_request_amendment?
-  report8.request_amendment!(actor: admin,
-                             remarks: "Catch weight looks inconsistent with vessel capacity — please recheck.")
+  amendment = "Catch weight looks inconsistent with vessel capacity — please recheck."
+  CaptureReports::RequestAmendment.call(report8, actor: admin, remarks: amendment).value!
 end
 
 # --- Manifest 9: Small - Scale (Full-Time), plain draft — never submitted ---------------------------
@@ -467,8 +485,8 @@ if manifest10.crew_manifests.none?
 end
 
 if manifest10.may_submit_port_out?
-  manifest10.submit_port_out!(actor: commercial_owner)
-  manifest10.approve_port_out!(actor: admin)
+  Manifests::SubmitPortOut.call(manifest10, actor: commercial_owner).value!
+  Manifests::ApprovePortOut.call(manifest10, actor: admin).value!
 end
 
 if manifest10.capture_reports.none?
@@ -493,11 +511,45 @@ end
 
 if manifest10.may_submit_port_in?
   manifest10.update!(port_in: mifl_port, port_in_area: mifl_port.port_name, port_in_datetime: 2.days.ago)
-  manifest10.submit_port_in!(actor: commercial_owner)
-  manifest10.approve_port_in!(actor: admin)
+  Manifests::SubmitPortIn.call(manifest10, actor: commercial_owner).value!
 end
 
-[manifest1, manifest2, manifest3, manifest4, manifest5, manifest6, manifest7, manifest8, manifest10]
+Manifests::ApprovePortIn.call(manifest10, actor: admin).value! if manifest10.may_approve_port_in?
+
+# --- Manifest 11: Small - Scale (Part-Time), verified capture report completes after Port-In --------
+vessel11 = part_time_profile.companies_vessels.approved.order(:boat_number).first!
+
+manifest11 = Manifest.find_or_create_by!(manifest_number: "DOF-SEED-0011") do |m|
+  m.company_profile = part_time_profile
+  m.companies_vessel = vessel11
+  m.company_name = part_time_profile.company_name
+  m.vessel_boat_name = vessel11.vessel_name
+  m.vessel_boat_no = vessel11.boat_number
+  m.fisherman_category = FISHERMAN_CATEGORY_BY_REGISTRATION_TYPE.fetch(part_time_profile.registration_type)
+  m.created_by = part_time_owner
+  m.port_out = lumut_port
+  m.port_out_area = lumut_port.port_name
+  m.port_out_datetime = 3.days.ago
+  m.zone = inshore_zone
+  m.zone_area = inshore_zone.name
+end
+
+Manifests::SubmitPortOut.call(manifest11, actor: part_time_owner).value! if manifest11.may_submit_port_out?
+
+if manifest11.capture_reports.none?
+  manifest11.capture_reports.create!(zone: inshore_zone, zone_area: inshore_zone.name,
+                                     latitude: 4.75, longitude: 114.95)
+end
+
+if manifest11.may_submit_port_in?
+  manifest11.update!(port_in: lumut_port, port_in_area: lumut_port.port_name, port_in_datetime: 1.day.ago)
+  Manifests::SubmitPortIn.call(manifest11, actor: part_time_owner).value!
+end
+
+report11 = manifest11.capture_reports.first
+CaptureReports::Verify.call(report11, actor: admin).value! if report11&.may_verify?
+
+[manifest1, manifest2, manifest3, manifest4, manifest5, manifest6, manifest7, manifest8, manifest10, manifest11]
   .compact
   .each(&:refresh_amendment_snapshots!)
 

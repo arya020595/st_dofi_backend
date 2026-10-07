@@ -4,52 +4,46 @@ module CaptureReports
 
     def self.call(...) = new.call(...)
 
+    # The lock is on the manifest: a DoFi Officer's verification and the Jetty Manager's approval are separate
+    # requests, and whichever runs last must see the other's committed state to move the manifest on.
     def call(report, actor:)
-      return Failure(report) unless report.may_verify?
+      manifest = report.manifest
+      result = manifest.with_lock do
+        next Failure(report) unless report.may_verify?
 
-      report.verify!(actor: actor)
-      normalize_manifest_review_state!(report.manifest, actor: actor)
+        report.verify!(actor: actor)
+        stamp_review(report, manifest, actor)
+        move_manifest_on(manifest, actor)
+        Success(report)
+      end
+
+      notify_fisherman(report) if result.success?
+      result
+    end
+
+    private
+
+    def stamp_review(report, manifest, actor)
+      report.update!(reviewed_by_id: actor&.id, reviewed_at: Time.current)
+      manifest.sync_capture_report_amendment_snapshot!
+    end
+
+    # Both legs are now known: the manifest completes, or a commercial Port-In goes to the Jetty Manager.
+    def move_manifest_on(manifest, actor)
+      if manifest.may_complete_manifest?
+        manifest.complete_manifest!(actor: actor)
+        Manifests::RecordFishingGearUsage.call(manifest)
+      elsif manifest.may_begin_port_in_review?
+        manifest.begin_port_in_review!(actor: actor)
+      end
+    end
+
+    def notify_fisherman(report)
       Notifications::ManifestPublisher.call(
         event: :capture_report_verified,
         manifest: report.manifest,
         capture_report: report
       )
-      notify_port_in_approvers(report.manifest)
-      Success(report)
-    end
-
-    private
-
-    def normalize_manifest_review_state!(manifest, actor:)
-      return unless verified_manifest_ready_for_progress?(manifest)
-      return complete_small_scale_manifest!(manifest, actor: actor) if complete_small_scale_manifest?(manifest)
-      return unless ready_for_port_in_review?(manifest)
-
-      manifest.begin_port_in_review!(actor: actor)
-    end
-
-    def verified_manifest_ready_for_progress?(manifest)
-      manifest.capture_report_submitted? &&
-        manifest.capture_reports.exists? &&
-        manifest.capture_reports.all?(&:verified?)
-    end
-
-    def complete_small_scale_manifest?(manifest)
-      manifest.small_scale? && manifest.may_complete_manifest?
-    end
-
-    def complete_small_scale_manifest!(manifest, actor:)
-      manifest.complete_manifest!(actor: actor)
-    end
-
-    def ready_for_port_in_review?(manifest)
-      manifest.port_in_pending? && manifest.may_begin_port_in_review?
-    end
-
-    def notify_port_in_approvers(manifest)
-      return unless manifest.awaiting_port_in_approval?
-
-      Notifications::ManifestPublisher.call(event: :port_in_review_required, manifest:)
     end
   end
 end

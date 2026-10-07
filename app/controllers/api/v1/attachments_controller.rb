@@ -25,15 +25,9 @@ module Api
         attachment = attachment_for(blob)
 
         authorize attachment.record, :show?, policy_class: POLICY_CLASS_BY_RECORD_TYPE[attachment.record_type]
-        log_attachment_access(attachment, granted: true)
 
         response.headers["Cache-Control"] = "private, max-age=0"
         redirect_to presigned_url(blob), allow_other_host: true, status: :found
-      rescue Pundit::NotAuthorizedError
-        # Deliberately local, not left to ApplicationController's class-level rescue_from: the
-        # denial needs logging before rendering the same response that handler would give.
-        log_attachment_access(attachment, granted: false)
-        render_forbidden
       end
 
       private
@@ -55,15 +49,6 @@ module Api
 
       def disposition
         DISPOSITIONS.include?(params[:disposition]) ? params[:disposition] : "inline"
-      end
-
-      # Every access decision on a sensitive document is worth a trail — who, which attachment,
-      # which record, granted or denied (handbook Bab 19: denials matter as much as successes).
-      def log_attachment_access(attachment, granted:)
-        Rails.logger.info(
-          "Attachment access #{granted ? 'granted' : 'denied'}: user=#{current_user.id} " \
-          "attachment=#{attachment.id} record=#{attachment.record_type}##{attachment.record_id}"
-        )
       end
     end
   end

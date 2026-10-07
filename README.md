@@ -12,6 +12,10 @@ API-only Rails backend for the FINS Capture Fisheries module: vessels, crews, ma
 - Pagy + Ransack for pagination/search, Audited + Discard for audit trail/soft delete
 - MinIO (S3-compatible) for file storage, Sentry + Lograge for monitoring/logging
 
+Server logs: `docker compose logs api -f` (workers: `docker compose logs jobs -f`). See
+[server logging](docs/operations/server-logging.md) and
+[log management](docs/operations/log-management.md).
+
 ## Cross-platform line endings
 
 This repo's `.gitattributes` and `.editorconfig`/`.vscode` settings are the source of truth for
@@ -242,7 +246,7 @@ docs/
 
 - [Business flow — actors, roles & lifecycles](docs/registration/business-flow.md) — who the three actors are (DoFi Officer, Jetty Manager, Fisherman), how each gets an account, who approves what, and the reasoning behind non-obvious decisions (`Role#kind`, single-role model, why passwords are never manually chosen).
 - [Registration flow](docs/registration/registration-flow.md) — endpoint request/response contracts for Jetty Manager creation, Fisherman provisioning, and login, for all three actors.
-- [Testing mock BruneiID login](docs/registration/testing-mock-brunei-id-login.md) — copy-pasteable curl walkthrough for the full register → approve → login loop, plus pending/rejected/not-found cases.
+- [Testing BruneiID login](docs/registration/testing-brunei-id-login.md) — OIDC, optional local/staging mock flag, and provisioned-account outcomes.
 
 ### [`docs/api/`](docs/api/) — frontend-facing API contracts
 

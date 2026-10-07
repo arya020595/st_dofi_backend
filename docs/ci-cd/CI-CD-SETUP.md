@@ -471,6 +471,10 @@ own `.env`, same as every other secret in this guide.
 
 ## Part 6 — Verifying the Deployment
 
+For routine troubleshooting use `docker compose logs api -f` and `docker compose logs jobs -f`.
+See [server logging](../operations/server-logging.md) for the staging deployment directory and
+troubleshooting, and [log management](../operations/log-management.md) for the future centralization roadmap.
+
 ```bash
 ssh <user>@<server-ip>
 cd /opt/<service-name>

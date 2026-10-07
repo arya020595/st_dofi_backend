@@ -1,5 +1,9 @@
 module BruneiId
   class OidcHttpClient
+    def initialize(connection: nil)
+      @connection = connection
+    end
+
     def configured?
       [base_url, client_id, client_secret].all?(&:present?)
     end
@@ -9,23 +13,23 @@ module BruneiId
     end
 
     def fetch_discovery_document
-      request(method: :get, url: discovery_url, endpoint: "discovery")
+      request(method: :get, url: discovery_url)
     end
 
     def exchange_code(token_endpoint, code:, code_verifier:, redirect_uri:)
-      request(method: :post, url: token_endpoint, endpoint: "token", body: token_request_body(code, code_verifier,
-                                                                                              redirect_uri))
+      request(method: :post, url: token_endpoint, body: token_request_body(code, code_verifier,
+                                                                           redirect_uri))
     end
 
     def fetched_jwks(jwks_uri)
-      request(method: :get, url: jwks_uri, endpoint: "jwks")
+      request(method: :get, url: jwks_uri)
     end
 
     def fetch_userinfo(discovery:, access_token:)
       userinfo_endpoint = discovery["userinfo_endpoint"]
       return {} if userinfo_endpoint.blank? || access_token.blank?
 
-      request(method: :get, url: userinfo_endpoint, endpoint: "userinfo", headers: bearer_headers(access_token))
+      request(method: :get, url: userinfo_endpoint, headers: bearer_headers(access_token))
     rescue Faraday::Error
       {}
     end
