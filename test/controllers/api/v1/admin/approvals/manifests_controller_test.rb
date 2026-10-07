@@ -89,7 +89,7 @@ module Api
 
         test "approve_port_out advances a pending manifest to sea" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
-          manifest.submit_port_out!
+          ::Manifests::SubmitPortOut.call(manifest, actor: nil).value!
 
           post "/api/v1/admin/approvals/manifests/#{manifest.id}/approve_port_out", headers: @jetty_headers
 
@@ -101,7 +101,7 @@ module Api
 
         test "a fisherman cannot approve their own port-out request" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
-          manifest.submit_port_out!
+          ::Manifests::SubmitPortOut.call(manifest, actor: nil).value!
 
           post "/api/v1/admin/approvals/manifests/#{manifest.id}/approve_port_out", headers: @fisherman_headers
 
@@ -110,7 +110,7 @@ module Api
 
         test "request_amendment_port_out records the remarks and moves the manifest to amendment_required" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
-          manifest.submit_port_out!
+          ::Manifests::SubmitPortOut.call(manifest, actor: nil).value!
 
           post "/api/v1/admin/approvals/manifests/#{manifest.id}/request_amendment_port_out",
                params: { remarks: "Fix the port-out time" }, headers: @jetty_headers, as: :json
@@ -121,7 +121,7 @@ module Api
 
         test "port_out_approval returns the manifest port-out histories with actor details" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
-          manifest.submit_port_out!
+          ::Manifests::SubmitPortOut.call(manifest, actor: nil).value!
           post "/api/v1/admin/approvals/manifests/#{manifest.id}/approve_port_out", headers: @jetty_headers
 
           get "/api/v1/admin/approvals/manifests/#{manifest.id}/port_out_approval", headers: @jetty_headers
@@ -133,11 +133,11 @@ module Api
         test "port_in_approval returns the manifest port-in histories with actor details" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
           report = create(:capture_report, manifest: manifest)
-          manifest.submit_port_out!
-          manifest.approve_port_out!(actor: @jetty_manager)
-          manifest.submit_port_in!
-          report.verify!(actor: @jetty_manager)
-          manifest.approve_port_in!(actor: @jetty_manager)
+          ::Manifests::SubmitPortOut.call(manifest, actor: nil).value!
+          ::Manifests::ApprovePortOut.call(manifest, actor: @jetty_manager).value!
+          ::Manifests::SubmitPortIn.call(manifest, actor: nil).value!
+          ::CaptureReports::Verify.call(report, actor: @jetty_manager).value!
+          ::Manifests::ApprovePortIn.call(manifest, actor: @jetty_manager).value!
 
           get "/api/v1/admin/approvals/manifests/#{manifest.id}/port_in_approval", headers: @jetty_headers
 
@@ -147,10 +147,10 @@ module Api
 
         test "approve_port_in is allowed before capture reports are fully verified" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
-          manifest.submit_port_out!
-          manifest.approve_port_out!
+          ::Manifests::SubmitPortOut.call(manifest, actor: nil).value!
+          ::Manifests::ApprovePortOut.call(manifest, actor: nil).value!
           create(:capture_report, manifest: manifest)
-          manifest.submit_port_in!
+          ::Manifests::SubmitPortIn.call(manifest, actor: nil).value!
 
           post "/api/v1/admin/approvals/manifests/#{manifest.id}/approve_port_in", headers: @jetty_headers
 
@@ -161,10 +161,10 @@ module Api
 
         test "request_amendment_port_in is allowed before capture reports are fully verified" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
-          manifest.submit_port_out!
-          manifest.approve_port_out!
+          ::Manifests::SubmitPortOut.call(manifest, actor: nil).value!
+          ::Manifests::ApprovePortOut.call(manifest, actor: nil).value!
           create(:capture_report, manifest: manifest)
-          manifest.submit_port_in!
+          ::Manifests::SubmitPortIn.call(manifest, actor: nil).value!
 
           post "/api/v1/admin/approvals/manifests/#{manifest.id}/request_amendment_port_in",
                params: { remarks: "Correct the port-in time" }, headers: @jetty_headers, as: :json
@@ -176,11 +176,11 @@ module Api
 
         test "request_amendment_port_in normalizes a stale manifest once all capture reports are verified" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
-          manifest.submit_port_out!
-          manifest.approve_port_out!
+          ::Manifests::SubmitPortOut.call(manifest, actor: nil).value!
+          ::Manifests::ApprovePortOut.call(manifest, actor: nil).value!
           report = create(:capture_report, manifest: manifest)
-          manifest.submit_port_in!
-          report.verify!
+          ::Manifests::SubmitPortIn.call(manifest, actor: nil).value!
+          ::CaptureReports::Verify.call(report, actor: nil).value!
           manifest.update!(manifest_status: "capture_report_submitted")
 
           post "/api/v1/admin/approvals/manifests/#{manifest.id}/request_amendment_port_in",
@@ -193,10 +193,10 @@ module Api
 
         test "request_amendment_port_in accepts a skipped capture report" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
-          manifest.submit_port_out!
-          manifest.approve_port_out!
+          ::Manifests::SubmitPortOut.call(manifest, actor: nil).value!
+          ::Manifests::ApprovePortOut.call(manifest, actor: nil).value!
           manifest.update!(capture_report_skipped: true)
-          manifest.submit_port_in!
+          ::Manifests::SubmitPortIn.call(manifest, actor: nil).value!
 
           post "/api/v1/admin/approvals/manifests/#{manifest.id}/request_amendment_port_in",
                params: { remarks: "Confirm arrival time" }, headers: @jetty_headers, as: :json
@@ -208,11 +208,11 @@ module Api
 
         test "approve_port_in normalizes a stale manifest once all capture reports are verified" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
-          manifest.submit_port_out!
-          manifest.approve_port_out!
+          ::Manifests::SubmitPortOut.call(manifest, actor: nil).value!
+          ::Manifests::ApprovePortOut.call(manifest, actor: nil).value!
           report = create(:capture_report, manifest: manifest)
-          manifest.submit_port_in!
-          report.verify!
+          ::Manifests::SubmitPortIn.call(manifest, actor: nil).value!
+          ::CaptureReports::Verify.call(report, actor: nil).value!
           manifest.update!(manifest_status: "capture_report_submitted")
 
           post "/api/v1/admin/approvals/manifests/#{manifest.id}/approve_port_in", headers: @jetty_headers

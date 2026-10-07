@@ -66,8 +66,8 @@ module Api
                                    unit: "Lumut Port", position: "Jetty Supervisor", username: "jetty.manager",
                                    ic_number: "01-900001", contact_no: "81111111")
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
-          manifest.submit_port_out!
-          manifest.approve_port_out!(actor: reviewer)
+          ::Manifests::SubmitPortOut.call(manifest, actor: nil).value!
+          ::Manifests::ApprovePortOut.call(manifest, actor: reviewer).value!
 
           get "/api/v1/fisherman/manifests/#{manifest.id}", headers: @fisherman_headers
 
@@ -222,7 +222,7 @@ module Api
 
         test "destroy refuses a manifest that has already been submitted" do
           submitted = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
-          submitted.submit_port_out!
+          ::Manifests::SubmitPortOut.call(submitted, actor: nil).value!
 
           delete "/api/v1/fisherman/manifests/#{submitted.id}", headers: @fisherman_headers
 
@@ -242,8 +242,8 @@ module Api
 
         test "resubmit_port_out moves an amendment_required manifest back to pending" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
-          manifest.submit_port_out!
-          manifest.request_amendment_port_out!
+          ::Manifests::SubmitPortOut.call(manifest, actor: nil).value!
+          ::Manifests::RequestAmendmentPortOut.call(manifest, actor: nil, remarks: "Fix the port-out time").value!
 
           post "/api/v1/fisherman/manifests/#{manifest.id}/resubmit_port_out", headers: @fisherman_headers
 
@@ -253,8 +253,8 @@ module Api
 
         test "submit_port_in fails without a capture report or a skip reason" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
-          manifest.submit_port_out!
-          manifest.approve_port_out!
+          ::Manifests::SubmitPortOut.call(manifest, actor: nil).value!
+          ::Manifests::ApprovePortOut.call(manifest, actor: nil).value!
 
           post "/api/v1/fisherman/manifests/#{manifest.id}/submit_port_in", headers: @fisherman_headers
 
@@ -263,8 +263,8 @@ module Api
 
         test "skip_capture_report keeps the manifest at sea until port-in is submitted" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
-          manifest.submit_port_out!
-          manifest.approve_port_out!
+          ::Manifests::SubmitPortOut.call(manifest, actor: nil).value!
+          ::Manifests::ApprovePortOut.call(manifest, actor: nil).value!
           reason = create(:manifest_skip_reason)
 
           post "/api/v1/fisherman/manifests/#{manifest.id}/skip_capture_report",
@@ -278,8 +278,8 @@ module Api
 
         test "skip_capture_report snapshots the skip reason name" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
-          manifest.submit_port_out!
-          manifest.approve_port_out!
+          ::Manifests::SubmitPortOut.call(manifest, actor: nil).value!
+          ::Manifests::ApprovePortOut.call(manifest, actor: nil).value!
           reason = create(:manifest_skip_reason, name: "Engine failure")
 
           post "/api/v1/fisherman/manifests/#{manifest.id}/skip_capture_report",
@@ -294,8 +294,8 @@ module Api
         test "submit_port_in after a skip sends a commercial manifest straight to port-in approval" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel,
                                        fisherman_category: "commercial")
-          manifest.submit_port_out!
-          manifest.approve_port_out!
+          ::Manifests::SubmitPortOut.call(manifest, actor: nil).value!
+          ::Manifests::ApprovePortOut.call(manifest, actor: nil).value!
           manifest.update!(capture_report_skipped: true)
 
           post "/api/v1/fisherman/manifests/#{manifest.id}/submit_port_in", headers: @fisherman_headers
@@ -307,7 +307,7 @@ module Api
 
         test "submit_port_in after a skip completes a small-scale manifest with no approval" do
           manifest = create(:manifest, :small_scale, company_profile: @company_profile, companies_vessel: @vessel)
-          manifest.submit_port_out!
+          ::Manifests::SubmitPortOut.call(manifest, actor: nil).value!
           manifest.update!(capture_report_skipped: true)
 
           post "/api/v1/fisherman/manifests/#{manifest.id}/submit_port_in", headers: @fisherman_headers
@@ -318,12 +318,12 @@ module Api
 
         test "submit_port_in resets all capture reports to pending_verification" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
-          manifest.submit_port_out!
-          manifest.approve_port_out!
+          ::Manifests::SubmitPortOut.call(manifest, actor: nil).value!
+          ::Manifests::ApprovePortOut.call(manifest, actor: nil).value!
           first_report = create(:capture_report, manifest: manifest)
           second_report = create(:capture_report, manifest: manifest)
-          first_report.request_amendment!(remarks: "Fix gear")
-          second_report.verify!(actor: create(:user))
+          ::CaptureReports::RequestAmendment.call(first_report, actor: nil, remarks: "Fix gear").value!
+          ::CaptureReports::Verify.call(second_report, actor: create(:user)).value!
 
           post "/api/v1/fisherman/manifests/#{manifest.id}/submit_port_in", headers: @fisherman_headers
 
@@ -334,13 +334,13 @@ module Api
 
         test "resubmit_port_in resets amended capture reports back to pending_verification" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
-          manifest.submit_port_out!
-          manifest.approve_port_out!
+          ::Manifests::SubmitPortOut.call(manifest, actor: nil).value!
+          ::Manifests::ApprovePortOut.call(manifest, actor: nil).value!
           first_report = create(:capture_report, manifest: manifest)
           second_report = create(:capture_report, manifest: manifest)
-          manifest.submit_port_in!
-          first_report.request_amendment!(remarks: "Fix catch", actor: create(:user))
-          second_report.request_amendment!(remarks: "Fix zone", actor: create(:user))
+          ::Manifests::SubmitPortIn.call(manifest, actor: nil).value!
+          ::CaptureReports::RequestAmendment.call(first_report, remarks: "Fix catch", actor: create(:user)).value!
+          ::CaptureReports::RequestAmendment.call(second_report, remarks: "Fix zone", actor: create(:user)).value!
 
           post "/api/v1/fisherman/manifests/#{manifest.id}/resubmit_port_in", headers: @fisherman_headers
 
@@ -377,8 +377,8 @@ module Api
 
         test "update allows a fisherman to fill port-in details while the manifest is at sea" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
-          manifest.submit_port_out!
-          manifest.approve_port_out!
+          ::Manifests::SubmitPortOut.call(manifest, actor: nil).value!
+          ::Manifests::ApprovePortOut.call(manifest, actor: nil).value!
           port = create(:port, port_name: "Lumut Port")
 
           patch "/api/v1/fisherman/manifests/#{manifest.id}",
@@ -394,11 +394,11 @@ module Api
 
         test "update allows manifest changes while a capture report amendment is outstanding" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
-          manifest.submit_port_out!
-          manifest.approve_port_out!
+          ::Manifests::SubmitPortOut.call(manifest, actor: nil).value!
+          ::Manifests::ApprovePortOut.call(manifest, actor: nil).value!
           report = create(:capture_report, manifest: manifest)
-          manifest.submit_port_in!
-          report.request_amendment!(remarks: "Fix capture detail", actor: create(:user))
+          ::Manifests::SubmitPortIn.call(manifest, actor: nil).value!
+          ::CaptureReports::RequestAmendment.call(report, remarks: "Fix capture detail", actor: create(:user)).value!
 
           patch "/api/v1/fisherman/manifests/#{manifest.id}",
                 params: { manifest: { port_in_area: "Muara Port" } },
@@ -411,8 +411,8 @@ module Api
         test "tab_counts buckets manifests into port_out, capture_report_and_port_in, and complete" do
           create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
           at_sea = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
-          at_sea.submit_port_out!
-          at_sea.approve_port_out!
+          ::Manifests::SubmitPortOut.call(at_sea, actor: nil).value!
+          ::Manifests::ApprovePortOut.call(at_sea, actor: nil).value!
 
           get "/api/v1/fisherman/manifests/tab_counts", headers: @fisherman_headers
 

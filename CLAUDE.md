@@ -23,6 +23,17 @@ Controllers, models, and business logic each have one job. Don't let logic leak 
 - **Services** (`app/services`, create as needed) — business logic and multi-step workflows. Use `dry-monads` `Success`/`Failure` results instead of raising for expected failure paths; controllers pattern-match on the result instead of branching on exceptions. Delegate non-trivial SQL construction to a Query object.
 - **Queries** (`app/queries`, create as needed) — read-only SQL/ActiveRecord construction. A `*Query` exposes `self.call(...)`; it contains no authorization, business rules, response formatting, or side effects.
 - **Models** (`app/models`) — associations, validations, scopes, and persistence concerns only. If a method coordinates multiple models or external calls, it belongs in a service, not the model.
+- **State machines** (AASM) — the model holds only the transition table (states, `from`/`to`), the `guard:`s that
+  decide whether an event may fire (`Manifest` asks "is this ready to complete?" through the `complete_manifest`
+  guard) and the automatic audit-history callback. The per-action service (`Manifests::ApprovePortIn`,
+  `CaptureReports::Verify`, ...) fires every event itself, literally (`manifest.approve_port_in!`, then
+  `manifest.complete_manifest!` when `may_complete_manifest?`), inside a lock or transaction, then sends its
+  notification. Don't add a generic dispatcher (`public_send`/`send` on an event name) or a shared lifecycle service:
+  repeating a few lines per service is clearer than hiding them. Services don't fire events they don't own, and
+  nothing outside `app/services/manifests` / `app/services/capture_reports` fires a lifecycle event
+  (`test/architecture/lifecycle_events_only_in_services_test.rb` enforces it). Machines set
+  `whiny_persistence: true` so a failed save raises instead of returning `false`. See
+  [`docs/manifests/lifecycle-status.md`](docs/manifests/lifecycle-status.md).
 - **Blueprints** (`app/blueprints`, create as needed) — response shaping only, via Blueprinter. Don't compute business values inline in a blueprint field that aren't simple presentation logic.
 
 ## Mandatory controller/query shape contract

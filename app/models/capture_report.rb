@@ -12,6 +12,8 @@ class CaptureReport < ApplicationRecord
   before_validation :assign_number_without_database_trigger, on: :create
   validate :manifest_not_skipped, on: :create
 
+  scope :unverified, -> { where.not(capture_report_status: "verified") }
+
   def self.ransackable_attributes(_auth_object = nil)
     %w[id capture_report_number manifest_id zone_id zone_area capture_report_status capture_report_remarks
        reviewed_by_id reviewed_at created_at updated_at]
@@ -32,23 +34,18 @@ class CaptureReport < ApplicationRecord
   def manifest_id_for_history = manifest_id
   def editable? = pending_verification? || needs_amendment?
 
-  aasm column: :capture_report_status do
+  # Only the transition table lives here; the services in app/services/capture_reports fire the events, stamp the
+  # review and let the manifest move on.
+  aasm column: :capture_report_status, whiny_persistence: true do
     state :pending_verification, initial: true
     state :verified
     state :needs_amendment
 
-    # success: (not after:) — the manifest finalizers query every report's verified state from the database,
-    # which after: callbacks would still see pre-persist (this report not yet verified).
-    event(:verify) do
-      transitions from: :pending_verification, to: :verified, success: :stamp_review_and_maybe_complete!
-    end
-    event(:request_amendment) do
-      transitions from: :pending_verification, to: :needs_amendment,
-                  after: %i[stamp_review! sync_manifest_amendment_snapshot_on_amendment!]
-    end
-    event(:resubmit) { transitions from: :needs_amendment, to: :pending_verification, after: :clear_review! }
+    event(:verify)            { transitions from: :pending_verification, to: :verified }
+    event(:request_amendment) { transitions from: :pending_verification, to: :needs_amendment }
+    event(:resubmit)          { transitions from: :needs_amendment, to: :pending_verification }
 
-    after_all_transitions :record_catch_history, :sync_manifest_amendment_snapshot
+    after_all_transitions :record_catch_history
   end
 
   private
@@ -68,32 +65,6 @@ class CaptureReport < ApplicationRecord
 
   def record_catch_history(actor: nil, remarks: nil, **)
     record_history!("capture_report_status", actor: actor, remarks: remarks)
-  end
-
-  def sync_manifest_amendment_snapshot(*, **)
-    manifest.sync_capture_report_amendment_snapshot!
-  end
-
-  def sync_manifest_amendment_snapshot_on_amendment!(*, **)
-    manifest.update!(capture_report_amendment_remarks: capture_report_remarks)
-  end
-
-  def stamp_review!(*, actor: nil, remarks: nil, **)
-    update!(reviewed_by_id: actor&.id, reviewed_at: Time.current, capture_report_remarks: remarks)
-  end
-
-  def stamp_review_and_maybe_complete!(*, actor: nil, **)
-    update!(reviewed_by_id: actor&.id, reviewed_at: Time.current)
-    advance_manifest_after_verification!(actor: actor)
-  end
-
-  def clear_review!(*, **)
-    update!(reviewed_by_id: nil, reviewed_at: nil, capture_report_remarks: nil)
-  end
-
-  def advance_manifest_after_verification!(actor:)
-    manifest.finalize_completion_if_ready!(actor: actor)
-    manifest.begin_port_in_review_if_ready!(actor: actor)
   end
 end
 

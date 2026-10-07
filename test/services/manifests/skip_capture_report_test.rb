@@ -4,8 +4,8 @@ module Manifests
   class SkipCaptureReportTest < ActiveSupport::TestCase
     test "fails without skipping once capture reports exist" do
       manifest = create(:manifest, fisherman_category: "commercial")
-      manifest.submit_port_out!
-      manifest.approve_port_out!
+      Manifests::SubmitPortOut.call(manifest, actor: nil).value!
+      Manifests::ApprovePortOut.call(manifest, actor: nil).value!
       create(:capture_report, manifest: manifest)
       reason = create(:manifest_skip_reason)
 
