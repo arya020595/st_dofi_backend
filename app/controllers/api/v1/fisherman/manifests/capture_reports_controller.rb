@@ -8,7 +8,7 @@ module Api
           def create
             authorize CaptureReport
 
-            case ::CaptureReports::Create.call(@manifest, capture_report_params)
+            case ::CaptureReports::Create.call(@manifest, capture_report_params, actor: current_user)
             in Success(report)
               render json: { status: "success", data: CaptureReportDetailBlueprint.render_as_hash(report) },
                      status: :created

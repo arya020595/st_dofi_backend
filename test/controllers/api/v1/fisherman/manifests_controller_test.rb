@@ -316,7 +316,7 @@ module Api
           assert_equal %w[submitted completed], manifest.reload.values_at(:port_in_status, :manifest_status)
         end
 
-        test "submit_port_in resets all capture reports to pending_verification" do
+        test "submit_port_in preserves capture report amendment and verification" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
           ::Manifests::SubmitPortOut.call(manifest, actor: nil).value!
           ::Manifests::ApprovePortOut.call(manifest, actor: nil).value!
@@ -328,7 +328,7 @@ module Api
           post "/api/v1/fisherman/manifests/#{manifest.id}/submit_port_in", headers: @fisherman_headers
 
           assert_response :ok
-          assert_equal %w[pending_verification pending_verification],
+          assert_equal %w[needs_amendment verified],
                        [first_report.reload.capture_report_status, second_report.reload.capture_report_status]
         end
 

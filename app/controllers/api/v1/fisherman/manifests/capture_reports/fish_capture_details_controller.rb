@@ -34,10 +34,11 @@ module Api
               set_fish_capture_detail
               authorize @fish_capture_detail, policy_class: CaptureReportPolicy
 
-              if @fish_capture_detail.destroy
+              case FishCaptureDetails::Destroy.call(@fish_capture_detail)
+              in Success(detail)
                 render json: { status: "success", message: "Fish capture detail removed." }
-              else
-                render json: { status: "fail", errors: @fish_capture_detail.errors.full_messages },
+              in Failure(detail)
+                render json: { status: "fail", errors: detail.errors.full_messages },
                        status: :unprocessable_content
               end
             end

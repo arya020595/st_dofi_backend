@@ -5,6 +5,21 @@ module FishingGearDetails
     def self.call(...) = new.call(...)
 
     def call(capture_report, attributes)
+      capture_report.manifest.with_lock do
+        capture_report.reload
+        unless capture_report.editable?
+          detail = FishingGearDetail.new(capture_report: capture_report)
+          detail.errors.add(:base, "Verified capture reports cannot be modified")
+          next Failure(detail)
+        end
+
+        create_detail(capture_report, attributes)
+      end
+    end
+
+    private
+
+    def create_detail(capture_report, attributes)
       detail = capture_report.fishing_gear_details.new(attributes)
       gear = eligible_gear(capture_report, attributes[:companies_fishing_gear_id])
       return invalid_gear(detail) if attributes[:companies_fishing_gear_id].present? && gear.nil?
@@ -14,8 +29,6 @@ module FishingGearDetails
 
       Success(detail)
     end
-
-    private
 
     def snapshot_attributes(attributes, gear)
       return attributes if gear.nil?

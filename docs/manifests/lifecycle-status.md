@@ -62,8 +62,8 @@ stateDiagram-v2
 Same statuses and meanings as Port-Out, with one extra precondition: **the Capture Report step must exist**
 before Port-In can be submitted — either at least one Capture Report was created, or the report was skipped with a
 reason (`Manifest#capture_report_ready?`). Port-In details (port, area, time) are filled in with
-`Manifests::Update` while the manifest is `at_sea` and Port-In is still `draft`. Submitting resets every Capture
-Report to `pending_verification`.
+`Manifests::Update` while the manifest is `at_sea` and Port-In is still `draft`. Submitting preserves every Capture Report status and its review stamp; verified reports never require
+reverification just because Port-In is submitted.
 
 Endpoints: `POST /api/v1/fisherman/manifests/:id/submit_port_in` and `.../resubmit_port_in`;
 `POST /api/v1/admin/approvals/manifests/:id/approve_port_in` and `.../request_amendment_port_in`.
@@ -102,6 +102,7 @@ stateDiagram-v2
     at_sea --> capture_report_submitted: Port-In submitted
     capture_report_submitted --> awaiting_port_in_approval: commercial, reports settled, Port-In pending
     capture_report_submitted --> completed: both legs settled
+    awaiting_port_in_approval --> capture_report_submitted: new Capture Report added
     awaiting_port_in_approval --> completed: both legs settled
 ```
 
@@ -114,7 +115,7 @@ when `may_<event>?` is true.
 | `begin_port_out_review` | `draft` → `awaiting_port_out_approval` | `SubmitPortOut` | commercial: Port-Out is `pending` |
 | `advance_to_sea` | `draft` → `at_sea` | `SubmitPortOut` | small-scale: Port-Out is `submitted` |
 | `advance_to_sea` | `awaiting_port_out_approval` → `at_sea` | `ApprovePortOut` | the Port-Out was approved |
-| `complete_capture_report` | `at_sea` → `capture_report_submitted` | `SubmitPortIn` | Port-In submitted |
+| `complete_capture_report` | `at_sea` or `awaiting_port_in_approval` → `capture_report_submitted` | `SubmitPortIn`, `CaptureReports::Create` | Port-In submitted, or new report added while awaiting Port-In approval |
 | `begin_port_in_review` | `capture_report_submitted` → `awaiting_port_in_approval` | `SubmitPortIn`, `Verify`, `ResubmitPortIn`, `RequestAmendmentPortIn` | guard: commercial, Port-In `pending`, reports settled |
 | `complete_manifest` | `capture_report_submitted` or `awaiting_port_in_approval` → `completed` | `SubmitPortIn`, `ApprovePortIn`, `Verify` | guard: both legs settled (below) |
 
@@ -140,7 +141,9 @@ Whichever leg finishes last completes the manifest, in either order. On completi
 fishing gear details are added to each gear's `usage_value` (`Manifests::RecordFishingGearUsage`), and
 `capture_report_amendment_remarks` is cleared. Reports stay editable after Port-In approval: while a report is still
 `pending_verification` or `needs_amendment` the officer can send it back and the fisherman can resubmit it, and the
-manifest completes once every report is verified. A `verified` report is final.
+manifest completes once every report is verified. A `verified` report and its fish/gear details are final: create, update, delete and bulk sync mutations are
+rejected. New reports cannot be added after completion. Adding a report while awaiting Port-In approval returns
+the overall status to `capture_report_submitted` until all reports are settled.
 
 The rules are executable in [`test/models/manifest_completion_rules_test.rb`](../../test/models/manifest_completion_rules_test.rb).
 Who has to
@@ -168,7 +171,7 @@ Report one.
 `from_state`, `to_state`, `changed_by`, `remarks`). It is automatic (`HasManifestHistory`), because an audit trail must
 never depend on a caller remembering it. The cascaded manifest-status rows carry the actor of the step that caused them.
 
-**Notifications** (`Notifications::ManifestPublisher`, sent by the per-action services after a successful transition):
+**Notifications** (`Notifications::ManifestPublisher`, enqueued by the per-action services after the outermost transaction commits):
 
 | Event | Sent to | When |
 |---|---|---|
@@ -176,7 +179,7 @@ never depend on a caller remembering it. The cascaded manifest-status rows carry
 | `port_out_approved`, `port_out_amendment_required` | Fishermen | Jetty Manager acts |
 | `port_out_resubmitted` | Port-Out approvers | fisherman resubmits |
 | `port_in_review_required` | Port-In approvers | commercial Port-In submitted, **without waiting for verification** |
-| `capture_report_review_required` | Capture verifiers | Port-In submitted and there are reports to verify |
+| `capture_report_review_required` | Capture verifiers | Port-In submitted with pending-verification reports, or a report is added after Port-In submission |
 | `port_in_approved`, `port_in_amendment_required` | Fishermen | Jetty Manager acts |
 | `port_in_resubmitted` | Port-In approvers | fisherman resubmits |
 | `capture_report_verified`, `capture_report_amendment_required` | Fishermen | DoFi Officer acts |
@@ -228,3 +231,16 @@ event: it would skip the remarks, the manifest status follow-up and the notifica
 fails if one does, and also if a service completes a manifest without calling `RecordFishingGearUsage`. Tests and
 seeds drive the lifecycle through the same services. The machines set `whiny_persistence: true`, so an event that
 cannot save raises instead of returning `false`.
+
+## Concurrent writes
+
+Workflow actions and report/detail mutations take the same Manifest row lock first. Persisted report/detail
+objects are reloaded inside that lock before checking their state. Creation and skipping share that lock so
+neither can race past the other. Status events, review stamps, history, amendment snapshots and fishing-gear
+usage commit or roll back together. Notifications snapshot recipients and event metadata inside that same
+Manifest lock and enqueue a Solid Queue job after the outermost commit; rollback never sends a notification.
+Capture Report services use the locked Manifest instance when preparing the snapshot. Expected enqueue
+failures are reported through `Rails.error` with the event and Manifest ID, without failing an already committed
+business action. Persistence errors before commit still roll back the action. Queue delivery is separate from
+the business transaction and does not introduce a durable outbox, automatic retry or an exactly-once delivery
+guarantee.

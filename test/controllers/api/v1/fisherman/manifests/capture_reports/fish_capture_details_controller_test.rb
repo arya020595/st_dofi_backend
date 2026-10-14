@@ -13,7 +13,19 @@ module Api
               @dictionary = create(:dictionary, local_name: "Ikan Merah", scientific_name: "Lutjanus campechanus")
               @headers = fisherman_headers_for(@manifest,
                                                permission_codes: %w[capture_reports.list capture_reports.view
-                                                                    capture_reports.create capture_reports.update])
+                                                                    capture_reports.create capture_reports.update
+                                                                    capture_reports.delete])
+            end
+
+            test "destroy rejects a verified report detail with a business error" do
+              detail = create(:fish_capture_detail, capture_report: @report)
+              ::CaptureReports::Verify.call(@report, actor: nil).value!
+
+              delete "/api/v1/fisherman/manifests/#{@manifest.id}/capture_reports/#{@report.id}" \
+                     "/fish_capture_details/#{detail.id}", headers: @headers
+
+              assert_response :unprocessable_content
+              assert_includes response.parsed_body["errors"], "Verified capture reports cannot be modified"
             end
 
             test "create snapshots the dictionary name and computes the overall total" do

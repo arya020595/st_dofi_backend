@@ -5,7 +5,7 @@ module Manifests
     def self.call(...) = new.call(...)
 
     def call(manifest)
-      usage_totals(manifest).each do |gear_id, quantity|
+      usage_totals(manifest).sort_by { |gear_id, _quantity| gear_id }.each do |gear_id, quantity|
         CompaniesFishingGear.where(id: gear_id)
                             .update_all(["usage_value = COALESCE(usage_value, 0) + ?", quantity]) # rubocop:disable Rails/SkipsModelValidations
       end

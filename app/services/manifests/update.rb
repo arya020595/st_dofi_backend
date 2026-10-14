@@ -7,14 +7,14 @@ module Manifests
     def self.call(...) = new.call(...)
 
     def call(manifest, attributes, company_profile: nil)
-      return Failure(not_editable(manifest)) unless editable_for_update?(manifest, attributes)
+      manifest.with_lock do
+        next Failure(not_editable(manifest)) unless editable_for_update?(manifest, attributes)
 
-      ActiveRecord::Base.transaction do
         manifest.update!(attributes_for_update(manifest, attributes, company_profile))
         update_support_vessels!(manifest, attributes, company_profile)
         set_crew!(manifest, attributes)
+        Success(manifest)
       end
-      Success(manifest)
     rescue ActiveRecord::RecordInvalid
       Failure(manifest)
     end
@@ -36,7 +36,7 @@ module Manifests
     end
 
     def capture_report_amendment_update?(manifest)
-      manifest.capture_report_submitted? && manifest.capture_reports.any?(&:needs_amendment?)
+      manifest.capture_report_submitted? && manifest.capture_reports.exists?(capture_report_status: "needs_amendment")
     end
 
     def not_editable(manifest)

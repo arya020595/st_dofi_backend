@@ -8,20 +8,23 @@ module CaptureReports
     # requests, and whichever runs last must see the other's committed state to move the manifest on.
     def call(report, actor:)
       manifest = report.manifest
-      result = manifest.with_lock do
+      manifest.with_lock do
+        report.reload
         next Failure(report) unless report.may_verify?
 
         report.verify!(actor: actor)
-        stamp_review(report, manifest, actor)
-        move_manifest_on(manifest, actor)
+        finish_verification(report, manifest, actor)
+        notify_fisherman(report, manifest)
         Success(report)
       end
-
-      notify_fisherman(report) if result.success?
-      result
     end
 
     private
+
+    def finish_verification(report, manifest, actor)
+      stamp_review(report, manifest, actor)
+      move_manifest_on(manifest, actor)
+    end
 
     def stamp_review(report, manifest, actor)
       report.update!(reviewed_by_id: actor&.id, reviewed_at: Time.current)
@@ -38,10 +41,10 @@ module CaptureReports
       end
     end
 
-    def notify_fisherman(report)
-      Notifications::ManifestPublisher.call(
+    def notify_fisherman(report, manifest)
+      Notifications::ManifestPublisher.enqueue(
         event: :capture_report_verified,
-        manifest: report.manifest,
+        manifest: manifest,
         capture_report: report
       )
     end

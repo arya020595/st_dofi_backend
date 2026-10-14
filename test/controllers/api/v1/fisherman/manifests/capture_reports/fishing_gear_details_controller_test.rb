@@ -18,6 +18,17 @@ module Api
                                                                     capture_reports.delete])
             end
 
+            test "destroy rejects a verified report detail with a business error" do
+              detail = create(:fishing_gear_detail, capture_report: @report)
+              ::CaptureReports::Verify.call(@report, actor: nil).value!
+
+              delete "/api/v1/fisherman/manifests/#{@manifest.id}/capture_reports/#{@report.id}" \
+                     "/fishing_gear_details/#{detail.id}", headers: @headers
+
+              assert_response :unprocessable_content
+              assert_includes response.parsed_body["errors"], "Verified capture reports cannot be modified"
+            end
+
             test "create snapshots the master fishing gear's name, type, and specification" do
               params = { fishing_gear_detail: { companies_fishing_gear_id: @company_gear.id, quantity: 2 } }
 

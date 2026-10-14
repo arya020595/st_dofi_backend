@@ -5,6 +5,22 @@ module FishCaptureDetails
     def self.call(...) = new.call(...)
 
     def call(detail, attributes)
+      report = detail.capture_report
+      report.manifest.with_lock do
+        report.reload
+        detail.reload
+        unless report.editable?
+          detail.errors.add(:base, "Verified capture reports cannot be modified")
+          next Failure(detail)
+        end
+
+        update_detail(detail, attributes)
+      end
+    end
+
+    private
+
+    def update_detail(detail, attributes)
       return invalid_gear_detail(detail) unless valid_gear_detail?(detail, attributes[:fishing_gear_detail_id])
       return invalid_dictionary(detail) unless valid_dictionary?(attributes[:dictionary_id])
 
@@ -13,8 +29,6 @@ module FishCaptureDetails
 
       Failure(detail)
     end
-
-    private
 
     def build_update_attributes(detail, attributes)
       dictionary = dictionary_for(attributes[:dictionary_id])

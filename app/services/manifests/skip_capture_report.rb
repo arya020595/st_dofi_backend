@@ -5,6 +5,12 @@ module Manifests
     def self.call(...) = new.call(...)
 
     def call(manifest, skip_reason_id:, remarks: nil, **)
+      manifest.with_lock { skip_report(manifest, skip_reason_id, remarks) }
+    end
+
+    private
+
+    def skip_report(manifest, skip_reason_id, remarks)
       return not_at_sea(manifest) unless manifest.at_sea?
 
       reason = ManifestSkipReason.kept.find_by(id: skip_reason_id)
@@ -14,8 +20,6 @@ module Manifests
                                 skip_reason_remarks: remarks)
       skipped ? Success(manifest) : Failure(manifest)
     end
-
-    private
 
     def not_at_sea(manifest)
       manifest.errors.add(:base, "Capture report can only be skipped while the manifest is at sea")

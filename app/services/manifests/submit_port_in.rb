@@ -7,18 +7,15 @@ module Manifests
     # The lock matters: Port-In submission and a DoFi Officer's verification are separate requests, and whichever
     # runs last must see the other's committed state to move the manifest on.
     def call(manifest, actor:)
-      result = manifest.with_lock do
+      manifest.with_lock do
         next rejected(manifest) unless manifest.may_submit_port_in?
 
-        reset_capture_reports_for_port_in!(manifest)
         manifest.submit_port_in!(actor: actor)
         manifest.complete_capture_report!(actor: actor)
         move_manifest_on(manifest, actor)
+        notify_reviewers(manifest)
         Success(manifest)
       end
-
-      notify_reviewers(manifest) if result.success?
-      result
     end
 
     private
@@ -37,28 +34,18 @@ module Manifests
     # reviews run in parallel, so approval never waits on verification. A skipped small-scale manifest completes
     # with nobody to notify.
     def notify_reviewers(manifest)
-      notify_capture_verifiers(manifest) if manifest.capture_report_submitted?
+      if manifest.capture_reports.exists?(capture_report_status: "pending_verification")
+        notify_capture_verifiers(manifest)
+      end
       notify_port_in_approvers(manifest) if manifest.port_in_pending?
     end
 
-    def reset_capture_reports_for_port_in!(manifest)
-      manifest.capture_reports.find_each do |report|
-        report.update!(
-          capture_report_status: "pending_verification",
-          capture_report_remarks: nil,
-          reviewed_by_id: nil,
-          reviewed_at: nil
-        )
-      end
-      manifest.sync_capture_report_amendment_snapshot!
-    end
-
     def notify_capture_verifiers(manifest)
-      Notifications::ManifestPublisher.call(event: :capture_report_review_required, manifest:)
+      Notifications::ManifestPublisher.enqueue(event: :capture_report_review_required, manifest:)
     end
 
     def notify_port_in_approvers(manifest)
-      Notifications::ManifestPublisher.call(event: :port_in_review_required, manifest:)
+      Notifications::ManifestPublisher.enqueue(event: :port_in_review_required, manifest:)
     end
 
     # Port-In can't be submitted yet: either the Capture Report step is missing, or the state doesn't allow it.
