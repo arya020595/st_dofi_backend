@@ -5,16 +5,14 @@ module Manifests
     def self.call(...) = new.call(...)
 
     def call(manifest, actor:)
-      result = manifest.with_lock do
+      manifest.with_lock do
         next Failure(manifest) unless manifest.may_submit_port_out?
 
         manifest.submit_port_out!(actor: actor)
         move_manifest_on(manifest, actor)
+        notify_port_out_approvers(manifest) if manifest.port_out_pending?
         Success(manifest)
       end
-
-      notify_port_out_approvers(manifest) if result.success? && manifest.port_out_pending?
-      result
     end
 
     private
@@ -29,7 +27,7 @@ module Manifests
     end
 
     def notify_port_out_approvers(manifest)
-      Notifications::ManifestPublisher.call(event: :port_out_review_required, manifest:)
+      Notifications::ManifestPublisher.enqueue(event: :port_out_review_required, manifest:)
     end
   end
 end

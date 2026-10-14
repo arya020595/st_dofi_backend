@@ -34,10 +34,11 @@ module Api
               set_fishing_gear_detail
               authorize @fishing_gear_detail, policy_class: CaptureReportPolicy
 
-              if @fishing_gear_detail.destroy
+              case FishingGearDetails::Destroy.call(@fishing_gear_detail)
+              in Success(detail)
                 render json: { status: "success", message: "Fishing gear detail removed." }
-              else
-                render json: { status: "fail", errors: @fishing_gear_detail.errors.full_messages },
+              in Failure(detail)
+                render json: { status: "fail", errors: detail.errors.full_messages },
                        status: :unprocessable_content
               end
             end

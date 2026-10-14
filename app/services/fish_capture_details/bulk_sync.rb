@@ -8,10 +8,19 @@ module FishCaptureDetails
     # that id). A row whose id already belongs to a DIFFERENT capture report is rejected per-row
     # rather than aborting the whole batch, so one bad row doesn't block the rest of the sync.
     def call(capture_report, records)
-      Success(Array(records).map { |attributes| sync_one(capture_report, attributes) })
+      capture_report.manifest.with_lock do
+        capture_report.reload
+        Success(Array(records).map { |attributes| sync_editable_report(capture_report, attributes) })
+      end
     end
 
     private
+
+    def sync_editable_report(capture_report, attributes)
+      return sync_one(capture_report, attributes) if capture_report.editable?
+
+      { id: attributes[:id], status: "fail", errors: ["Verified capture reports cannot be modified"] }
+    end
 
     def sync_one(capture_report, attributes)
       local_id = attributes[:id]

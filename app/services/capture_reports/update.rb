@@ -5,10 +5,15 @@ module CaptureReports
     def self.call(...) = new.call(...)
 
     def call(report, attributes)
-      return Failure(report) unless report.editable?
-      return Success(report) if report.update(attributes)
+      report.manifest.with_lock do
+        report.reload
+        unless report.editable?
+          report.errors.add(:base, "Verified capture reports cannot be modified")
+          next Failure(report)
+        end
 
-      Failure(report)
+        report.update(attributes) ? Success(report) : Failure(report)
+      end
     end
   end
 end

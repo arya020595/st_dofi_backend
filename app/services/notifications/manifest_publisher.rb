@@ -46,6 +46,23 @@ module Notifications
     }.freeze
 
     def self.call(...) = new.call(...)
+    def self.enqueue(...) = new.enqueue(...)
+
+    def initialize(error_reporter: Rails.error)
+      @error_reporter = error_reporter
+    end
+
+    # Called inside the Manifest lock: snapshot now, send only after the outermost commit.
+    def enqueue(event:, manifest:, capture_report: nil)
+      recipient_group, title, message_template = EVENTS.fetch(event.to_sym)
+      user_ids = recipients_for(recipient_group, manifest).pluck(:id)
+      attributes = notification_attributes(event, manifest, title, message_template, capture_report)
+      manifest_id = manifest.id
+      ActiveRecord.after_all_transactions_commit do
+        Notifications::ManifestEventJob.enqueue_safely(user_ids: user_ids, attributes: attributes,
+                                                       manifest_id: manifest_id, error_reporter: error_reporter)
+      end
+    end
 
     def call(event:, manifest:, capture_report: nil)
       recipient_group, title, message_template = EVENTS.fetch(event.to_sym)
@@ -57,6 +74,8 @@ module Notifications
     end
 
     private
+
+    attr_reader :error_reporter
 
     def recipients_for(recipient_group, manifest)
       case recipient_group

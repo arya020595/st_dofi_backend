@@ -5,25 +5,29 @@ module CaptureReports
     def self.call(...) = new.call(...)
 
     def call(report, actor:)
-      result = ActiveRecord::Base.transaction do
+      manifest = report.manifest
+      manifest.with_lock do
+        report.reload
         next Failure(report) unless report.may_resubmit?
 
         report.resubmit!(actor: actor)
-        report.update!(reviewed_by_id: nil, reviewed_at: nil, capture_report_remarks: nil)
-        report.manifest.sync_capture_report_amendment_snapshot!
+        clear_review(report, manifest)
+        notify_verifiers(report, manifest)
         Success(report)
       end
-
-      notify_verifiers(report) if result.success?
-      result
     end
 
     private
 
-    def notify_verifiers(report)
-      Notifications::ManifestPublisher.call(
+    def clear_review(report, manifest)
+      report.update!(reviewed_by_id: nil, reviewed_at: nil, capture_report_remarks: nil)
+      manifest.sync_capture_report_amendment_snapshot!
+    end
+
+    def notify_verifiers(report, manifest)
+      Notifications::ManifestPublisher.enqueue(
         event: :capture_report_resubmitted,
-        manifest: report.manifest,
+        manifest: manifest,
         capture_report: report
       )
     end
