@@ -1,6 +1,6 @@
 source "https://rubygems.org"
 
-ruby "3.4.7"
+ruby "3.4.11"
 
 # Core
 gem "bootsnap", require: false
