@@ -3,8 +3,7 @@ SKIP_REASONS = [
   { name: "Engine Issue" },
   { name: "Emergency Recall" },
   { name: "Bad Weather Conditions" },
-  { name: "Rough Sea Conditions" },
-  { name: "Other" }
+  { name: "Rough Sea Conditions" }
 ].freeze
 
 SKIP_REASONS.each do |attrs|
