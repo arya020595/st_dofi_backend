@@ -10,7 +10,8 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest (26.04) has no prebuilt Ruby 3.4.7 for ruby/setup-ruby; unpin when .ruby-version moves to 3.4.11+
+    runs-on: ubuntu-24.04
 
     services:
       postgres:
