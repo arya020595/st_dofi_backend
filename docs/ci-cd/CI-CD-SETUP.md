@@ -65,7 +65,7 @@ This repo's [Dockerfile.production](../Dockerfile.production) does this in three
 
 General checklist regardless of language/framework:
 
-- [ ] Pin the runtime version with a build arg (`ARG RUBY_VERSION=3.4.7`) so it's obvious what to
+- [ ] Pin the runtime version with a build arg (`ARG RUBY_VERSION=3.4.11`) so it's obvious what to
       bump when the language version changes.
 - [ ] Separate "things needed to build" from "things needed to run." Don't install compilers in
       the final image.
