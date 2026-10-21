@@ -1,0 +1,25 @@
+# FALLBACK ONLY. The main path is native PostgreSQL 16 (../README.md). Use this file only if the client
+# forbids a native install but allows Docker on the database server.
+# DATABASE SERVER. Copy this file and .env.example to /opt/dofi, then: cp .env.example .env
+# Start:  docker compose up -d --wait
+# The Rails app creates its own databases (bin/rails db:prepare, run from the backend server).
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dofi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      # This server's private IP only. Docker-published ports bypass ufw: restrict 5432 to the backend
+      # server in the client's network firewall.
+      - "${DB_BIND_IP:?set DB_BIND_IP in .env}:5432:5432"
+    volumes:
+      - ./data:/var/lib/postgresql/data
+    healthcheck:
+      # TCP on purpose: while the data directory is first set up, a temporary server answers on the
+      # unix socket only, so a socket check would say "healthy" too early.
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "dofi"]
+      interval: 5s
+      retries: 10

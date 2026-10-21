@@ -1,0 +1,114 @@
+require "test_helper"
+class CompanyProfileTest < ActiveSupport::TestCase
+  test "database assigns a unique sequential profile number" do
+    first_profile = create(:company_profile)
+    second_profile = create(:company_profile)
+
+    assert_match(/\ADOF-\d{4,}\z/, first_profile.reload.profile_number)
+    assert_not_equal first_profile.profile_number, second_profile.reload.profile_number
+  end
+
+  test "does not require worker_quota because vessels calculate it" do
+    profile = build(:company_profile, worker_quota: nil)
+
+    assert_predicate profile, :valid?
+  end
+
+  test "an individual profile does not require company-shape fields" do
+    profile = build(:company_profile, :individual, company_name: nil, company_address: nil, contact_no: nil,
+                                                   district: nil, mukim: nil, village: nil, fisherman_card_no: nil,
+                                                   issue_date: nil, license_expiry_date: nil, worker_quota: nil)
+
+    assert_predicate profile, :valid?
+  end
+
+  test "a non-individual profile still requires company-shape fields" do
+    profile = build(:company_profile, company_name: nil)
+
+    assert_not profile.individual?
+    assert_not_predicate profile, :valid?
+  end
+
+  test "a part-time profile is also treated as individual, same as full-time" do
+    profile = build(:company_profile, :part_time)
+
+    assert_predicate profile, :individual?
+    assert_predicate profile, :valid?
+  end
+
+  test "owner_contact and admin_contact find the kept contact with the matching designation" do
+    company_profile = create(:company_profile)
+    owner = create(:company_profile_contact, company_profile: company_profile, designation: "Owner")
+    admin = create(:company_profile_contact, company_profile: company_profile, designation: "Admin")
+
+    assert_equal owner, company_profile.owner_contact
+    assert_equal admin, company_profile.admin_contact
+  end
+
+  test "owner_contact ignores discarded contacts" do
+    company_profile = create(:company_profile)
+    owner = create(:company_profile_contact, company_profile: company_profile, designation: "Owner")
+    owner.discard
+
+    assert_nil company_profile.owner_contact
+  end
+
+  test "admin_contact is nil when the company has no admin" do
+    company_profile = create(:company_profile)
+    create(:company_profile_contact, company_profile: company_profile, designation: "Owner")
+
+    assert_nil company_profile.admin_contact
+  end
+end
+
+# == Schema Information
+#
+# Table name: company_profiles
+# Database name: primary
+#
+#  id                   :uuid             not null, primary key
+#  amendment_remarks    :text
+#  approval_status      :string           default("pending"), not null
+#  approved_at          :datetime
+#  approved_by          :uuid
+#  company_address      :text
+#  company_name         :string
+#  contact_no           :string
+#  date_approval        :date
+#  designation          :string
+#  discarded_at         :datetime
+#  district             :string
+#  dofi_registration_no :string
+#  entity_user_count    :integer          default(0), not null
+#  fisherman_card_no    :string
+#  full_address         :string
+#  full_name            :string
+#  gender               :string
+#  ic_colour            :string
+#  ic_no                :string
+#  issue_date           :date
+#  license_expiry_date  :date
+#  logo_url             :string
+#  mailing_address      :text
+#  mukim                :string
+#  profile_number       :string           not null
+#  registration_type    :string           not null
+#  rocbn_no             :string
+#  village              :string
+#  worker_quota         :integer          default(0), not null
+#  created_at           :datetime         not null
+#  updated_at           :datetime         not null
+#
+# Indexes
+#
+#  index_company_profiles_on_approval_status  (approval_status)
+#  index_company_profiles_on_approved_by      (approved_by)
+#  index_company_profiles_on_discarded_at     (discarded_at)
+#  index_company_profiles_on_ic_no            (ic_no)
+#  index_company_profiles_on_profile_number   (profile_number) UNIQUE
+#  index_company_profiles_on_rocbn_no         (rocbn_no)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (approved_by => users.id)
+#

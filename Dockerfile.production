@@ -6,15 +6,15 @@
 # docker run -d -p 3000:3000 -e RAILS_MASTER_KEY=<value from config/master.key> --name dofi-backend dofi-backend
 
 # Make sure RUBY_VERSION matches the Ruby version in .ruby-version
-ARG RUBY_VERSION=3.4.7
+ARG RUBY_VERSION=3.4.11
 FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
 
 # Rails app lives here
 WORKDIR /rails
 
-# Install base packages (postgresql-client + geos for the pg/PostGIS gem chain)
+# Install base packages
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libjemalloc2 libvips postgresql-client libgeos-c1v5 && \
+    apt-get install --no-install-recommends -y curl libjemalloc2 libvips postgresql-client && \
     ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
@@ -30,7 +30,7 @@ FROM base AS build
 
 # Install packages needed to build gems
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential git libpq-dev libvips libyaml-dev pkg-config libgeos-dev && \
+    apt-get install --no-install-recommends -y build-essential git libpq-dev libvips libyaml-dev pkg-config && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
 # Install application gems
@@ -61,8 +61,12 @@ USER 1000:1000
 COPY --chown=rails:rails --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
 COPY --chown=rails:rails --from=build /rails /rails
 
-# Entrypoint prepares the database.
-ENTRYPOINT ["/rails/bin/docker-entrypoint"]
+# Entrypoint prepares the database, and fails fast with a clear fix if bin/* has CRLF line
+# endings — this should never happen from a normal CI build, but docker-compose.production.local
+# .yml can build this image directly from a developer's local checkout, exposed to the same
+# host-checkout risk as Dockerfile.dev. Written as a literal ENTRYPOINT string (not a bin/ script)
+# so the check itself can't be corrupted.
+ENTRYPOINT ["/bin/bash", "-ec", "grep -qrU $'\\r' bin/ 2>/dev/null && { echo \"ERROR: CRLF line endings in bin/*. This should never happen in a built image -- rebuild from a clean checkout (git add --renormalize . on the host, or re-clone).\" >&2; exit 1; }; exec /rails/bin/docker-entrypoint \"$@\"", "bash"]
 
 EXPOSE 3000
 CMD ["./bin/rails", "server", "-b", "0.0.0.0", "-p", "3000"]

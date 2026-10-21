@@ -1,0 +1,58 @@
+require "test_helper"
+
+module Api
+  module V1
+    class CompanyProfilesControllerScopingTest < ActionDispatch::IntegrationTest
+      setup do
+        @password = "Password123!"
+        @target = create(:company_profile)
+      end
+
+      test "non-officer requests are scoped to their own company profile" do
+        own_company = create(:company_profile, company_name: "Viewer's Own Co", rocbn_no: "RC-VIEWER-OWN")
+        headers = viewer_headers_for(own_company)
+
+        get "/api/v1/fisherman/company_profiles/#{@target.id}", headers: headers
+
+        assert_response :not_found
+
+        get "/api/v1/fisherman/company_profiles", headers: headers
+
+        assert_response :ok
+        assert_equal [own_company.id], response.parsed_body["data"].pluck("id")
+      end
+
+      test "fisherman can view their own company profile without company profile permission" do
+        company_profile = create(:company_profile)
+        headers = fisherman_headers_without_profile_permission(company_profile)
+
+        get "/api/v1/fisherman/company_profiles/#{company_profile.id}", headers: headers
+
+        assert_equal [200, company_profile.id],
+                     [response.status, response.parsed_body.dig("data", "id")]
+      end
+
+      private
+
+      def viewer_headers_for(company_profile)
+        permissions = %w[company_profiles.list company_profiles.view].map do |code|
+          Permission.find_or_create_by!(code:) { |permission| permission.name = code }
+        end
+        viewer_role = create(:role, :fisherman, company_profile: company_profile, permissions: permissions)
+        viewer = create(:user, role: viewer_role, company_profile: company_profile,
+                               ic_number: SecureRandom.hex(5), registration_type: "Commercial",
+                               password: @password, password_confirmation: @password)
+        auth_headers_for(viewer, password: @password)
+      end
+
+      def fisherman_headers_without_profile_permission(company_profile)
+        role = create(:role, :fisherman, company_profile: company_profile)
+        fisherman = create(:user, role: role, company_profile: company_profile,
+                                  ic_number: SecureRandom.hex(5), registration_type: "Commercial",
+                                  password: @password, password_confirmation: @password)
+
+        auth_headers_for(fisherman, password: @password)
+      end
+    end
+  end
+end

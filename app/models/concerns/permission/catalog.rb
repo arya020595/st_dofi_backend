@@ -1,0 +1,123 @@
+# Sole source of truth for the permission list: every canonical code, the platform that may hold it,
+# and how the Role editor groups, labels, and orders it. GET /api/v1/permissions renders only codes
+# listed here (PermissionPolicy::Scope), and role create/update rejects any code missing from here.
+# Walkthrough, API response shape, and change checklist: docs/rbac/permission-catalog.md
+module Permission::Catalog
+  # Role-editor tree: section -> resource -> actions. Array order is display order. Each action sits
+  # under exactly one platform key: :shared (both platforms), :dofi_officer, or :fisherman. The
+  # optional :action_labels overrides an action's display name (the default is action.titleize).
+  #
+  #   {
+  #     key: "manifest", label: "Manifest",                              # section
+  #     resources: [
+  #       { key: "manifest_approvals", label: "Manifest Approvals",     # resource = code prefix
+  #         dofi_officer: %w[list view approve request_amendment],       # platform key => actions
+  #         action_labels: { "approve" => "Approval Port In/Port Out" } }
+  #     ]
+  #   }
+  SECTIONS = [
+    { key: "dashboard", label: "Dashboard", resources: [
+      { key: "dashboard", label: "Dashboard", shared: %w[list] }
+    ] },
+    { key: "manifest", label: "Manifest", resources: [
+      { key: "manifests", label: "Manifests",
+        fisherman: %w[list view create update delete] },
+      { key: "manifest_approvals", label: "Manifest Approvals",
+        dofi_officer: %w[list view approve request_amendment],
+        action_labels: { "approve" => "Approval Port In/Port Out",
+                         "request_amendment" => "Amendment Port In/Port Out" } },
+      { key: "capture_reports", label: "Capture Reports", fisherman: %w[list view create update delete] },
+      { key: "capture_report_verifications", label: "Capture Report Verifications",
+        dofi_officer: %w[list view request_amendment verify] }
+    ] },
+    { key: "profiling", label: "Profiling", resources: [
+      { key: "company_profiles", label: "Company Profiles",
+        dofi_officer: %w[list view create update delete] },
+      { key: "companies_vessel_approvals", label: "Vessel & Fishing Gear Approvals",
+        dofi_officer: %w[list view approve request_amendment] },
+      { key: "companies_crew_approvals", label: "Crew Approvals",
+        dofi_officer: %w[list view approve request_amendment] },
+      { key: "companies_document_approvals", label: "Document Approvals",
+        dofi_officer: %w[list view approve request_amendment] }
+    ] },
+    { key: "dictionary", label: "Dictionary", resources: [
+      { key: "dictionaries", label: "Dictionaries", dofi_officer: %w[list view create update delete] },
+      { key: "dictionary_groups", label: "Dictionary Groups", dofi_officer: %w[list view create update delete] },
+      { key: "dictionary_families", label: "Dictionary Families", dofi_officer: %w[list view create update delete] }
+    ] },
+    { key: "master_data", label: "Master Data", resources: [
+      { key: "ports", label: "Ports", dofi_officer: %w[list view create update delete] },
+      { key: "zones", label: "Zones", dofi_officer: %w[list view create update delete] },
+      { key: "fishing_gears", label: "Fishing Gears", dofi_officer: %w[list view create update delete] },
+      { key: "nationalities", label: "Nationalities", dofi_officer: %w[list view create update delete] },
+      { key: "positions", label: "Positions", dofi_officer: %w[list view create update delete] },
+      { key: "manifest_skip_reasons", label: "Skip Reasons", dofi_officer: %w[list view create update delete] }
+    ] },
+    { key: "user_management", label: "User Management", resources: [
+      { key: "roles", label: "Roles", dofi_officer: %w[list view create update delete] },
+      { key: "users", label: "DoFi Officer Users", dofi_officer: %w[list view create update delete] },
+      { key: "entity_users", label: "Entity Users", dofi_officer: %w[list] },
+      { key: "external_users", label: "External Users",
+        dofi_officer: %w[list view create update delete deactivate reactivate] }
+    ] },
+    { key: "account_management", label: "Account Management", resources: [
+      { key: "fisherman_users", label: "Users", fisherman: %w[list view create update delete] },
+      { key: "fisherman_roles", label: "Roles", fisherman: %w[list view create update delete] }
+    ] }
+  ].freeze
+
+  SCOPE_KEYS = %i[shared dofi_officer fisherman].freeze
+
+  # SECTIONS flattened into one frozen Hash per permission code, in display order. Example element:
+  #
+  #   {
+  #     code: "manifest_approvals.approve",  # "<resource>.<action>"; roles send/store this
+  #     action: "approve",
+  #     action_order: 3,                     # 1-based within the resource (shared, dofi_officer, fisherman)
+  #     name: "Approval Port In/Port Out",   # action_labels override, else action.titleize
+  #     platform_scope: "dofi_officer",      # "shared" | "dofi_officer" | "fisherman"
+  #     resource: "manifest_approvals",
+  #     resource_label: "Manifest Approvals",
+  #     resource_order: 2,                   # 1-based within the section
+  #     section: "manifest",
+  #     section_label: "Manifest",
+  #     section_order: 2                     # 1-based within SECTIONS
+  #   }
+  #
+  # Lookups derived from it:
+  #   BY_CODE   # => { "manifest_approvals.approve" => { code: "manifest_approvals.approve", ... }, ... }
+  #   CODES     # => ["dashboard.list", "manifests.list", "manifests.view", ...]
+  #   RESOURCES # => { "manifest_approvals" => [{ code: "manifest_approvals.list", ... }, ...], ... }
+  ENTRIES = SECTIONS.each_with_index.flat_map do |section, section_index|
+    section[:resources].each_with_index.flat_map do |resource, resource_index|
+      scoped_actions = SCOPE_KEYS.flat_map do |scope|
+        Array(resource[scope]).map { |action| [scope, action] }
+      end
+      scoped_actions.each_with_index.map do |(scope, action), action_index|
+        {
+          code: "#{resource[:key]}.#{action}", action: action, action_order: action_index + 1,
+          name: resource.fetch(:action_labels, {}).fetch(action, action.titleize), platform_scope: scope.to_s,
+          resource: resource[:key], resource_label: resource[:label], resource_order: resource_index + 1,
+          section: section[:key], section_label: section[:label], section_order: section_index + 1
+        }.freeze
+      end
+    end
+  end.freeze
+  BY_CODE = ENTRIES.index_by { |entry| entry[:code] }.freeze
+  CODES = BY_CODE.keys.freeze
+  RESOURCES = ENTRIES.group_by { |entry| entry[:resource] }.transform_values(&:freeze).freeze
+
+  def self.fetch(code) = BY_CODE.fetch(code)
+  def self.include?(code) = BY_CODE.key?(code)
+
+  # The codes assignable to a role on the given platform — its own platform's codes, plus
+  # anything shared. Computed straight from ENTRIES rather than the persisted `permissions`
+  # table, so a stale platform_scope column on an existing row can never leak a code across
+  # platforms — this module is the sole source of truth, per CLAUDE.md.
+  #
+  #   codes_for_platform("fisherman") # => ["dashboard.list", "manifests.list", ..., "fisherman_roles.delete"]
+  def self.codes_for_platform(platform)
+    allowed_scopes = [platform.to_s, "shared"]
+    ENTRIES.select { |entry| allowed_scopes.include?(entry[:platform_scope]) }.pluck(:code)
+  end
+end

@@ -6,13 +6,27 @@ class ApplicationPolicy
     @record = record
   end
 
-  def index? = false
-  def show? = false
-  def create? = false
+  def index? = permitted?("list")
+  def show? = permitted?("view")
+  def create? = permitted?("create")
   def new? = create?
-  def update? = false
+  def update? = permitted?("update")
   def edit? = update?
-  def destroy? = false
+  def destroy? = permitted?("delete")
+
+  private
+
+  def permitted?(action)
+    user.permission?(build_permission_code(action))
+  end
+
+  def build_permission_code(action)
+    "#{permission_resource}.#{action}"
+  end
+
+  def permission_resource
+    raise NotImplementedError, "#{self.class.name} must implement #permission_resource"
+  end
 
   class Scope
     attr_reader :user, :scope

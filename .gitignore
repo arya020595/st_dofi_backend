@@ -19,6 +19,9 @@
 /.env*
 !/.env.example
 
+# Real .env files on the production servers (deploy/production/<role>/.env). Only .env.example is committed.
+/deploy/**/.env
+
 # Ignore Byebug command history file.
 .byebug_history
 

@@ -1,0 +1,76 @@
+require "test_helper"
+
+module Api
+  module V1
+    module Admin
+      class ZonesControllerTest < ActionDispatch::IntegrationTest
+        setup do
+          @headers = officer_headers_for(permission_codes: %w[zones.view zones.list zones.create zones.update
+                                                              zones.delete])
+          @zone = create(:zone)
+        end
+
+        test "index lists zones" do
+          get "/api/v1/admin/master_data/zones", headers: @headers
+          get "/api/v1/admin/master_data/zones", headers: @headers
+
+          assert_response :ok
+          assert_includes response.parsed_body["data"].pluck("id"), @zone.id
+        end
+
+        test "show returns the zone" do
+          get "/api/v1/admin/master_data/zones/#{@zone.id}", headers: @headers
+          get "/api/v1/admin/master_data/zones/#{@zone.id}", headers: @headers
+
+          assert_response :ok
+          assert_equal @zone.name, response.parsed_body["data"]["name"]
+        end
+
+        test "create persists a zone" do
+          assert_difference("Zone.count", 1) do
+            post "/api/v1/admin/master_data/zones",
+                 params: { zone: { name: "New Zone", start_range: 0, end_range: 12 } },
+                 headers: @headers, as: :json
+          end
+
+          assert_response :created
+        end
+
+        test "update modifies the zone" do
+          patch "/api/v1/admin/master_data/zones/#{@zone.id}",
+                params: { zone: { name: "Renamed Zone" } },
+                headers: @headers, as: :json
+
+          assert_response :ok
+          assert_equal "Renamed Zone", @zone.reload.name
+        end
+
+        test "destroy discards the zone" do
+          delete "/api/v1/admin/master_data/zones/#{@zone.id}", headers: @headers
+
+          assert_response :ok
+          assert_predicate @zone.reload, :discarded?
+          assert_not Zone.kept.exists?(@zone.id)
+        end
+
+        test "index excludes discarded zones" do
+          @zone.discard
+
+          get "/api/v1/admin/master_data/zones", headers: @headers
+
+          assert_response :ok
+          assert_not_includes response.parsed_body["data"].pluck("id"), @zone.id
+        end
+
+        test "show still resolves a discarded zone" do
+          @zone.discard
+
+          get "/api/v1/admin/master_data/zones/#{@zone.id}", headers: @headers
+
+          assert_response :ok
+          assert_equal @zone.id, response.parsed_body["data"]["id"]
+        end
+      end
+    end
+  end
+end

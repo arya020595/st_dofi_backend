@@ -2,7 +2,7 @@
 # Development image for FINS (DoFi Capture Fisheries Module backend).
 # Source is bind-mounted by docker-compose.yml; this image just provides the toolchain.
 
-ARG RUBY_VERSION=3.4.7
+ARG RUBY_VERSION=3.4.11
 FROM docker.io/library/ruby:$RUBY_VERSION-slim
 
 WORKDIR /rails
@@ -15,7 +15,6 @@ RUN apt-get update -qq && \
       libpq-dev \
       libvips \
       libyaml-dev \
-      libgeos-dev \
       pkg-config \
       postgresql-client && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
@@ -27,6 +26,13 @@ COPY Gemfile Gemfile.lock ./
 RUN bundle install
 
 COPY . .
+
+# Fail fast with a clear fix if bin/* has CRLF line endings. bin/ is bind-mounted from the host,
+# so a Windows checkout done before .gitattributes was added (or under core.autocrlf=true) can
+# carry CRLF here, breaking the #!/usr/bin/env shebang every bin/* script uses. This check is a
+# literal ENTRYPOINT string (not a bin/ script) so it still runs correctly even if bin/ itself is
+# fully CRLF-corrupted — Docker parses Dockerfiles CRLF-safely, so this string is never at risk.
+ENTRYPOINT ["/bin/bash", "-ec", "grep -qrU $'\\r' bin/ 2>/dev/null && { echo \"ERROR: CRLF line endings in bin/*. Fix on your HOST machine: git add --renormalize . (or re-clone). See README: Cross-platform line endings.\" >&2; exit 1; }; exec /rails/bin/docker-entrypoint \"$@\"", "bash"]
 
 EXPOSE 3000
 

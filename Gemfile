@@ -1,6 +1,6 @@
 source "https://rubygems.org"
 
-ruby "3.4.7"
+ruby "3.4.11"
 
 # Core
 gem "bootsnap", require: false
@@ -37,6 +37,7 @@ gem "audited", "~> 5.8"
 gem "discard", "~> 1.4"
 
 # File storage
+gem "aws-sdk-s3", require: false
 gem "cloudinary"
 gem "image_processing", "~> 1.2"
 
@@ -52,9 +53,6 @@ gem "caxlsx"
 gem "caxlsx_rails"
 gem "prawn"
 gem "prawn-table"
-
-# Bilingual (EN/MS) model attributes
-gem "mobility", "~> 1.3"
 
 # HTTP client (BruneiID integration)
 gem "faraday"
@@ -80,6 +78,10 @@ group :development, :test do
 end
 
 group :development do
+  gem "annotaterb"
+  gem "bullet"
   gem "kamal", require: false
   gem "thruster", require: false
 end
+
+gem "solid_cable", "~> 4.0"

@@ -1,15 +1,114 @@
 ENV["RAILS_ENV"] ||= "test"
+# Keep tests independent of the developer's .env; mock tests enable the route explicitly.
+ENV["BRUNEIID_MOCK_ENABLED"] = "false"
 require_relative "../config/environment"
+# The Rails test command may load application.rb before this helper sets ENV.
+Rails.configuration.x.brunei_id_mock_enabled = false
+Rails.application.reload_routes!
 require "rails/test_help"
+require_relative "support/postgresql_number_triggers"
+require_relative "support/brunei_id_callback_helper"
+
+# Rails' Ruby schema dump does not retain PostgreSQL functions/triggers. Install the two
+# database-backed number generators after a fresh test schema load, before parallel workers fork.
+PostgreSqlNumberTriggers.install!
+
+# A minimal test double for an Active Storage service, standing in for the real minio_public /
+# minio_assets_public S3 services in tests — those would otherwise try to sign against test env's
+# blank credentials, which triggers a slow AWS credential-chain fallback (a real network call to
+# the EC2 instance-metadata endpoint) before failing outright. Minitest::Mock isn't available in
+# this Minitest version (removed from core in 6.x), hence hand-rolled rather than a gem.
+class RecordingServiceDouble
+  attr_reader :captured_key, :captured_options
+
+  def initialize(return_url) = @return_url = return_url
+
+  def url(key, **options)
+    @captured_key = key
+    @captured_options = options
+    @return_url
+  end
+end
 
 module ActiveSupport
   class TestCase
+    include FactoryBot::Syntax::Methods
+
     # Run tests in parallel with specified workers
     parallelize(workers: :number_of_processors)
+
+    # Each parallel worker uses its own test database. The Ruby schema dump does
+    # not include PostgreSQL trigger functions, so install the generators again
+    # after Rails connects a worker to its database.
+    parallelize_setup do |_worker|
+      PostgreSqlNumberTriggers.install!
+    end
 
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
 
+    # Temporarily makes ActiveStorage::Blob.services.fetch(name) return fake_service instead of
+    # looking up the real configured service — see RecordingServiceDouble above.
+    def stub_fetched_service(name, fake_service)
+      services = ActiveStorage::Blob.services
+      original = services.method(:fetch)
+      services.define_singleton_method(:fetch) do |requested|
+        requested == name ? fake_service : original.call(requested)
+      end
+      yield
+    ensure
+      services.singleton_class.send(:remove_method, :fetch)
+    end
+
+    # An officer-platform user whose role holds exactly one permission — a notification recipient that is only
+    # reachable through that code.
+    def create_admin_recipient(permission_code)
+      permission = create(:permission, code: permission_code)
+      create(:user, role: create(:role, permissions: [permission]))
+    end
+
     # Add more helper methods to be used by all tests here...
+  end
+end
+
+class ActionDispatch::IntegrationTest
+  include BruneiIdCallbackHelper
+
+  def auth_headers_for(user, password:)
+    post "/api/v1/auth/sign_in", params: { user: { username: user.username, password: password } }, as: :json
+    { "Authorization" => response.headers["Authorization"] }
+  end
+
+  # Shared setup for the admin/fisherman manifest sub-resource controller tests (capture_reports,
+  # expenses, minor_fishermen, fish_capture_details, fishing_gear_details) — both platforms' test
+  # suites for the same resource need a role with the right permissions and a signed-in user,
+  # which was previously copy-pasted per test file. See test/controllers/api/v1/{admin,fisherman}/
+  # manifests/ for usage.
+  MANIFEST_SUB_RESOURCE_TEST_PASSWORD = "Password123!".freeze
+
+  def find_or_create_permissions(codes)
+    codes.map { |code| Permission.find_or_create_by!(code: code) { |p| p.name = code } }
+  end
+
+  def create_role_with_permissions(kind:, permission_codes:, name: nil)
+    create(:role, kind: kind, name: name || kind, permissions: find_or_create_permissions(permission_codes))
+  end
+
+  def fisherman_headers_for(manifest, permission_codes:)
+    role = create(:role, :fisherman, company_profile: manifest.company_profile,
+                                     permissions: find_or_create_permissions(permission_codes))
+    user = create(:user, role: role, company_profile: manifest.company_profile, ic_number: SecureRandom.hex(5),
+                         registration_type: "Commercial", password: MANIFEST_SUB_RESOURCE_TEST_PASSWORD,
+                         password_confirmation: MANIFEST_SUB_RESOURCE_TEST_PASSWORD)
+    auth_headers_for(user, password: MANIFEST_SUB_RESOURCE_TEST_PASSWORD)
+  end
+
+  def officer_headers_for(permission_codes:)
+    role = create_role_with_permissions(kind: Role::DOFI_OFFICER, permission_codes: permission_codes,
+                                        name: "DoFi Officer")
+    user = create(:user, role: role, position: "Administrator", unit: "HQ", username: "officer_#{SecureRandom.hex(4)}",
+                         password: MANIFEST_SUB_RESOURCE_TEST_PASSWORD,
+                         password_confirmation: MANIFEST_SUB_RESOURCE_TEST_PASSWORD)
+    auth_headers_for(user, password: MANIFEST_SUB_RESOURCE_TEST_PASSWORD)
   end
 end

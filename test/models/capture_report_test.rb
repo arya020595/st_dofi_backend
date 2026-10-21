@@ -1,0 +1,136 @@
+require "test_helper"
+
+class CaptureReportTest < ActiveSupport::TestCase
+  test "verify! transitions pending_verification to verified and stamps the reviewer" do
+    officer = create(:user)
+    report = create(:capture_report)
+
+    CaptureReports::Verify.call(report, actor: officer).value!
+
+    assert_equal "verified", report.capture_report_status
+    assert_equal officer.id, report.reviewed_by_id
+    assert_not_nil report.reviewed_at
+  end
+
+  test "cannot be created once the manifest's capture report was skipped" do
+    report = build(:capture_report, manifest: create(:manifest, capture_report_skipped: true))
+
+    assert_not report.valid?
+    assert_includes report.errors[:base], "Capture report was skipped for this manifest"
+  end
+
+  test "database-generated numbers are unique for separate capture report inserts" do
+    first_report = create(:capture_report)
+    second_report = create(:capture_report)
+
+    assert_match(/\ACAPTURE-\d{8}-\d{3,}\z/, first_report.reload.capture_report_number)
+    assert_not_equal first_report.capture_report_number, second_report.reload.capture_report_number
+  end
+
+  test "verify! raises when the report is not pending_verification" do
+    report = create(:capture_report)
+    CaptureReports::Verify.call(report, actor: nil).value!
+
+    assert_raises(AASM::InvalidTransition) { report.verify! }
+    assert_not report.may_verify?
+  end
+
+  test "request_amendment! moves to needs_amendment, records remarks, and reopens editing" do
+    report = create(:capture_report)
+
+    CaptureReports::RequestAmendment.call(report, actor: nil,
+                                                  remarks: "Fishing gear section invalid for this zone").value!
+
+    assert_amended_report(report)
+  end
+
+  test "resubmit! returns an amended report to pending_verification" do
+    report = create(:capture_report)
+    CaptureReports::RequestAmendment.call(report, actor: nil, remarks: "Fix the catch quantity").value!
+
+    CaptureReports::Resubmit.call(report, actor: nil).value!
+
+    assert_resubmitted_report(report)
+  end
+
+  test "verify! records a manifest_histories row on the parent manifest" do
+    report = create(:capture_report)
+
+    assert_difference -> { report.manifest.manifest_histories.count }, 1 do
+      CaptureReports::Verify.call(report, actor: nil).value!
+    end
+
+    history = report.manifest.manifest_histories.last
+
+    assert_equal %w[capture_report_status pending_verification verified],
+                 [history.status_type, history.from_state, history.to_state]
+  end
+
+  test "verify! moves the manifest to awaiting_port_in_approval only once ALL reports are verified" do
+    manifest = create(:manifest, fisherman_category: "commercial")
+    Manifests::SubmitPortOut.call(manifest, actor: nil).value!
+    Manifests::ApprovePortOut.call(manifest, actor: nil).value!
+    report_one = create(:capture_report, manifest: manifest)
+    report_two = create(:capture_report, manifest: manifest)
+    Manifests::SubmitPortIn.call(manifest, actor: nil).value!
+
+    CaptureReports::Verify.call(report_one, actor: nil).value!
+
+    assert_equal "capture_report_submitted", manifest.reload.manifest_status
+
+    CaptureReports::Verify.call(report_two, actor: nil).value!
+
+    assert_equal "awaiting_port_in_approval", manifest.reload.manifest_status
+  end
+
+  private
+
+  def assert_resubmitted_report(report)
+    assert_equal "pending_verification", report.capture_report_status
+    assert_nil report.capture_report_remarks
+    assert_nil report.reviewed_by_id
+    assert_nil report.reviewed_at
+    assert_nil report.manifest.reload.capture_report_amendment_remarks
+  end
+
+  def assert_amended_report(report)
+    assert_equal "needs_amendment", report.capture_report_status
+    assert_equal "Fishing gear section invalid for this zone", report.capture_report_remarks
+    assert_equal "Fishing gear section invalid for this zone", report.manifest.reload.capture_report_amendment_remarks
+    assert_predicate report, :editable?
+  end
+end
+
+# == Schema Information
+#
+# Table name: capture_reports
+# Database name: primary
+#
+#  id                     :uuid             not null, primary key
+#  capture_report_number  :string           not null
+#  capture_report_remarks :text
+#  capture_report_status  :string           default("pending_verification"), not null
+#  latitude               :decimal(10, 8)
+#  longitude              :decimal(11, 8)
+#  reviewed_at            :datetime
+#  zone_area              :string
+#  created_at             :datetime         not null
+#  updated_at             :datetime         not null
+#  manifest_id            :uuid             not null
+#  reviewed_by_id         :uuid
+#  zone_id                :uuid
+#
+# Indexes
+#
+#  index_capture_reports_on_capture_report_status  (capture_report_status)
+#  index_capture_reports_on_manifest_id            (manifest_id)
+#  index_capture_reports_on_number                 (capture_report_number) UNIQUE
+#  index_capture_reports_on_reviewed_by_id         (reviewed_by_id)
+#  index_capture_reports_on_zone_id                (zone_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (manifest_id => manifests.id)
+#  fk_rails_...  (reviewed_by_id => users.id)
+#  fk_rails_...  (zone_id => zones.id)
+#

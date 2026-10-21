@@ -1,0 +1,52 @@
+require "test_helper"
+
+module Api
+  module V1
+    module Fisherman
+      module Manifests
+        class CaptureReportsControllerTest < ActionDispatch::IntegrationTest
+          setup do
+            @manifest = create(:manifest)
+            @headers = fisherman_headers_for(@manifest,
+                                             permission_codes: %w[capture_reports.list capture_reports.view
+                                                                  capture_reports.create capture_reports.update])
+          end
+
+          test "create adds a capture report to the manifest" do
+            zone = create(:zone)
+            params = { capture_report: { zone_id: zone.id, zone_area: "Zone 1A", longitude: 114.9, latitude: 4.9 } }
+
+            assert_difference("CaptureReport.count", 1) do
+              post "/api/v1/fisherman/manifests/#{@manifest.id}/capture_reports", params: params,
+                                                                                  headers: @headers, as: :json
+            end
+
+            assert_response :created
+          end
+
+          test "update modifies the capture report" do
+            report = create(:capture_report, manifest: @manifest)
+
+            patch "/api/v1/fisherman/manifests/#{@manifest.id}/capture_reports/#{report.id}",
+                  params: { capture_report: { zone_area: "Zone 2B" } }, headers: @headers, as: :json
+
+            assert_response :ok
+            assert_equal "Zone 2B", report.reload.zone_area
+          end
+
+          test "show includes reviewed_by details" do
+            reviewer = create(:user, unit: "Lumut Port", position: "Jetty Supervisor")
+            report = create(:capture_report, manifest: @manifest, reviewed_by: reviewer, reviewed_at: Time.current)
+
+            get "/api/v1/fisherman/manifests/#{@manifest.id}/capture_reports/#{report.id}", headers: @headers
+
+            assert_response :ok
+            assert_equal reviewer.id, response.parsed_body.dig("data", "reviewed_by", "id")
+            assert_equal [report.reload.capture_report_number, @manifest.manifest_number],
+                         response.parsed_body.fetch("data").values_at("capture_report_number", "manifest_number")
+          end
+        end
+      end
+    end
+  end
+end

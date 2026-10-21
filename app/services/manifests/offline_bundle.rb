@@ -1,0 +1,37 @@
+module Manifests
+  class OfflineBundle
+    def self.call(...) = new.call(...)
+
+    # Flow 4 (business-flow.md): reference data a fisherman needs cached client-side before losing
+    # signal at sea, bundled alongside the manifest itself in one response.
+    def call(manifest)
+      {
+        manifest: ManifestDetailBlueprint.render_as_hash(manifest),
+        zones: ZoneBlueprint.render_as_hash(Zone.all),
+        fishing_gears: FishingGearBlueprint.render_as_hash(FishingGear.all),
+        company_fishing_gears: CompaniesFishingGearBlueprint.render_as_hash(company_fishing_gears(manifest)),
+        **dictionary_lookups,
+        skip_reasons: ManifestSkipReasonBlueprint.render_as_hash(ManifestSkipReason.kept)
+      }
+    end
+
+    private
+
+    def company_fishing_gears(manifest)
+      manifest.company_profile.companies_fishing_gears.kept.approved
+              .where(companies_vessel_id: manifest.companies_vessel_id)
+    end
+
+    def dictionary_lookups
+      {
+        dictionary_groups: DictionaryGroupBlueprint.render_as_hash(DictionaryGroup.order(:name)),
+        dictionary_families: DictionaryFamilyBlueprint.render_as_hash(dictionary_families),
+        dictionaries: DictionaryBlueprint.render_as_hash(Dictionary.includes(:dictionary_group, :dictionary_family))
+      }
+    end
+
+    def dictionary_families
+      DictionaryFamily.includes(:dictionary_group).order(:name)
+    end
+  end
+end

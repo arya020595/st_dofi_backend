@@ -1,0 +1,34 @@
+# STORAGE SERVER. Copy this file, .env.example and docker/mc-init.sh (from the repo) to /opt/dofi,
+# then: cp .env.example .env
+# Start:  docker compose up -d --wait && docker compose run --rm mc-init
+# (mc-init creates the buckets and the app's access keys; safe to run again.)
+x-minio-image: &minio-image ghcr.io/arya020595/minio:RELEASE.2025-04-08T15-41-24Z
+
+services:
+  minio:
+    image: *minio-image
+    restart: unless-stopped
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
+    ports:
+      # Backend and browsers both reach MinIO here (there is no domain or proxy yet).
+      - "9000:9000"
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      retries: 10
+
+  mc-init:
+    image: *minio-image
+    profiles: ["init"]
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file: .env
+    volumes:
+      - ./mc-init.sh:/mc-init.sh:ro
+    entrypoint: ["sh", "/mc-init.sh"]

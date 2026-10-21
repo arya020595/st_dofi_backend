@@ -1,0 +1,108 @@
+module Notifications
+  class ManifestPublisher
+    EVENTS = {
+      port_out_review_required: [
+        :port_out_approvers, "Port-Out Approval Required", "Manifest %<number>s is waiting for Port-Out approval."
+      ],
+      port_out_approved: [
+        :fishermen, "Port-Out Approved", "Manifest %<number>s has been approved for Port-Out."
+      ],
+      port_out_amendment_required: [
+        :fishermen, "Port-Out Amendment Required", "Manifest %<number>s requires a Port-Out amendment."
+      ],
+      port_out_resubmitted: [
+        :port_out_approvers, "Port-Out Resubmitted", "Manifest %<number>s has been resubmitted for Port-Out approval."
+      ],
+      capture_report_review_required: [
+        :capture_verifiers,
+        "Capture Report Review Required",
+        "Manifest %<number>s has Capture Reports awaiting verification."
+      ],
+      capture_report_verified: [
+        :fishermen, "Capture Report Verified", "A Capture Report for manifest %<number>s has been verified."
+      ],
+      capture_report_amendment_required: [
+        :fishermen,
+        "Capture Report Amendment Required",
+        "A Capture Report for manifest %<number>s requires amendment."
+      ],
+      capture_report_resubmitted: [
+        :capture_verifiers,
+        "Capture Report Resubmitted",
+        "A Capture Report for manifest %<number>s has been resubmitted for verification."
+      ],
+      port_in_review_required: [
+        :port_in_approvers, "Port-In Approval Required", "Manifest %<number>s is ready for Port-In approval."
+      ],
+      port_in_approved: [
+        :fishermen, "Port-In Approved", "Manifest %<number>s has been approved for Port-In."
+      ],
+      port_in_amendment_required: [
+        :fishermen, "Port-In Amendment Required", "Manifest %<number>s requires a Port-In amendment."
+      ],
+      port_in_resubmitted: [
+        :port_in_approvers, "Port-In Resubmitted", "Manifest %<number>s has been resubmitted for Port-In approval."
+      ]
+    }.freeze
+
+    def self.call(...) = new.call(...)
+    def self.enqueue(...) = new.enqueue(...)
+
+    def initialize(error_reporter: Rails.error)
+      @error_reporter = error_reporter
+    end
+
+    # Called inside the Manifest lock: snapshot now, send only after the outermost commit.
+    def enqueue(event:, manifest:, capture_report: nil)
+      recipient_group, title, message_template = EVENTS.fetch(event.to_sym)
+      user_ids = recipients_for(recipient_group, manifest).pluck(:id)
+      attributes = notification_attributes(event, manifest, title, message_template, capture_report)
+      manifest_id = manifest.id
+      ActiveRecord.after_all_transactions_commit do
+        Notifications::ManifestEventJob.enqueue_safely(user_ids: user_ids, attributes: attributes,
+                                                       manifest_id: manifest_id, error_reporter: error_reporter)
+      end
+    end
+
+    def call(event:, manifest:, capture_report: nil)
+      recipient_group, title, message_template = EVENTS.fetch(event.to_sym)
+      PublishToUsers.call(
+        users: recipients_for(recipient_group, manifest),
+        attributes: notification_attributes(event, manifest, title, message_template, capture_report),
+        resource: manifest
+      )
+    end
+
+    private
+
+    attr_reader :error_reporter
+
+    def recipients_for(recipient_group, manifest)
+      case recipient_group
+      when :port_out_approvers then ManifestRecipients.port_out_approvers_for(manifest)
+      when :port_in_approvers then ManifestRecipients.port_in_approvers_for(manifest)
+      when :capture_verifiers then ManifestRecipients.capture_verifiers_for(manifest)
+      when :fishermen then ManifestRecipients.fishermen_for(manifest)
+      end
+    end
+
+    def notification_attributes(event, manifest, title, message_template, capture_report)
+      {
+        notification_type: "manifest.#{event}",
+        title: title,
+        message: format(message_template, number: manifest.manifest_number),
+        metadata: notification_metadata(manifest, capture_report)
+      }
+    end
+
+    def notification_metadata(manifest, capture_report)
+      {
+        manifest_id: manifest.id,
+        capture_report_id: capture_report&.id,
+        manifest_status: manifest.manifest_status,
+        port_out_status: manifest.port_out_status,
+        port_in_status: manifest.port_in_status
+      }.compact
+    end
+  end
+end

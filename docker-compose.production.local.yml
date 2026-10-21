@@ -1,0 +1,106 @@
+# Local-only compose file for testing the production image before it ships: builds
+# Dockerfile.production from source (rather than pulling from GHCR) and runs it against a
+# co-located db/minio, all on this machine. This is NOT deployed anywhere — the real deploy
+# files are docker-compose.staging.yml and docker-compose.production.yml.
+name: dofi-backend-production-local
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    volumes:
+      - dofi_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # S3-compatible object storage (replaces Cloudinary). Only api/jobs talk to it — never publish
+  # its port to the host.
+  # Image is an unmodified mirror of the upstream release in our GHCR — MinIO withdrew its public
+  # images. See docs/minio/MINIO.md §1 "Image source" before bumping the tag.
+  minio:
+    image: ghcr.io/arya020595/minio:RELEASE.2025-04-08T15-41-24Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - dofi_minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-off bucket + scoped-user provisioning (idempotent — safe to re-run). Not started by
+  # `docker compose up -d` (profiles: [init]) — run it explicitly with
+  # `docker compose -f docker-compose.production.local.yml run --rm mc-init`.
+  mc-init:
+    # Same image as minio above: it bundles the matching `mc` (RELEASE.2025-04-08T15-39-49Z), and
+    # MinIO no longer publishes a standalone mc image.
+    image: ghcr.io/arya020595/minio:RELEASE.2025-04-08T15-41-24Z
+    profiles: ["init"]
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY_ID}
+      MINIO_SECRET_ACCESS_KEY: ${MINIO_SECRET_ACCESS_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      MINIO_ASSETS_ACCESS_KEY_ID: ${MINIO_ASSETS_ACCESS_KEY_ID}
+      MINIO_ASSETS_SECRET_ACCESS_KEY: ${MINIO_ASSETS_SECRET_ACCESS_KEY}
+      MINIO_ASSETS_BUCKET: ${MINIO_ASSETS_BUCKET}
+    volumes:
+      - ./docker/mc-init.sh:/mc-init.sh:ro
+    entrypoint: ["sh", "/mc-init.sh"]
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      RAILS_ENV: production
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+    env_file:
+      - .env.production
+    ports:
+      - "3000:3000"
+
+  jobs:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      RAILS_ENV: production
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+    env_file:
+      - .env.production
+    entrypoint: []
+    command: ["./bin/rails", "solid_queue:start"]
+
+volumes:
+  dofi_postgres_data:
+  dofi_minio_data:

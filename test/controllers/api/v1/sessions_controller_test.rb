@@ -1,0 +1,78 @@
+require "test_helper"
+
+module Api
+  module V1
+    class SessionsControllerTest < ActionDispatch::IntegrationTest
+      setup do
+        @password = "Password123!"
+        @permission = create(:permission, code: "manifests.view", name: "Manifest List - View")
+        @role = create(:role, permissions: [@permission])
+        @user = create(:user, role: @role, password: @password, password_confirmation: @password)
+      end
+
+      test "sign in with valid credentials returns a JWT and the user payload" do
+        post "/api/v1/auth/sign_in", params: { user: { username: @user.username, password: @password } }, as: :json
+
+        assert_response :ok
+        assert_predicate response.headers["Authorization"], :present?
+        assert_equal @user.email, response.parsed_body.dig("data", "user", "email")
+      end
+
+      test "sign in response includes the access token alongside the Authorization header" do
+        post "/api/v1/auth/sign_in", params: { user: { username: @user.username, password: @password } }, as: :json
+
+        access_token = response.parsed_body.dig("data", "access_token")
+
+        assert_predicate access_token, :present?
+        assert_equal response.headers["Authorization"], "Bearer #{access_token}"
+      end
+
+      test "sign in returns a short-lived WebSocket token" do
+        post "/api/v1/auth/sign_in", params: { user: { username: @user.username, password: @password } }, as: :json
+
+        assert_predicate response.parsed_body.dig("data", "realtime_token"), :present?
+        assert_predicate response.parsed_body.dig("data", "realtime_token_expires_at"), :present?
+      end
+
+      test "sign in with invalid credentials is rejected" do
+        post "/api/v1/auth/sign_in", params: { user: { username: @user.username, password: "wrong-password" } },
+                                     as: :json
+
+        assert_response :unauthorized
+      end
+
+      test "me requires authentication" do
+        get "/api/v1/auth/me"
+
+        assert_response :unauthorized
+      end
+
+      test "me returns the current user and permission list when authenticated" do
+        get "/api/v1/auth/me", headers: auth_headers_for(@user, password: @password)
+
+        assert_response :ok
+        assert_equal [@user.email, ["manifests.view"], true], me_response_summary(response.parsed_body)
+      end
+
+      test "sign out revokes the token" do
+        headers = auth_headers_for(@user, password: @password)
+
+        delete "/api/v1/auth/sign_out", headers: headers
+
+        assert_response :ok
+
+        get "/api/v1/auth/me", headers: headers
+
+        assert_response :unauthorized
+      end
+
+      private
+
+      def me_response_summary(payload)
+        data = payload.fetch("data")
+        permissions = data.fetch("permissions").map { |permission| permission.fetch("code") }
+        [data.dig("user", "email"), permissions, data.fetch("realtime_token").present?]
+      end
+    end
+  end
+end

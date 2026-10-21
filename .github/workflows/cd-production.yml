@@ -1,0 +1,356 @@
+name: CD Production
+
+# ============================================================
+# FINS / DoFI - Production CI/CD
+#
+# Current deployment strategy:
+#   1. Push / merge to main
+#   2. Run CI tests and security checks
+#   3. Build Docker production image
+#   4. Push image to GitHub Container Registry (GHCR)
+#   5. Deploy manually through client-approved Delinea access
+#
+# Automatic SSH deployment is DISABLED because the backend
+# server (10.252.8.12) is on the client's private network.
+#
+# Backend:  OGCMET001API001
+# Database: OGCMPT003API001
+# Storage:  OGCMET001API002
+# ============================================================
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: cd-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # ==========================================================
+  # 1. CI - Tests and Security
+  # ==========================================================
+  test:
+    name: Test & Security
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+
+        ports:
+          - 5432:5432
+
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    # Same environment as ci.yml, so `bin/ci` runs the same steps here as on pull requests
+    # (RAILS_ENV stays unset: the migration check then covers the primary and queue databases).
+    env:
+      DATABASE_HOST: localhost
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: postgres
+      DATABASE_PASSWORD: postgres
+      DATABASE_NAME: dofi_backend_development
+      DEVISE_JWT_SECRET_KEY: ci-test-secret-key-base-not-for-production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+
+          sudo apt-get install -y --no-install-recommends \
+            libpq-dev \
+            libvips-dev
+
+      - name: Verify Ruby version consistency
+        run: |
+          set -e
+
+          RUBY_VERSION=$(cat .ruby-version)
+
+          GEMFILE_RUBY_VERSION=$(
+            sed -n 's/^ruby "\(.*\)"$/\1/p' Gemfile
+          )
+
+          LOCK_RUBY_VERSION=$(
+            sed -n '/^RUBY VERSION$/{n;s/^ *ruby \([0-9.]*\)p.*$/\1/p;}' Gemfile.lock
+          )
+
+          DOCKER_RUBY_VERSION=$(
+            sed -n 's/^ARG RUBY_VERSION=//p' Dockerfile.production
+          )
+
+          for version in "$GEMFILE_RUBY_VERSION" "$LOCK_RUBY_VERSION" "$DOCKER_RUBY_VERSION"; do
+            if [ "$RUBY_VERSION" != "$version" ]; then
+              echo "Ruby version mismatch"
+              echo ".ruby-version:         $RUBY_VERSION"
+              echo "Gemfile:               $GEMFILE_RUBY_VERSION"
+              echo "Gemfile.lock:          $LOCK_RUBY_VERSION"
+              echo "Dockerfile.production: $DOCKER_RUBY_VERSION"
+              exit 1
+            fi
+          done
+
+          echo "Ruby version verified: $RUBY_VERSION"
+
+      - name: Verify deployment files
+        run: |
+          set -e
+
+          test -f Dockerfile.production
+
+          test -f deploy/production/backend/docker-compose.yml
+
+          test -f deploy/production/backend/.env.example
+
+          test -f deploy/production/backend/nginx/dofi-api.conf
+
+          echo "Deployment files verified"
+
+      - name: Update bundler-audit database
+        run: bundle exec bundler-audit update
+
+      - name: Run full CI suite
+        run: bin/ci
+
+  # ==========================================================
+  # 2. Build and Push Docker Image
+  # ==========================================================
+  build-and-push:
+    name: Build & Push GHCR
+
+    needs:
+      - test
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set image name
+        id: image
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" \
+            | tr '[:upper:]' '[:lower:]')
+
+          echo "name=ghcr.io/${OWNER}/st_dofi_backend" \
+            >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push production image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.production
+          push: true
+
+          tags: |
+            ${{ steps.image.outputs.name }}:${{ github.sha }}
+            ${{ steps.image.outputs.name }}:production
+
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Notify Slack - Build Result
+        if: ${{ always() }}
+        continue-on-error: true
+
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          BUILD_STATUS: ${{ job.status }}
+          COMMIT_SHA: ${{ github.sha }}
+
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            exit 0
+          fi
+
+          if [ "$BUILD_STATUS" = "success" ]; then
+            MESSAGE="FINS Production: Docker image built and pushed to GHCR. Commit: $COMMIT_SHA. Manual deployment required."
+          else
+            MESSAGE="FINS Production: Docker image build failed. Commit: $COMMIT_SHA."
+          fi
+
+          jq -n --arg text "$MESSAGE" \
+            '{text: $text}' > /tmp/slack-payload.json
+
+          curl -fsS \
+            -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-type: application/json" \
+            --data @/tmp/slack-payload.json
+
+  # ==========================================================
+  # 3. Automatic Deploy - DISABLED
+  # ==========================================================
+  #
+  # IMPORTANT:
+  # The backend server uses private IP 10.252.8.12.
+  # GitHub-hosted runners cannot directly reach it without
+  # additional client-approved private networking.
+  #
+  # Deployment is currently performed manually via Delinea.
+  #
+  # To enable in the future:
+  #   - Obtain approved SSH connectivity from the runner.
+  #   - Configure PRODUCTION_SSH_* secrets.
+  #   - Configure GitHub production environment reviewers.
+  #   - Ensure the deploy user can pull private GHCR images.
+  #   - Remove the "if: ${{ false }}" condition.
+  #   - Perform a controlled deployment test.
+  # ==========================================================
+  deploy:
+    name: Deploy Production (Disabled)
+
+    needs:
+      - build-and-push
+
+    if: ${{ false }}
+
+    runs-on: ubuntu-latest
+
+    environment: production
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Copy Docker Compose to backend server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PRODUCTION_SSH_HOST }}
+          username: ${{ secrets.PRODUCTION_SSH_USER }}
+          port: ${{ secrets.PRODUCTION_SSH_PORT }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+
+          source: deploy/production/backend/docker-compose.yml
+          target: /opt/dofi/incoming
+
+      - name: Deploy on backend server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PRODUCTION_SSH_HOST }}
+          username: ${{ secrets.PRODUCTION_SSH_USER }}
+          port: ${{ secrets.PRODUCTION_SSH_PORT }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+
+          script: |
+            set -e
+
+            cd /opt/dofi
+
+            # Production environment must already exist.
+            test -s .env || {
+              echo "Production .env is missing or empty"
+              exit 1
+            }
+
+            # Locate the uploaded Docker Compose file.
+            compose_file=$(
+              find incoming -type f \
+                -name docker-compose.yml -print -quit
+            )
+
+            test -n "$compose_file" || {
+              echo "Docker Compose file not found"
+              exit 1
+            }
+
+            # Update Compose without overwriting secrets.
+            cp "$compose_file" docker-compose.yml
+
+            # Validate configuration.
+            docker compose config -q
+
+            # Pull the selected production image.
+            # GHCR login must already be configured
+            # securely for the deploy user on this server.
+            docker compose pull
+
+            # Apply database migrations.
+            docker compose run --rm api \
+              bin/rails db:prepare
+
+            # Start Rails API and Solid Queue.
+            docker compose up -d --wait
+
+            # Verify Rails health endpoint.
+            curl --fail --silent --show-error \
+              --retry 10 \
+              --retry-delay 3 \
+              --retry-connrefused \
+              http://127.0.0.1:3000/up
+
+            # Display running services.
+            docker compose ps
+
+            echo "Production deployment completed"
+
+      - name: Notify Slack - Deploy Result
+        if: ${{ always() }}
+        continue-on-error: true
+
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          DEPLOY_STATUS: ${{ job.status }}
+          COMMIT_SHA: ${{ github.sha }}
+
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            exit 0
+          fi
+
+          if [ "$DEPLOY_STATUS" = "success" ]; then
+            MESSAGE="FINS Production deployment succeeded. Commit: $COMMIT_SHA."
+          else
+            MESSAGE="FINS Production deployment failed. Commit: $COMMIT_SHA. Check GitHub Actions logs."
+          fi
+
+          jq -n --arg text "$MESSAGE" \
+            '{text: $text}' > /tmp/slack-payload.json
+
+          curl -fsS \
+            -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-type: application/json" \
+            --data @/tmp/slack-payload.json
