@@ -37,6 +37,10 @@
 # Ignore development files
 /.devcontainer
 
+# Ignore deployment runbooks and documentation (server addresses, firewall rules): not needed at runtime
+/deploy
+/docs
+
 # Ignore Docker-related files
 /.dockerignore
 /Dockerfile*
