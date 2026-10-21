@@ -55,7 +55,7 @@ Use a multi-stage build: one stage to install build tooling and compile dependen
 final stage that only contains runtime artifacts. This keeps the production image small and
 avoids shipping compilers/headers to the server.
 
-This repo's [Dockerfile.production](../Dockerfile.production) does this in three stages:
+This repo's [Dockerfile.production](../../Dockerfile.production) does this in three stages:
 
 1. `base` — runtime OS packages only (e.g. `libpq-dev` client, `libvips`).
 2. `build` — adds build tooling (`build-essential`, `git`, dev headers), installs dependencies,
@@ -80,7 +80,7 @@ General checklist regardless of language/framework:
 
 Exclude anything that shouldn't be baked into the image or that would invalidate the build cache
 unnecessarily: `.git`, `.env*`, local credentials/key files, logs, tmp files, and the Dockerfiles
-themselves. See [.dockerignore](../.dockerignore) for the full list used here — notably it
+themselves. See [.dockerignore](../../.dockerignore) for the full list used here — notably it
 excludes `config/master.key` and `/config/deploy*.yml` (Kamal), since secrets must never be baked
 into an image layer.
 
@@ -88,7 +88,7 @@ into an image layer.
 
 Commit an `.env.example` listing every environment variable the app needs, with blank or
 placeholder values — **never real secrets**. This is the contract for what must exist in the
-real `.env` on the server. See [.env.example](../.env.example).
+real `.env` on the server. See [.env.example](../../.env.example).
 
 ```bash
 cp .env.example .env   # then fill in real values, locally or on the server
@@ -104,7 +104,7 @@ overrides for every environment:
 | `docker-compose.yml` | Local development. Builds the image from source, mounts the code as a volume for live reload, exposes the DB port to the host for inspection. |
 | `docker-compose.staging.yml` | Server deployment. Pulls a prebuilt image from the registry (never builds on the server), no source volume mounts, named volumes for persistent data. |
 
-This repo's [docker-compose.staging.yml](../docker-compose.staging.yml) is the one CD copies to the
+This repo's [docker-compose.staging.yml](../../docker-compose.staging.yml) is the one CD copies to the
 server. Points worth copying for any new service:
 
 - `image: ghcr.io/<owner>/<repo>:staging` — pulls, never builds, on the server.
@@ -281,7 +281,7 @@ Key choices worth keeping for any service:
 - `docker-build` is a **separate job** from `test`, so a slow Docker layer cache doesn't block
   test feedback, and a flaky Docker build doesn't get conflated with a real test failure.
 
-This repo's actual file is [.github/workflows/ci.yml](../.github/workflows/ci.yml).
+This repo's actual file is [.github/workflows/ci.yml](../../.github/workflows/ci.yml).
 
 ---
 
@@ -436,7 +436,7 @@ jobs:
 > failures visible as a distinct, loud CD step instead of silently crash-looping the app
 > container.
 
-This repo's actual file is [.github/workflows/cd-staging.yml](../.github/workflows/cd-staging.yml).
+This repo's actual file is [.github/workflows/cd-staging.yml](../../.github/workflows/cd-staging.yml).
 
 > On the staging server specifically, the deploy step renames the copied file from
 > `docker-compose.staging.yml` to `docker-compose.yml` before running any `docker compose`
@@ -447,25 +447,23 @@ This repo's actual file is [.github/workflows/cd-staging.yml](../.github/workflo
 
 ### Production is a second, near-identical CD workflow
 
-This repo also has [.github/workflows/cd-production.yml](../.github/workflows/cd-production.yml), which
-deploys to `main` instead of `develop`, tags images `:production` instead of `:staging`, and copies
-[docker-compose.production.yml](../docker-compose.production.yml) instead of
-`docker-compose.staging.yml`. Two differences worth calling out for any service that needs a real
+This repo also has [.github/workflows/cd-production.yml](../../.github/workflows/cd-production.yml), which
+runs on `main` instead of `develop` and tags images `:production` instead of `:staging`. Unlike staging it only tests
+and pushes the image: the client's servers are on a private network that GitHub cannot reach, so the SSH deploy job is
+switched off (`if: ${{ false }}`) and an engineer pulls the image by hand on the backend server
+([deploy/production/backend/docker-compose.yml](../../deploy/production/backend/docker-compose.yml); the database and storage
+servers are also set up by hand). Server preparation and releases: [PRODUCTION-DEPLOY-CHECKLIST.md](PRODUCTION-DEPLOY-CHECKLIST.md). Two differences worth calling out for any service that needs a real
 production environment (not just staging) on separate infrastructure:
 
 - **No `db:` service in the production compose file.** The production database runs on its own
   dedicated server, not co-located with the app. `DATABASE_HOST`/`DATABASE_PORT` in the backend
   server's `.env` point at that separate server instead of a Docker Compose service name — no
   code change needed if `config/database.yml` already reads these from `ENV`.
-- **The `deploy` job is gated behind a GitHub `production` Environment** (Settings → Environments
-  → New environment → add required reviewers). Unlike staging's push-to-deploy, a human approves
-  the SSH deploy step before it runs — appropriate once "staging" becomes "a government client's
-  real production system."
-
-New secrets needed, parallel to the `STAGING_SSH_*` ones in Part 3:
-`PRODUCTION_SSH_HOST`, `PRODUCTION_SSH_USER`, `PRODUCTION_SSH_PORT`, `PRODUCTION_SSH_KEY`. Database
-and object-storage credentials are never GitHub secrets — they live only in the backend server's
-own `.env`, same as every other secret in this guide.
+- **The `deploy` job is switched off, and gated behind a GitHub `production` Environment if it is ever enabled**
+  (Settings → Environments → New environment → add required reviewers). Enabling it needs approved SSH access
+  from the runner to the server and the secrets `PRODUCTION_SSH_HOST`, `PRODUCTION_SSH_USER`, `PRODUCTION_SSH_PORT`,
+  `PRODUCTION_SSH_KEY` (steps are in the comment above the job in the workflow). Database and object-storage credentials
+  are never GitHub secrets — they live only in the backend server's own `.env`, same as every other secret in this guide.
 
 ---
 

@@ -1,0 +1,20 @@
+# BACKEND SERVER, FALLBACK ONLY (Approach B): build the image on the server when CI or ghcr.io is not working.
+# Normal releases pull the ready image from ghcr.io and do not use this file (README.md, step 4).
+#
+# Copy this file next to docker-compose.yml in /opt/dofi, clone the repo into /opt/dofi/src, then:
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+# It replaces the pulled image with a locally built one and never pulls. Needs outbound access to Docker Hub,
+# Debian mirrors and RubyGems (the client's Approach B whitelist). Back to normal: `docker compose pull && docker compose up -d`.
+x-local-build: &local-build
+  build:
+    context: ./src
+    dockerfile: Dockerfile.production
+  image: dofi-backend:local
+  pull_policy: never
+
+services:
+  api:
+    <<: *local-build
+
+  jobs:
+    <<: *local-build

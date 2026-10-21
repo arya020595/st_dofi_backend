@@ -1,0 +1,75 @@
+name: dofi-backend-production
+
+# ============================================================
+# FINS / DoFI — Production Backend
+# Server: OGCMET001API001 (10.252.8.12)
+#
+# Architecture:
+# - Nginx: Native on host, port 80
+# - Rails API: Docker, port 3000 (localhost only)
+# - Solid Queue: Docker background worker
+# - PostgreSQL: External server (10.252.8.23)
+# - MinIO: External server (10.252.8.13)
+#
+# Deployment:
+#   docker compose pull
+#   docker compose run --rm api bin/rails db:prepare
+#   docker compose up -d
+#
+# ============================================================
+
+# Shared Rails configuration
+x-rails: &rails
+  image: ghcr.io/arya020595/st_dofi_backend:${IMAGE_TAG:-production}
+
+  restart: unless-stopped
+
+  init: true
+
+  env_file:
+    - .env
+
+  stop_grace_period: 60s
+
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  # ==========================================================
+  # Rails API
+  # ==========================================================
+  api:
+    <<: *rails
+
+    ports:
+      - "127.0.0.1:3000:3000"
+
+    # Rails health endpoint
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "curl -fsS -o /dev/null http://127.0.0.1:3000/up || exit 1"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ==========================================================
+  # Solid Queue Background Worker
+  # ==========================================================
+  jobs:
+    <<: *rails
+
+    # Bypass Rails web entrypoint
+    entrypoint: []
+
+    # Start Solid Queue worker
+    command:
+      - "./bin/rails"
+      - "solid_queue:start"
+
+    # Allow time for jobs to finish during shutdown
+    stop_grace_period: 120s
