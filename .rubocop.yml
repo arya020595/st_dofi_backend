@@ -17,6 +17,16 @@ AllCops:
 Style/Documentation:
   Enabled: false
 
+# The ROCBN registry's own column names (sync_rocbn_hotel.address_1..3); not ours to rename.
+Naming/VariableNumber:
+  AllowedIdentifiers:
+    - address_1
+    - address_2
+    - address_3
+  inherit_mode:
+    merge:
+      - AllowedIdentifiers
+
 Style/StringLiterals:
   EnforcedStyle: double_quotes
 

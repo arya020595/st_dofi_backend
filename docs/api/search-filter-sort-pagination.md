@@ -16,6 +16,7 @@ pagination. It currently covers:
 | `GET /api/v1/admin/master_data/reasons` | Yes | Yes (JWT) | `manifest_skip_reasons.list` |
 | `GET /api/v1/admin/external_users/jetty_managers` | Yes | Yes (JWT) | `external_users.list` |
 | `GET /api/v1/admin/external_users/fishermen` | Yes | Yes (JWT) | `external_users.list` |
+| `GET /api/v1/admin/rocbn/companies` (external ROCBN registry, read-only) | Yes | Yes (JWT) | `rocbn_companies.list` |
 
 Send the JWT the same way as every other endpoint: `Authorization: Bearer <token>`.
 
@@ -247,6 +248,27 @@ Example: suspended ("Not Active") fishermen:
 
 ```
 GET /api/v1/admin/external_users/fishermen?q[fisherman_status_eq]=suspended
+```
+
+### ROCBN companies — `GET /api/v1/admin/rocbn/companies`
+
+The Add Profiling company lookup, backed by an external registry (a separate MySQL table), not by our PostgreSQL.
+It is a *search*, not a browsable list: **at least one criterion is required**, otherwise the answer is `422`
+(blank values, unknown fields and filters that match everything, such as `company_name_present`, do not count).
+
+| Screen control | Param |
+|---|---|
+| Search Company Name | `q[company_name_cont]` — part of the name, case-insensitive, whitespace squished, `%`/`_` literal |
+| Search ROCBN No. | `q[rocbn_number_eq]` — exact, case-insensitive |
+
+Filterable fields: `company_name`, `rocbn_number` only. Both together narrow the result. Sorting is fixed (`name`,
+then `id`); `q[s]` is ignored. Rows soft-deleted in the registry never appear. Each row is
+`{ id, rocbn_number, company_name, company_address }`; `GET .../rocbn/companies/:id` returns the detail used to
+autofill the form. Contract, field mapping and setup: [`../rocbn/company-lookup.md`](../rocbn/company-lookup.md).
+
+```
+GET /api/v1/admin/rocbn/companies?q[company_name_cont]=Amiirul
+GET /api/v1/admin/rocbn/companies?q[rocbn_number_eq]=RC90000001
 ```
 
 ---

@@ -8,6 +8,7 @@ Rails.application.reload_routes!
 require "rails/test_help"
 require_relative "support/postgresql_number_triggers"
 require_relative "support/brunei_id_callback_helper"
+require_relative "support/rocbn_test_support"
 
 # Rails' Ruby schema dump does not retain PostgreSQL functions/triggers. Install the two
 # database-backed number generators after a fresh test schema load, before parallel workers fork.
@@ -46,6 +47,10 @@ module ActiveSupport
 
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
+
+    # The ROCBN registry is a second, MySQL database. Only tests that include RocbnTestSupport use it (and opt
+    # back in to a transaction there), so every other test stays independent of that MySQL being up.
+    skip_transactional_tests_for_database(:rocbn)
 
     # Temporarily makes ActiveStorage::Blob.services.fetch(name) return fake_service instead of
     # looking up the real configured service — see RecordingServiceDouble above.

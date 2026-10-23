@@ -74,6 +74,13 @@ Rails.application.routes.draw do
           end
         end
 
+        # Read-only lookup of the external ROCBN company registry (Add Profiling > Select & Search Company), gated by
+        # the rocbn_companies.* permissions. The numeric constraint turns a malformed id into a routing 404 before it
+        # can reach the database.
+        namespace :rocbn do
+          resources :companies, only: %i[index show], constraints: { id: /\d{1,18}/ }
+        end
+
         resources :roles, only: %i[index show create update destroy]
         resources :dictionaries, only: %i[index show create update destroy]
         resources :dictionary_groups, only: %i[index show create update destroy]

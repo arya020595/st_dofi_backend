@@ -10,7 +10,7 @@ Guidance for Claude Code (and other contributors) when working in this repositor
 
 DoFi Backend — the FINS Capture Fisheries module API. API-only Rails 8.1.3 app (no views/assets) backing vessels, crews, manifests, capture reports, and related reference data for fisheries reporting.
 
-Stack: Ruby 3.4.11, PostgreSQL, Solid Queue/Solid Cache (DB-backed, no Redis), Devise + devise-jwt (auth) + Pundit (authorization), dry-monads (service layer), Blueprinter (serialization), Pagy + Ransack (pagination/search), Audited + Discard (audit trail/soft delete), MinIO/S3-compatible storage via Active Storage (file storage; Cloudinary is a legacy service kept only until the migration to MinIO completes), Faraday/JWT (BruneiID integration), Sentry + Lograge (monitoring).
+Stack: Ruby 3.4.11, PostgreSQL (plus one external, read-only MySQL table for the ROCBN company registry), Solid Queue/Solid Cache (DB-backed, no Redis), Devise + devise-jwt (auth) + Pundit (authorization), dry-monads (service layer), Blueprinter (serialization), Pagy + Ransack (pagination/search), Audited + Discard (audit trail/soft delete), MinIO/S3-compatible storage via Active Storage (file storage; Cloudinary is a legacy service kept only until the migration to MinIO completes), Faraday/JWT (BruneiID integration), Sentry + Lograge (monitoring).
 
 See [README.md](README.md) for setup (Docker or manual Rails) and how to run tests/CI.
 
@@ -178,6 +178,9 @@ end
   `docs/registration/business-flow.md` §2/§9 for the worked example and the incident that motivated it.
 - Soft-deletable/audited models use `Discard`/`Audited` consistently with existing models rather than rolling a custom `deleted_at` flag.
 - Background work goes through Solid Queue (`ApplicationJob` subclasses), not inline blocking calls in requests.
+- The ROCBN company registry is an external, read-only MySQL source (`Rocbn::*` models, `config/rocbn.yml`,
+  `docs/rocbn/company-lookup.md`). Never register it in `database.yml` (that exposes it to the `db:*` tasks and to the
+  per-worker test databases), never write to it, and never aim `rocbn:seed` or the tests at a non-local host.
 
 ## Definition of done
 

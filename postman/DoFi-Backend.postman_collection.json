@@ -384,6 +384,11 @@
       "key": "vessel_master_fishing_gear_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "rocbn_company_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -5698,6 +5703,362 @@
       "name": "Profiling",
       "description": "Officer-facing CRUD for `CompanyProfile`. In Flow B, Company Profiling also provisions Source A Fisherman Owner/Admin users. Owner/Admin contacts create linked `owner_user`/`admin_user` rows with `fisherman_status: claimable`, ready for their first QR claim/login.",
       "item": [
+        {
+          "name": "ROCBN Company Lookup",
+          "description": "Add Profiling's Select & Search Company step against the external ROCBN registry (a read-only MySQL table, never written to). Search by company name or ROCBN number, then fetch the chosen company to autofill the form; saving is `Create Profiling` below. Requires `rocbn_companies.list` and `rocbn_companies.view` (the seeded DoFi Officer role has them). Run against Local or Staging after the synthetic registry is seeded (`docker compose exec -e ROCBN_ALLOW_SEED=yes api bin/rails rocbn:seed`; staging seeds itself on deploy). Contract and setup: `docs/rocbn/company-lookup.md`.",
+          "item": [
+            {
+              "name": "List ROCBN Companies - By Company Name",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/rocbn/companies?q[company_name_cont]=Amiirul&page=1&limit=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "rocbn",
+                    "companies"
+                  ],
+                  "query": [
+                    {
+                      "key": "q[company_name_cont]",
+                      "value": "Amiirul"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                },
+                "description": "The Search Company modal's name search: part of the name, case-insensitive. Requires `rocbn_companies.list`. Asserts the synthetic registry data (`bin/rails rocbn:seed`), so run it against Local or Staging, never production."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "const res = pm.response.json();",
+                      "pm.test('Finds the three Amiirul companies, ordered by name', () => pm.expect(res.data.map(c => c.company_name)).to.eql(['AMIIRUL FISH CO.', 'AMIIRUL MARINE SERVICES SDN BHD', 'FISH AMIIRUL SDN. BHD.']));",
+                      "pm.test('List rows carry only the table fields', () => pm.expect(Object.keys(res.data[0]).sort()).to.eql(['company_address', 'company_name', 'id', 'rocbn_number']));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List ROCBN Companies - By ROCBN Number",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/rocbn/companies?q[rocbn_number_eq]=RC90000001",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "rocbn",
+                    "companies"
+                  ],
+                  "query": [
+                    {
+                      "key": "q[rocbn_number_eq]",
+                      "value": "RC90000001"
+                    }
+                  ]
+                },
+                "description": "The Search Company modal's ROCBN number search: exact, case-insensitive. Captures the chosen row's id for the detail request below. Requires `rocbn_companies.list`. Asserts the synthetic registry data (`bin/rails rocbn:seed`), so run it against Local or Staging, never production."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "const res = pm.response.json();",
+                      "pm.test('Exactly one company matches the number', () => pm.expect(res.data.map(c => c.company_name)).to.eql(['AMIIRUL FISH CO.']));",
+                      "pm.collectionVariables.set('rocbn_company_id', res.data[0].id);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List ROCBN Companies - Paged",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/rocbn/companies?q[company_name_cont]=pagination&page=2&limit=10",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "rocbn",
+                    "companies"
+                  ],
+                  "query": [
+                    {
+                      "key": "q[company_name_cont]",
+                      "value": "pagination"
+                    },
+                    {
+                      "key": "page",
+                      "value": "2"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                },
+                "description": "35 numbered rows span several pages. Pagination is the usual `page`/`limit`; the order is fixed (name, then id). Requires `rocbn_companies.list`. Asserts the synthetic registry data (`bin/rails rocbn:seed`), so run it against Local or Staging, never production."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "const res = pm.response.json();",
+                      "pm.test('Page 2 of 4 at 10 per page, 35 companies', () => pm.expect(res.meta).to.eql({ page: 2, pages: 4, count: 35, limit: 10 }));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List ROCBN Companies - No Criteria (422)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/rocbn/companies",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "rocbn",
+                    "companies"
+                  ]
+                },
+                "description": "A search needs at least one criterion; without one the API never answers with the whole registry. Requires `rocbn_companies.list`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 422', () => pm.response.to.have.status(422));",
+                      "const res = pm.response.json();",
+                      "pm.test('Says what to enter', () => pm.expect(res.message).to.eql('Enter a company name or a ROCBN number to search.'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List ROCBN Companies - No Token (401)",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/rocbn/companies?q[company_name_cont]=Amiirul",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "rocbn",
+                    "companies"
+                  ],
+                  "query": [
+                    {
+                      "key": "q[company_name_cont]",
+                      "value": "Amiirul"
+                    }
+                  ]
+                },
+                "description": "Calls the search without an `Authorization` header to confirm the endpoint requires authentication."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Show ROCBN Company (autofill Add Profiling)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/rocbn/companies/{{rocbn_company_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "rocbn",
+                    "companies",
+                    "{{rocbn_company_id}}"
+                  ]
+                },
+                "description": "What the frontend calls when the officer clicks Select: the registry row's detail, used to autofill Company Name, Address, ROCBN No., Contact No., District, Mukim and Village. Nothing is saved. Uses the id captured by the number search. Requires `rocbn_companies.view`. Asserts the synthetic registry data (`bin/rails rocbn:seed`), so run it against Local or Staging, never production."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "const res = pm.response.json();",
+                      "pm.test('Detail carries the autofill fields', () => pm.expect(res.data).to.eql({ id: pm.collectionVariables.get('rocbn_company_id'), rocbn_number: 'RC90000001', company_name: 'AMIIRUL FISH CO.', company_address: 'No. 1077, Spg 239-5 Jln Mumong Kuala Balai, Kuala Belait', contact_number: '3331077', district: 'Belait', mukim: 'Kuala Belait', village: 'Kg Mumong' }));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Show ROCBN Company - Placeholders Read As Null",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/rocbn/companies/9000016",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "rocbn",
+                    "companies",
+                    "9000016"
+                  ]
+                },
+                "description": "The registry marks missing values with `-`, `N/A` or `Not Specified`. The API returns `null` for them, so the frontend leaves those fields for the officer to type. Requires `rocbn_companies.view`. Asserts the synthetic registry data (`bin/rails rocbn:seed`), so run it against Local or Staging, never production."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                      "const res = pm.response.json();",
+                      "pm.test('Placeholders are null', () => pm.expect([res.data.district, res.data.mukim, res.data.village, res.data.contact_number]).to.eql([null, null, null, null]));",
+                      "pm.test('Address keeps only the line that was provided', () => pm.expect(res.data.company_address).to.eql('Kg Lumapas'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Show ROCBN Company - Not Found (404)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/rocbn/companies/999999999999",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "rocbn",
+                    "companies",
+                    "999999999999"
+                  ]
+                },
+                "description": "An id that is not in the registry. Requires `rocbn_companies.view`."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Show ROCBN Company - Soft-Deleted (404)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/rocbn/companies/9000022",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "rocbn",
+                    "companies",
+                    "9000022"
+                  ]
+                },
+                "description": "A row the registry has soft-deleted is never returned. Requires `rocbn_companies.view`. Asserts the synthetic registry data (`bin/rails rocbn:seed`), so run it against Local or Staging, never production."
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
         {
           "name": "List Profiling",
           "request": {

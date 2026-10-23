@@ -9,7 +9,7 @@ stays intentionally at the "one screen" level rather than duplicating those.
 | Concern                   | Choice                                                                                                |
 | ------------------------- | ----------------------------------------------------------------------------------------------------- |
 | Language / framework      | Ruby 3.4.11, Rails 8.1.3 (API-only, no views/assets)                                                   |
-| Database                  | PostgreSQL                                                                                            |
+| Database                  | PostgreSQL, plus one external read-only MySQL table (the ROCBN company registry)                      |
 | Background jobs / cache   | Solid Queue / Solid Cache — DB-backed, no Redis                                                       |
 | Auth                      | Devise + devise-jwt (JWT sessions)                                                                    |
 | Authorization             | Pundit (one policy per permission resource; scopes enforce row isolation)                             |
@@ -35,6 +35,7 @@ graph LR
     FE["Frontend<br/>(separate repo)"]
     API["DoFi Backend<br/>Rails 8.1.3 API-only"]
     DB[("PostgreSQL<br/>+ Solid Queue/Cache")]
+    REG[("ROCBN registry<br/>external MySQL, read-only")]
     MINIO[("MinIO<br/>self-hosted S3-compatible storage")]
     BID["BruneiID<br/>gov identity verification"]
     SENTRY["Sentry<br/>error monitoring"]
@@ -43,6 +44,7 @@ graph LR
 
     FE -->|HTTPS, JWT bearer token| API
     API --> DB
+    API -->|"SELECT only, company lookup"| REG
     API -->|SigV4 signed, uploads/downloads| MINIO
     FE -.->|presigned / direct public URLs| MINIO
     API -->|OIDC code exchange + signed ID token<br/>BruneiId::OidcHttpClient| BID
@@ -335,6 +337,8 @@ fields that matter onto their own rows rather than only holding the foreign key 
   fisherman category
 - [`docs/api/`](api/) — frontend-facing request/response contracts
 - [`docs/data-model/`](data-model/) — denormalized historical snapshots vs. live master-data references
+- [`docs/rocbn/`](rocbn/) — the external ROCBN company registry: read-only MySQL connection, Docker stand-in,
+  and the Add Profiling company lookup
 - [`docs/minio/`](minio/) — file storage architecture & setup
 - [`docs/ci-cd/`](ci-cd/) — CI/CD & deployment
 - [`docs/incidents/`](incidents/) — postmortems & dated test reports

@@ -24,9 +24,10 @@ Servers (hostname, IP, role):
 
 ## A. Get from the client
 
-- [ ] **The firewall rules, requested first.** Every later step needs them: `db:prepare` needs the database port, the first boot needs MinIO, `docker pull` needs outbound access to `ghcr.io`. The table to send is [§3 of the architecture doc](../architecture/production-4-server-architecture.md#3-network-firewall-request); the client's change takes days, so ask before anything is deployed, not after.
+- [ ] **The firewall rules, requested first.** Every later step needs them: `db:prepare` needs the database port, the Add Profiling company lookup needs the registry's MySQL port (row 12), the first boot needs MinIO, `docker pull` needs outbound access to `ghcr.io`. The table to send is [§3 of the architecture doc](../architecture/production-4-server-architecture.md#3-network-firewall-request); the client's change takes days, so ask before anything is deployed, not after. To prove each row is open, run [the connectivity check](NETWORK-CONNECTIVITY-CHECK.md).
 - [ ] The four server IPs (private and, if different, the one browsers use). The database host is `OGCMPT003API001` (the client's name, per their screenshot).
-- [ ] Working `sudo` on the database host (`localadmin`), and approval to install the `postgresql-16` package there. It already runs MySQL 8.0 for another system; ours is a separate package and port. Ask what owns the listener on port 9139 so we know it is not in the way.
+- [ ] Working `sudo` on the database host (`localadmin`), and approval to install the `postgresql-16` package there. It already runs MySQL 8.0 for another system; ours is a separate package and port. Port 9139 is that MySQL, which also holds the ROCBN company registry we read (next item).
+- [ ] **A MySQL account for the ROCBN registry** (the client's DBA creates it): `SELECT` on `tdd_db.sync_rocbn_hotel` only, allowed from the backend server's address (`10.252.8.12`). Ask which authentication plugin it uses; `caching_sha2_password` and `mysql_native_password` both work. Its username and password go into the backend `.env` (C3). The lookup is read-only by design, so an account that can do more should be refused: `rocbn:check` (section D) warns about it.
 - [ ] Which networks (users' LAN/VPN) may reach the frontend `4100`, backend `80` (nginx; port 3000 stays internal) and storage `9000`; database `5432` only from the backend server.
 - [ ] The outbound whitelist confirmed in writing, from the App Server on TCP 443: BruneiID host (`BRUNEIID_BASE_URL`), `ghcr.io`, `pkg-containers.githubusercontent.com`. For the fallback build (section J) also `ssh.github.com`, `github.com`, Docker Hub, Debian mirrors (80 and 443) and RubyGems; the exact list is in [the architecture doc, §3](../architecture/production-4-server-architecture.md#3-network-firewall-request). The storage server needs `ghcr.io` too, and the database server needs the Ubuntu apt mirrors.
 - [ ] How we log in to the servers: Delinea SSH terminal over VPN. No inbound access from GitHub is needed or requested.
@@ -54,16 +55,25 @@ Replace `<DB_IP>` with 10.252.8.23 and `<BACKEND_IP>` with 10.252.8.12. Details:
   ```bash
   lsb_release -a; free -h; nproc; df -h
   systemctl is-active ufw
-  sudo ss -lntp | grep -E ':(5432|9139)\b'                  # 5432 must be absent; note who owns 9139 (not ours)
+  sudo ss -lntp | grep -E ':(5432|9139)\b'                  # 5432 must be absent; 9139 is the existing MySQL (the ROCBN registry, not ours)
   ```
 
-- [ ] Install PostgreSQL 16 (a separate package and port from the MySQL already on the host):
+- [x] Install PostgreSQL 16 (a separate package and port from the MySQL already on the host):
 
   ```bash
   sudo apt update && sudo apt install -y postgresql-16
   ```
 
-- [ ] Configure the drop-in file (the packaged `postgresql.conf` stays untouched) and allow only the backend server. Size `shared_buffers` at about 25% of the RAM MySQL leaves free (`free -h`); 1GB is a placeholder.
+- [x] Configure the drop-in file (the packaged `postgresql.conf` stays untouched) and allow only the backend server. Size `shared_buffers` at about 25% of the RAM MySQL leaves free (`free -h`); 1GB is a placeholder.
+
+  First keep a copy of the original rules file and check the IP belongs to this host (stop if the second command prints nothing):
+
+  ```bash
+  sudo cp -a /etc/postgresql/16/main/pg_hba.conf /etc/postgresql/16/main/pg_hba.conf.orig
+  ip -4 addr | grep <DB_IP>
+  ```
+
+  Then, once only (the `echo` appends, so a second run duplicates the rule):
 
   ```bash
   sudo tee /etc/postgresql/16/main/conf.d/dofi.conf <<'EOF'
@@ -76,9 +86,14 @@ Replace `<DB_IP>` with 10.252.8.23 and `<BACKEND_IP>` with 10.252.8.12. Details:
   echo 'host  all  dofi  <BACKEND_IP>/32  scram-sha-256' | sudo tee -a /etc/postgresql/16/main/pg_hba.conf
   ```
 
-  Replace `<DB_IP>` and `<BACKEND_IP>` with the real addresses before running.
+  Replace `<DB_IP>` and `<BACKEND_IP>` with the real addresses before running. A terminal can mangle a pasted multi-line block, so read back what was written before restarting:
 
-- [ ] Create the `dofi` role (`LOGIN CREATEDB`, not superuser). Type the password interactively so it stays out of shell history, and **save it** for the backend `.env` (`DATABASE_PASSWORD`).
+  ```bash
+  cat /etc/postgresql/16/main/conf.d/dofi.conf     # exactly the five lines above
+  sudo tail -n 2 /etc/postgresql/16/main/pg_hba.conf    # root and postgres only can read it; the last line is the dofi rule
+  ```
+
+- [x] Create the `dofi` role (`LOGIN CREATEDB`, not superuser). Type the password interactively so it stays out of shell history, and **save it** for the backend `.env` (`DATABASE_PASSWORD`).
 
   ```bash
   sudo -u postgres psql
@@ -87,13 +102,15 @@ Replace `<DB_IP>` with 10.252.8.23 and `<BACKEND_IP>` with 10.252.8.12. Details:
   postgres=# \q
   ```
 
-- [ ] Open the host firewall only if `ufw` is active (SSH first), then restart PostgreSQL (`listen_addresses` needs a restart; MySQL is not affected):
+- [x] Open the host firewall only if `ufw` is active (SSH first), then restart PostgreSQL (`listen_addresses` needs a restart; MySQL is not affected):
 
   ```bash
   sudo ufw status
   sudo ufw allow from <BACKEND_IP> to any port 5432 proto tcp     # only if ufw is active
   sudo systemctl restart postgresql
   ```
+
+  If PostgreSQL does not start, or you need to back out any of these changes, see [Undo and troubleshooting](../../deploy/production/database/README.md#undo-and-troubleshooting).
 
 - [ ] Check:
 
@@ -113,28 +130,30 @@ Replace `<DB_IP>` with 10.252.8.23 and `<BACKEND_IP>` with 10.252.8.12. Details:
 
 Replace `<GITHUB_USER>` with the GitHub account that owns the read-only token. Details: [`deploy/README.md`](../../deploy/README.md).
 
-- [ ] Install Docker Engine and the Compose plugin, put the deploy user in the `docker` group, and create `/opt/dofi`:
+- [x] Install Docker Engine and the Compose plugin, put the deploy user in the `docker` group, and create `/opt/dofi` (done on `OGCMET001API002` from Docker's official apt repository, `download.docker.com`, which that host can reach; the Ubuntu packages below also work):
 
   ```bash
   docker --version; docker compose version                  # skip the install if both already print a version
+  sudo apt update && apt-cache policy docker.io docker-compose-v2     # both need a Candidate (Ubuntu 24.04 universe)
+  sudo apt install -y docker.io docker-compose-v2            # Ubuntu's own packages: no extra apt repository to whitelist
   sudo usermod -aG docker "$USER"                            # log out and back in afterwards
-  docker info > /dev/null && echo docker-ok
+  docker --version; docker compose version; docker info > /dev/null && echo docker-ok
   sudo mkdir -p /opt/dofi && sudo chown "$USER": /opt/dofi
   ```
 
-- [ ] Log in to the registry (the MinIO image is a private mirror). `read -s` keeps the token out of the history:
+- [x] Log in to the registry (the MinIO image is a private mirror). `read -s` keeps the token out of the history:
 
   ```bash
   read -rs GHCR_TOKEN && echo "$GHCR_TOKEN" | docker login ghcr.io -u <GITHUB_USER> --password-stdin; unset GHCR_TOKEN
   ```
 
-- [ ] Copy three files from the repo to `/opt/dofi` (from a machine with the repo; through Delinea, paste each into `nano` instead):
+- [x] Copy three files from the repo to `/opt/dofi` (from a machine with the repo; through Delinea, paste each into `nano` instead):
 
   ```bash
   scp deploy/production/storage/docker-compose.yml deploy/production/storage/.env.example docker/mc-init.sh <user>@<STORAGE_IP>:/opt/dofi/
   ```
 
-- [ ] Create and fill `.env`. **Save the bucket names and the two access key pairs** for the backend `.env`.
+- [x] Create and fill `.env`. **Save the bucket names and the two access key pairs** for the backend `.env`.
 
   ```bash
   cd /opt/dofi && cp .env.example .env && chmod 600 .env
@@ -143,7 +162,7 @@ Replace `<GITHUB_USER>` with the GitHub account that owns the read-only token. D
                                 # MINIO_ASSETS_ACCESS_KEY_ID, MINIO_ASSETS_SECRET_ACCESS_KEY (bucket names keep their defaults)
   ```
 
-- [ ] Start MinIO and create the buckets and the app's access keys (`mc-init` is safe to re-run):
+- [x] Start MinIO and create the buckets and the app's access keys (`mc-init` is safe to re-run):
 
   ```bash
   cd /opt/dofi
@@ -169,7 +188,7 @@ Docker and nginx are installed. Full explanations: [backend runbook](../../deplo
   nginx -v; systemctl is-active nginx ufw
   ls /etc/nginx/sites-enabled                                # only `default` expected; any other site is not ours: leave it
   sudo ss -lntp | grep -E ':(80|3000)\b'                     # 80 = nginx; 3000 must be free
-  nc -vz <DB_IP> 5432; nc -vz <STORAGE_IP> 9000              # needs C1 and C2 done and firewall rows 4 and 5
+  nc -vz <DB_IP> 5432; nc -vz <STORAGE_IP> 9000              # needs C1 and C2 done and firewall rows 4 and 5; fuller version: NETWORK-CONNECTIVITY-CHECK.md
   curl -sI https://ghcr.io | head -1                         # firewall row 7
   ```
 
@@ -212,6 +231,8 @@ Docker and nginx are installed. Full explanations: [backend runbook](../../deplo
   | `CORS_ORIGINS`, `CABLE_ALLOWED_ORIGINS` | `<FE_ORIGIN>` in both: scheme, host and port exactly as the browser shows it, no trailing slash |
   | `MINIO_ENDPOINT`, `MINIO_PUBLIC_ENDPOINT` | both `http://<STORAGE_IP>:9000` |
   | `MINIO_BUCKET`, `MINIO_ASSETS_BUCKET` and the four access/secret keys | copied from the storage server's `.env` (C2) |
+  | `ROCBN_DB_HOST`, `ROCBN_DB_PORT`, `ROCBN_DB_NAME` | `10.252.8.23`, `9139`, `tdd_db` (already in `.env.example`) |
+  | `ROCBN_DB_USERNAME`, `ROCBN_DB_PASSWORD` | the registry account from section A. Never set `ROCBN_SEED_*`, `ROCBN_TEST_*` or `ROCBN_ALLOW_SEED` here: production is never seeded |
   | `BRUNEIID_*` | from the client; `BRUNEIID_REDIRECT_URI` must match the URI registered at BruneiID character for character |
 
 - [ ] Validate it. `-q` prints nothing on success; plain `docker compose config` would print the secrets:
@@ -237,6 +258,15 @@ This is the first release, and it also sets up nginx and the firewall, which rel
   ```
 
   If `pull` says the `:production` tag is not found, the image was never built: merge to `main` and wait for the green `Build & Push GHCR` job (section B).
+
+- [ ] The ROCBN registry answers (needs firewall row 12 and the account from section A). Read-only: it prints the account's privileges and warns if it holds more than `SELECT`:
+
+  ```bash
+  cd /opt/dofi
+  docker compose run --rm --no-deps api bin/rails rocbn:check       # exit 0, "privileges  SELECT only"
+  ```
+
+  Nothing else depends on it: if the registry is down the API keeps serving, and only the company lookup answers `503`.
 
 - [ ] nginx in front of the API (step 5):
 
@@ -357,6 +387,7 @@ sudo nginx -t && sudo systemctl reload nginx                 # after editing the
 | `docker compose` says `.env` is missing | Create `/opt/dofi/.env` on the backend server (C3). |
 | `502 Bad Gateway` from the backend's nginx | `api` is down or still booting: `docker compose ps` and `logs api`, then `curl http://127.0.0.1:3000/up` on the server. More in [the backend runbook](../../deploy/production/backend/README.md#9-troubleshooting). |
 | `db:prepare` cannot connect | Wrong `DATABASE_HOST`/`DATABASE_PORT`/password, or the client's firewall blocks `5432` from the backend. |
+| The company lookup answers `503`, or `rocbn:check` fails | Run `docker compose run --rm --no-deps api bin/rails rocbn:check`. Connection refused or a timeout: firewall row 12, or a wrong `ROCBN_DB_HOST`/`ROCBN_DB_PORT`. `Access denied`: wrong account or password, or the account is not allowed from `10.252.8.12`. An authentication plugin error: ask the DBA which plugin the account uses. `lacks: <column>`: the registry's table changed; tell the backend team. [More](../rocbn/company-lookup.md#troubleshooting). |
 | `db:prepare` fails while seeding images | MinIO not running, or the keys in the backend `.env` do not match the storage `.env`; run C2 and `mc-init` first. |
 | Browser CORS error | Frontend origin missing in `CORS_ORIGINS` / `CABLE_ALLOWED_ORIGINS`; edit `.env`, `docker compose up -d`. |
 | File links `403 SignatureDoesNotMatch` | `MINIO_PUBLIC_ENDPOINT` differs from the address the browser actually uses. |
