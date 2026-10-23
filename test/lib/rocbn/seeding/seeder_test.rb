@@ -2,10 +2,25 @@ require "test_helper"
 
 module Rocbn
   module Seeding
-    # The one test that writes explicit ids, so parallel workers cannot collide on them: it runs in its own
-    # transaction on the shared test database, and nothing else inserts ids in the synthetic block.
+    # These tests all upsert the same explicit synthetic ids. Their transactions share one MySQL database across
+    # process workers, so row locks can deadlock when separate workers run the methods concurrently. A MySQL named
+    # lock serializes this class only; the rest of the suite remains parallel.
     class SeederTest < ActiveSupport::TestCase
       include RocbnTestSupport
+
+      LOCK_NAME = "dofi_rocbn_seeder_test".freeze
+
+      setup do
+        quoted_lock = ::Rocbn::Company.connection.quote(LOCK_NAME)
+        acquired = ::Rocbn::Company.connection.select_value("SELECT GET_LOCK(#{quoted_lock}, 30)")
+
+        assert_equal 1, acquired, "timed out waiting for the ROCBN seeder test lock"
+      end
+
+      teardown do
+        quoted_lock = ::Rocbn::Company.connection.quote(LOCK_NAME)
+        ::Rocbn::Company.connection.select_value("SELECT RELEASE_LOCK(#{quoted_lock})")
+      end
 
       test "seeds every synthetic company, and running it again adds nothing" do
         seeded = Seeder.call(record_class: ::Rocbn::Company)
