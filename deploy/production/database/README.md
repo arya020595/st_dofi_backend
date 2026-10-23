@@ -12,7 +12,7 @@ Replace `<DB_IP>` and `<BACKEND_IP>` below with them. Docker is only a fallback:
 ```bash
 lsb_release -a; free -h; nproc; df -h        # Ubuntu 24.04 expected; RAM, CPU, disk for sizing
 systemctl is-active ufw                      # is the host firewall on?
-ss -lnt                                      # port 5432 must be free (add sudo and -p to see which process owns 9139: not ours)
+ss -lnt                                      # port 5432 must be free (add sudo and -p to see the owner of 9139: the existing MySQL, which also holds the ROCBN registry the backend reads; not ours)
 ```
 
 ## 1. Install
@@ -22,6 +22,14 @@ sudo apt update && sudo apt install -y postgresql-16   # creates cluster 16/main
 ```
 
 ## 2. Configure
+
+Before changing anything, keep a copy of the original rules file and check that the IP really belongs to this host
+(`listen_addresses` with an IP the host does not own is the usual reason PostgreSQL then fails to start):
+
+```bash
+sudo cp -a /etc/postgresql/16/main/pg_hba.conf /etc/postgresql/16/main/pg_hba.conf.orig
+ip -4 addr | grep <DB_IP>                    # must print a line; if it prints nothing, stop here
+```
 
 A drop-in file, so the packaged `postgresql.conf` stays untouched. `shared_buffers` is about 25% of the RAM that
 MySQL leaves free (size it from `free -h`; 1GB is a placeholder).
@@ -40,6 +48,14 @@ Allow only the backend server to log in as `dofi` (the default `pg_hba.conf` has
 
 ```bash
 echo 'host  all  dofi  <BACKEND_IP>/32  scram-sha-256' | sudo tee -a /etc/postgresql/16/main/pg_hba.conf
+```
+
+Run that line once: it appends, so a second run duplicates the rule. A terminal can mangle a pasted multi-line block, so
+read back what was written before restarting:
+
+```bash
+cat /etc/postgresql/16/main/conf.d/dofi.conf     # exactly the five lines above
+sudo tail -n 2 /etc/postgresql/16/main/pg_hba.conf    # root and postgres only can read it; the last line is the dofi rule
 ```
 
 ## 3. Create the application role
@@ -102,6 +118,27 @@ sudo -u postgres createdb dofi_restore_test
 sudo -u postgres pg_restore -d dofi_restore_test --clean --if-exists /var/backups/dofi/primary-<date>.dump
 sudo -u postgres dropdb dofi_restore_test
 ```
+
+## Undo and troubleshooting
+
+Each change from steps 2 and 3 is undone on its own. The cluster holds no data until the backend's first `db:prepare`,
+and MySQL is never touched.
+
+| To undo | Run |
+|---|---|
+| The drop-in settings | `sudo rm /etc/postgresql/16/main/conf.d/dofi.conf && sudo systemctl restart postgresql` |
+| The `dofi` login rule | `sudo cp -a /etc/postgresql/16/main/pg_hba.conf.orig /etc/postgresql/16/main/pg_hba.conf && sudo systemctl reload postgresql` |
+| The `dofi` role | `sudo -u postgres psql -c 'DROP ROLE dofi;'` (works only while it owns no database, so before the first `db:prepare`) |
+
+If PostgreSQL does not start after the restart, read why before changing anything:
+
+```bash
+sudo systemctl status postgresql@16-main
+sudo tail -n 30 /var/log/postgresql/postgresql-16-main.log
+```
+
+The usual cause is a typo in `dofi.conf`, or a `listen_addresses` IP that is not on this host (`could not bind IPv4
+address`). Remove the file as in the first row and restart: PostgreSQL is back to how it was.
 
 ## Upgrades
 

@@ -1,3 +1,6 @@
+# The external ROCBN company registry (read-only MySQL) is deliberately NOT configured here: everything in this
+# file is visible to the db:* tasks and renamed per parallel test worker. It lives in config/rocbn.yml instead;
+# see docs/rocbn/company-lookup.md.
 default: &default
   adapter: postgresql
   encoding: unicode

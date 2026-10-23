@@ -26,6 +26,21 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      # The ROCBN company registry is a second, MySQL database: the lookup's tests run on a real MySQL.
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: tdd_db_test
+          MYSQL_USER: rocbn_test
+          MYSQL_PASSWORD: rocbn_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
 
     env:
       DATABASE_HOST: localhost
@@ -34,6 +49,11 @@ jobs:
       DATABASE_PASSWORD: postgres
       DATABASE_NAME: dofi_backend_development
       DEVISE_JWT_SECRET_KEY: ci-test-secret-key-base-not-for-production
+      ROCBN_TEST_DB_HOST: 127.0.0.1
+      ROCBN_TEST_DB_PORT: 3306
+      ROCBN_TEST_DB_NAME: tdd_db_test
+      ROCBN_TEST_DB_USERNAME: rocbn_test
+      ROCBN_TEST_DB_PASSWORD: rocbn_test
 
     steps:
       - name: Checkout
@@ -116,14 +136,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Copy docker-compose.staging.yml and docker/mc-init.sh to server
+      - name: Copy docker-compose.staging.yml, docker/mc-init.sh and the ROCBN init files to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.STAGING_SSH_HOST }}
           username: ${{ secrets.STAGING_SSH_USER }}
           port: ${{ secrets.STAGING_SSH_PORT }}
           key: ${{ secrets.STAGING_SSH_KEY }}
-          source: docker-compose.staging.yml,docker/mc-init.sh
+          source: docker-compose.staging.yml,docker/mc-init.sh,db/rocbn/schema.sql,docker/rocbn-mysql/02-users.sh
           target: /home/stadmin/st_dofi_backend_staging
 
       - name: Deploy on server
@@ -142,6 +162,11 @@ jobs:
             docker compose run --rm mc-init
             docker compose run --rm api bin/rails db:prepare
             docker compose up -d
+            # The ROCBN registry stand-in: wait for it, then load the synthetic companies (idempotent). Never allowed
+            # to fail the deploy, since the rest of staging is already up. See docs/rocbn/company-lookup.md.
+            docker compose up -d --wait --wait-timeout 120 rocbn-mysql \
+              && docker compose run --rm -e ROCBN_ALLOW_SEED=yes api bin/rails rocbn:seed \
+              || echo "ROCBN registry stand-in not ready: seed skipped, staging deploy continues"
             docker image prune -f
 
       - name: Notify Slack — deploy result

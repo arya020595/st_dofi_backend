@@ -7,6 +7,8 @@
 # That .env's CORS_ORIGINS must list every frontend origin calling this API directly from a
 # browser (see .env.example) — a missing entry shows up as a browser CORS error, not a 4xx/5xx.
 # Edit .env on the server and restart the api container (rack-cors reads it once at boot).
+# The ROCBN registry stand-in (rocbn-mysql) also needs ROCBN_MYSQL_ROOT_PASSWORD, ROCBN_DB_PASSWORD and
+# ROCBN_SEED_DB_PASSWORD in that .env, as hex values (openssl rand -hex 16); see docs/rocbn/company-lookup.md.
 name: dofi-backend-staging
 
 services:
@@ -27,6 +29,32 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - dofi-backend-staging-net
+
+  # Stand-in for the client's read-only ROCBN company registry (production reads their native MySQL), filled with
+  # synthetic companies by `rocbn:seed`; see docs/rocbn/company-lookup.md. Internal network only, no published port.
+  # cd-staging.yml copies the two init files next to this file. The passwords come from the server .env and interpolate
+  # as blank when missing, so a missing entry only stops this service, never the rest of the stack.
+  rocbn-mysql:
+    image: mysql:8.0
+    container_name: dofi-backend-staging-rocbn-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${ROCBN_MYSQL_ROOT_PASSWORD:-}
+      MYSQL_DATABASE: tdd_db
+      MYSQL_USER: rocbn_seed
+      MYSQL_PASSWORD: ${ROCBN_SEED_DB_PASSWORD:-}
+      ROCBN_READER_PASSWORD: ${ROCBN_DB_PASSWORD:-}
+    volumes:
+      - dofi_staging_rocbn_mysql_data:/var/lib/mysql
+      - ./db/rocbn/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./docker/rocbn-mysql/02-users.sh:/docker-entrypoint-initdb.d/02-users.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     networks:
       - dofi-backend-staging-net
 
@@ -83,6 +111,7 @@ services:
     networks:
       - dofi-backend-staging-net
 
+  # No depends_on for rocbn-mysql: the API must boot, and keep serving everything else, without the registry.
   api:
     image: ghcr.io/arya020595/st_dofi_backend:staging
     container_name: dofi-backend-staging-api
@@ -96,6 +125,16 @@ services:
       RAILS_ENV: production
       DATABASE_HOST: db
       DATABASE_PORT: 5432
+      # ROCBN registry: the reader the API runs as and the account `rocbn:seed` uses. Their passwords
+      # (ROCBN_DB_PASSWORD, ROCBN_SEED_DB_PASSWORD) come from the server .env below.
+      ROCBN_DB_HOST: rocbn-mysql
+      ROCBN_DB_PORT: 3306
+      ROCBN_DB_NAME: tdd_db
+      ROCBN_DB_USERNAME: rocbn_reader
+      ROCBN_SEED_DB_HOST: rocbn-mysql
+      ROCBN_SEED_DB_PORT: 3306
+      ROCBN_SEED_DB_NAME: tdd_db
+      ROCBN_SEED_DB_USERNAME: rocbn_seed
     env_file:
       - .env
     ports:
@@ -129,6 +168,7 @@ services:
 
 volumes:
   dofi_staging_postgres_data:
+  dofi_staging_rocbn_mysql_data:
   dofi_staging_storage:
   dofi_staging_minio_data:
 

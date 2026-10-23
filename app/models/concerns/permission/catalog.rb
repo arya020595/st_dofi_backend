@@ -38,7 +38,8 @@ module Permission::Catalog
       { key: "companies_crew_approvals", label: "Crew Approvals",
         dofi_officer: %w[list view approve request_amendment] },
       { key: "companies_document_approvals", label: "Document Approvals",
-        dofi_officer: %w[list view approve request_amendment] }
+        dofi_officer: %w[list view approve request_amendment] },
+      { key: "rocbn_companies", label: "ROCBN Company Lookup", dofi_officer: %w[list view] }
     ] },
     { key: "dictionary", label: "Dictionary", resources: [
       { key: "dictionaries", label: "Dictionaries", dofi_officer: %w[list view create update delete] },

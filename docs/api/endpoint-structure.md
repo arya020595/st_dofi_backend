@@ -26,6 +26,7 @@ graph TB
     ADMIN --> A3["master_data/<br/>ports, zones, fishing_gears,<br/>reasons, nationalities, positions"]
     ADMIN --> A4["approvals/<br/>vessels, crews, fishing_gears,<br/>documents, manifests"]
     ADMIN --> A5["company_profiles/ (+ nested)"]
+    ADMIN --> A7["rocbn/companies<br/>(read-only registry lookup)"]
     ADMIN --> A6["manifests/ (only: [])<br/>→ minor_fishermen, expense,<br/>capture_reports (+ nested)"]
 
     FISH --> F1["manifests<br/>(full CRUD + lifecycle)"]
@@ -88,6 +89,17 @@ Controllers live under `Api::V1::Admin::*`.
 ```
 
 The fisherman side mounts the same six resources read-only under its own `master_data/` (below).
+
+### `rocbn/` — company registry lookup for Add Profiling (`Api::V1::Admin::Rocbn::*`)
+
+Read-only access to the external ROCBN registry (a separate MySQL table, never written to), gated by
+`rocbn_companies.list` / `rocbn_companies.view` (`RocbnCompanyPolicy`). The `:id` is the registry's own row id
+and must be numeric (anything else is a routing 404). Contract, mapping and setup:
+[`../rocbn/company-lookup.md`](../rocbn/company-lookup.md).
+
+```
+/api/v1/admin/rocbn/companies    index show      # index needs q[company_name_cont] or q[rocbn_number_eq]
+```
 
 ### `external_users/` — User Management → External Users (`Api::V1::Admin::ExternalUsers::*`)
 

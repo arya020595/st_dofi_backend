@@ -1,0 +1,51 @@
+# Connection to the external ROCBN company registry: one read-only MySQL table, tdd_db.sync_rocbn_hotel, owned by
+# another system. Read by Rocbn::BaseRecord through Rails.application.config_for(:rocbn);
+# see docs/rocbn/company-lookup.md.
+#
+# Deliberately NOT in config/database.yml. Anything listed there is visible to the db:* tasks, and Rails renames it
+# for every parallel test worker. Kept out of ActiveRecord::Base.configurations, nothing in Rails can create,
+# migrate, drop, truncate or seed it. Staging also runs RAILS_ENV=production, so the production block serves both.
+#
+# Everything comes from the environment. A missing value never breaks boot: it surfaces as a 503 on the lookup.
+shared:
+  adapter: trilogy
+  encoding: utf8mb4
+  collation: utf8mb4_unicode_ci
+  # "preferred" upgrades to TLS when the server offers it (MySQL 8 does) and falls back to plain TCP otherwise.
+  ssl_mode: <%= ENV.fetch("ROCBN_DB_SSL_MODE", "preferred") %>
+  # Seconds. A registry that stops answering must not hold a Puma thread.
+  connect_timeout: 3
+  read_timeout: 5
+  write_timeout: 5
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS", 5) %>
+  variables:
+    # Milliseconds (MySQL 5.7.8+): the server aborts a SELECT that runs longer, whatever the client does.
+    max_execution_time: 5000
+
+development:
+  host: <%= ENV["ROCBN_DB_HOST"] %>
+  port: <%= ENV.fetch("ROCBN_DB_PORT", 3306) %>
+  database: <%= ENV.fetch("ROCBN_DB_NAME", "tdd_db") %>
+  username: <%= ENV["ROCBN_DB_USERNAME"] %>
+  password: <%= ENV["ROCBN_DB_PASSWORD"] %>
+  # The adapter raises ActiveRecord::ReadOnlyError for any write query on a replica: the application half of
+  # "read-only". The others are Rocbn::Company#readonly? and the database account, which only holds SELECT.
+  replica: true
+
+# The suite's own database, never the ROCBN_DB_* runtime variables (which may point at a real registry).
+# Not read-only, so tests can insert rows. Rocbn::TestSupport refuses a host that is not local.
+test:
+  host: <%= ENV.fetch("ROCBN_TEST_DB_HOST", "127.0.0.1") %>
+  port: <%= ENV.fetch("ROCBN_TEST_DB_PORT", 3306) %>
+  database: <%= ENV.fetch("ROCBN_TEST_DB_NAME", "tdd_db_test") %>
+  username: <%= ENV.fetch("ROCBN_TEST_DB_USERNAME", "root") %>
+  password: <%= ENV["ROCBN_TEST_DB_PASSWORD"] %>
+
+# Production (the client's native MySQL, 10.252.8.23:9139) and staging (the rocbn-mysql container).
+production:
+  host: <%= ENV["ROCBN_DB_HOST"] %>
+  port: <%= ENV.fetch("ROCBN_DB_PORT", 3306) %>
+  database: <%= ENV.fetch("ROCBN_DB_NAME", "tdd_db") %>
+  username: <%= ENV["ROCBN_DB_USERNAME"] %>
+  password: <%= ENV["ROCBN_DB_PASSWORD"] %>
+  replica: true

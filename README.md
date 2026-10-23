@@ -5,7 +5,7 @@ API-only Rails backend for the FINS Capture Fisheries module: vessels, crews, ma
 ## Stack
 
 - Ruby 3.4.11 / Rails 8.1.3 (API-only)
-- PostgreSQL
+- PostgreSQL, plus one external read-only MySQL table (the ROCBN company registry, [`docs/rocbn/company-lookup.md`](docs/rocbn/company-lookup.md))
 - Solid Queue / Solid Cache (DB-backed, no Redis)
 - Devise + devise-jwt for authentication, Pundit for authorization
 - dry-monads for the service layer, Blueprinter for serialization
@@ -40,7 +40,7 @@ Requires Docker and Docker Compose. No local Ruby/PostgreSQL installation needed
    cp .env.example .env
    ```
 
-2. Build and start the stack (API + Solid Queue worker + PostgreSQL):
+2. Build and start the stack (API + Solid Queue worker + PostgreSQL + the ROCBN registry MySQL):
 
    ```bash
    docker compose up --build
@@ -54,6 +54,18 @@ Requires Docker and Docker Compose. No local Ruby/PostgreSQL installation needed
    ```
 
 4. The API is available at `http://localhost:3000`. Health check: `http://localhost:3000/up`.
+
+5. The Add Profiling company lookup reads an external ROCBN registry, stood in for locally by the `rocbn-mysql`
+   container (its first start creates the table and the accounts). Load the synthetic companies once, and check the
+   connection any time:
+
+   ```bash
+   docker compose exec -e ROCBN_ALLOW_SEED=yes api bin/rails rocbn:seed   # idempotent; refuses anything but a local, synthetic MySQL
+   docker compose exec api bin/rails rocbn:check                          # read-only diagnostics
+   ```
+
+   Setup, endpoints and production wiring: [`docs/rocbn/company-lookup.md`](docs/rocbn/company-lookup.md). The test
+   suite needs this container running too (its own database, `tdd_db_test`, is created with it).
 
 Useful commands:
 
@@ -233,6 +245,7 @@ docs/
 ├── rbac/            role-based access control: platform/company isolation & authorization
 ├── registration/    actors, roles, provisioning & login flow
 ├── api/             frontend-facing request/response contracts
+├── rocbn/           external ROCBN company registry (read-only MySQL) and the Add Profiling lookup
 ├── minio/           MinIO/file-storage architecture & setup
 ├── ci-cd/           CI/CD & deployment
 └── incidents/       postmortems and dated test reports
@@ -254,6 +267,10 @@ docs/
 - [Master data API](docs/api/master-data.md) — CRUD contract for reference/lookup resources (Port, Zone, Fishing Gear, Nationality, Position, Reason).
 - [Search, filter, sort & pagination contract](docs/api/search-filter-sort-pagination.md) — how the frontend should call list (`index`) endpoints (Ransack query params + Pagy pagination).
 - [Postman collection](postman/DoFi-Backend.postman_collection.json)
+
+### [`docs/rocbn/`](docs/rocbn/) — ROCBN company registry lookup
+
+- [ROCBN company lookup](docs/rocbn/company-lookup.md) — the read-only secondary MySQL connection, the Docker stand-in and its guarded seed, the search and detail endpoints, the Add Profiling field mapping, the read-only layers, and how to switch to the production MySQL.
 
 ### [`docs/minio/`](docs/minio/) — MinIO / file storage
 
