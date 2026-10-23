@@ -1,3 +1,5 @@
+# -*- SkipSchemaAnnotations
+
 module Rocbn
   # A row of the registry's sync_rocbn_hotel table: a company, repeated once per director/shareholder. Strictly
   # read-only: readonly? here, `replica: true` on the connection (config/rocbn.yml) and a SELECT-only database

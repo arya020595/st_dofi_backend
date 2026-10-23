@@ -17,6 +17,12 @@ class RocbnConnectionTest < ActiveSupport::TestCase
     end
   end
 
+  test "schema annotation does not connect to the optional registry" do
+    company_model = Rails.root.join("app/models/rocbn/company.rb").read
+
+    assert_match(/\A# -\*- SkipSchemaAnnotations\b/, company_model)
+  end
+
   test "registry models use the rocbn connection while DoFi models stay on PostgreSQL" do
     assert_equal %w[rocbn trilogy], [Rocbn::Company.connection_db_config.name,
                                      Rocbn::Company.connection_db_config.adapter]
