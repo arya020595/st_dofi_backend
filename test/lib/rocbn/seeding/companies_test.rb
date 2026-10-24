@@ -3,6 +3,8 @@ require "test_helper"
 module Rocbn
   module Seeding
     class CompaniesTest < ActiveSupport::TestCase
+      AUTOFILL_COLUMNS = %w[registration_no name address_1 telp district mukim village].freeze
+
       setup { @rows = Companies.rows }
 
       test "every row has exactly the company columns" do
@@ -27,9 +29,20 @@ module Rocbn
         assert_equal Companies.rows, Companies.rows
       end
 
-      test "covers the registry's quirks: soft delete, not-provided markers, characters LIKE treats specially" do
+      test "every synthetic company has every value needed to autofill a profile" do
+        incomplete = @rows.filter_map do |row|
+          missing = AUTOFILL_COLUMNS.select do |column|
+            value = row[column].to_s.strip
+            value.blank? || Rocbn::NotProvidedText::MARKERS.include?(value.downcase)
+          end
+          "#{row['id']}: #{missing.join(', ')}" if missing.any?
+        end
+
+        assert_empty incomplete, "incomplete ROCBN synthetic rows: #{incomplete.join('; ')}"
+      end
+
+      test "covers registry quirks that do not make autofill fields null" do
         assert(@rows.any? { |row| row["deleted_at"] })
-        assert(@rows.any? { |row| row["mukim"] == "-" })
         assert(@rows.any? { |row| row["name"].include?("%") })
       end
 

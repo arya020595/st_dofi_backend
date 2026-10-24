@@ -93,8 +93,9 @@ are never returned.
 `bin/rails rocbn:seed` creates the table if missing, then upserts about 57 fictional companies by primary key, so a rerun
 updates the same rows and never duplicates. Ids start at 9,000,001, there is no randomness, and the data covers what the
 lookup must handle: similar names (`q[company_name_cont]=amiirul` finds three), 35 numbered rows to page through
-(`pagination`), the registry's placeholder markers, a soft-deleted row, a `[Ceased ...]` name, and `%`, `_`, `'`, `&` and
-accented characters.
+(`pagination`), a soft-deleted row, a `[Ceased ...]` name, and `%`, `_`, `'`, `&` and accented characters. Every
+synthetic row supplies the fields returned by the detail endpoint, so staging can exercise a complete Add Profiling
+autofill; focused model tests cover normalising the real registry's placeholder markers to `null`.
 
 It refuses to run unless **all** of these hold ([`Rocbn::Seeding::Guard`](../../lib/rocbn/seeding/guard.rb)); it never
 looks at `Rails.env`, because staging is `RAILS_ENV=production`:

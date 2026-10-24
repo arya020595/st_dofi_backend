@@ -3,8 +3,8 @@
 #
 # Every row needs id and registration_no; omitted columns are NULL. Ids sit in the reserved block from 9,000,001,
 # which is how Rocbn::Seeding::Guard recognises a synthetic database: the real registry's ids are all far below it.
-# The registry marks missing values with "-", "N/A" or "Not Specified" rather than leaving them empty; several rows
-# do the same on purpose, because the lookup has to read those back as null.
+# Every row supplies the fields returned by the detail endpoint so staging can exercise a complete autofill. Unit tests
+# cover how the real registry's "-", "N/A" and "Not Specified" markers are normalised to null.
 
 # Similar names, for the Search Company table (the UI mock searches "Amiirul")
 - id: 9000001
@@ -184,29 +184,30 @@
   incorporation_date: "2001-08-08"
   business_sector_code: "50"
 
-# Registry placeholders. The lookup must return null for each of these values, never the marker itself.
+# Complete records used to exercise Add Profiling autofill.
 - id: 9000015
   registration_no: RC90000015
   name: NOT PROVIDED TRADING
   address_1: Kg Lumapas
-  address_2: "-"
-  district: Tutong
-  mukim: "-"
-  telp: N/A
-  contact: N/A
+  address_2: Jalan Lumapas
+  district: Brunei Muara
+  mukim: Lumapas
+  village: Kg Lumapas
+  telp: "2681515"
+  contact: office@notprovided.example.com
   incorporation_date: "2010-10-10"
 - id: 9000016
   registration_no: RC90000016
-  name: ALL PLACEHOLDERS ENTERPRISE
-  address_1: Kg Lumapas
-  address_2: Not Specified
-  address_3: n/a
-  district: "-"
-  mukim: Not Specified
-  village: N/A
-  telp: "-"
-  contact: N/A
-  postal_code: "000000"
+  name: KILANAS SEAFOOD ENTERPRISE
+  address_1: "No. 16, Simpang 216"
+  address_2: Jalan Tutong
+  address_3: Bandar Seri Begawan
+  district: Brunei Muara
+  mukim: Kilanas
+  village: Kg Kilanas
+  telp: "2671616"
+  contact: office@kilanasseafood.example.com
+  postal_code: BG1221
   incorporation_date: "2010-10-11"
 
 # Names that stress LIKE escaping, quoting and utf8mb4
