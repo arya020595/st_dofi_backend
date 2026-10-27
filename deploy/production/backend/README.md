@@ -7,13 +7,15 @@ from it is outbound (`ghcr.io`, BruneiID). A fallback that builds the image on t
 [`PRODUCTION-DEPLOY-CHECKLIST.md`](../../../docs/ci-cd/PRODUCTION-DEPLOY-CHECKLIST.md).
 
 ```
-browser (frontend) --HTTP :80--> nginx --127.0.0.1:3000--> api container --> PostgreSQL  <DB_IP>:5432
+frontend server --HTTP :3000--> nginx --127.0.0.1:3000--> api container --> PostgreSQL  <DB_IP>:5432
                                                            jobs container --> MinIO       <STORAGE_IP>:9000
 ```
 
 Why this shape: the frontend (`http://10.246.8.12:4100`) is a different origin from the API, so the browser sends
 CORS requests. Rails answers them (`CORS_ORIGINS`), and nginx only forwards. Rails is published on `127.0.0.1` so that
-port 3000 is not reachable from the network (a Docker-published port bypasses `ufw`); users reach only port 80.
+Rails itself is not reachable from the network (a Docker-published port bypasses `ufw`). What the network sees on
+`10.252.8.12:3000` is nginx, which the host firewall allows only from the frontend server (step 6). Browsers never call
+this host directly: they reach the frontend, which proxies `/api` and `/cable` here.
 
 Needs: `sudo` on this host, the database server done ([`../database/README.md`](../database/README.md)), the storage
 server done ([`../storage/`](../storage/)), and the client's firewall rules in place.
@@ -21,17 +23,17 @@ Replace the placeholders: `<BACKEND_IP>` 10.252.8.12, `<DB_IP>` 10.252.8.23, `<S
 `<FE_ORIGIN>` `http://10.246.8.12:4100` (confirm the frontend IP with the client; see the open questions in
 [the architecture doc](../../../docs/architecture/production-4-server-architecture.md#7-questions-for-the-client)).
 
-> **Port choice.** Users reach the API on port 80, so the firewall request asks for 80 (not 3000) to this host. If the
-> client already approved 3000 and cannot change it, make two edits instead: `listen 3000 default_server;` in
-> [`nginx/dofi-api.conf`](nginx/dofi-api.conf), and `127.0.0.1:3001:3000` in the compose `ports`
-> (and `proxy_pass` to `127.0.0.1:3001`). Do not run both.
+> **Port choice (decided 2026-10-27).** The client's firewall table already opens `10.246.8.12` to `10.252.8.12` on TCP
+> **3000**, so nginx listens on `10.252.8.12:3000` as well as on 80 (see [`nginx/dofi-api.conf`](nginx/dofi-api.conf)). Rails
+> stays published on `127.0.0.1:3000`; the two bind different addresses, so nothing else changes. The frontend calls
+> `http://10.252.8.12:3000`. Port 80 stays for local checks and is not requested from the client.
 
 ## 0. Look first (read-only)
 
 ```bash
 lsb_release -a; free -h; nproc; df -h                    # Ubuntu 24.04 expected; RAM, CPU, disk for sizing
 docker --version; docker compose version                 # both must print a version
-nginx -v; systemctl is-active nginx ufw
+nginx -v; systemctl is-active nginx ufw firewalld
 ls /etc/nginx/sites-enabled                              # only `default` expected; any other site is not ours: leave it
 sudo ss -lntp | grep -E ':(80|3000)\b'                   # 80 = nginx; 3000 must be free
 nc -vz <DB_IP> 5432; nc -vz <STORAGE_IP> 9000            # "succeeded" needs firewall rows 4 and 5 and the other two servers up
@@ -142,30 +144,40 @@ The vhost is not part of CD: if it changes in the repo, copy it again and `nginx
 
 ## 6. Host firewall
 
-If `ufw` is active, allow SSH first, then port 80. Leave 3000 closed: it is only meant for nginx on this host.
-If `ufw` is inactive, leave it off; the client's network firewall decides who may reach port 80.
+**This host runs `firewalld`** (zone `public`, default target). It only allows what is listed, and rejects everything else
+with `ICMP admin prohibited`, so the frontend got "No route to host" / "Couldn't connect" even though nginx was up and the
+client's network rule was open. `iptables -S` and `ufw status` do not show it: the rules live in the nft table
+`inet firewalld`. Check with `sudo firewall-cmd --list-all`. The ports already listed there (4119, 4120, 4122, 5274, 443,
+14118) belong to other things on this host: leave them.
+
+Allow only the frontend server to reach port 3000, now and permanently. **Do not run `firewall-cmd --reload`** for this: it
+can wipe Docker's network rules until Docker is restarted; adding to the runtime and the permanent config separately avoids it.
 
 ```bash
-sudo ufw status
-sudo ufw allow OpenSSH        # or your SSH port; do this BEFORE enabling or reloading ufw
-sudo ufw allow 80/tcp
+RULE='rule family="ipv4" source address="10.246.8.12" port port="3000" protocol="tcp" accept'
+sudo firewall-cmd --add-rich-rule="$RULE"
+sudo firewall-cmd --permanent --add-rich-rule="$RULE"
+sudo firewall-cmd --list-rich-rules; sudo firewall-cmd --permanent --list-rich-rules   # both show the rule
 ```
+
+Undo: the same commands with `--remove-rich-rule`. If `ufw` is ever the active firewall instead, allow SSH first, then
+`sudo ufw allow from 10.246.8.12 to any port 3000 proto tcp`.
 
 ## 7. Verify frontend to backend
 
-Run these from another machine on the users' network, ideally the frontend server (10.246.8.12). They show what a browser will meet.
+Run these from another machine on the users' network, the frontend server (10.246.8.12): only that address is allowed on port 3000 (step 6). They show what a browser will meet.
 
 ```bash
-curl -i http://<BACKEND_IP>/up                       # 200
+curl -i http://<BACKEND_IP>:3000/up                       # 200
 
 # CORS preflight: what the browser sends before a cross-origin POST (login)
-curl -i -X OPTIONS http://<BACKEND_IP>/api/v1/auth/sign_in \
+curl -i -X OPTIONS http://<BACKEND_IP>:3000/api/v1/auth/sign_in \
   -H 'Origin: <FE_ORIGIN>' -H 'Access-Control-Request-Method: POST' \
   -H 'Access-Control-Request-Headers: content-type,authorization'
 # expect: HTTP 200 and `access-control-allow-origin: <FE_ORIGIN>`. No such header: CORS_ORIGINS does not match.
 
 # WebSocket handshake (curl exits with a timeout after 5 s; the 101 line is what matters)
-curl -i -N --max-time 5 http://<BACKEND_IP>/cable \
+curl -i -N --max-time 5 http://<BACKEND_IP>:3000/cable \
   -H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Sec-WebSocket-Version: 13' \
   -H 'Sec-WebSocket-Key: SGVsbG8sIHdvcmxkIQ==' -H 'Origin: <FE_ORIGIN>'
 # expect: HTTP/1.1 101 Switching Protocols. 404 "Page not found": CABLE_ALLOWED_ORIGINS does not match.
@@ -177,9 +189,9 @@ Give the frontend team:
 
 | What | Value |
 |---|---|
-| API base URL | `http://<BACKEND_IP>` (REST under `/api/v1`) |
-| WebSocket | `ws://<BACKEND_IP>/cable?token=...` (the token comes from the API, as today) |
-| Health check | `http://<BACKEND_IP>/up` |
+| API base URL | `http://<BACKEND_IP>:3000` (REST under `/api/v1`) |
+| WebSocket | `ws://<BACKEND_IP>:3000/cable?token=...` (the token comes from the API, as today) |
+| Health check | `http://<BACKEND_IP>:3000/up` |
 
 ## 8. Operate
 
@@ -206,7 +218,7 @@ docker compose run --rm api bin/rails console        # console, production data:
 | `413 Request Entity Too Large` | Upload over 12 MB. The app limits are 2 to 10 MB; raise `client_max_body_size` only together with the model limit. |
 | nginx shows its welcome page | The `default` site is still enabled; step 5. |
 | `429 Too Many Requests` for everyone at once | All requests look like one IP. Check `proxy_set_header X-Forwarded-For $remote_addr;` is in both locations and nginx was reloaded. |
-| Cannot reach `<BACKEND_IP>` from other machines, `curl 127.0.0.1` works | Port 80 blocked by `ufw` (step 6) or the client's firewall (checklist section A). |
+| Cannot reach `<BACKEND_IP>:3000` from the frontend, `curl 127.0.0.1` works | Check on this host with `sudo tcpdump -ni any 'tcp port 3000 and host 10.246.8.12' -c 5` while the frontend runs `curl`. A SYN followed by `ICMP ... admin prohibited` sent by this host: `firewalld` (step 6). No SYN at all: the client's network firewall (checklist section A). |
 | `docker compose pull`: `unauthorized` | The GitHub token from step 2 expired or was revoked. Repeat step 2 with a new `read:packages` token. |
 | Login redirects or loops to HTTPS | `FORCE_SSL` must be `false` while there is no certificate. |
 | File links return `403 SignatureDoesNotMatch` | `MINIO_PUBLIC_ENDPOINT` differs from the address the browser actually uses. |
