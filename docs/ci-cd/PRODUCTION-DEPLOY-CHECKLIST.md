@@ -1,7 +1,7 @@
 # Production deploy checklist (4 servers)
 
 Step-by-step to-do for putting the backend, file storage and database on the client's servers, reached by IP
-over plain HTTP (no domain or TLS yet; the backend sits behind nginx on port 80). Every tick below has its commands
+over plain HTTP (no domain or TLS yet; the backend sits behind nginx on port 3000). Every tick below has its commands
 inline; the explanations are in [`deploy/README.md`](../../deploy/README.md), the
 [backend runbook](../../deploy/production/backend/README.md) and the [database runbook](../../deploy/production/database/README.md);
 the design is in [`production-4-server-architecture.md`](../architecture/production-4-server-architecture.md). Tick the boxes in order.
@@ -28,9 +28,9 @@ Servers (hostname, IP, role):
 |---|---|
 | Database server (C1) and storage server (C2) | Set up earlier. Backend to database `5432` and backend to MinIO `9000` are open and **proven**: `db:prepare` created the four databases and uploaded 17 files to MinIO. |
 | Backend server prepared (C3) | Done: Docker group, `/opt/dofi`, GHCR login, the three files (checksums match), `.env` filled and validated. `BRUNEIID_*` and `SENTRY_DSN` are empty (not supplied yet); `ROCBN_DB_USERNAME=stuser`. |
-| First run (D) | `pull` and `db:prepare` done. **Not done:** `up -d`, nginx vhost, `rocbn:check`, the checks from another machine. No container is running yet. |
+| First run (D) | **Done 2026-10-27:** `pull`, `db:prepare`, `up -d --wait` (`api` and `jobs` healthy, image from `main` with the file relay), nginx vhost installed and the Ubuntu `default` site disabled, `rocbn:check` passes (185,324 rows). Frontend to backend works on **`http://10.252.8.12:3000`**: `/up` 200, CORS preflight allows `http://10.246.8.12:4100`, `/cable` upgrades (101). It needed nginx to listen on `10.252.8.12:3000` (and only there, no port 80) and a `firewalld` rich rule on the App server (runbook step 6); it was not the client's network. |
 | Seed data | `db:prepare` also loaded **demo data and default passwords** into this production database (see the warning in section D). **Open decision:** keep it for acceptance testing and change every seeded password before opening port 80, or reset the databases and seed reference data only. |
-| Firewall, to request from the client | (1) `10.252.8.12` to `10.252.8.23:9139`, the ROCBN registry (refused today). (2) Users' network to `10.252.8.13:9000`, so browsers can open files; fallback if refused: nginx on the backend forwards the two bucket paths, which needs users to `10.252.8.12:80` (see [`FILE-ACCESS-SEQUENCE.md`](../minio/FILE-ACCESS-SEQUENCE.md), untested). Users to `10.252.8.12:80` is needed for the API in any case. The client's "web server to app `3000`" is set aside for now: it does not fit this design (`3000` is loopback only). BruneiID `443` waits for its hostname. |
+| Firewall, to request from the client | **Nothing left to request for the first round.** `9139` (ROCBN) is open and proven. Web to App `3000` is the client's own rule and works (the block was `firewalld` on our server, fixed). Users to storage `9000` is **not** requested: browsers reach only the Web server. BruneiID `443` waits for its hostname. **To ask the MySQL owner:** `stuser` holds `ALL PRIVILEGES` and may log in from any host (`rocbn:check` warns); the app only needs `SELECT` on `tdd_db.sync_rocbn_hotel`. |
 | Not needed | LDAP/AD `3268/3269` (the app does not use it); MinIO console `9001` (not published). |
 | File viewing (decision) | **Decided 2026-10-27: relay files through Rails.** The FE server may not reach storage either, and it proxies `/api` to the BE. Code is on branch `feat/relay-attachments` (tests, rubocop, rbac-lint, brakeman green; production route table has no Active Storage routes), **not yet merged, built or deployed**. The first deploy is not blocked: start the stack with the current image; until the relay image ships, testers can upload but not view files. Still to do: FE loader for Dictionary images, FE nginx proxy, FE to BE firewall port, run `dictionaries:migrate_images_to_minio` only if old blobs must move. |
 | Upload regression (2026-10-27) | Uploads re-tested after the relay change: vessel images, company documents, Dictionary create and update, spoofed type rejected, and an upload-then-fetch round trip. Full suite 776 runs, 0 failures (3 unrelated ROCBN errors). Not run against a real MinIO; verify one upload and one view on the App server after deploy. Record: [`UPLOAD-REGRESSION-2026-10-27.md`](../minio/UPLOAD-REGRESSION-2026-10-27.md). |
@@ -298,17 +298,16 @@ This is the first release, and it also sets up nginx and the firewall, which rel
   ```bash
   sudo cp /opt/dofi/nginx/dofi-api.conf /etc/nginx/sites-available/dofi-api
   sudo ln -sf /etc/nginx/sites-available/dofi-api /etc/nginx/sites-enabled/dofi-api
-  sudo rm -f /etc/nginx/sites-enabled/default                # only if `default` was the only other site: it also claims port 80
   sudo nginx -t && sudo systemctl reload nginx               # never skip the -t
-  curl -i http://127.0.0.1/up                                # 200
+  curl -i http://10.252.8.12:3000/up                         # 200 (this is nginx; 127.0.0.1:3000 is Rails itself)
   ```
 
-- [ ] Host firewall, only if `ufw` is active: SSH first, then port 80; never 3000 (step 6):
+- [x] Host firewall (step 6). This host runs `firewalld`, which rejects everything not listed. Allow only the frontend to 3000, without `--reload`:
 
   ```bash
-  sudo ufw status
-  sudo ufw allow OpenSSH                                     # or your SSH port, BEFORE enabling or reloading ufw
-  sudo ufw allow 80/tcp
+  RULE='rule family="ipv4" source address="10.246.8.12" port port="3000" protocol="tcp" accept'
+  sudo firewall-cmd --add-rich-rule="$RULE"
+  sudo firewall-cmd --permanent --add-rich-rule="$RULE"
   ```
 
 - [ ] From the frontend server (or any machine on the users' network), prove what a browser will meet (step 7):
@@ -361,7 +360,7 @@ CI has already built the image; the server only pulls it. Run this in the Deline
   sudo tail -n 50 /var/log/nginx/error.log
   ```
 
-- [ ] Give the frontend team the API URL `http://<BACKEND_IP>` (port 80, no port in the URL) and the WebSocket URL `ws://<BACKEND_IP>/cable`.
+- [ ] Give the frontend team the API URL `http://<BACKEND_IP>:3000` and the WebSocket URL `ws://<BACKEND_IP>:3000/cable`.
 
 ## G. Backups (minimum)
 
