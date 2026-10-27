@@ -17,6 +17,20 @@ read-only.
 | Backend | itself | | nginx answers on `:80` | Ready for row 2 |
 | Backend | Registry MySQL `10.252.8.23:9139` | 12 | not checked yet | New row (the read-only ROCBN company lookup), still to be requested |
 
+## Re-check, 2026-10-27 (from the backend server, after the client opened rows 4 and 5)
+
+| From | To | Row | Result | Meaning |
+|---|---|---|---|---|
+| Backend | DB `10.252.8.23:5432` | 5 | `OPEN` | Open (was refused on 2026-10-23) |
+| Backend | Storage `10.252.8.13:9000` | 4 | `OPEN` | Open (was refused on 2026-10-23) |
+| Backend | `ghcr.io:443`, `pkg-containers.githubusercontent.com:443` | 7 | `OPEN` | Open |
+| Backend | itself | | nginx on `:80`, `:3000` free | Ready |
+| Backend | Registry MySQL `10.252.8.23:9139` | 12 | `Connection refused` | **Not open yet.** The client's table has no row for it. To be followed up with the client's management; until then only the company lookup answers `503` |
+
+Still not checked: row 6 (BruneiID host, still TBC), and the user-facing
+rows 1 to 3 (browser to frontend `4100`, backend `80`, storage `9000`). The client's own table lists web to app on
+`3000` and no browser to `80` or `9000`, which differs from this design; see the checklist, section A.
+
 ## 1. Helper (paste once per session, bash)
 
 It reports `OPEN`, `TIMEOUT` or `REFUSED` for a host and port, and needs nothing installed:

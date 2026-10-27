@@ -22,12 +22,26 @@ Servers (hostname, IP, role):
 > `main` is therefore safe at any time. The compose file publishes the API on `127.0.0.1` only, so users reach it through
 > nginx (section D).
 
+## Progress (last updated 2026-10-27)
+
+| Area | State |
+|---|---|
+| Database server (C1) and storage server (C2) | Set up earlier. Backend to database `5432` and backend to MinIO `9000` are open and **proven**: `db:prepare` created the four databases and uploaded 17 files to MinIO. |
+| Backend server prepared (C3) | Done: Docker group, `/opt/dofi`, GHCR login, the three files (checksums match), `.env` filled and validated. `BRUNEIID_*` and `SENTRY_DSN` are empty (not supplied yet); `ROCBN_DB_USERNAME=stuser`. |
+| First run (D) | `pull` and `db:prepare` done. **Not done:** `up -d`, nginx vhost, `rocbn:check`, the checks from another machine. No container is running yet. |
+| Seed data | `db:prepare` also loaded **demo data and default passwords** into this production database (see the warning in section D). **Open decision:** keep it for acceptance testing and change every seeded password before opening port 80, or reset the databases and seed reference data only. |
+| Firewall, to request from the client | (1) `10.252.8.12` to `10.252.8.23:9139`, the ROCBN registry (refused today). (2) Users' network to `10.252.8.13:9000`, so browsers can open files; fallback if refused: nginx on the backend forwards the two bucket paths, which needs users to `10.252.8.12:80` (see [`FILE-ACCESS-SEQUENCE.md`](../minio/FILE-ACCESS-SEQUENCE.md), untested). Users to `10.252.8.12:80` is needed for the API in any case. The client's "web server to app `3000`" is set aside for now: it does not fit this design (`3000` is loopback only). BruneiID `443` waits for its hostname. |
+| Not needed | LDAP/AD `3268/3269` (the app does not use it); MinIO console `9001` (not published). |
+| File viewing (decision) | **Decided 2026-10-27: relay files through Rails.** The FE server may not reach storage either, and it proxies `/api` to the BE. Code is on branch `feat/relay-attachments` (tests, rubocop, rbac-lint, brakeman green; production route table has no Active Storage routes), **not yet merged, built or deployed**. The first deploy is not blocked: start the stack with the current image; until the relay image ships, testers can upload but not view files. Still to do: FE loader for Dictionary images, FE nginx proxy, FE to BE firewall port, run `dictionaries:migrate_images_to_minio` only if old blobs must move. |
+| Upload regression (2026-10-27) | Uploads re-tested after the relay change: vessel images, company documents, Dictionary create and update, spoofed type rejected, and an upload-then-fetch round trip. Full suite 776 runs, 0 failures (3 unrelated ROCBN errors). Not run against a real MinIO; verify one upload and one view on the App server after deploy. Record: [`UPLOAD-REGRESSION-2026-10-27.md`](../minio/UPLOAD-REGRESSION-2026-10-27.md). |
+| File viewing (analysis) | Client management drew "only the Back End talks to storage" and suggested NFS (2049) or SFTP (22). Our analysis, recommending to keep S3 on `9000` (already open) and build the relay: [`STORAGE-PROTOCOL-OPTIONS.md`](../minio/STORAGE-PROTOCOL-OPTIONS.md). Until it is released testers can upload but not view files. Open question for management. |
+
 ## A. Get from the client
 
 - [ ] **The firewall rules, requested first.** Every later step needs them: `db:prepare` needs the database port, the Add Profiling company lookup needs the registry's MySQL port (row 12), the first boot needs MinIO, `docker pull` needs outbound access to `ghcr.io`. The table to send is [§3 of the architecture doc](../architecture/production-4-server-architecture.md#3-network-firewall-request); the client's change takes days, so ask before anything is deployed, not after. To prove each row is open, run [the connectivity check](NETWORK-CONNECTIVITY-CHECK.md).
 - [ ] The four server IPs (private and, if different, the one browsers use). The database host is `OGCMPT003API001` (the client's name, per their screenshot).
 - [ ] Working `sudo` on the database host (`localadmin`), and approval to install the `postgresql-16` package there. It already runs MySQL 8.0 for another system; ours is a separate package and port. Port 9139 is that MySQL, which also holds the ROCBN company registry we read (next item).
-- [ ] **A MySQL account for the ROCBN registry** (the client's DBA creates it): `SELECT` on `tdd_db.sync_rocbn_hotel` only, allowed from the backend server's address (`10.252.8.12`). Ask which authentication plugin it uses; `caching_sha2_password` and `mysql_native_password` both work. Its username and password go into the backend `.env` (C3). The lookup is read-only by design, so an account that can do more should be refused: `rocbn:check` (section D) warns about it.
+- [ ] **A MySQL account for the ROCBN registry** (status 2026-10-27: account `stuser` received and in the backend `.env`; port 9139 from the backend is still `Connection refused`, firewall row 12 to be followed up with the client; `SELECT`-only is not proven until `rocbn:check` runs) (the client's DBA creates it): `SELECT` on `tdd_db.sync_rocbn_hotel` only, allowed from the backend server's address (`10.252.8.12`). Ask which authentication plugin it uses; `caching_sha2_password` and `mysql_native_password` both work. Its username and password go into the backend `.env` (C3). The lookup is read-only by design, so an account that can do more should be refused: `rocbn:check` (section D) warns about it.
 - [ ] Which networks (users' LAN/VPN) may reach the frontend `4100`, backend `80` (nginx; port 3000 stays internal) and storage `9000`; database `5432` only from the backend server.
 - [ ] The outbound whitelist confirmed in writing, from the App Server on TCP 443: BruneiID host (`BRUNEIID_BASE_URL`), `ghcr.io`, `pkg-containers.githubusercontent.com`. For the fallback build (section J) also `ssh.github.com`, `github.com`, Docker Hub, Debian mirrors (80 and 443) and RubyGems; the exact list is in [the architecture doc, §3](../architecture/production-4-server-architecture.md#3-network-firewall-request). The storage server needs `ghcr.io` too, and the database server needs the Ubuntu apt mirrors.
 - [ ] How we log in to the servers: Delinea SSH terminal over VPN. No inbound access from GitHub is needed or requested.
@@ -180,7 +194,7 @@ Replace `<GITHUB_USER>` with the GitHub account that owns the read-only token. D
 
 Docker and nginx are installed. Full explanations: [backend runbook](../../deploy/production/backend/README.md) (step numbers in brackets).
 
-- [ ] Look first, read-only (step 0). A failure here is a firewall or server-order problem, not something to fix on this server.
+- [x] Look first, read-only (step 0). A failure here is a firewall or server-order problem, not something to fix on this server. (2026-10-27: DB 5432, MinIO 9000 and ghcr.io all `OPEN`; Docker 29.9.2, Compose v5.6.0, nginx 1.24; `:80` is nginx, `:3000` free. Only `default` is in `sites-enabled`. Registry `9139` not checked yet.)
 
   ```bash
   lsb_release -a; free -h; nproc; df -h
@@ -192,7 +206,7 @@ Docker and nginx are installed. Full explanations: [backend runbook](../../deplo
   curl -sI https://ghcr.io | head -1                         # firewall row 7
   ```
 
-- [ ] The deploy user is in the `docker` group and owns `/opt/dofi` (step 1; CD runs `docker` without `sudo`):
+- [x] The deploy user (`localadmin`) is in the `docker` group and owns `/opt/dofi` (step 1; CD runs `docker` without `sudo`); done 2026-10-27:
 
   ```bash
   sudo usermod -aG docker "$USER"                            # log out and back in afterwards
@@ -200,21 +214,28 @@ Docker and nginx are installed. Full explanations: [backend runbook](../../deplo
   sudo mkdir -p /opt/dofi/nginx && sudo chown -R "$USER": /opt/dofi
   ```
 
-- [ ] Log in to the registry with the read-only token from B. Every release pulls with this login; if a later `pull` says `unauthorized`, the token expired: repeat this (step 2):
+- [x] Log in to the registry with the read-only token from B (done 2026-10-27, `Login Succeeded` as `arya020595`; the token is stored unencrypted in `~/.docker/config.json`, so keep that file `600`). Every release pulls with this login; if a later `pull` says `unauthorized`, the token expired: repeat this (step 2):
 
   ```bash
   read -rs GHCR_TOKEN && echo "$GHCR_TOKEN" | docker login ghcr.io -u <GITHUB_USER> --password-stdin; unset GHCR_TOKEN
   ```
 
-- [ ] Copy the three files to `/opt/dofi` (step 3). Through Delinea, where `scp` may not work, paste each file into `nano` instead:
+- [x] Copy the three files to `/opt/dofi` (step 3; done 2026-10-27 through Delinea). Where `scp` may not work, paste each file into `nano` instead, or send it as one line of base64 (a multi-line paste can be mangled by the terminal) and compare the checksum afterwards:
 
   ```bash
   # from a machine with the repo
   scp deploy/production/backend/docker-compose.yml deploy/production/backend/.env.example <user>@<BACKEND_IP>:/opt/dofi/
   scp deploy/production/backend/nginx/dofi-api.conf <user>@<BACKEND_IP>:/opt/dofi/nginx/
+
+  # Delinea alternative. On the machine with the repo, print one line per file:
+  for f in docker-compose.yml .env.example nginx/dofi-api.conf; do
+    echo "echo '$(base64 -w0 deploy/production/backend/$f)' | base64 -d > /opt/dofi/$f"
+  done
+  sha256sum deploy/production/backend/{docker-compose.yml,.env.example,nginx/dofi-api.conf} | cut -c1-12,65-
+  # Paste each printed line on the server, then run the same sha256sum there (cd /opt/dofi) and compare the first 12 characters.
   ```
 
-- [ ] Create `/opt/dofi/.env` and fill it in (step 3):
+- [x] Create `/opt/dofi/.env` and fill it in (step 3; done 2026-10-27 with `BRUNEIID_*` and `SENTRY_DSN` still empty, the client has not supplied them; `ROCBN_DB_USERNAME=stuser`). Fill the secrets without echoing them: a small `setenv KEY` function that does `read -rs` and rewrites that one line of `.env`, so nothing lands in the shell history or in a chat:
 
   ```bash
   cd /opt/dofi && cp .env.example .env && chmod 600 .env
@@ -235,7 +256,7 @@ Docker and nginx are installed. Full explanations: [backend runbook](../../deplo
   | `ROCBN_DB_USERNAME`, `ROCBN_DB_PASSWORD` | the registry account from section A. Never set `ROCBN_SEED_*`, `ROCBN_TEST_*` or `ROCBN_ALLOW_SEED` here: production is never seeded |
   | `BRUNEIID_*` | from the client; `BRUNEIID_REDIRECT_URI` must match the URI registered at BruneiID character for character |
 
-- [ ] Validate it. `-q` prints nothing on success; plain `docker compose config` would print the secrets:
+- [x] Validate it (2026-10-27: `env-ok`, mode `600`, master key 32 characters, JWT secret 64, no CR, no trailing space or quotes). `-q` prints nothing on success; plain `docker compose config` would print the secrets. To list which keys are filled without showing values: `awk -F= '/^[A-Z_]+=/ {print $1, ($2=="" ? "EMPTY" : "set")}' .env`. The MinIO key pairs must be copied from the storage server's `.env`, never regenerated: `mc-init` registered exactly those pairs in MinIO:
 
   ```bash
   cd /opt/dofi && docker compose config -q && echo env-ok
@@ -258,6 +279,10 @@ This is the first release, and it also sets up nginx and the firewall, which rel
   ```
 
   If `pull` says the `:production` tag is not found, the image was never built: merge to `main` and wait for the green `Build & Push GHCR` job (section B).
+
+  **Status 2026-10-27:** `pull` and `db:prepare` done on the backend server. The four databases were created, the migrations and seeds ran, and 17 files were uploaded to MinIO, which proves backend to database and backend to MinIO. `up -d`, `ps`, logs and `/up` are still to do.
+
+  > **Warning: `db:prepare` on a new database runs the whole `db/seeds.rb`, which is not only reference data.** It also created demo records: 16 company profiles, 21 vessels, 23 crew, 24 fisherman users, 1 jetty manager, the Brunei ID sandbox users, and 11 manifests with notifications. The admin `admin@dofi.gov.bn` and the seeded users get the default password `ChangeMe123!` unless `ADMIN_DEFAULT_PASSWORD` is set in `.env` **before** the first `db:prepare` (it only applies when the row is created). Decide before opening port 80 to users: keep the demo data for acceptance testing and change every seeded password first, or reset the (still empty of real data) databases and seed only reference data.
 
 - [ ] The ROCBN registry answers (needs firewall row 12 and the account from section A). Read-only: it prints the account's privileges and warns if it holds more than `SELECT`:
 

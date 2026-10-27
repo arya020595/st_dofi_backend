@@ -7,12 +7,12 @@ module Attachments
     # content_type is detected from the file's magic bytes, not trusted from the client-reported
     # header — a mislabeled upload (e.g. a script sent with a spoofed "image/png" header) must
     # fail the model's own content-type validation, not be stored under a false type.
-    def self.call(file, service_name:)
+    def self.call(file)
       io = file.respond_to?(:open) ? file.open : file
       detected_content_type = Marcel::MimeType.for(io, name: file.original_filename)
       io.rewind
       ActiveStorage::Blob.create_and_upload!(io: io, filename: file.original_filename,
-                                             content_type: detected_content_type, service_name:)
+                                             content_type: detected_content_type)
     end
   end
 end

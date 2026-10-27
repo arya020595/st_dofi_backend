@@ -88,7 +88,9 @@ Notes:
   MySQL account must allow the backend server's address (`'<account>'@'10.252.8.12'`) and hold `SELECT` on
   `tdd_db.sync_rocbn_hotel` only. The application does not use LDAP/AD or port 3306 (they belonged to the previous
   servers). Existing rules for other systems on these hosts should stay as they are.
+- **Superseded 2026-10-27: browsers may not connect to the File Storage server at all.** They reach only the Web server (Frontend), which proxies `/api` to the Back End; only the Back End talks to storage. Row 3 is therefore **not requested**, and the topology in §2 (browser to MinIO, "file URLs from the API") no longer applies: files are relayed through the API (`/api/v1/attachments/:signed_id`). See [`docs/minio/STORAGE-PROTOCOL-OPTIONS.md`](../minio/STORAGE-PROTOCOL-OPTIONS.md) and [`docs/minio/UPLOAD-REGRESSION-2026-10-27.md`](../minio/UPLOAD-REGRESSION-2026-10-27.md).
 - No TLS yet (no domain), so ports 4100, 80 and 9000 are plain HTTP. With a domain, 80 is joined by 443 on the App Server.
+- **Status 2026-10-27, against the client's own table** (browser to web 4100, web to app 3000, app to DB 5432, app to storage 9000, app to AD 3268/3269 x3). Open and proven from the backend: rows 4, 5, 7. Still to request: row 12 (`9139`, refused), the user-facing rows 2 and 3 (browser to `80` and to `9000`; MinIO's console port `9001` is not published and is **not** needed), and row 6 once the BruneiID host is known. The client's "web to app `3000`" does not fit this design (`3000` is loopback only behind nginx): it is set aside for now, and needed again (as `80`) only if the web server proxies the API instead of the browser calling it directly (to confirm with the frontend team). Requested first: row 12 (`9139`) and browser to storage `9000`; the nginx alternative for files is in [`docs/minio/FILE-ACCESS-SEQUENCE.md`](../minio/FILE-ACCESS-SEQUENCE.md). The AD rows (3268/3269) are not used by this application.
 
 ## 4. Deploy
 

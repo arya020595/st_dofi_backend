@@ -13,7 +13,7 @@ module Api
           @headers = auth_headers_for(@user, password: @password)
         end
 
-        test "image_url is a direct public-bucket URL, not the private redirect endpoint" do
+        test "image_url is the authenticated attachments path, not a storage URL" do
           dictionary = create(:dictionary)
           dictionary.image.attach(io: StringIO.new("fake image bytes"), filename: "fish.png", content_type: "image/png")
 
@@ -22,8 +22,7 @@ module Api
           assert_response :ok
           image_url = response.parsed_body["data"]["image_url"]
 
-          assert_predicate image_url, :present?
-          assert_not_includes image_url, "/api/v1/attachments/"
+          assert_equal "/api/v1/attachments/#{dictionary.image.blob.signed_id}", image_url
         end
 
         test "image_url is nil when no image is attached" do

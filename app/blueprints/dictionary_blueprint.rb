@@ -6,14 +6,11 @@ class DictionaryBlueprint < Blueprinter::Base
   association :dictionary_group, blueprint: DictionaryGroupBlueprint
   association :dictionary_family, blueprint: DictionaryFamilyBlueprint
 
-  # Dictionary images live in the public-read bucket (see docs/minio/MINIO.md §2) — fish-species
-  # reference photos aren't sensitive, so this is a direct, stable, unsigned URL rather than our
-  # own redirect endpoint. Anyone with the URL can fetch it without going through Rails at all;
-  # that's the point of the public tier, not an oversight (contrast Attachments::PublicUrl, used
-  # by Api::V1::AttachmentsController for the private bucket).
+  # A relative path to the authenticated attachments endpoint, which relays the bytes: the browser never
+  # receives a storage URL (only the backend server may reach the file storage server).
   field :image_url do |dictionary|
     next nil unless dictionary.image.attached?
 
-    Attachments::AssetUrl.call(dictionary.image.blob)
+    Rails.application.routes.url_helpers.api_v1_attachment_path(dictionary.image.blob.signed_id)
   end
 end
