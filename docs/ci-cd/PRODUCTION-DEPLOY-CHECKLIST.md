@@ -27,14 +27,48 @@ Servers (hostname, IP, role):
 | Area | State |
 |---|---|
 | Database server (C1) and storage server (C2) | Set up earlier. Backend to database `5432` and backend to MinIO `9000` are open and **proven**: `db:prepare` created the four databases and uploaded 17 files to MinIO. |
-| Backend server prepared (C3) | Done: Docker group, `/opt/dofi`, GHCR login, the three files (checksums match), `.env` filled and validated. `BRUNEIID_*` and `SENTRY_DSN` are empty (not supplied yet); `ROCBN_DB_USERNAME=stuser`. |
+| Backend server prepared (C3) | Done: Docker group, `/opt/dofi`, GHCR login, the three files (checksums match), `.env` filled and validated. `SENTRY_DSN` is set and tested (2026-10-27: an event reached Sentry); `BRUNEIID_*` is empty (not supplied yet); `ROCBN_DB_USERNAME=stuser`. |
 | First run (D) | **Done 2026-10-27:** `pull`, `db:prepare`, `up -d --wait` (`api` and `jobs` healthy, image from `main` with the file relay), nginx vhost installed and the Ubuntu `default` site disabled, `rocbn:check` passes (185,324 rows). Frontend to backend works on **`http://10.252.8.12:3000`**: `/up` 200, CORS preflight allows `http://10.246.8.12:4100`, `/cable` upgrades (101). It needed nginx to listen on `10.252.8.12:3000` (and only there, no port 80) and a `firewalld` rich rule on the App server (runbook step 6); it was not the client's network. |
-| Seed data | `db:prepare` also loaded **demo data and default passwords** into this production database (see the warning in section D). **Open decision:** keep it for acceptance testing and change every seeded password before opening port 80, or reset the databases and seed reference data only. |
+| Seed data | **Decided 2026-10-27: keep the demo data for testing on production, with dummy data only.** The demo accounts still have the default password `ChangeMe123!` (seeded by `db:prepare`, see the warning in section D); change at least `admin@dofi.gov.bn` now, and **reset the databases and change every seeded password before any real data goes in** (to do item 3 below). |
 | Firewall, to request from the client | **Nothing left to request for the first round.** `9139` (ROCBN) is open and proven. Web to App `3000` is the client's own rule and works (the block was `firewalld` on our server, fixed). Users to storage `9000` is **not** requested: browsers reach only the Web server. BruneiID `443` waits for its hostname. **To ask the MySQL owner:** `stuser` holds `ALL PRIVILEGES` and may log in from any host (`rocbn:check` warns); the app only needs `SELECT` on `tdd_db.sync_rocbn_hotel`. |
 | Not needed | LDAP/AD `3268/3269` (the app does not use it); MinIO console `9001` (not published). |
 | File viewing (decision) | **Decided 2026-10-27: relay files through Rails.** The FE server may not reach storage either, and it proxies `/api` to the BE. Code is on branch `feat/relay-attachments` (tests, rubocop, rbac-lint, brakeman green; production route table has no Active Storage routes), **not yet merged, built or deployed**. The first deploy is not blocked: start the stack with the current image; until the relay image ships, testers can upload but not view files. Still to do: FE loader for Dictionary images, FE nginx proxy, FE to BE firewall port, run `dictionaries:migrate_images_to_minio` only if old blobs must move. |
 | Upload regression (2026-10-27) | Uploads re-tested after the relay change: vessel images, company documents, Dictionary create and update, spoofed type rejected, and an upload-then-fetch round trip. Full suite 776 runs, 0 failures (3 unrelated ROCBN errors). Not run against a real MinIO; verify one upload and one view on the App server after deploy. Record: [`UPLOAD-REGRESSION-2026-10-27.md`](../minio/UPLOAD-REGRESSION-2026-10-27.md). |
 | File viewing (analysis) | Client management drew "only the Back End talks to storage" and suggested NFS (2049) or SFTP (22). Our analysis, recommending to keep S3 on `9000` (already open) and build the relay: [`STORAGE-PROTOCOL-OPTIONS.md`](../minio/STORAGE-PROTOCOL-OPTIONS.md). Until it is released testers can upload but not view files. Open question for management. |
+
+## To do, in order (added 2026-10-27, so nothing is forgotten)
+
+The backend is deployed and reachable from the frontend server. Testing on production uses **dummy data only**. The list
+has two parts: what happens during testing, and what must be finished **before real data** goes in.
+
+### Now, during testing
+
+- [ ] Change the password of `admin@dofi.gov.bn` (it is still `ChangeMe123!`, published in the repo). Type it on the backend server, never in chat:
+
+  ```bash
+  cd /opt/dofi
+  read -rs -p "New admin password: " NEWPW; echo
+  docker compose exec -e NEWPW="$NEWPW" api bin/rails runner '
+    u = User.find_by!(email: "admin@dofi.gov.bn")
+    u.update!(password: ENV["NEWPW"], password_confirmation: ENV["NEWPW"])
+    puts "admin password updated"'
+  unset NEWPW
+  ```
+
+- [ ] Frontend team: call the API at `http://10.252.8.12:3000`; one JWT-authenticated loader for Dictionary images (no bare `<img src>`); their nginx proxies `/api` and `/cable` with bodies of at least 12 MB. Brief: [`FE-DISCUSSION-FILE-DELIVERY.md`](../minio/FE-DISCUSSION-FILE-DELIVERY.md).
+- [ ] Human end-to-end test from the frontend: log in, upload a vessel image and a PDF, open both again. This is the first real proof of upload and the file relay against the real MinIO (tests used the disk service); in the browser's Network tab no request may go to `10.252.8.13`. Record the result in [`UPLOAD-REGRESSION-2026-10-27.md`](../minio/UPLOAD-REGRESSION-2026-10-27.md).
+
+### After testing, before real data (nothing here blocks testing)
+
+| # | Item | Done when |
+|---|---|---|
+| 1 | **Backups.** Install the nightly `pg_dump` on the database server ([section G](#g-backups-minimum)) and copy it off the host. | A dump exists, is copied off-host, and one restore into a scratch database has been tested. |
+| 2 | **ROCBN account.** Ask the MySQL owner to limit `stuser` to `SELECT` on `tdd_db.sync_rocbn_hotel`, ideally only from `10.252.8.12` (today: `ALL PRIVILEGES` from any host, flagged by `rocbn:check`). | `bin/rails rocbn:check` on the backend no longer prints the `ALL PRIVILEGES` warning and the lookup still works. |
+| 3 | **Reset the demo data.** Reset the databases and seed reference data only, with `ADMIN_DEFAULT_PASSWORD` set before the first `db:prepare`; gate the demo seeds so they cannot run in production (small change in `db/seeds`, to write when the time comes). Only the databases on this server, only with explicit confirmation. | No `ChangeMe123!` account exists, no demo manifests or companies remain, reference data is back. |
+| 4 | **BruneiID.** Get the host and credentials from the client, fill `BRUNEIID_*` in `/opt/dofi/.env`, register the redirect URI (it must match character for character: see the [post-mortem](../incidents/POSTMORTEM-2026-10-02-brunei-id-redirect-uri-mismatch.md)), and ask for outbound `443` to that host. | A Brunei ID login completes from the frontend. |
+| 5 | **Domain and TLS.** HTTPS on the backend's nginx ([runbook, step 10](../../deploy/production/backend/README.md#10-later-a-domain-and-tls)), `FORCE_SSL=true`, `https://` origins in `CORS_ORIGINS` and `CABLE_ALLOWED_ORIGINS`, and `wss://` for the WebSocket. Tell the frontend team. | The frontend works over HTTPS with no mixed-content errors. |
+
+Also open, lower priority: Sentry events need outbound `443` to `*.ingest.us.sentry.io` (works today; add it to the client's whitelist so it survives a firewall review), and the rest of [section I](#i-not-done-yet).
 
 ## A. Get from the client
 
