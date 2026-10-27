@@ -24,9 +24,9 @@ Replace the placeholders: `<BACKEND_IP>` 10.252.8.12, `<DB_IP>` 10.252.8.23, `<S
 [the architecture doc](../../../docs/architecture/production-4-server-architecture.md#7-questions-for-the-client)).
 
 > **Port choice (decided 2026-10-27).** The client's firewall table already opens `10.246.8.12` to `10.252.8.12` on TCP
-> **3000**, so nginx listens on `10.252.8.12:3000` as well as on 80 (see [`nginx/dofi-api.conf`](nginx/dofi-api.conf)). Rails
+> **3000**, so nginx listens on `10.252.8.12:3000` and nowhere else (no port 80; see [`nginx/dofi-api.conf`](nginx/dofi-api.conf)). Rails
 > stays published on `127.0.0.1:3000`; the two bind different addresses, so nothing else changes. The frontend calls
-> `http://10.252.8.12:3000`. Port 80 stays for local checks and is not requested from the client.
+> `http://10.252.8.12:3000`. To check nginx from this host use `curl http://10.252.8.12:3000/up`; `127.0.0.1:3000` is Rails itself.
 
 ## 0. Look first (read-only)
 
@@ -126,9 +126,8 @@ from it.
 ```bash
 sudo cp /opt/dofi/nginx/dofi-api.conf /etc/nginx/sites-available/dofi-api
 sudo ln -sf /etc/nginx/sites-available/dofi-api /etc/nginx/sites-enabled/dofi-api
-sudo rm -f /etc/nginx/sites-enabled/default          # only if `default` was the only other site (step 0): it also claims port 80
 sudo nginx -t && sudo systemctl reload nginx         # reload keeps connections; never skip the -t
-curl -i http://127.0.0.1/up                          # 200, header `Server: nginx` without a version
+curl -i http://10.252.8.12:3000/up                   # 200, header `Server: nginx` without a version (127.0.0.1:3000 is Rails itself, not nginx)
 ```
 
 What the file does, so you can change it safely:

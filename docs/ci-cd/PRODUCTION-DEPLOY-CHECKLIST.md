@@ -1,7 +1,7 @@
 # Production deploy checklist (4 servers)
 
 Step-by-step to-do for putting the backend, file storage and database on the client's servers, reached by IP
-over plain HTTP (no domain or TLS yet; the backend sits behind nginx on port 80). Every tick below has its commands
+over plain HTTP (no domain or TLS yet; the backend sits behind nginx on port 3000). Every tick below has its commands
 inline; the explanations are in [`deploy/README.md`](../../deploy/README.md), the
 [backend runbook](../../deploy/production/backend/README.md) and the [database runbook](../../deploy/production/database/README.md);
 the design is in [`production-4-server-architecture.md`](../architecture/production-4-server-architecture.md). Tick the boxes in order.
@@ -28,7 +28,7 @@ Servers (hostname, IP, role):
 |---|---|
 | Database server (C1) and storage server (C2) | Set up earlier. Backend to database `5432` and backend to MinIO `9000` are open and **proven**: `db:prepare` created the four databases and uploaded 17 files to MinIO. |
 | Backend server prepared (C3) | Done: Docker group, `/opt/dofi`, GHCR login, the three files (checksums match), `.env` filled and validated. `BRUNEIID_*` and `SENTRY_DSN` are empty (not supplied yet); `ROCBN_DB_USERNAME=stuser`. |
-| First run (D) | **Done 2026-10-27:** `pull`, `db:prepare`, `up -d --wait` (`api` and `jobs` healthy, image from `main` with the file relay), nginx vhost installed and the Ubuntu `default` site disabled, `rocbn:check` passes (185,324 rows). Frontend to backend works on **`http://10.252.8.12:3000`**: `/up` 200, CORS preflight allows `http://10.246.8.12:4100`, `/cable` upgrades (101). It needed nginx to also listen on `10.252.8.12:3000` and a `firewalld` rich rule on the App server (runbook step 6); it was not the client's network. |
+| First run (D) | **Done 2026-10-27:** `pull`, `db:prepare`, `up -d --wait` (`api` and `jobs` healthy, image from `main` with the file relay), nginx vhost installed and the Ubuntu `default` site disabled, `rocbn:check` passes (185,324 rows). Frontend to backend works on **`http://10.252.8.12:3000`**: `/up` 200, CORS preflight allows `http://10.246.8.12:4100`, `/cable` upgrades (101). It needed nginx to listen on `10.252.8.12:3000` (and only there, no port 80) and a `firewalld` rich rule on the App server (runbook step 6); it was not the client's network. |
 | Seed data | `db:prepare` also loaded **demo data and default passwords** into this production database (see the warning in section D). **Open decision:** keep it for acceptance testing and change every seeded password before opening port 80, or reset the databases and seed reference data only. |
 | Firewall, to request from the client | **Nothing left to request for the first round.** `9139` (ROCBN) is open and proven. Web to App `3000` is the client's own rule and works (the block was `firewalld` on our server, fixed). Users to storage `9000` is **not** requested: browsers reach only the Web server. BruneiID `443` waits for its hostname. **To ask the MySQL owner:** `stuser` holds `ALL PRIVILEGES` and may log in from any host (`rocbn:check` warns); the app only needs `SELECT` on `tdd_db.sync_rocbn_hotel`. |
 | Not needed | LDAP/AD `3268/3269` (the app does not use it); MinIO console `9001` (not published). |
@@ -298,17 +298,16 @@ This is the first release, and it also sets up nginx and the firewall, which rel
   ```bash
   sudo cp /opt/dofi/nginx/dofi-api.conf /etc/nginx/sites-available/dofi-api
   sudo ln -sf /etc/nginx/sites-available/dofi-api /etc/nginx/sites-enabled/dofi-api
-  sudo rm -f /etc/nginx/sites-enabled/default                # only if `default` was the only other site: it also claims port 80
   sudo nginx -t && sudo systemctl reload nginx               # never skip the -t
-  curl -i http://127.0.0.1/up                                # 200
+  curl -i http://10.252.8.12:3000/up                         # 200 (this is nginx; 127.0.0.1:3000 is Rails itself)
   ```
 
-- [ ] Host firewall, only if `ufw` is active: SSH first, then port 80; never 3000 (step 6):
+- [x] Host firewall (step 6). This host runs `firewalld`, which rejects everything not listed. Allow only the frontend to 3000, without `--reload`:
 
   ```bash
-  sudo ufw status
-  sudo ufw allow OpenSSH                                     # or your SSH port, BEFORE enabling or reloading ufw
-  sudo ufw allow 80/tcp
+  RULE='rule family="ipv4" source address="10.246.8.12" port port="3000" protocol="tcp" accept'
+  sudo firewall-cmd --add-rich-rule="$RULE"
+  sudo firewall-cmd --permanent --add-rich-rule="$RULE"
   ```
 
 - [ ] From the frontend server (or any machine on the users' network), prove what a browser will meet (step 7):
@@ -361,7 +360,7 @@ CI has already built the image; the server only pulls it. Run this in the Deline
   sudo tail -n 50 /var/log/nginx/error.log
   ```
 
-- [ ] Give the frontend team the API URL `http://<BACKEND_IP>` (port 80, no port in the URL) and the WebSocket URL `ws://<BACKEND_IP>/cable`.
+- [ ] Give the frontend team the API URL `http://<BACKEND_IP>:3000` and the WebSocket URL `ws://<BACKEND_IP>:3000/cable`.
 
 ## G. Backups (minimum)
 

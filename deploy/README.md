@@ -1,6 +1,6 @@
 # deploy/: production on the client's servers
 
-One `docker-compose.yml` per server, reached by IP over plain HTTP (no domain, no TLS yet). The backend server has nginx on port 80 in front of Rails.
+One `docker-compose.yml` per server, reached by IP over plain HTTP (no domain, no TLS yet). The backend server has nginx on port 3000 (the port the client's firewall opens to the frontend) in front of Rails.
 Design and what comes later: [`docs/architecture/production-4-server-architecture.md`](../docs/architecture/production-4-server-architecture.md).
 The backend CD (`cd-production.yml`) deploys this layout once the servers are prepared: follow [the checklist](../docs/ci-cd/PRODUCTION-DEPLOY-CHECKLIST.md) first.
 
@@ -8,7 +8,7 @@ The backend CD (`cd-production.yml`) deploys this layout once the servers are pr
 |---|---|---|
 | [`production/database/`](production/database/README.md) | database | PostgreSQL 16, native (apt), no Docker |
 | [`production/storage/`](production/storage/) | file storage | MinIO |
-| [`production/backend/`](production/backend/README.md) | backend | nginx (host, port 80), Rails `api` and `jobs` |
+| [`production/backend/`](production/backend/README.md) | backend | nginx (host, port 3000), Rails `api` and `jobs` |
 
 ## On every server, once
 
@@ -33,7 +33,7 @@ Values that travel between servers:
 - The frontend's address goes into the backend's `CORS_ORIGINS` and `CABLE_ALLOWED_ORIGINS`.
 
 The order matters: the first `db:prepare` creates the four databases and seeds reference data including images,
-so the database and MinIO (with `mc-init` done) must already be running. Check it works: `curl http://<backend-ip>/up` (nginx on port 80; Rails itself answers only on the server's loopback).
+so the database and MinIO (with `mc-init` done) must already be running. Check it works: `curl http://<backend-ip>:3000/up` from the frontend server (that is nginx; Rails itself answers only on the server's loopback).
 
 ## Things to know
 
