@@ -22,11 +22,8 @@ module Dictionaries
     # Uploads eagerly, before dictionary.update touches the database at all — otherwise the other
     # attribute changes commit first and a storage failure afterward leaves the record partially
     # updated with a broken image reference.
-    #
-    # service_name must match Dictionary's has_one_attached :image service — Attachments::
-    # UploadFromParam otherwise has no way to know which of the two buckets this belongs on.
     def uploaded_blob_for(image)
-      Attachments::UploadFromParam.call(image, service_name: Rails.application.config.x.active_storage_public_service)
+      Attachments::UploadFromParam.call(image)
     end
   end
 end

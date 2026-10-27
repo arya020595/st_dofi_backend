@@ -9,6 +9,7 @@ name: dofi-backend-production
 # - Rails API: Docker, port 3000 (localhost only)
 # - Solid Queue: Docker background worker
 # - PostgreSQL: External server (10.252.8.23)
+# - ROCBN company registry: read-only MySQL on that same host (10.252.8.23:9139), reached through ROCBN_DB_* in .env
 # - MinIO: External server (10.252.8.13)
 #
 # Deployment:

@@ -146,6 +146,13 @@ nano /opt/<service-name>/.env
 
 Fill it in using `.env.example` from the repo as the checklist of required keys.
 
+> **Staging also runs a small MySQL stand-in for the ROCBN company registry** (`rocbn-mysql` in
+> `docker-compose.staging.yml`). Add three hex secrets to the server `.env` **before the first deploy that
+> contains it**: `ROCBN_MYSQL_ROOT_PASSWORD`, `ROCBN_DB_PASSWORD` (the read-only account the API uses) and
+> `ROCBN_SEED_DB_PASSWORD` (the account that loads the synthetic companies). Generate each with
+> `openssl rand -hex 16`: they are interpolated into SQL, so no quotes or backslashes. Without them only that
+> container fails to start; the rest of staging deploys normally. Details: [`docs/rocbn/company-lookup.md`](../rocbn/company-lookup.md).
+
 > Each service on a shared server must use **different host ports**. Check what's already bound
 > before picking one:
 > ```bash

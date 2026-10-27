@@ -6,6 +6,8 @@ ms:
     storage_failed: "Muat naik imej gagal. Sila cuba lagi."
     account_not_found: "Akaun tidak dijumpai."
     company_contact_not_found: "Tiada kenalan syarikat sepadan dengan nombor IC ini."
+    rocbn_search_criteria_required: "Masukkan nama syarikat atau nombor ROCBN untuk membuat carian."
+    rocbn_unavailable: "Pendaftar syarikat tidak tersedia buat sementara waktu. Sila cuba lagi nanti."
   activerecord:
     attributes:
       user:

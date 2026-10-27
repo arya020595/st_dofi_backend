@@ -16,14 +16,13 @@ module Api
         assert_response :unauthorized
       end
 
-      test "redirects to a freshly signed storage URL when the user is authorized" do
+      test "serves the file to an authorized user instead of redirecting to storage" do
         headers = auth_headers_for(user_with_permission("dictionaries.view"), password: @password)
 
         get "/api/v1/attachments/#{@signed_id}", headers: headers
 
-        assert_response :found
-        assert_predicate response.headers["Location"], :present?
-        assert_equal %w[max-age=0 private], response.headers["Cache-Control"].split(", ").sort
+        assert_response :ok
+        assert_nil response.headers["Location"]
       end
 
       test "forbids a user without permission on the owning record" do
@@ -42,22 +41,22 @@ module Api
         assert_response :not_found
       end
 
-      test "redirects an officer with company_profiles.view to a company vessel image" do
+      test "serves an officer with company_profiles.view a company vessel image" do
         image = vessel_image
         headers = auth_headers_for(user_with_permission("company_profiles.view"), password: @password)
 
         get "/api/v1/attachments/#{image.blob.signed_id}", headers: headers
 
-        assert_response :found
+        assert_response :ok
       end
 
-      test "redirects an officer with company_profiles.view to a company document file" do
+      test "serves an officer with company_profiles.view a company document file" do
         document = create(:companies_document)
         headers = auth_headers_for(user_with_permission("company_profiles.view"), password: @password)
 
         get "/api/v1/attachments/#{document.file.blob.signed_id}", headers: headers
 
-        assert_response :found
+        assert_response :ok
       end
 
       test "lets a fisherman fetch their own company's vessel image but not another company's" do
@@ -67,7 +66,7 @@ module Api
 
         get "/api/v1/attachments/#{image.blob.signed_id}", headers: auth_headers_for(own, password: @password)
 
-        assert_response :found
+        assert_response :ok
 
         get "/api/v1/attachments/#{image.blob.signed_id}", headers: auth_headers_for(other, password: @password)
 

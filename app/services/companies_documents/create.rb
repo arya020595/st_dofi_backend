@@ -21,7 +21,7 @@ module CompaniesDocuments
     def attach_and_save(document, file)
       return reject(document, "must be smaller than 10 MB") if file.size > CompaniesDocument::MAX_FILE_SIZE
 
-      blob = Attachments::UploadFromParam.call(file, service_name: nil)
+      blob = Attachments::UploadFromParam.call(file)
       unless CompaniesDocument::ALLOWED_CONTENT_TYPES.include?(blob.content_type)
         blob.purge
         return reject(document, "must be a PDF")

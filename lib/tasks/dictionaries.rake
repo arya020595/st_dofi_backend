@@ -13,11 +13,10 @@ def migrate_dictionary_blob!(blob, target_service, target_service_name, dry_run:
 end
 
 namespace :dictionaries do
-  desc "Copy Dictionary image blobs to Dictionary's configured Active Storage service (the " \
-       "public assets bucket — see docs/minio/MINIO.md §2 and config.x.active_storage_public_service). " \
+  desc "Copy Dictionary image blobs to the default Active Storage service (the private bucket). " \
        "Idempotent — only touches blobs not already there. Pass DRY_RUN=1 to preview without writing."
   task migrate_images_to_minio: :environment do
-    target_service_name = Rails.application.config.x.active_storage_public_service.to_s
+    target_service_name = Rails.application.config.active_storage.service.to_s
     target_service = ActiveStorage::Blob.services.fetch(target_service_name)
     dry_run = ActiveModel::Type::Boolean.new.cast(ENV.fetch("DRY_RUN", nil))
 

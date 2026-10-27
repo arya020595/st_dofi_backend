@@ -10,6 +10,10 @@ gem "puma", ">= 5.0"
 gem "rails", "~> 8.1.3"
 gem "tzinfo-data", platforms: %i[windows jruby]
 
+# External read-only MySQL (ROCBN company registry, docs/rocbn/company-lookup.md). 2.11+ authenticates
+# against MySQL 8's default caching_sha2_password over plain TCP; the client is vendored, so no OS packages.
+gem "trilogy", "~> 2.11"
+
 # Use the database-backed adapters for Rails.cache and Active Job (no Redis)
 gem "solid_cache"
 gem "solid_queue"

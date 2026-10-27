@@ -18,6 +18,32 @@ services:
       timeout: 5s
       retries: 10
 
+  # Stand-in for the client's read-only ROCBN company registry (production reads their native MySQL; see
+  # docs/rocbn/company-lookup.md). The first start of an empty volume creates tdd_db + sync_rocbn_hotel (from
+  # db/rocbn/schema.sql), the SELECT-only rocbn_reader account and the tdd_db_test database; `rocbn:seed` then
+  # loads the synthetic rows. Published on loopback only, for local SQL clients.
+  rocbn-mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${ROCBN_MYSQL_ROOT_PASSWORD:-rocbn_root_local}
+      MYSQL_DATABASE: tdd_db
+      MYSQL_USER: rocbn_seed
+      MYSQL_PASSWORD: ${ROCBN_SEED_DB_PASSWORD:-rocbn_seed_local}
+      ROCBN_READER_PASSWORD: ${ROCBN_DB_PASSWORD:-rocbn_reader_local}
+    volumes:
+      - dofi_rocbn_mysql_data:/var/lib/mysql
+      - ./db/rocbn/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./docker/rocbn-mysql/02-users.sh:/docker-entrypoint-initdb.d/02-users.sh:ro
+    ports:
+      - "127.0.0.1:${ROCBN_MYSQL_HOST_PORT:-3307}:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # No depends_on for rocbn-mysql: the API must boot, and keep serving everything else, without the registry.
   api:
     build:
       context: .
@@ -33,6 +59,22 @@ services:
       DATABASE_USERNAME: ${DATABASE_USERNAME:-postgres}
       DATABASE_PASSWORD: ${DATABASE_PASSWORD:-postgres}
       DATABASE_NAME: ${DATABASE_NAME:-dofi_backend_development}
+      # ROCBN registry: runtime (SELECT-only reader), `rocbn:seed` (seed account) and the test suite's own database.
+      ROCBN_DB_HOST: rocbn-mysql
+      ROCBN_DB_PORT: 3306
+      ROCBN_DB_NAME: tdd_db
+      ROCBN_DB_USERNAME: rocbn_reader
+      ROCBN_DB_PASSWORD: ${ROCBN_DB_PASSWORD:-rocbn_reader_local}
+      ROCBN_SEED_DB_HOST: rocbn-mysql
+      ROCBN_SEED_DB_PORT: 3306
+      ROCBN_SEED_DB_NAME: tdd_db
+      ROCBN_SEED_DB_USERNAME: rocbn_seed
+      ROCBN_SEED_DB_PASSWORD: ${ROCBN_SEED_DB_PASSWORD:-rocbn_seed_local}
+      ROCBN_TEST_DB_HOST: rocbn-mysql
+      ROCBN_TEST_DB_PORT: 3306
+      ROCBN_TEST_DB_NAME: tdd_db_test
+      ROCBN_TEST_DB_USERNAME: rocbn_seed
+      ROCBN_TEST_DB_PASSWORD: ${ROCBN_SEED_DB_PASSWORD:-rocbn_seed_local}
     env_file:
       - .env
     ports:
@@ -66,4 +108,5 @@ services:
 
 volumes:
   dofi_postgres_data:
+  dofi_rocbn_mysql_data:
   dofi_bundle:

@@ -19,9 +19,11 @@ nginx on port 80 as its only public entry, with Rails on the loopback behind it
 | Frontend (Web Server) | OGCMET001WPD001 | 10.246.8.12 | SPA (:4100), built and deployed by the frontend repo | frontend repo |
 | Database | OGCMPT003API001 | 10.252.8.23 | PostgreSQL 16, native from Ubuntu's apt (:5432), no Docker | [`deploy/production/database/`](../../deploy/production/database/README.md) |
 
-The database host also runs MySQL 8.0 for another system. PostgreSQL is a separate package with its own port
-(5432) and data directory, so it does not touch MySQL. The application connects as a dedicated non-superuser role
-(`dofi`, `LOGIN CREATEDB`), only from the backend server. Docker on that host is a fallback only
+The database host also runs MySQL 8.0 for another system (port 9139). PostgreSQL is a separate package with its own
+port (5432) and data directory, so it does not touch MySQL. The application connects to PostgreSQL as a dedicated
+non-superuser role (`dofi`, `LOGIN CREATEDB`), only from the backend server. It also **reads** one table from that
+MySQL, `tdd_db.sync_rocbn_hotel`, with an account that holds `SELECT` only, for the Add Profiling company lookup: see
+[`docs/rocbn/company-lookup.md`](../rocbn/company-lookup.md). Docker on that host is a fallback only
 ([`deploy/production/database/docker/`](../../deploy/production/database/docker/)), if a native install is not allowed.
 
 ## 2. Topology
@@ -39,6 +41,7 @@ graph TB
     end
     MINIO[("API002 - MinIO :9000<br/>private + public-assets buckets")]
     PG[("DB host - PostgreSQL 16 :5432<br/>private IP only")]
+    REG[("DB host - MySQL :9139<br/>ROCBN registry, read-only")]
 
     USER -->|"HTTP"| FE
     USER -->|"HTTP + WebSocket, JWT"| NGINX
@@ -46,6 +49,7 @@ graph TB
     USER -->|"HTTP, file URLs from the API"| MINIO
     API --> PG
     JOBS --> PG
+    API -->|"SELECT only"| REG
     API -->|"S3 API"| MINIO
     JOBS --> MINIO
     API -->|"OIDC, outbound"| BID
@@ -73,15 +77,20 @@ The rules to request from the client's network team. **Send this before anything
 | 9 | 10.252.8.23 | archive.ubuntu.com, security.ubuntu.com (or the client's internal apt mirror) | 80/443 | DB Server installs and updates the `postgresql-16` package (outbound) |
 | 10 | Admin / VPN / Delinea | 10.246.8.12, 10.252.8.12, 10.252.8.13, 10.252.8.23 | 22 | Operations access to all servers |
 | 11 | 10.252.8.12 | Approach B hosts (list below) | 443 (80 for Debian) | **Precaution only:** build the image on the App Server if CI or ghcr.io is down; requested as a permanent whitelist so an urgent hotfix is not delayed |
+| 12 | 10.252.8.12 | 10.252.8.23 | 9139 | App Server to the existing MySQL 8.0 on the DB host: read-only ROCBN company lookup (`tdd_db.sync_rocbn_hotel`), App Server only |
 
 Notes:
 - Rows 6 to 9 are hostnames, not fixed IPs. Please allow them by hostname (FQDN) or through the client's proxy.
 - Row 9 is not needed if the client has an internal apt mirror, or installs the package another way.
 - Row 11 (Approach B, requested by the client's team): `ssh.github.com` (git over SSH on 443), `github.com`, Docker Hub (`registry-1.docker.io`, `auth.docker.io`, `index.docker.io`, `production.cloudflare.docker.com`, the `docker-images-prod...r2.cloudflarestorage.com` host), Debian (`deb.debian.org`, `security.debian.org`, ports 80 and 443) and RubyGems (`rubygems.org`, `index.rubygems.org`, `api.rubygems.org`, `production.cf.rubygems.org`). This app has no Node dependencies and no gem from GitHub, so npm, Yarn, `nodejs.org` and the extra GitHub API/CDN hosts (`api.`, `codeload.`, `raw.`, `objects.`, `release-assets.`) are not needed. No inbound rule from GitHub is needed anywhere.
 - Row 5: besides the network firewall, the database server accepts only the backend server (`pg_hba.conf`, and `ufw` if active).
-- The application does not use LDAP/AD, MySQL or ports 9139/3306 (they belonged to the previous servers), so none are requested.
-  Existing rules for other systems on these hosts should stay as they are.
+- Row 12 is the only MySQL path: the application reads one registry table and writes nothing. Besides the firewall, the
+  MySQL account must allow the backend server's address (`'<account>'@'10.252.8.12'`) and hold `SELECT` on
+  `tdd_db.sync_rocbn_hotel` only. The application does not use LDAP/AD or port 3306 (they belonged to the previous
+  servers). Existing rules for other systems on these hosts should stay as they are.
+- **Superseded 2026-10-27: browsers may not connect to the File Storage server at all.** They reach only the Web server (Frontend), which proxies `/api` to the Back End; only the Back End talks to storage. Row 3 is therefore **not requested**, and the topology in §2 (browser to MinIO, "file URLs from the API") no longer applies: files are relayed through the API (`/api/v1/attachments/:signed_id`). See [`docs/minio/STORAGE-PROTOCOL-OPTIONS.md`](../minio/STORAGE-PROTOCOL-OPTIONS.md) and [`docs/minio/UPLOAD-REGRESSION-2026-10-27.md`](../minio/UPLOAD-REGRESSION-2026-10-27.md).
 - No TLS yet (no domain), so ports 4100, 80 and 9000 are plain HTTP. With a domain, 80 is joined by 443 on the App Server.
+- **Status 2026-10-27, against the client's own table** (browser to web 4100, web to app 3000, app to DB 5432, app to storage 9000, app to AD 3268/3269 x3). Open and proven from the backend: rows 4, 5, 7. Still to request: row 12 (`9139`, refused), the user-facing rows 2 and 3 (browser to `80` and to `9000`; MinIO's console port `9001` is not published and is **not** needed), and row 6 once the BruneiID host is known. The client's "web to app `3000`" does not fit this design (`3000` is loopback only behind nginx): it is set aside for now, and needed again (as `80`) only if the web server proxies the API instead of the browser calling it directly (to confirm with the frontend team). Requested first: row 12 (`9139`) and browser to storage `9000`; the nginx alternative for files is in [`docs/minio/FILE-ACCESS-SEQUENCE.md`](../minio/FILE-ACCESS-SEQUENCE.md). The AD rows (3268/3269) are not used by this application.
 
 ## 4. Deploy
 
@@ -116,7 +125,7 @@ clone, using [`docker-compose.build.yml`](../../deploy/production/backend/docker
 ## 7. Questions for the client
 
 1. **Web and App IPs:** the server table says 10.246.8.12 and 10.252.8.12, but the previous firewall table used 10.246.8.11 and 10.252.8.11. Which is right?
-2. Working `sudo` on the database host (`localadmin`), and approval to install the `postgresql-16` package there. What owns the listener on port 9139?
+2. Working `sudo` on the database host (`localadmin`), and approval to install the `postgresql-16` package there. Port 9139 is the existing MySQL that holds the ROCBN registry (row 12): which account may the backend server (10.252.8.12) use, is it limited to `SELECT` on `tdd_db.sync_rocbn_hotel`, and which authentication plugin does it use?
 3. The users' source range (LAN/VPN) for ports 4100, 80 and 9000, and the BruneiID hostname. If port 3000 was already requested for the App Server, see the "Port choice" note in the [backend runbook](../../deploy/production/backend/README.md).
 4. CPU, RAM and disk per server, and where backups may be copied.
 5. The whitelist the client's team sent covers the App Server only: does the database server also get outbound access for `apt` (row 9), and the storage server for `ghcr.io` (row 8)?

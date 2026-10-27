@@ -299,6 +299,12 @@ so the FE's "Select & Search Company" flow can find an existing company when pro
 person. `index` and `show` both render one entry per company, with `owner_profile`/`admin_profile`
 nested from `CompanyProfile#owner_contact`/`#admin_contact`.
 
+That list only knows companies **already profiled in DoFi**. Profiling a *new* company starts with the national
+registry instead: `GET /api/v1/admin/rocbn/companies` searches the external, read-only ROCBN table and its detail
+endpoint autofills the form (company name, address, `rocbn_no`, `contact_no`, district, mukim, village), without saving
+anything — see [`docs/rocbn/company-lookup.md`](../rocbn/company-lookup.md). If the chosen company already has a
+profile (`GET /api/v1/admin/company_profiles?q[rocbn_no_eq]=...`), adding a second person is the flow above.
+
 **Migration note**: this replaced an earlier design where `CompanyProfile` held both company- and
 person-level fields directly (one row per person, Owner+Admin linked only by matching `rocbn_no` +
 `company_name` text). That design allowed the pairing to silently desync on edit and had no real way
