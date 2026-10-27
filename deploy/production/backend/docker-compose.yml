@@ -5,7 +5,7 @@ name: dofi-backend-production
 # Server: OGCMET001API001 (10.252.8.12)
 #
 # Architecture:
-# - Nginx: Native on host, port 80
+# - Nginx: Native on host, listens on 10.252.8.12:3000 (see nginx/dofi-api.conf)
 # - Rails API: Docker, port 3000 (localhost only)
 # - Solid Queue: Docker background worker
 # - PostgreSQL: External server (10.252.8.23)

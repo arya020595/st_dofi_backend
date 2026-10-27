@@ -7,14 +7,14 @@
 
 The client provides five servers; we use four, **one role per server**. The scope is deliberately small: put the
 stacks on the servers and reach them by IP over plain HTTP. There is no domain yet, so no TLS. The backend server runs
-nginx on port 80 as its only public entry, with Rails on the loopback behind it
+nginx on port 3000 (the port the client's firewall opens to the frontend) as its only public entry, with Rails on the loopback behind it
 ([runbook](../../deploy/production/backend/README.md)).
 
 ## 1. Servers
 
 | Role | Host | IP | Runs | Files |
 |---|---|---|---|---|
-| Backend (App Server) | OGCMET001API001 | 10.252.8.12 | nginx (:80, on the host) in front of Rails `api` (127.0.0.1:3000) and `jobs`, in Docker | [`deploy/production/backend/`](../../deploy/production/backend/) |
+| Backend (App Server) | OGCMET001API001 | 10.252.8.12 | nginx (:3000 on 10.252.8.12, on the host) in front of Rails `api` (127.0.0.1:3000) and `jobs`, in Docker | [`deploy/production/backend/`](../../deploy/production/backend/) |
 | File storage | OGCMET001API002 | 10.252.8.13 | MinIO (:9000), in Docker | [`deploy/production/storage/`](../../deploy/production/storage/) |
 | Frontend (Web Server) | OGCMET001WPD001 | 10.246.8.12 | SPA (:4100), built and deployed by the frontend repo | frontend repo |
 | Database | OGCMPT003API001 | 10.252.8.23 | PostgreSQL 16, native from Ubuntu's apt (:5432), no Docker | [`deploy/production/database/`](../../deploy/production/database/README.md) |
@@ -35,7 +35,7 @@ graph TB
 
     FE["WPD001 - frontend<br/>SPA"]
     subgraph BE["API001 - backend"]
-        NGINX["nginx :80"]
+        NGINX["nginx :3000"]
         API["api 127.0.0.1:3000"]
         JOBS["jobs - Solid Queue"]
     end
@@ -67,7 +67,7 @@ The rules to request from the client's network team. **Send this before anything
 | No | Source IP | Destination IP | Port | Remark |
 |---|---|---|---|---|
 | 1 | Users (client LAN/VPN range, TBC) | 10.246.8.12 | 4100 | Browser to Web Server (frontend) |
-| 2 | Users (client LAN/VPN range, TBC) | 10.252.8.12 | 80 | Browser to App Server (nginx, then API + WebSocket; port 3000 is loopback only and not requested) |
+| 2 | 10.246.8.12 (Web Server) | 10.252.8.12 | 3000 | Web Server to App Server (the client's own rule; nginx listens here and forwards to Rails on the loopback; browsers never call the App Server directly) |
 | 3 | Users (client LAN/VPN range, TBC) | 10.252.8.13 | 9000 | Browser to File Storage Server (MinIO file URLs) |
 | 4 | 10.252.8.12 | 10.252.8.13 | 9000 | App Server to File Storage Server (uploads, S3 API) |
 | 5 | 10.252.8.12 | 10.252.8.23 | 5432 | App Server to DB Server (PostgreSQL 16, App Server only) |
@@ -89,7 +89,8 @@ Notes:
   `tdd_db.sync_rocbn_hotel` only. The application does not use LDAP/AD or port 3306 (they belonged to the previous
   servers). Existing rules for other systems on these hosts should stay as they are.
 - **Superseded 2026-10-27: browsers may not connect to the File Storage server at all.** They reach only the Web server (Frontend), which proxies `/api` to the Back End; only the Back End talks to storage. Row 3 is therefore **not requested**, and the topology in §2 (browser to MinIO, "file URLs from the API") no longer applies: files are relayed through the API (`/api/v1/attachments/:signed_id`). See [`docs/minio/STORAGE-PROTOCOL-OPTIONS.md`](../minio/STORAGE-PROTOCOL-OPTIONS.md) and [`docs/minio/UPLOAD-REGRESSION-2026-10-27.md`](../minio/UPLOAD-REGRESSION-2026-10-27.md).
-- No TLS yet (no domain), so ports 4100, 80 and 9000 are plain HTTP. With a domain, 80 is joined by 443 on the App Server.
+- **Update 2026-10-27: Web to App on `3000` is the port in use, and it works** (`curl http://10.252.8.12:3000/up` from the Web server returns 200, CORS preflight and the `/cable` WebSocket handshake pass). Two things had to be fixed on the App server itself, neither on the client's network: nginx now listens on `10.252.8.12:3000` only, and the host's **`firewalld`** (zone `public`, which allowed only ssh and a few agent ports) got a rich rule allowing `10.246.8.12` to port 3000. The earlier "No route to host" / "Couldn't connect" was `firewalld` answering `ICMP admin prohibited`, seen with `tcpdump` on the App server; see the [runbook, step 6](../../deploy/production/backend/README.md#6-host-firewall). nginx does not listen on port 80 any more, and it is not requested from the client.
+- No TLS yet (no domain), so ports 4100, 3000 and 9000 are plain HTTP. With a domain, 443 is added on the App Server.
 - **Status 2026-10-27, against the client's own table** (browser to web 4100, web to app 3000, app to DB 5432, app to storage 9000, app to AD 3268/3269 x3). Open and proven from the backend: rows 4, 5, 7. Still to request: row 12 (`9139`, refused), the user-facing rows 2 and 3 (browser to `80` and to `9000`; MinIO's console port `9001` is not published and is **not** needed), and row 6 once the BruneiID host is known. The client's "web to app `3000`" does not fit this design (`3000` is loopback only behind nginx): it is set aside for now, and needed again (as `80`) only if the web server proxies the API instead of the browser calling it directly (to confirm with the frontend team). Requested first: row 12 (`9139`) and browser to storage `9000`; the nginx alternative for files is in [`docs/minio/FILE-ACCESS-SEQUENCE.md`](../minio/FILE-ACCESS-SEQUENCE.md). The AD rows (3268/3269) are not used by this application.
 
 ## 4. Deploy
@@ -114,7 +115,7 @@ clone, using [`docker-compose.build.yml`](../../deploy/production/backend/docker
 | No TLS | Passwords, JWTs and personal data cross the network in clear |
 | One database, one MinIO, one backend, no replicas | Any of them down means that part is down; a release causes a short API restart |
 | No backups configured | A nightly `pg_dump` copied off the server is the minimum before go-live |
-| Ports 4100, 80 and 9000 open to users | Needed until a domain and proxy exist (the App Server already has nginx; the frontend and MinIO ports are served directly) |
+| Ports 4100, 3000 and 9000 open | Needed until a domain and proxy exist (the App Server already has nginx; the frontend and MinIO ports are served directly) |
 
 ## 6. Later
 
@@ -126,6 +127,6 @@ clone, using [`docker-compose.build.yml`](../../deploy/production/backend/docker
 
 1. **Web and App IPs:** the server table says 10.246.8.12 and 10.252.8.12, but the previous firewall table used 10.246.8.11 and 10.252.8.11. Which is right?
 2. Working `sudo` on the database host (`localadmin`), and approval to install the `postgresql-16` package there. Port 9139 is the existing MySQL that holds the ROCBN registry (row 12): which account may the backend server (10.252.8.12) use, is it limited to `SELECT` on `tdd_db.sync_rocbn_hotel`, and which authentication plugin does it use?
-3. The users' source range (LAN/VPN) for ports 4100, 80 and 9000, and the BruneiID hostname. If port 3000 was already requested for the App Server, see the "Port choice" note in the [backend runbook](../../deploy/production/backend/README.md).
+3. The users' source range (LAN/VPN) for port 4100, and the BruneiID hostname. Web to App uses port 3000 (see the "Port choice" note in the [backend runbook](../../deploy/production/backend/README.md).
 4. CPU, RAM and disk per server, and where backups may be copied.
 5. The whitelist the client's team sent covers the App Server only: does the database server also get outbound access for `apt` (row 9), and the storage server for `ghcr.io` (row 8)?
