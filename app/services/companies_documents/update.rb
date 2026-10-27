@@ -20,7 +20,7 @@ module CompaniesDocuments
     private
 
     def attach_valid_pdf(document, file)
-      blob = Attachments::UploadFromParam.call(file, service_name: nil)
+      blob = Attachments::UploadFromParam.call(file)
       unless CompaniesDocument::ALLOWED_CONTENT_TYPES.include?(blob.content_type)
         blob.purge
         return reject(document, "must be a PDF")

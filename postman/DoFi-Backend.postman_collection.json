@@ -7177,7 +7177,7 @@
                 "{{companies_vessel_id}}"
               ]
             },
-            "description": "`images` is an object keyed by view (`front`, `back`, `left`, `right`); each value is `null` or `{ url, filename }` where `url` is a `/api/v1/attachments/:signed_id` path, for images attached via \"Upload Vessel Images\" below. Vessel images are private: request each path with the same Authorization header — it answers 302 to a short-lived signed storage URL after re-checking company_profiles.view (and company ownership for fishermen). Requires companies_vessels.view."
+            "description": "`images` is an object keyed by view (`front`, `back`, `left`, `right`); each value is `null` or `{ url, filename }` where `url` is a `/api/v1/attachments/:signed_id` path, for images attached via \"Upload Vessel Images\" below. Vessel images are private: request each path with the same Authorization header — it answers 200 with the file bytes after re-checking company_profiles.view (and company ownership for fishermen). Requires companies_vessels.view."
           },
           "event": [
             {
@@ -7616,7 +7616,7 @@
     },
     {
       "name": "Companies - Documents",
-      "description": "Fisherman-facing upload for CompaniesDocument, nested under a CompanyProfile (/api/v1/company_profiles/:company_profile_id/documents). Six fixed document_type values: company_registration, surat_tawaran, foreign_worker_license, white_card, fishing_gear_license, insurance_document — one document per type per company profile (re-uploading the same type replaces the file rather than creating a second row). PDF only (application/pdf, detected from the file's real bytes via Marcel — not the client-claimed Content-Type), max 10MB (CompaniesDocument::ALLOWED_CONTENT_TYPES/MAX_FILE_SIZE). Stored on the private MinIO bucket (see docs/minio/MINIO.md) — document_url in the response is our own /api/v1/attachments/:signed_id redirect endpoint, never a direct storage URL. Every document starts approval_status: pending (see Approvals - Documents below); replacing the file on an approved/amendment_required document automatically reverts it to pending via Approvable#revert_to_pending_for_edit!. No show/destroy actions — index/create/update only. Requires companies_documents.*.\n\nRun \"Create Profiling (Owner + Admin)\" in the Profiling folder first so company_profile_id is set.",
+      "description": "Fisherman-facing upload for CompaniesDocument, nested under a CompanyProfile (/api/v1/company_profiles/:company_profile_id/documents). Six fixed document_type values: company_registration, surat_tawaran, foreign_worker_license, white_card, fishing_gear_license, insurance_document — one document per type per company profile (re-uploading the same type replaces the file rather than creating a second row). PDF only (application/pdf, detected from the file's real bytes via Marcel — not the client-claimed Content-Type), max 10MB (CompaniesDocument::ALLOWED_CONTENT_TYPES/MAX_FILE_SIZE). Stored on the private MinIO bucket (see docs/minio/MINIO.md) — document_url in the response is our own /api/v1/attachments/:signed_id endpoint (it relays the file bytes), never a direct storage URL. Every document starts approval_status: pending (see Approvals - Documents below); replacing the file on an approved/amendment_required document automatically reverts it to pending via Approvable#revert_to_pending_for_edit!. No show/destroy actions — index/create/update only. Requires companies_documents.*.\n\nRun \"Create Profiling (Owner + Admin)\" in the Profiling folder first so company_profile_id is set.",
       "item": [
         {
           "name": "List Documents",
@@ -7710,7 +7710,7 @@
                 "exec": [
                   "pm.test('Status is 201', () => pm.response.to.have.status(201));",
                   "pm.test('approval_status is pending', () => pm.expect(pm.response.json().data.approval_status).to.eql('pending'));",
-                  "pm.test('document_url is the private attachment redirect', () => pm.expect(pm.response.json().data.document_url).to.include('/api/v1/attachments/'));",
+                  "pm.test('document_url is the private attachment endpoint', () => pm.expect(pm.response.json().data.document_url).to.include('/api/v1/attachments/'));",
                   "if (pm.response.json().data) { pm.collectionVariables.set('companies_document_id', pm.response.json().data.id); }"
                 ]
               }

@@ -1,3 +1,5 @@
+> **Superseded (2026-10-27): browsers no longer reach MinIO; the API relays files. Kept for reference.** See [`PLAN-SINGLE-PRIVATE-BUCKET.md`](PLAN-SINGLE-PRIVATE-BUCKET.md).
+
 # Tutorial: Setting Up MinIO's Public-Facing Proxy (Correctly)
 
 Step-by-step, verified-by-hand setup for making MinIO URLs reachable from a browser, without ever

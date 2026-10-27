@@ -21,12 +21,10 @@ Rails.application.configure do
   # Store uploaded files on MinIO (S3-compatible; see config/storage.yml for options).
   config.active_storage.service = :minio
 
-  # Public-read bucket for content where a leaked URL isn't a concern (see docs/minio/MINIO.md §2 and
-  # config/storage.yml's minio_assets/minio_assets_public blocks) — a separate MinIO bucket with
-  # separate scoped credentials from the private `minio:` service above, not just a different
-  # prefix in the same bucket. Models opt in via `has_one_attached ..., service:
-  # Rails.application.config.x.active_storage_public_service`.
-  config.x.active_storage_public_service = :minio_assets
+  # Files are relayed by Api::V1::AttachmentsController (authorized on every request); the browser never talks to
+  # storage. Close Active Storage's own routes: they serve a blob to anyone holding its signed_id, with no JWT,
+  # no Pundit check and no expiry (docs/minio/PLAN-SINGLE-PRIVATE-BUCKET.md section 2.3). Also removes direct_uploads.
+  config.active_storage.draw_routes = false
 
   # Keep TLS mandatory by default. A temporary IP-only staging environment may set FORCE_SSL=false
   # while it uses ws://; production must keep the default true and use wss://.

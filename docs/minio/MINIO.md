@@ -1,5 +1,15 @@
 # MinIO — Architecture & Operations Guide
 
+> **Update 2026-10-27: the sections below that describe `302` redirects, presigned URLs for browsers and the public
+> bucket are out of date for the code on branch `feat/relay-attachments`.** Only the backend server may reach file
+> storage (the client's firewall), so `Api::V1::AttachmentsController#show` now answers `200` with the file bytes
+> (ETag/`304` supported, risky types forced to a download), Dictionary `image_url` is the same relative
+> `/api/v1/attachments/:signed_id` path, and Active Storage's own unauthenticated routes are closed in production
+> (`draw_routes = false`). `MINIO_PUBLIC_ENDPOINT` is no longer used by browsers. The full rewrite of this guide, the
+> removal of the public bucket and `MINIO_ASSETS_*`, and the decision record are in
+> [`PLAN-SINGLE-PRIVATE-BUCKET.md`](PLAN-SINGLE-PRIVATE-BUCKET.md) and
+> [`STORAGE-PROTOCOL-OPTIONS.md`](STORAGE-PROTOCOL-OPTIONS.md).
+
 Everything the team needs to understand, use, operate, and troubleshoot MinIO in this repo: what
 it is, why we use it, how it fits into the app, how it's deployed in each environment, and how to
 start/stop/inspect it. For common questions that come up once you're actually working with this

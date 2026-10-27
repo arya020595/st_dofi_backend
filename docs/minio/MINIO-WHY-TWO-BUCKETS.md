@@ -1,3 +1,5 @@
+> **Superseded (2026-10-27): files are now relayed by the API, so the public bucket is no longer needed. Kept for the reasoning.** See [`PLAN-SINGLE-PRIVATE-BUCKET.md`](PLAN-SINGLE-PRIVATE-BUCKET.md).
+
 # Why Two MinIO Buckets? (Public vs Private Rationale)
 
 This doc answers a question that comes up whenever someone new looks at the MinIO setup:

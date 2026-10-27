@@ -14,23 +14,6 @@ require_relative "support/rocbn_test_support"
 # database-backed number generators after a fresh test schema load, before parallel workers fork.
 PostgreSqlNumberTriggers.install!
 
-# A minimal test double for an Active Storage service, standing in for the real minio_public /
-# minio_assets_public S3 services in tests — those would otherwise try to sign against test env's
-# blank credentials, which triggers a slow AWS credential-chain fallback (a real network call to
-# the EC2 instance-metadata endpoint) before failing outright. Minitest::Mock isn't available in
-# this Minitest version (removed from core in 6.x), hence hand-rolled rather than a gem.
-class RecordingServiceDouble
-  attr_reader :captured_key, :captured_options
-
-  def initialize(return_url) = @return_url = return_url
-
-  def url(key, **options)
-    @captured_key = key
-    @captured_options = options
-    @return_url
-  end
-end
-
 module ActiveSupport
   class TestCase
     include FactoryBot::Syntax::Methods
@@ -51,19 +34,6 @@ module ActiveSupport
     # The ROCBN registry is a second, MySQL database. Only tests that include RocbnTestSupport use it (and opt
     # back in to a transaction there), so every other test stays independent of that MySQL being up.
     skip_transactional_tests_for_database(:rocbn)
-
-    # Temporarily makes ActiveStorage::Blob.services.fetch(name) return fake_service instead of
-    # looking up the real configured service — see RecordingServiceDouble above.
-    def stub_fetched_service(name, fake_service)
-      services = ActiveStorage::Blob.services
-      original = services.method(:fetch)
-      services.define_singleton_method(:fetch) do |requested|
-        requested == name ? fake_service : original.call(requested)
-      end
-      yield
-    ensure
-      services.singleton_class.send(:remove_method, :fetch)
-    end
 
     # An officer-platform user whose role holds exactly one permission — a notification recipient that is only
     # reachable through that code.
