@@ -201,7 +201,7 @@ curl -s -o /dev/null -w "HTTP %{http_code}\n" http://localhost:3000/up   # expec
 ```bash
 TOKEN=$(curl -s -i -X POST http://localhost:3000/api/v1/auth/sign_in \
   -H "Content-Type: application/json" \
-  -d '{"user":{"username":"MPRT/DOF-001","password":"ChangeMe123!"}}' \
+  -d "{\"user\":{\"username\":\"MPRT/DOF-001\",\"password\":\"${AD_MOCK_PASSWORD}\"}}" \
   | grep -i "^authorization:" | sed 's/authorization: //I' | tr -d '\r')
 
 curl -s -X POST http://localhost:3000/api/v1/admin/dictionaries \

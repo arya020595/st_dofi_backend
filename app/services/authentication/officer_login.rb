@@ -1,5 +1,5 @@
 module Authentication
-  # Sign-in for internal staff (any non-external role, see User.directory_managed) when the directory is on.
+  # Sign-in for internal staff (see User.directory_managed).
   # Finds the local account, checks it may sign in, and asks the directory whether the password is right.
   # AD never creates users or assigns roles; PostgreSQL stays the source of truth for who exists and what they can do.
   #

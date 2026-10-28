@@ -321,7 +321,8 @@ boot**; *incomplete* configuration (no host yet) is reported by `problems` and a
 | Member | Purpose |
 |---|---|
 | `scope :directory_managed` / `directory_managed?` | Is this user staff? |
-| `valid_password?` → `false` for staff | Defense in depth: the local password can never admit staff |
+| `password_required?` → `false` for staff (and for a user not yet given a role) | No password is asked for or stored (`encrypted_password` stays empty) |
+| `valid_password?` → `false` for staff | Defense in depth: the local password can never admit staff, whatever a row holds |
 | `active_for_authentication?` | Refuse inactive, suspended, revoked and discarded users on every request |
 | `inactive_message` → `:invalid` | A refused user gets the generic 401, not "account disabled" |
 | `before_save :revoke_tokens` (conditional) | Rotate `jti` when access is removed or the username changes |
@@ -330,8 +331,7 @@ boot**; *incomplete* configuration (no host yet) is reported by `problems` and a
 
 - [`db/seeds/admin_user.rb`](../../db/seeds/admin_user.rb): `find_or_create_by!` on `admin@dofi.gov.bn`. The block only
   runs on **create**, so an existing row is never modified. Production requires `ADMIN_AD_USERNAME` and aborts with a
-  clear message otherwise (no placeholder). The password is `SecureRandom.base64(24)`: Devise needs a value, nobody
-  knows it.
+  clear message otherwise (no placeholder). No password is set: staff need none (`User#password_required?`).
 - [`lib/tasks/admin.rake`](../../lib/tasks/admin.rake): `admin:assign_ad_username EMAIL=... AD_USERNAME=...` remaps an
   **existing** staff row (for example the old placeholder). It validates the name, refuses duplicates, and goes
   through `update!` so the username change also rotates `jti`. It uses `AD_USERNAME` rather than `USERNAME` because
@@ -342,8 +342,10 @@ boot**; *incomplete* configuration (no host yet) is reported by `problems` and a
 ### `Admin::UsersController` and `Users::Create`
 
 `password` and `password_confirmation` were removed from the permitted params and `temporary_password` from the
-response. If a client still sends a password it is ignored. `Users::Create` still generates a random password because
-Devise's `validatable` requires one; it is never shown or used.
+response. If a client still sends a password it is ignored. Devise normally forces a password on every user, so `User`
+overrides `password_required?` to be false for staff: `Users::Create` sets none, and `users.encrypted_password` stays at
+its empty default. A one-off migration (`BlankStaffEncryptedPasswords`) cleared the hashes that earlier versions had
+stored, including the published default one on the seeded superadmin.
 
 ## 3.4 Where each failure becomes what
 

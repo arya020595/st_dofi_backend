@@ -16,7 +16,9 @@ class DemoSeedsProductionGuardTest < ActiveSupport::TestCase
   end
 
   def known_default_accounts
-    User.all.select { |user| BCrypt::Password.new(user.encrypted_password).is_password?(KNOWN_DEFAULT) }
+    User.where.not(encrypted_password: "").select do |user|
+      BCrypt::Password.new(user.encrypted_password).is_password?(KNOWN_DEFAULT)
+    end
   end
 
   # ADMIN_DEFAULT_PASSWORD is the variable that used to give the demo accounts their password: even set, it must not

@@ -180,7 +180,7 @@ chain**. The local password strategy is never consulted. It only runs when ours 
 happens for usernames that are not staff.
 
 As a second wall, `User#valid_password?` returns `false` for staff, so even if a code change one day let the chain
-reach `database_authenticatable`, a staff user still could not get in with the random stored password.
+reach `database_authenticatable`, a staff user still could not get in with whatever hash their row might hold.
 
 ## 2.5 Environments
 
@@ -252,7 +252,7 @@ No new table and no new column. AD reuses existing data:
 | `users.discarded_at` | Soft delete (Discard). Non-null denies access. |
 | `users.fisherman_status` | The Fisherman's lifecycle; `suspended` and `revoked` deny access. |
 | `users.jti` | The token id. Changing it kills every token issued before. |
-| `users.encrypted_password` | Devise requires a value; for staff it is random and unusable. |
+| `users.encrypted_password` | Empty for staff: no password is required or stored (`User#password_required?`). |
 | `roles.platform_scope`, `roles.kind` | Decide whether a user is staff. |
 
 ## 2.8 Design decisions and why

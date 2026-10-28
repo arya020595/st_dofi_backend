@@ -86,8 +86,11 @@ class User < ApplicationRecord
 
   def directory_managed? = role&.directory_managed? || false
 
-  # Staff have no DoFi password: whatever username spelling reached Devise's own lookup, the stored (unused,
-  # random) password is never accepted, so the directory is the only way in.
+  # Staff have no DoFi password: none is required or stored, and whatever Devise's own lookup finds, a local
+  # password is never accepted, so the directory is the only way in. The same goes for a user not yet given a role
+  # (Add User allows that): there is nothing to sign in with until the role makes them staff.
+  def password_required? = role.present? && !directory_managed? && super
+
   def valid_password?(password)
     return false if directory_managed?
 

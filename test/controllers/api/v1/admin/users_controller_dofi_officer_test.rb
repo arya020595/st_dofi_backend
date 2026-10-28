@@ -47,14 +47,14 @@ module Api
           assert_predicate response.parsed_body["errors"], :present?
         end
 
-        test "a created officer is never given the mock directory password or any other usable password" do
+        test "a created officer has no password stored, and the mock directory password is not one" do
           post "/api/v1/admin/users", params: { user: { name: "Azri Bin Haji Nizam Matussin", position: "Administrator",
                                                         unit: "Block A", username: "mprt/azri.nizam",
                                                         role_id: @officer_role.id } },
                                       headers: @admin_headers, as: :json
           created = User.find(response.parsed_body.dig("data", "id"))
 
-          assert_not BCrypt::Password.new(created.encrypted_password).is_password?(DirectoryTestSupport::MOCK_PASSWORD)
+          assert_equal "", created.encrypted_password
           assert_not created.valid_password?(DirectoryTestSupport::MOCK_PASSWORD)
         end
 

@@ -44,16 +44,11 @@ has two parts: what happens during testing, and what must be finished **before r
 
 ### Now, during testing
 
-- [ ] Change the password of `admin@dofi.gov.bn` (it is still `ChangeMe123!`, published in the repo). Type it on the backend server, never in chat:
+- [ ] Give `admin@dofi.gov.bn` its real Active Directory name. Staff have no DoFi password (the default `ChangeMe123!` hash is cleared by migration `BlankStaffEncryptedPasswords` on the first deploy of the AD change), so there is no password to change:
 
   ```bash
   cd /opt/dofi
-  read -rs -p "New admin password: " NEWPW; echo
-  docker compose exec -e NEWPW="$NEWPW" api bin/rails runner '
-    u = User.find_by!(email: "admin@dofi.gov.bn")
-    u.update!(password: ENV["NEWPW"], password_confirmation: ENV["NEWPW"])
-    puts "admin password updated"'
-  unset NEWPW
+  docker compose exec api bin/rails admin:assign_ad_username EMAIL=admin@dofi.gov.bn AD_USERNAME=mprt/<real ad name>
   ```
 
 - [ ] Frontend team: call the API at `http://10.252.8.12:3000`; one JWT-authenticated loader for Dictionary images (no bare `<img src>`); their nginx proxies `/api` and `/cable` with bodies of at least 12 MB. Brief: [`FE-DISCUSSION-FILE-DELIVERY.md`](../minio/FE-DISCUSSION-FILE-DELIVERY.md).

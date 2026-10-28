@@ -23,8 +23,6 @@ admin = User.find_or_create_by!(email: "admin@dofi.gov.bn") do |user|
   user.role = officer_role
   user.status = "active"
   user.preferred_locale = "en"
-  # Devise needs some password value; nobody knows or can use this one (staff sign in through the directory).
-  user.password = user.password_confirmation = SecureRandom.base64(24)
 end
 
 puts "Seeded DoFi Officer admin user (admin@dofi.gov.bn, username #{admin.username})"

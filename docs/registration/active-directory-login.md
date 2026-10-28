@@ -89,15 +89,12 @@ the `AD_HOST` you configured (subject alternative name), because the host name i
 
 ## How a sign-in is decided
 
-```
-POST /api/v1/auth/sign_in
-  Warden strategy (Authentication::ActiveDirectoryStrategy), first in line
-    -> Authentication::OfficerLogin
-         DirectoryUsername   what was typed -> the local usernames it could mean
-         User.directory_managed   find the staff user (none: not our business, Devise carries on as before)
-         eligible?  kept and active, else refuse (the directory is not asked)
-         LdapAuthenticator | MockLdapAuthenticator   is the password right?
-```
+`POST /api/v1/auth/sign_in` goes to a Warden strategy (`Authentication::ActiveDirectoryStrategy`) placed ahead of the
+local-password one. It asks `Authentication::OfficerLogin`, which finds the staff user, refuses one that is not `active`
+or is discarded (the directory is not asked), then checks the password with `LdapAuthenticator` (production) or
+`MockLdapAuthenticator` (local, staging). The code walkthrough, diagrams and the reasons are in
+[`docs/active-directory/`](../active-directory/README.md), starting with
+[03-code-walkthrough.md](../active-directory/03-code-walkthrough.md).
 
 | Outcome | HTTP | Body |
 |---|---|---|
@@ -105,49 +102,28 @@ POST /api/v1/auth/sign_in
 | Unknown user, wrong password, inactive or discarded staff, ambiguous username | 401 | The same generic Devise body for all of them, so nothing says whether the account exists |
 | Directory unavailable or misconfigured | 503 | `{"status":"fail","message":"Sign-in is temporarily unavailable. Please try again later."}` |
 
-### Usernames
+Operational facts worth knowing without reading the code:
 
-Local usernames are stored the way the Add User form produces them, e.g. `mprt/azri.nizam`. A person may type
-`Azri.Nizam`, `MPRT/Azri.Nizam` or `MPRT\azri.nizam`; all find the same user. The name sent to AD always comes from the
-matched user's *stored* username (the part after `MPRT/`), never from the typed text. If two users match (for example
-`azri.nizam` and `mprt/azri.nizam` both exist) nobody is signed in and the attempt is logged as `ambiguous_username`.
-
-### No local password for staff
-
-Staff have no DoFi password: `User#valid_password?` is always false for them, whatever the username spelling, the mode
-or an outage, so Devise's own password check can never admit one. In addition the strategy decides first and a refusal
-stops the chain. A random value still sits in `encrypted_password` because Devise requires one; nothing can use it.
-
-### TLS and the directory connection (ldap mode)
-
-`Authentication::LdapAuthenticator` is the only code that talks LDAP. It uses LDAPS with certificate verification
-(`VERIFY_PEER`, TLS 1.2 or newer, the host name must match the certificate) and never plaintext. It tries the next host
-only when it cannot connect or finish TLS, never after AD rejected a password, so a wrong password is not replayed on
-every domain controller (which would multiply AD's lockout counter). A blank password is never sent: an LDAP bind with
-an empty password is an unauthenticated bind that many servers accept.
-
-AD answers "invalid credentials" for a wrong password and also for unknown, disabled, locked and expired accounts. DoFi
-treats them all as 401, with no distinction.
-
-### Logging
-
-`ad.login` (info or warn): mode, outcome, reason, local user id when known, duration. `ad.directory_unavailable`
-(error): the exception class or LDAP result code, never the message. Passwords, bind payloads and AD's own diagnostic
-text are never logged.
+- A person may type `Azri.Nizam`, `MPRT/Azri.Nizam` or `MPRT\azri.nizam`; all find the user stored as `mprt/azri.nizam`.
+  The name sent to AD always comes from the stored username.
+- Staff have no DoFi password: none is required or stored, and a local password is never accepted.
+- The real directory is reached over LDAPS only, with certificate and host-name verification (TLS 1.2 or newer). A wrong
+  password is not replayed on every domain controller, which would multiply AD's lockout counter.
+- Every decision logs `ad.login` (mode, outcome, reason, user id, duration) and every directory failure logs
+  `ad.directory_unavailable` (exception class or LDAP result code). Passwords and AD's own messages are never logged.
 
 ## Sign-out and token revocation
 
-Tokens are JWTs whose `jti` claim must equal `users.jti` (devise-jwt's `JTIMatcher`). Replacing `users.jti` kills every
-token issued before, on every endpoint and for the realtime (WebSocket) token too. No separate revocation mechanism
-exists.
+Tokens are JWTs whose `jti` must equal `users.jti` (devise-jwt's `JTIMatcher`); replacing `users.jti` kills every token
+issued before. Details and tests: [05-token-revocation-and-security.md](../active-directory/05-token-revocation-and-security.md).
 
-| Event | What happens |
+| Event | Old tokens |
 |---|---|
-| `DELETE /api/v1/auth/sign_out` | devise-jwt's revocation middleware replaces `jti` once. The old token is refused from then on. |
-| A user becomes `inactive` or `suspended` (or a Fisherman `suspended`/`revoked`), or is discarded | `User#revoke_tokens` replaces `jti` in the same save, and `User#active_for_authentication?` makes Devise refuse the user on every request (it runs for the JWT strategy too). |
-| The account is re-enabled or undiscarded | Nothing is rotated and nothing is restored: tokens issued before stay dead and the person signs in again. |
-| A user's `username` (the sign-in identity) changes | `jti` is replaced, so the old session ends. |
-| Name, position, unit, contact number, email or locale change | Nothing: live sessions are unaffected. |
+| Sign-out | Revoked (once) |
+| User becomes `inactive`, `suspended` (Fisherman: `suspended`, `revoked`), or is discarded | Revoked, and the user is refused on every request |
+| User is re-enabled or undiscarded | Stay dead; the person signs in again |
+| `username` changes | Revoked |
+| Name, position, unit, contact number, email or locale change | Unaffected |
 
 A refused token answers 401 with the same generic body as any other invalid token. One `jti` exists per user, so
 signing out on one device ends every session of that user (existing behaviour).
@@ -162,8 +138,7 @@ signing out on one device ends every session of that user (existing behaviour).
 
 ## Seeding
 
-`db/seeds/admin_user.rb` creates `admin@dofi.gov.bn` once and never touches an existing user. The account has no usable
-password.
+`db/seeds/admin_user.rb` creates `admin@dofi.gov.bn` once and never touches an existing user. The account has no password.
 
 - Local, test, staging: the username defaults to `mprt/dof-001` (any name works with the mock password), or
   `ADMIN_AD_USERNAME` if set.
@@ -189,7 +164,9 @@ Do these in order. The app will not boot on production until step 3 is done, by 
 
 1. The AD team confirms the DNS names, the LDAPS port, the bind format and supplies the CA PEM
    (see the requirements document). Open the firewall to those hosts and the port from the backend server.
-2. Pull the new image and compose file. The compose file sets `DEPLOY_ENV=production`.
+2. Pull the new image and compose file. The compose file sets `DEPLOY_ENV=production`. The deploy's `db:prepare` also runs
+   `BlankStaffEncryptedPasswords`, which clears every stored staff password hash (including the published default one on
+   the seeded superadmin).
 3. In the server `.env` set `AD_MODE=ldap`, `AD_HOST`, `AD_PORT`, `AD_NETBIOS_DOMAIN`, `AD_BIND_FORMAT` (and
    `AD_DNS_DOMAIN`, `AD_CA_FILE` with its volume mount). Do **not** set `AD_MOCK_PASSWORD`.
 4. **Map every staff user to its AD name**, before anyone signs in: the username must be `mprt/<AD name>`. For the

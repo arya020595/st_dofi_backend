@@ -9,7 +9,7 @@ module Api
 
       setup { create_directory_accounts }
 
-      test "a staff user's local password never signs them in while the directory is on" do
+      test "a staff user's local password never signs them in" do
         [mock_directory_config, directory_config].each do |config|
           with_directory_config(config) do
             with_ldap_result(Failure(:invalid_credentials)) do

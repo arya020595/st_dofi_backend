@@ -300,7 +300,7 @@ Devise.setup do |config|
   #   warden_config.default_strategies(scope: :user).unshift :some_external_strategy
   # end
 
-  # Staff sign in against Active Directory when AD_MODE is mock/ldap; the strategy is registered in
+  # Staff sign in against Active Directory; the strategy is registered in
   # config/initializers/directory_authentication.rb and decides for staff before the local password is looked at.
   config.warden do |warden_config|
     warden_config.default_strategies(scope: :user).unshift :active_directory

@@ -16,11 +16,10 @@ class AdminUserSeedTest < ActiveSupport::TestCase
 
   def admin = User.find_by!(email: "admin@dofi.gov.bn")
 
-  test "outside production it creates the superadmin as a mock account, with no usable password" do
+  test "outside production it creates the superadmin as a mock account, with no password" do
     seed
 
-    assert_equal ["mprt/dof-001", true], [admin.username, admin.officer?]
-    assert_not BCrypt::Password.new(admin.encrypted_password).is_password?("ChangeMe123!")
+    assert_equal ["mprt/dof-001", true, ""], [admin.username, admin.officer?, admin.encrypted_password]
     assert_not admin.valid_password?("ChangeMe123!")
   end
 
@@ -60,6 +59,6 @@ class AdminUserSeedTest < ActiveSupport::TestCase
     seed(config: production_directory_config, username: "MPRT/Real.Admin")
 
     assert_equal "mprt/real.admin", admin.username
-    assert_not BCrypt::Password.new(admin.encrypted_password).is_password?("ChangeMe123!")
+    assert_equal "", admin.encrypted_password
   end
 end

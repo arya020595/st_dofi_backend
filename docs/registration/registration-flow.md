@@ -339,7 +339,7 @@ Request:
 {
   "user": {
     "username": "mprt/dof-001",
-    "password": "ChangeMe123!"
+    "password": "<AD password>"
   }
 }
 ```

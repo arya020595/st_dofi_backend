@@ -61,7 +61,7 @@ Consequences:
 ```mermaid
 flowchart TD
     A["Admin opens User Management<br/>and clicks Add User"] --> B["Fills name, role, unit, position<br/>and username mprt/azri.nizam<br/>(no password field)"]
-    B --> C["User row saved in PostgreSQL<br/>status active, random unusable password"]
+    B --> C["User row saved in PostgreSQL<br/>status active, no password stored"]
     C --> D["Officer opens the DoFi site and types<br/>azri.nizam + their AD password"]
     D --> E{"Backend checks"}
     E -- "user exists, active, AD says yes" --> F["JWT issued, officer works"]

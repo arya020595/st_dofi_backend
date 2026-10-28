@@ -118,7 +118,7 @@ sequenceDiagram
     participant DB as User (role: DoFi Officer)
 
     Existing->>API: Add User — name, position, unit, username (no email, no password)
-    API->>DB: auto-generate employee_id (opaque UUID, not a displayed business code) and an unused random password
+    API->>DB: auto-generate employee_id (opaque UUID, not a displayed business code); no password is stored
     DB-->>API: saved, status: active
     API-->>Existing: 201 (no password is issued)
     Note over Existing: The username must be the officer's Active Directory name, e.g. MPRT/azri.nizam
@@ -386,10 +386,10 @@ A few choices made along the way that aren't obvious just from reading the code:
 - **`Position` *is* master-data-backed** (`GET /api/v1/admin/master_data/positions`, filterable by
   `category` — `"Fisherman"`, `"Jetty Manager"`, `"DoFi Officer"`) — shared across all three actor
   types' forms, each scoped to its own category client-side.
-- **Passwords are never chosen or shown for anyone** — random and never surfaced for every actor:
-  BruneiID is the real gate for Jetty Manager/Fisherman, Active Directory for DoFi Officers (the
-  random value only exists because Devise's `:database_authenticatable` needs some
-  `encrypted_password`; `User#valid_password?` always refuses it for staff).
+- **Passwords are never chosen or shown for anyone** — BruneiID is the real gate for Jetty Manager/Fisherman
+  (a random, never-surfaced value only satisfies Devise's `:database_authenticatable`), Active Directory for DoFi
+  Officers (no password is stored at all: `User#password_required?` is false for staff, and
+  `User#valid_password?` always refuses a local one).
 - **Email is optional everywhere, for everyone** — no role's login depends on it, so it was relaxed
   from "required unless BruneiID-verified" to simply never required. It remains on the model as a
   legacy/contact field (the original seeded admin still has one).

@@ -143,7 +143,7 @@ Find the lines with `docker compose logs api | grep ad\\.`. Each is JSON: `event
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| App exits at start with `AD_MODE must be one of: mock, ldap` | `AD_MODE` missing in `.env` under `RAILS_ENV=production`, or set to the removed `disabled` | Set `AD_MODE` |
+| App exits at start with `AD_MODE must be one of: mock, ldap` | `AD_MODE` missing in `.env` under `RAILS_ENV=production`, or set to anything other than `mock` or `ldap` | Set `AD_MODE` |
 | App exits with `DEPLOY_ENV must be one of: staging, production` | Compose file lacks `DEPLOY_ENV` | Use the repo's compose file; do not delete the line |
 | App exits with `AD_MODE=mock is not allowed when DEPLOY_ENV=production` | The guard working | Set `AD_MODE=ldap` |
 | Every staff sign-in is 503 locally | `AD_MOCK_PASSWORD` is empty in `.env` | Set it, restart `api` |
@@ -159,8 +159,8 @@ Find the lines with `docker compose logs api | grep ad\\.`. Each is JSON: `event
 
 ## 6.5 FAQ
 
-**Why does the Add User form have no password field?** Staff never have a DoFi password. Devise requires an
-`encrypted_password` value, so `Users::Create` stores a random one that nobody sees or can use.
+**Why does the Add User form have no password field?** Staff never have a DoFi password. `User#password_required?` is
+false for staff, so nothing is asked for, generated or stored; `encrypted_password` stays empty.
 
 **Does AD create the DoFi user when someone signs in for the first time?** No. An admin creates the user first; AD only
 checks the password.

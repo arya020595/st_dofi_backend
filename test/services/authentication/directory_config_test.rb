@@ -19,7 +19,7 @@ class Authentication::DirectoryConfigTest < ActiveSupport::TestCase
     end
   end
 
-  test "an unknown AD_MODE raises, and so does the removed disabled mode" do
+  test "an unknown AD_MODE raises, whatever it is called" do
     %w[ldpa disabled off].each do |mode|
       error = assert_raises(ArgumentError) { Authentication::DirectoryConfig.load({ "AD_MODE" => mode }) }
 

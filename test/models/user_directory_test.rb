@@ -27,6 +27,23 @@ class UserDirectoryTest < ActiveSupport::TestCase
     end
   end
 
+  test "a staff user is valid, and saved, with no password at all" do
+    staff = build(:user, :officer_shaped, role: @staff.role, password: nil, password_confirmation: nil)
+
+    assert staff.save
+    assert_equal "", staff.encrypted_password
+  end
+
+  test "a user not yet given a role needs no password either" do
+    assert_predicate build(:user, role: nil, password: nil, password_confirmation: nil), :valid?
+  end
+
+  test "Jetty Manager and Fisherman accounts still need a password" do
+    [build(:user, role: @jetty.role, password: nil), build(:user, role: @fisherman.role, password: nil)].each do |user|
+      assert_not user.valid?
+    end
+  end
+
   test "Jetty Manager, Fisherman and role-less accounts are unaffected" do
     with_directory_config(directory_config) do
       assert @jetty.valid_password?("Password123!")

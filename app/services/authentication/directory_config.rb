@@ -8,7 +8,7 @@ module Authentication
   #   ldap - the real directory over LDAPS (LdapAuthenticator)
   # DEPLOY_ENV says where the app runs. RAILS_ENV cannot: staging runs with RAILS_ENV=production too. It is set by
   # each deployment's compose file, and mock is refused on production. Every inconsistency raises at boot, so a
-  # typo or a missing variable can never leave staff on a weaker path (there is no "disabled" mode).
+  # typo or a missing variable can never leave staff on a weaker path.
   # The constants live in the class body (not a Data.define block, where they would land on Authentication).
   class DirectoryConfig < Data.define(:mode, :deploy_env, :hosts, :port, :netbios_domain, :dns_domain, # rubocop:disable Style/DataInheritance
                                       :bind_format, :ca_file, :connect_timeout, :operation_timeout, :mock_password)
