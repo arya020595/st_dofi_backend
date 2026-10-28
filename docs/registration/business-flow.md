@@ -11,17 +11,17 @@ get an account, who governs it afterwards, and why were the non-obvious decision
 
 | Actor | Role | How they get an account | How they log in |
 |---|---|---|---|
-| **DoFi Officer / Administrator** | `kind: "DoFi Officer"` | Created by another officer via **User Management → Add User** (internal, authenticated) | `username` + password (real credential check) |
+| **DoFi Officer / Administrator** | `kind: "DoFi Officer"` (and custom DoFi roles) | Created by another officer via **User Management → Add User** (internal, authenticated) | Active Directory `username` + AD password: the real directory over LDAPS on production, a shared mock password on local/staging (see [active-directory-login.md](active-directory-login.md)) |
 | **Jetty Manager** | `kind: "Jetty Manager"` | Created by an officer via **User Management → External Users** (§4) | BruneiID QR re-scan |
 | **Fisherman** | `platform_scope: "fisherman"` — company-scoped Owner/Admin/custom roles (see §2) | Provisioned before first login by DoFI Company Profiling or Fisherman Owner User Management | BruneiID QR claim/login |
 
 **The one thing that explains most of this system's design**: officers are an *internal, trusted*
-population managed by other officers, so they get a real credential (`username`/password) chosen by
-the system, no external identity check. Jetty Managers and Fishermen are external, BruneiID-
+population managed by other officers, so DoFi keeps no password for them: their identity is their
+Active Directory account, and the local `User` row (role, status) is what makes it a DoFi account. Jetty Managers and Fishermen are external, BruneiID-
 authenticated populations, but neither is self-service for account creation: an officer (or, for
 Fisherman teammates, the company's Owner) provisions the `User` before the first QR scan, and that
 provisioning is the vetting step — there is no approval queue afterwards. Every other decision below
-(no email requirement, no manual passwords, separate lifecycle fields, and no registration fallback
+(no email requirement, no passwords, separate lifecycle fields, and no registration fallback
 on an unknown IC) follows from this split.
 
 ---
@@ -118,11 +118,11 @@ sequenceDiagram
     participant DB as User (role: DoFi Officer)
 
     Existing->>API: Add User — name, position, unit, username (no email, no password)
-    API->>DB: auto-generate employee_id (opaque UUID, not a displayed business code) and a random password
+    API->>DB: auto-generate employee_id (opaque UUID, not a displayed business code) and an unused random password
     DB-->>API: saved, status: active
-    API-->>Existing: 201 + temporary_password (shown once)
-    Note over Existing: Shares the temporary_password with the new officer out-of-band
-    Existing->>API: (new officer) POST /api/v1/auth/sign_in {username, password}
+    API-->>Existing: 201 (no password is issued)
+    Note over Existing: The username must be the officer's Active Directory name, e.g. MPRT/azri.nizam
+    Existing->>API: (new officer) POST /api/v1/auth/sign_in {username, AD password}
     API-->>Existing: JWT — logged in, same permission set as every other DoFi Officer account
 ```
 
@@ -130,10 +130,10 @@ No approval step — an officer creating another officer account is itself the t
 by the `users.create` permission). The same holds for the external actors below: an officer creates
 or profiles them, so none of them waits in an approval queue either.
 
-**Why no email/password fields in Add User**: mirrored from how Fisherman/Jetty Manager already
-never set their own password (see §1). Since there's no mailer configured in this app, "email them a
-temporary password" isn't realistically available yet, so the temporary password is returned once in
-the API response for the creating officer to relay directly. `email` stays on the `User` model as an
+**Why no email/password fields in Add User**: the officer's password lives in Active Directory, so
+DoFi neither asks for nor returns one (the create API ignores a `password` param and returns no
+`temporary_password`). The local row only has to exist, be `active`, and carry a role; an AD account
+without a matching DoFi user cannot sign in, and no user or role is ever created from AD. `email` stays on the `User` model as an
 optional legacy/contact field — never required, for any role, since login for every actor type is now
 keyed on something other than email (`username` for officers, `ic_number`/BruneiID for external
 actors).
@@ -337,10 +337,10 @@ Approval Remarks) was removed on 2026-09-28 — see §9.
 | | DoFi Officer / Administrator | Jetty Manager | Fisherman |
 |---|---|---|---|
 | Endpoint | `POST /api/v1/auth/sign_in` | `POST /api/v1/auth/brunei_id/callback` | `POST /api/v1/auth/brunei_id/callback` |
-| Credential | `username` + real password | OIDC code + PKCE verifier + nonce + redirect URI | OIDC code + PKCE verifier + nonce + redirect URI |
-| Lifecycle gate | Devise credential success | `users.status` | `users.fisherman_status` |
+| Credential | AD `username` + AD password (LDAPS) | OIDC code + PKCE verifier + nonce + redirect URI | OIDC code + PKCE verifier + nonce + redirect URI |
+| Lifecycle gate | local `users.status` and not discarded, then AD password check | `users.status` | `users.fisherman_status` |
 | Missing IC behavior | N/A | terminal no-provisioned-account response | terminal no-provisioned-account response |
-| Today's implementation | Real (`encrypted_password` check via Devise) | OIDC callback | OIDC callback plus claim for `claimable` users |
+| Today's implementation | Warden strategy + `Authentication::OfficerLogin` always (`AD_MODE` is `mock` or `ldap`, never off); no local password for staff | OIDC callback | OIDC callback plus claim for `claimable` users |
 
 Identity comes from a signed BruneiID ID token verified against the provider's JWKS, issuer,
 audience, expiry, and nonce. The frontend supplies an authorization code and PKCE verifier,
@@ -386,10 +386,10 @@ A few choices made along the way that aren't obvious just from reading the code:
 - **`Position` *is* master-data-backed** (`GET /api/v1/admin/master_data/positions`, filterable by
   `category` — `"Fisherman"`, `"Jetty Manager"`, `"DoFi Officer"`) — shared across all three actor
   types' forms, each scoped to its own category client-side.
-- **Passwords are never manually chosen for anyone** — random for Jetty Manager/Fisherman (never
-  needed, BruneiID is the real gate), random-but-shown-once for new DoFi Officer accounts (needed,
-  since there's no BruneiID-equivalent for officers — someone has to actually receive a working
-  credential).
+- **Passwords are never chosen or shown for anyone** — random and never surfaced for every actor:
+  BruneiID is the real gate for Jetty Manager/Fisherman, Active Directory for DoFi Officers (the
+  random value only exists because Devise's `:database_authenticatable` needs some
+  `encrypted_password`; `User#valid_password?` always refuses it for staff).
 - **Email is optional everywhere, for everyone** — no role's login depends on it, so it was relaxed
   from "required unless BruneiID-verified" to simply never required. It remains on the model as a
   legacy/contact field (the original seeded admin still has one).

@@ -78,6 +78,8 @@ services:
         condition: service_healthy
     environment:
       RAILS_ENV: production
+      # Which deployment this is; the app refuses to boot with AD_MODE=mock when this is production.
+      DEPLOY_ENV: production
     env_file:
       - .env
     ports:
@@ -94,6 +96,8 @@ services:
         condition: service_healthy
     environment:
       RAILS_ENV: production
+      # Which deployment this is; the app refuses to boot with AD_MODE=mock when this is production.
+      DEPLOY_ENV: production
     env_file:
       - .env
     entrypoint: []

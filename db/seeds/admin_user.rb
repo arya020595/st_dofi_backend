@@ -1,29 +1,30 @@
+# The superadmin is a DoFi Officer, so (like every staff user) it has no password: it signs in with its Active
+# Directory account. Its username must be that AD name ("mprt/<ad name>").
+#   - development, test, staging: defaults to a mock account (any name works with the shared mock password).
+#   - production: ADMIN_AD_USERNAME is required. Nothing is ever bootstrapped with a placeholder name there.
+# An existing user is never modified (find_or_create_by! only runs the block on create); an already-seeded
+# database is remapped with `bin/rails admin:assign_ad_username`.
 officer_role = Role.find_by!(kind: Role::DOFI_OFFICER)
-default_password = ENV.fetch("ADMIN_DEFAULT_PASSWORD", "ChangeMe123!")
-default_username = ENV.fetch("ADMIN_DEFAULT_USERNAME", "#{User::USERNAME_PREFIX}/DOF-001")
 
 admin = User.find_or_create_by!(email: "admin@dofi.gov.bn") do |user|
+  requested = ENV["ADMIN_AD_USERNAME"].to_s.strip.presence
+  requested ||= "#{User::USERNAME_PREFIX}/DOF-001" unless Authentication::DirectoryConfig.current.production?
+  short = Authentication::DirectoryUsername.new(requested, domain: User::USERNAME_PREFIX).short
+  if short.nil?
+    raise ArgumentError, "Set ADMIN_AD_USERNAME to the superadmin's real Active Directory username " \
+                         "(letters, digits, '.', '_' or '-', optionally prefixed #{User::USERNAME_PREFIX}/)"
+  end
+
   user.name = "DoFi Administrator"
   user.employee_id = "DOF-001"
-  user.username = default_username
+  user.username = "#{User::USERNAME_PREFIX}/#{short}"
   user.position = "Administrator"
   user.unit = "Headquarters"
   user.role = officer_role
   user.status = "active"
   user.preferred_locale = "en"
-  user.password = default_password
-  user.password_confirmation = default_password
+  # Devise needs some password value; nobody knows or can use this one (staff sign in through the directory).
+  user.password = user.password_confirmation = SecureRandom.base64(24)
 end
 
-# find_or_create_by! only sets the block's attributes when *creating* — an admin row seeded before
-# `username`/`position`/`unit` were required would otherwise stay blank forever on every later
-# `db:seed` re-run. Backfill any that are still blank in a single update — the officer validation
-# (see User#validates :position, :unit, :username, presence: true, if: :officer?) requires all
-# three at once, so updating them one at a time would fail on a row missing more than one.
-backfill = {}
-backfill[:username] = default_username if admin.username.blank?
-backfill[:position] = "Administrator" if admin.position.blank?
-backfill[:unit] = "Headquarters" if admin.unit.blank?
-admin.update!(backfill) if backfill.any?
-
-puts "Seeded default DoFi Officer admin user (admin@dofi.gov.bn)"
+puts "Seeded DoFi Officer admin user (admin@dofi.gov.bn, username #{admin.username})"
