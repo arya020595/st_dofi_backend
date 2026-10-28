@@ -115,8 +115,8 @@ Provide:
 
 | Item | Required data | Owner | Status |
 |---|---|---|---|
-| Root CA | PEM/CRT certificate used to validate the LDAPS server certificate | PKI/AD | Missing |
-| Intermediate CA chain | Every required intermediate certificate in PEM/CRT form | PKI/AD | Missing |
+| Root CA | Only if the LDAPS certificate does not chain to a CA in the API container's system store (AIMS/TIMS reportedly needed none; DoFi verifies certificates, so confirm with the runbook's TLS check) | PKI/AD | To confirm |
+| Intermediate CA chain | Every required intermediate certificate in PEM/CRT form, if a CA file is needed | PKI/AD | To confirm |
 | Certificate DNS names | Subject Alternative Names for each endpoint/load-balanced name | PKI/AD | Missing |
 | Certificate expiry | Current expiry date and renewal owner/process | PKI/AD | Missing |
 | Minimum TLS version | Organization-approved version, normally TLS 1.2 or newer | Security | Missing |
@@ -258,7 +258,7 @@ Development is ready to start when all of these are available:
 - [ ] Global Catalog LDAPS on TCP `3269` confirmed and reachable from the intended API environment; do not use the listed plaintext TCP `3268` service.
 - [ ] AD DNS domain, NetBIOS domain, base DN, UPN suffix, and login attribute confirmed.
 - [ ] Required bind-name format demonstrated with a test account.
-- [ ] Root/intermediate CA certificate chain supplied and certificate DNS names verified.
+- [ ] Certificate DNS names verified, and the chain confirmed to be trusted by the system store (or the root/intermediate CA supplied).
 - [ ] Firewall source, destination, port, routing, and DNS requirements approved.
 - [ ] At least one active non-production test account supplied securely.
 - [ ] Disabled/locked/expired-password test behavior agreed.

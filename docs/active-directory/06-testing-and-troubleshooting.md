@@ -25,10 +25,11 @@ why ~90 older tests needed no change.
 | Boot guard table (mock on production, missing DEPLOY_ENV, unknown mode...) | `test/services/authentication/directory_config_test.rb` |
 | Username spellings and what is rejected | `test/services/authentication/directory_username_test.rb` |
 | Real LDAPS behaviour with a fake server object (bind identity, TLS options, result codes, timeouts) | `test/services/authentication/ldap_authenticator_test.rb` |
-| TLS verification against a **real local TLS server** (good CA, wrong CA, wrong host name) | `test/services/authentication/ldap_authenticator_tls_test.rb` |
+| TLS verification against a **real local TLS server** (good CA, wrong CA, wrong host name, expired, system store via `SSL_CERT_FILE` in a child process, invalid `AD_CA_FILE`, host failover, no password replay) | `test/services/authentication/ldap_authenticator_tls_test.rb` |
 | Mock behaviour | `test/services/authentication/mock_ldap_authenticator_test.rb` |
 | The decision logic: staff lookup, eligibility, ambiguity, logging | `test/services/authentication/officer_login_test.rb` |
 | Who counts as staff | `test/models/role_directory_managed_test.rb`, `test/models/user_directory_test.rb` |
+| **Real LDAP mode end to end**: `POST /api/v1/auth/sign_in` -> strategy -> `OfficerLogin` -> `LdapAuthenticator` -> net-ldap over TCP + TLS -> a local LDAP simulator (`TlsDirectory`); wrong password, disabled account, outage, bad certificates, failover, JWT lifecycle, authorization, throttling | `test/integration/active_directory/` (`bin/rails test test/integration/active_directory`; no setup, random local port, temporary certificates) |
 | End-to-end sign-in over HTTP | `test/controllers/api/v1/sessions_active_directory_test.rb` |
 | Refusals: 401 vs 503, enumeration, Fisherman/Jetty Manager unchanged | `.../sessions_active_directory_refusals_test.rb` |
 | Shared mock password rules | `.../sessions_shared_mock_password_test.rb` |
@@ -125,7 +126,7 @@ flowchart TD
     B -- 401 --> D{"Look at the log:<br/>event ad.login, field reason"}
 
     C -- "reason misconfigured" --> C1["Read problems: AD_HOST, AD_PORT,<br/>AD_CA_FILE, AD_MOCK_PASSWORD, timeouts"]
-    C -- "OpenSSL::SSL::SSLError" --> C2["Certificate: wrong CA file, expired,<br/>or name does not match AD_HOST"]
+    C -- "field tls present" --> C2["Certificate refused: untrusted_certificate,<br/>certificate_expired, hostname_mismatch..."]
     C -- "Errno / SocketError / Timeout" --> C3["Network: DNS, firewall, port, AD down"]
     C -- "result_code_N" --> C4["AD answered but not with 'bad password'.<br/>Ask the AD owner about code N"]
     C -- "simulate-ad-unavailable typed" --> C5["Expected in mock mode"]
@@ -148,7 +149,7 @@ Find the lines with `docker compose logs api | grep ad\\.`. Each is JSON: `event
 | App exits with `AD_MODE=mock is not allowed when DEPLOY_ENV=production` | The guard working | Set `AD_MODE=ldap` |
 | Every staff sign-in is 503 locally | `AD_MOCK_PASSWORD` is empty in `.env` | Set it, restart `api` |
 | Staff sign-in is 503 in production, log says `misconfigured` | Missing/invalid `AD_*` values | The log's `problems` array lists them |
-| 503 with `OpenSSL::SSL::SSLError` | CA not trusted or certificate name mismatch | Check `AD_CA_FILE`, its mount, and that `AD_HOST` appears in the certificate SAN |
+| 503, log has `tls` (`untrusted_certificate`, `certificate_expired`, `hostname_mismatch`...) | The certificate was refused | Follow the table in the runbook, "Verifying LDAPS from the backend container" |
 | 401 for a valid officer, log `ineligible_account` | User is `inactive`/`suspended`/discarded | Reactivate in User Management |
 | 401 for a valid officer, no `ad.login` log | Username not found among staff (typo, wrong prefix, or the role is Jetty Manager / Fisherman) | Check the username is `mprt/<name>` and the role |
 | 401 right after being admitted | The token was revoked (sign-out elsewhere, deactivation, username change) | Sign in again |

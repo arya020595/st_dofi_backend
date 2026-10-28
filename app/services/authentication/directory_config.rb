@@ -98,10 +98,20 @@ module Authentication
       found
     end
 
+    # AD_CA_FILE is optional (unset means the system trust store), but a file that was asked for must work: it is never
+    # quietly replaced by the system store.
     def tls_problems
-      return [] if ca_file.nil? || File.file?(ca_file)
+      return [] if ca_file.nil? || certificate_file?
 
-      ["AD_CA_FILE does not point to a readable file"]
+      ["AD_CA_FILE must be a readable PEM file with at least one certificate"]
+    end
+
+    # Loads the file the way the TLS connection will, so a missing, unreadable or non-PEM file is reported here.
+    def certificate_file?
+      OpenSSL::X509::Store.new.add_file(ca_file)
+      true
+    rescue OpenSSL::X509::StoreError
+      false
     end
 
     def timeout_problems

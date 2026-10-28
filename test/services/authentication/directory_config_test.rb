@@ -64,6 +64,18 @@ class Authentication::DirectoryConfigTest < ActiveSupport::TestCase
     assert_empty config.problems
   end
 
+  test "AD_CA_FILE is optional: unset or blank means the system trust store, a certificate file is accepted" do
+    assert_equal [nil, nil], [directory_config(ad_ca_file: nil).ca_file, directory_config(ad_ca_file: "  ").ca_file]
+    assert_empty directory_config(ad_ca_file: nil).problems
+    assert_empty directory_config(ad_ca_file: OpenSSL::X509::DEFAULT_CERT_FILE).problems
+  end
+
+  test "an empty AD_CA_FILE is a problem rather than a silent fallback to the system store" do
+    Tempfile.create("ca.pem") do |file|
+      assert_match(/AD_CA_FILE/, directory_config(ad_ca_file: file.path).problems.join)
+    end
+  end
+
   test "a complete mock setup has no problems, a missing mock password is one" do
     assert_empty mock_directory_config.problems
     assert_equal ["AD_MOCK_PASSWORD is not set"], directory_config(ad_mode: "mock").problems
@@ -80,6 +92,8 @@ class Authentication::DirectoryConfigTest < ActiveSupport::TestCase
       { ad_netbios_domain: "" } => /AD_NETBIOS_DOMAIN/,
       { ad_bind_format: "upn", ad_dns_domain: "" } => /AD_DNS_DOMAIN/,
       { ad_ca_file: "/nonexistent/ca.pem" } => /AD_CA_FILE/,
+      { ad_ca_file: "/tmp" } => /AD_CA_FILE/,
+      { ad_ca_file: __FILE__ } => /AD_CA_FILE/,
       { ad_connect_timeout: "0" } => /TIMEOUT/,
       { ad_operation_timeout: "soon" } => /TIMEOUT/
     }.each do |overrides, expected|

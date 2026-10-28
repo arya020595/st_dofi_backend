@@ -39,14 +39,6 @@ class Authentication::LdapAuthenticatorTest < ActiveSupport::TestCase
                  bind_options(config: directory_config(ad_bind_format: "upn")).dig(:auth, :username)
   end
 
-  test "TLS options verify the certificate and demand TLS 1.2 or newer" do
-    tls = bind_options(config: directory_config(ad_ca_file: __FILE__)).dig(:encryption, :tls_options)
-
-    assert_equal OpenSSL::SSL::VERIFY_PEER, tls[:verify_mode]
-    assert_equal OpenSSL::SSL::TLS1_2_VERSION, tls[:min_version]
-    assert_equal __FILE__, tls[:ca_file]
-  end
-
   test "an unusable password or name never reaches the directory" do
     ldap_class = FakeLdap.answering
     unusable = [["ahmad", ""], ["ahmad", nil], ["ahmad", "a\0b"], ["ahmad", "x" * 257], ["a b", "right"],
@@ -87,7 +79,8 @@ class Authentication::LdapAuthenticatorTest < ActiveSupport::TestCase
     ldap_class = FakeLdap.answering(->(_) { OpenSSL::SSL::SSLError.new("hostname mismatch for ahmad: hunter2") })
     build(ldap_class:, entries:).call(username: "ahmad", password: "hunter2")
 
-    assert_equal [{ event: "ad.directory_unavailable", level: :error, params: { reason: "OpenSSL::SSL::SSLError" } }],
+    assert_equal [{ event: "ad.directory_unavailable", level: :error,
+                    params: { reason: "OpenSSL::SSL::SSLError", tls: "hostname_mismatch" } }],
                  entries
   end
 end

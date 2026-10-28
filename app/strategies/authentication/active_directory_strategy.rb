@@ -6,6 +6,8 @@ module Authentication
     include Dry::Monads[:result]
 
     def authenticate!
+      return fail!(:invalid) if null_byte?
+
       case OfficerLogin.call(username: authentication_hash[:username], password:)
       in Success(user) then success!(user)
       in Failure(:not_applicable) then pass
@@ -15,6 +17,10 @@ module Authentication
     end
 
     private
+
+    # No account can have a NUL in its username or password, and PostgreSQL and bcrypt raise on one (a 500) when
+    # Devise's own lookup and password check run after this strategy passes, so it is refused here for every sign-in.
+    def null_byte? = [authentication_hash[:username], password].any? { it.to_s.include?("\0") }
 
     def unavailable_response
       body = { status: "fail", message: I18n.t("errors.directory_unavailable") }.to_json

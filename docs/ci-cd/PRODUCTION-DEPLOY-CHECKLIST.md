@@ -6,6 +6,129 @@ inline; the explanations are in [`deploy/README.md`](../../deploy/README.md), th
 [backend runbook](../../deploy/production/backend/README.md) and the [database runbook](../../deploy/production/database/README.md);
 the design is in [`production-4-server-architecture.md`](../architecture/production-4-server-architecture.md). Tick the boxes in order.
 
+## Go-live readiness: staff sign-in through Active Directory (updated 2026-10-28)
+
+```text
+Application implementation:       [x] LOCAL VERIFIED      branch feat/active-directory-login, PR #101 open; not merged, not deployed
+Automated test suite:             [x] COMPLETE            929 runs, 0 failures, 0 errors, 0 skips (2026-10-28)
+Simulated AD integration:         [x] LOCAL VERIFIED      real LDAPS bind against a local simulator, 29 end-to-end tests
+Real AD connectivity:             [ ] NOT TESTED          PENDING INFRASTRUCTURE (DNS, port, firewall, certificate)
+Real AD authentication:           [ ] NOT TESTED          PENDING CLIENT (test account, bind format)
+Production security readiness:    [ ] BLOCKED             sections 3 and 4 below
+Production deployment approval:   [ ] PENDING CLIENT
+
+Overall Go-Live Decision: NO-GO
+```
+
+**Why NO-GO.** Staff can only sign in through the directory, and nothing has ever been sent to the real one. Until a
+test account has bound successfully from the production backend container, over a verified certificate, the staff
+sign-in is unproven. Fishermen and Jetty Managers (BruneiID) are not affected.
+
+How to read this: `LOCAL VERIFIED` means it passed against code or the **local simulator only** (a test stand-in
+that proves our side of the protocol, not the client's directory). Nothing marked `[x]` here has been tested against the
+real Active Directory. Evidence is a test class under `test/` or a command that was run; run them with
+`bin/rails test test/integration/active_directory` (the simulator needs no setup). Detail and diagrams:
+[`docs/active-directory/`](../active-directory/README.md), runbook:
+[`active-directory-login.md`](../registration/active-directory-login.md).
+
+Status words: `[x] COMPLETE` verified with evidence · `[x] LOCAL VERIFIED` simulator or unit only · `[ ] PENDING CLIENT` ·
+`[ ] PENDING INFRASTRUCTURE` · `[ ] NOT TESTED` · `[ ] BLOCKED` · `[ ] FAILED`.
+
+### 1. Application readiness
+
+| Item | Status | Env | Evidence | Owner | Dependency | Last verified |
+|---|---|---|---|---|---|---|
+| Rails API running on the production backend (the release **before** the AD change) | [x] COMPLETE | Production | Section D of this file: `api`/`jobs` healthy, 2026-10-27 | Engineering | none | 2026-10-27 (not re-checked) |
+| AD release merged, image built, deployed | [ ] NOT TESTED | Production | PR #101 is open; later CA-trust and end-to-end work is uncommitted | Engineering | review and merge, then section E | n/a |
+| Production `.env` for AD (`AD_MODE=ldap`, `AD_*`) | [ ] PENDING CLIENT | Production | The app refuses to boot without `AD_MODE`; values are unconfirmed (section 3) | Engineering + AD Team | confirmed host, port, bind format | n/a |
+| Local user eligibility (active, not discarded) | [x] LOCAL VERIFIED | Local | `ActiveDirectory::SignInTest` ("valid AD credentials cannot override an inactive, suspended or discarded local account") | Engineering | none | 2026-10-28 |
+| JWT issue, sign-out and revocation | [x] LOCAL VERIFIED | Local | `ActiveDirectory::SessionAndAccessTest`, `SessionsTokenRevocationTest` | Engineering | none | 2026-10-28 |
+| Authorization comes from local roles | [x] LOCAL VERIFIED | Local | `SessionAndAccessTest` ("permissions are the local role's"); `bin/rbac-lint` passed | Engineering | none | 2026-10-28 |
+| Security logging (`ad.login`, `ad.directory_unavailable`, no secrets) | [x] LOCAL VERIFIED | Local | `SignInTest` (log test), `FailureModesTest` (category logged, nothing sensitive) | Engineering | none | 2026-10-28 |
+| Quality checks | [x] COMPLETE | Local | `bin/rails test` 929 runs 0 failures; `bin/rubocop` 730 files clean; `bin/rbac-lint` passed; `bin/brakeman` 0 warnings; `bin/bundler-audit` none | Engineering | none | 2026-10-28 |
+
+### 2. Active Directory integration (code and simulator)
+
+| Item | Status | Env | Evidence | Owner | Dependency | Last verified |
+|---|---|---|---|---|---|---|
+| AD implementation (Warden strategy, `OfficerLogin`, `LdapAuthenticator`) | [x] LOCAL VERIFIED | Local | `test/services/authentication/`, `test/integration/active_directory/` | Engineering | none | 2026-10-28 |
+| Mock directory (local, staging) | [x] LOCAL VERIFIED | Local | `SessionsSharedMockPasswordTest`, `SessionAndAccessTest` ("mock directory still works") | Engineering | staging `.env` needs the mock password | 2026-10-28 |
+| Real LDAP mode against a local simulator (TCP + TLS + LDAP simple bind through `POST /api/v1/auth/sign_in`) | [x] LOCAL VERIFIED | Local | `SignInTest`, `FailureModesTest`, `SessionAndAccessTest` (29 tests) | Engineering | none | 2026-10-28 |
+| Valid bind returns 200 + JWT; both bind formats (`MPRT\name`, `name@MPRT.EG.GOV.BN`) | [x] LOCAL VERIFIED | Local | `SignInTest` first test | Engineering | which format the real AD accepts is unconfirmed | 2026-10-28 |
+| Wrong password: 401, no JWT, no local fall back | [x] LOCAL VERIFIED | Local | `SignInTest` | Engineering | none | 2026-10-28 |
+| Disabled or locked account (simulated as LDAP result 49): 401, same body as a wrong password | [x] LOCAL VERIFIED | Local | `SignInTest`; proves our handling only, not AD's lockout policy | Engineering | approved real test accounts | 2026-10-28 |
+| TLS certificate verification (untrusted CA, expired, wrong host name, invalid CA file) | [x] LOCAL VERIFIED | Local | `FailureModesTest`; with `VERIFY_PEER` replaced by `VERIFY_NONE` 5 of these fail | Engineering | none | 2026-10-28 |
+| System CA store used when `AD_CA_FILE` is empty | [x] LOCAL VERIFIED | Local | `LdapAuthenticatorTlsTest` (child process with `SSL_CERT_FILE`); the dev image holds 148 CAs | Engineering | whether the real AD certificate chains to one | 2026-10-28 |
+| Optional `AD_CA_FILE`; an invalid one is a 503, never a fall back | [x] LOCAL VERIFIED | Local | `LdapAuthenticatorTlsTest`, `FailureModesTest`, `DirectoryConfigTest` | Engineering | CA file only if the AD team supplies one | 2026-10-28 |
+| AD unavailable, hang-up and silent server: 503 within the timeouts, rest of the API works | [x] LOCAL VERIFIED | Local | `FailureModesTest` | Engineering | none | 2026-10-28 |
+| Failover (first server hangs up, or presents a refused certificate); a refused password is bound once. An unresolvable first host name is not simulated: it depends on the local DNS and made the test flaky | [x] LOCAL VERIFIED | Local | `FailureModesTest` (server-side bind counts) | Engineering | real multi-server failover is untested | 2026-10-28 |
+| JWT lifecycle with LDAP sign-ins (sign-out, deactivate, suspend, discard, username change, re-enable) | [x] LOCAL VERIFIED | Local | `SessionAndAccessTest` | Engineering | none | 2026-10-28 |
+| Jetty Manager, Fisherman and BruneiID flows unchanged | [x] COMPLETE | Local | Full suite green; `SessionAndAccessTest` (they never reach the directory) | Engineering | none | 2026-10-28 |
+| Hostile input (empty, missing, NUL byte, oversized, malformed payload), throttling (429), password never logged | [x] LOCAL VERIFIED | Local | `SignInTest`. The test env uses a null cache, so the 429 test installs an in-memory store. **Found and fixed:** a NUL byte in a username or in a local password made Devise's own lookup raise (HTTP 500); the strategy now refuses it with 401 | Engineering | none | 2026-10-28 |
+
+### 3. Active Directory infrastructure (all of this is the real environment, and none of it is tested)
+
+Candidate servers, **not confirmed**: `prtauthpro1.mprt.eg.gov.bn` (10.112.12.13), `prtauthpro2.mprt.eg.gov.bn`
+(10.112.12.17), `prtauthpro3.mprt.eg.gov.bn` (10.240.64.16); candidate port TCP `3269`. The IPs are for the firewall
+only; the application rejects IPs as `AD_HOST` because the certificate name is verified.
+
+| Item | Status | Env | Evidence | Owner | Dependency | Last verified |
+|---|---|---|---|---|---|---|
+| AD DNS domain `MPRT.EG.GOV.BN`, NetBIOS `MPRT` | [ ] PENDING CLIENT | Production | Given in the client's initial information; not checked against the directory | AD Team | written confirmation | n/a |
+| The three FQDNs | [ ] PENDING CLIENT | Production | Expected names only | AD Team | confirm names and certificate SANs | n/a |
+| DNS resolution from the backend container | [ ] NOT TESTED | Production | Runbook step A | Infrastructure | server access (Delinea) | n/a |
+| LDAPS port confirmed (3269 Global Catalog, or 636) | [ ] PENDING CLIENT | Production | The firewall document lists 3268/3269; LDAPS operation is unconfirmed | AD Team | confirm per server | n/a |
+| Firewall backend to AD hosts and port | [ ] PENDING INFRASTRUCTURE | Production | Runbook step B | Infrastructure | rule requested and opened | n/a |
+| TLS chain verified against the system store | [ ] NOT TESTED | Production | Runbook step C | Infrastructure | reachability | n/a |
+| Certificate host name verified | [ ] NOT TESTED | Production | Runbook step C | Infrastructure | reachability | n/a |
+| CA file needed? (AIMS/TIMS reportedly needed none) | [ ] PENDING CLIENT | Production | Answered by step C; if needed the AD team supplies the CA PEM | AD Team | step C result | n/a |
+| Bind username format (`netbios` or `upn`) | [ ] PENDING CLIENT | Production | `AD_BIND_FORMAT` stays configurable | AD Team | test with the account below | n/a |
+| Dedicated AD test account received securely (plus a disabled and a locked one) | [ ] PENDING CLIENT | Production | none yet | AD Team | secure hand-over | n/a |
+| Real bind with valid credentials | [ ] NOT TESTED | Production | Runbook step D, once | Engineering | all rows above | n/a |
+| Real bind with invalid credentials (approved test account, once) | [ ] NOT TESTED | Production | Never repeat: AD locks accounts | Engineering + AD Team | approval | n/a |
+| Real disabled/locked account handling | [ ] NOT TESTED | Production | Simulated only so far | AD Team | approved accounts | n/a |
+| Real multi-server failover | [ ] NOT TESTED | Production | Simulated only so far | Engineering + Infrastructure | approval | n/a |
+
+### 4. Production security
+
+| Item | Status | Env | Evidence | Owner | Dependency | Last verified |
+|---|---|---|---|---|---|---|
+| TLS verification cannot be bypassed | [x] LOCAL VERIFIED | Local | `LdapAuthenticatorTlsOptionsTest` (source scan for `VERIFY_NONE` and similar) and the `VERIFY_NONE` mutation above | Engineering | none | 2026-10-28 |
+| No local password fallback for DoFi Officers | [x] LOCAL VERIFIED | Local | `SignInTest`, `FailureModesTest`, `UserDirectoryTest`; staff store no password | Engineering | migration `BlankStaffEncryptedPasswords` runs on the first deploy (one way, not yet run on production: back up first, section G) | 2026-10-28 |
+| Mock AD cannot run in production | [x] LOCAL VERIFIED | Local | `DirectoryConfigTest` (boot refuses), `DeploymentEnvironmentTest` (compose files). Not yet seen on the real server | Engineering | deploy the AD release | 2026-10-28 |
+| No demo accounts with known passwords on production | [ ] BLOCKED | Production | New seeds skip them (`DemoSeedsProductionGuardTest`), but the production database still holds the demo rows from 2026-10-27 | Engineering | end of dummy-data testing, then the reset in "After testing" | 2026-10-27 |
+| Secrets stored securely (no committed values) | [x] LOCAL VERIFIED | Local | `DeploymentEnvironmentTest` scans committed files; production `.env` handling is not audited | Engineering | review of the server `.env` permissions | 2026-10-28 |
+| Sensitive values filtered from logs | [x] LOCAL VERIFIED | Local | `SignInTest` (log test), `FailureModesTest` | Engineering | none | 2026-10-28 |
+| Authentication errors mapped safely (identical 401, generic 503) | [x] LOCAL VERIFIED | Local | `SignInTest` (identical bodies) | Engineering | none | 2026-10-28 |
+| User revocation behaviour | [x] LOCAL VERIFIED | Local | `SessionAndAccessTest`, `UserTokenRevocationTest` | Engineering | none | 2026-10-28 |
+| Superadmin mapped to a real AD username | [ ] PENDING CLIENT | Production | `admin:assign_ad_username` is ready; the real name is missing | Client | the superadmin's AD name | n/a |
+| Access controls and audit logs reviewed on the server | [ ] NOT TESTED | Production | none | Engineering + Security | deploy | n/a |
+
+### 5. Deployment and operational readiness
+
+| Item | Status | Env | Evidence | Owner | Dependency | Last verified |
+|---|---|---|---|---|---|---|
+| Required production variables verified (`AD_MODE`, `AD_HOST`, `AD_PORT`, `AD_NETBIOS_DOMAIN`, `AD_DNS_DOMAIN`, `AD_BIND_FORMAT`, optional `AD_CA_FILE`, `ADMIN_AD_USERNAME`) | [ ] PENDING CLIENT | Production | Candidate values are in `deploy/production/backend/.env.example` | Engineering | section 3 | n/a |
+| Production image built and validated | [ ] NOT TESTED | Production | Built by CI on merge to `main` | Engineering | PR #101 merged | n/a |
+| Backend connectivity from the deployment environment | [ ] NOT TESTED | Production | Database, MinIO and ROCBN proven 2026-10-27 (section C); AD not tried | Infrastructure | section 3 | 2026-10-27 (non-AD) |
+| Database migration for the AD release | [ ] NOT TESTED | Production | `BlankStaffEncryptedPasswords` is tested locally only | Engineering | backup taken first | n/a |
+| Health checks | [x] COMPLETE | Production | `api` and `jobs` healthy (pre-AD release), section D | Engineering | recheck after the AD release | 2026-10-27 |
+| Backup and rollback | [ ] NOT TESTED | Production | Sections G and H. Rolling back the code does not bring back local staff passwords | Engineering | backup before the migration | n/a |
+| Restart procedure | [x] COMPLETE | Production | Section E, used 2026-10-27 | Engineering | none | 2026-10-27 |
+| Monitoring and error logging | [ ] NOT TESTED | Production | Sentry works (2026-10-27); no alert on `ad.directory_unavailable` yet | Engineering | alert rule | n/a |
+| Incident handling for an AD outage | [ ] NOT TESTED | Production | Written in the runbook ("Emergency access"); never rehearsed; no in-app bypass by design | Engineering + Client | break-glass decision | n/a |
+| Final UAT sign-off | [ ] PENDING CLIENT | Production | none | Client | real AD verification | n/a |
+| Production deployment approval | [ ] PENDING CLIENT | Production | none | Client | all of the above | n/a |
+
+### Go-live blockers
+
+1. Confirmed AD host names, port, bind format, and whether a CA file is needed (AD Team).
+2. Firewall from the backend server to the AD hosts (Infrastructure).
+3. Real DNS, TCP, TLS and bind checks passing from the backend container (runbook steps A to D).
+4. A dedicated AD test account, and the superadmin's real AD username (Client).
+5. The production database cleared of demo accounts, and a backup taken before the one-way migration.
+6. UAT sign-off and deployment approval (Client).
+
 Servers (hostname, IP, role):
 
 | Placeholder | Value | Server |

@@ -124,7 +124,8 @@ person is not told "your account is disabled", and nobody can probe which accoun
 | Property | Enforced by | Tested in |
 |---|---|---|
 | Plaintext LDAP is never used | `encryption: { method: :simple_tls }`; port 389 rejected by `DirectoryConfig#problems` | `ldap_authenticator_tls_test`, `directory_config_test` |
-| Server certificate is verified | `verify_mode: VERIFY_PEER`, TLS 1.2+ | `ldap_authenticator_tls_test` |
+| Server certificate is verified, with or without `AD_CA_FILE` | `verify_mode: VERIFY_PEER`, TLS 1.2+; system store unless an explicit CA file is given; an invalid explicit file is a 503, never a fallback | `ldap_authenticator_tls_test`, `ldap_authenticator_tls_options_test` |
+| Verification cannot be switched off | no setting exists; a test scans `app/`, `lib/`, `config/` for `VERIFY_NONE` and similar | `ldap_authenticator_tls_options_test` |
 | Host name must match the certificate | DNS names only (IPs rejected); net-ldap host check | `directory_config_test` |
 | Empty password never reaches AD (unauthenticated bind) | `LdapAuthenticator#usable?` | `ldap_authenticator_test` |
 | Bind name cannot be injected | `SHORT_NAME` allow-list; identity built from the **stored** username | `directory_username_test`, `officer_login_test` |
@@ -150,7 +151,7 @@ person is not told "your account is disabled", and nobody can probe which accoun
 | Typo in `AD_MODE` | Unknown values raise at boot (no `disabled`, no default under production) | None |
 | Sign in with an empty password | Rejected before any bind | None |
 | LDAP injection via the username | Allow-list regex; the bind name is built from the matched row | None known |
-| Man-in-the-middle on the AD link | LDAPS + `VERIFY_PEER` + host name check + private CA | Depends on the CA file being the right one |
+| Man-in-the-middle on the AD link | LDAPS + `VERIFY_PEER` + host name check + system or explicit CA | Depends on the CA file being the right one |
 | Brute force / AD lockout of a victim | 10 sign-ins/min/IP | **No per-username throttle** (open item) |
 | Stolen token after the person is fired | Deactivation rotates `jti` at once; tokens also expire after 1 day | None for DoFi-side deactivation; an **AD-side** disable is only seen at the next sign-in |
 | Shared mock password leaks | Never committed; set per environment in `.env` | Anyone who knows it can sign in as any staff user in that environment (staging). Keep it out of chat and the repo. |

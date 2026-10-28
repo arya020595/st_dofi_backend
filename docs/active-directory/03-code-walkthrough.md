@@ -209,10 +209,13 @@ The four guards, in order:
 1. **`usable?`**: blank password, NUL, longer than 256 characters, or a name that is not a valid short name → 401
    without touching the network. A blank password is the critical one: an LDAP simple bind with an empty password is an
    *unauthenticated bind*, which many servers answer with **success**.
-2. **`config.problems`**: missing host, IP address instead of DNS name, port 389, unreadable CA file, bad timeouts →
+2. **`config.problems`**: missing host, IP address instead of DNS name, port 389, an `AD_CA_FILE` that is not a readable PEM certificate, bad timeouts →
    503, not an attempt.
 3. **`bind`**: the real work (below).
-4. **`rescue`**: any network, TLS or timeout error → 503, logging only the exception **class**, never its message.
+4. **`rescue`**: any network, TLS or timeout error → 503, logging the exception **class** and, for a refused
+   certificate, one fixed category (`TLS_FAILURES`: `untrusted_certificate`, `certificate_expired`, `hostname_mismatch`,
+   ...), never the message. net-ldap wraps TLS failures in its own error classes, so the category is matched on the
+   message text, which for several hosts lists each host's failure.
 
 ```ruby
 def bind(username, password)
@@ -254,7 +257,9 @@ end
 
 net-ldap does **not** verify the server certificate unless told to. `VERIFY_PEER` makes it check the chain; net-ldap
 then checks that the certificate matches the host name we dialled (that is why `AD_HOST` must be a DNS name, never an
-IP). `ca_file` lets the container trust the government CA.
+IP). With no `ca_file`, OpenSSL falls back to the container's system CA store; with one, **only** that file is trusted.
+`DirectoryConfig#problems` loads an explicit file with `OpenSSL::X509::Store#add_file` first, so a missing or non-PEM
+file is a 503 and never a quiet switch to the system store.
 
 `total_timeout = connect_timeout × hosts + operation_timeout` bounds the whole call, because net-ldap only times out
 connecting and the TLS handshake, not the wait for the bind answer.

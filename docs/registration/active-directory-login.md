@@ -71,7 +71,7 @@ All read in one place, `Authentication::DirectoryConfig`.
 | `AD_NETBIOS_DOMAIN` | `MPRT` in mock mode, required for ldap | e.g. `MPRT`. Used for the bind name and to recognise `MPRT/` and `MPRT\` in what people type. |
 | `AD_DNS_DOMAIN` | none | e.g. `MPRT.EG.GOV.BN`. Only used by the `upn` bind format. |
 | `AD_BIND_FORMAT` | `netbios` | `netbios` binds as `MPRT\name`, `upn` as `name@MPRT.EG.GOV.BN`. **Not yet confirmed against the real AD.** |
-| `AD_CA_FILE` | system trust store | PEM of the CA that issued the directory certificate, as a path inside the container |
+| `AD_CA_FILE` | none: the container's system trust store | **Optional.** PEM file with the CA certificate(s) to trust instead of the system store, as a path inside the container. See "The CA certificate". |
 | `AD_CONNECT_TIMEOUT` | `3` | Seconds to connect and complete TLS, per host |
 | `AD_OPERATION_TIMEOUT` | `5` | Seconds to wait for the bind answer |
 | `ADMIN_AD_USERNAME` | mock default outside production, **required in production** | The superadmin's AD username, used only by `db:seed` on a fresh database |
@@ -82,10 +82,96 @@ to anything else.
 
 ### The CA certificate
 
-The directory's certificate must verify against a CA the container trusts. Put the CA's PEM (public material, no private
-key) on the host, mount it read-only into the `api` container (see the commented `volumes:` example in
-`deploy/production/backend/docker-compose.yml`) and set `AD_CA_FILE` to the container path. The certificate must name
-the `AD_HOST` you configured (subject alternative name), because the host name is checked.
+Certificate verification is **always on**: the server's certificate chain must be trusted, it must be valid today, and
+its name must match the `AD_HOST` entry that was dialled (TLS 1.2 or newer). Nothing in the application can switch this
+off, and a test fails if code that does so is added. A failed check is the same 503 as any directory outage.
+
+`AD_CA_FILE` only decides **who is trusted**:
+
+| `AD_CA_FILE` | Trusted CAs | Notes |
+|---|---|---|
+| unset or blank (default) | The container's system trust store (`ca-certificates`, already in the image) | Enough when the AD certificate chains to a CA in that store. |
+| a path | **Only** the CAs in that file | Replaces the system store, it does not add to it. The file must be PEM with at least one certificate. If it is missing, unreadable or not a certificate, sign-in answers 503 and the system store is **not** used instead. |
+
+AIMS and TIMS needing no separate CA file does not prove the AD certificate chains to a CA in the system store: those
+systems may never have verified the certificate. Whether DoFi needs a file is answered by the TLS check below.
+
+If the AD certificate is issued by an internal CA, the AD team supplies that Root CA and any intermediate CA as public
+PEM (never a private key). Put them in one file on the host, mount it read-only into the `api` container (see the
+commented `volumes:` example in `deploy/production/backend/docker-compose.yml`) and set `AD_CA_FILE` to the container
+path. Do not add certificates to the repository, download them automatically, or change the image's system store.
+
+## Verifying LDAPS from the backend container
+
+Run these **inside the `api` container** on the server (`docker compose exec api bash`). Do not assume the AD servers
+are reachable from a laptop. The values below are the **candidate** FQDNs and port, not confirmed facts.
+
+```bash
+# A. DNS
+getent hosts prtauthpro1.mprt.eg.gov.bn
+
+# B. TCP (the image has no nc; use nc -vz -w 5 HOST 3269 if you have it)
+timeout 5 bash -c '</dev/tcp/prtauthpro1.mprt.eg.gov.bn/3269' && echo "port open"
+
+# C. TLS with the system trust store, checking the chain and the host name
+openssl s_client -connect prtauthpro1.mprt.eg.gov.bn:3269 -servername prtauthpro1.mprt.eg.gov.bn \
+  -verify_hostname prtauthpro1.mprt.eg.gov.bn -verify_return_error -brief </dev/null
+
+# C'. The same with a CA file the AD team supplied (what AD_CA_FILE would use)
+openssl s_client -connect prtauthpro1.mprt.eg.gov.bn:3269 -servername prtauthpro1.mprt.eg.gov.bn \
+  -verify_hostname prtauthpro1.mprt.eg.gov.bn -verify_return_error -CAfile /etc/dofi/ad-ca.pem -brief </dev/null
+
+# D. The application's own bind, once, with a dedicated AD test account (the password is not echoed or stored)
+read -rp "AD test username (no domain): " T; read -rsp "AD test password: " P; echo
+docker compose exec -e AD_T="$T" -e AD_P="$P" api bin/rails runner \
+  'p Authentication::LdapAuthenticator.call(username: ENV.fetch("AD_T"), password: ENV.fetch("AD_P"))'
+unset T P
+```
+
+Repeat A to C for `prtauthpro2` and `prtauthpro3`. Run D once. **Never repeat wrong passwords against real accounts: AD
+locks them.**
+
+| What you see | What it means | Next step |
+|---|---|---|
+| A prints nothing | DNS cannot resolve the name: wrong FQDN, or this server has no route to the DNS | AD/DNS team |
+| B: `Connection refused` straight away | The host answers but nothing listens on that port | AD team: is LDAPS enabled, and on which port (3269, 636)? |
+| B: no answer for 5 s | A firewall or route drops it | Network/firewall team |
+| C connects, then `wrong version number`, `unexpected eof` or no certificate | The port is not speaking TLS (plaintext LDAP, or LDAPS is not operational) | AD team |
+| C: `unable to get local issuer certificate` or `self-signed certificate in certificate chain` | The certificate is not trusted by the system store | Get the CA from the AD team, repeat with C', then set `AD_CA_FILE` |
+| C: `certificate has expired` | The AD certificate expired | AD/PKI team |
+| C: `Hostname mismatch` | The certificate does not name that FQDN | Ask the AD team for the correct FQDN or SAN; do not use an IP |
+| C: `Verification: OK` | TLS is trusted and the name matches. **This does not prove the bind will succeed.** | Run D |
+| D: `Success(:authenticated)` | The bind worked | Done for that account |
+| D: `Failure(:invalid_credentials)` | AD was reached over verified TLS and refused the account or password | Check the account and the bind format (`AD_BIND_FORMAT`) |
+| D: `Failure(:directory_unavailable)` | See the `ad.directory_unavailable` log line, below | |
+
+The log line `ad.directory_unavailable` has `reason` (the exception class, or `misconfigured` with the `problems` list)
+and, for a refused certificate, `tls` with one of: `untrusted_certificate`, `certificate_expired`, `hostname_mismatch`,
+`certificate_not_yet_valid`, `certificate_rejected`. No `tls` field means the failure was not a certificate check
+(network, timeout, an unexpected LDAP result code). The log never contains the password, the account, the server
+address or OpenSSL's own message.
+
+## Values still awaiting the AD and infrastructure teams
+
+Candidate configuration (proposed, **not** proven reachable):
+
+```dotenv
+AD_HOST=prtauthpro1.mprt.eg.gov.bn,prtauthpro2.mprt.eg.gov.bn,prtauthpro3.mprt.eg.gov.bn
+AD_PORT=3269
+AD_NETBIOS_DOMAIN=MPRT
+AD_DNS_DOMAIN=MPRT.EG.GOV.BN
+AD_BIND_FORMAT=netbios
+AD_CA_FILE=
+```
+
+| Still to confirm | Why it matters |
+|---|---|
+| The three FQDNs resolve from the backend server, and the certificates name them | The host name is verified; the supplied IPs (10.112.12.13, 10.112.12.17, 10.240.64.16) are for the firewall only and are rejected as `AD_HOST` |
+| LDAPS is operational on 3269 (Global Catalog) on all three, or the right port (636) | The firewall document lists 3268/3269; only the TLS port is used, never 3268/389 |
+| `MPRT\name` or `name@MPRT.EG.GOV.BN` (`AD_BIND_FORMAT`) | Demonstrated with a test account |
+| Whether the AD certificate chains to a CA in the system store | Decides if `AD_CA_FILE` is needed at all |
+| Firewall rule from the backend server to all three hosts | Opened by the network team |
+| A dedicated AD test account (and a disabled and a locked one) | For step D and the 401 cases, without risking real accounts |
 
 ## How a sign-in is decided
 
@@ -162,13 +248,14 @@ revokes that user's tokens.
 
 Do these in order. The app will not boot on production until step 3 is done, by design.
 
-1. The AD team confirms the DNS names, the LDAPS port, the bind format and supplies the CA PEM
-   (see the requirements document). Open the firewall to those hosts and the port from the backend server.
+1. The AD team confirms the DNS names, the LDAPS port and the bind format (see the requirements document), and says
+   whether a CA file is needed (usually settled by the checks above). Open the firewall to those hosts and the port from
+   the backend server.
 2. Pull the new image and compose file. The compose file sets `DEPLOY_ENV=production`. The deploy's `db:prepare` also runs
    `BlankStaffEncryptedPasswords`, which clears every stored staff password hash (including the published default one on
    the seeded superadmin).
 3. In the server `.env` set `AD_MODE=ldap`, `AD_HOST`, `AD_PORT`, `AD_NETBIOS_DOMAIN`, `AD_BIND_FORMAT` (and
-   `AD_DNS_DOMAIN`, `AD_CA_FILE` with its volume mount). Do **not** set `AD_MOCK_PASSWORD`.
+   `AD_DNS_DOMAIN`; `AD_CA_FILE` with its volume mount only if the checks above show the system store is not enough). Do **not** set `AD_MOCK_PASSWORD`.
 4. **Map every staff user to its AD name**, before anyone signs in: the username must be `mprt/<AD name>`. For the
    superadmin run `admin:assign_ad_username` (above) with its real AD name, and check the others in User Management or with
    the same task. A wrong username is a lockout.
@@ -177,9 +264,7 @@ Do these in order. The app will not boot on production until step 3 is done, by 
 6. Start the `api` container and test from inside it with a dedicated AD test account and its matching DoFi user
    (disabled, locked and expired-password accounts must get 401). Do not repeat wrong passwords against real accounts: AD
    locks them.
-   ```bash
-   openssl s_client -connect <AD_HOST>:<AD_PORT> -servername <AD_HOST> -CAfile /etc/dofi/ad-ca.pem </dev/null | head -20
-   ```
+   Use the checks in "Verifying LDAPS from the backend container".
 7. Tell the staff. Rollback is to stop the container: there is no local-password mode to fall back to.
 
 ## Emergency access when AD is down
@@ -191,7 +276,7 @@ unaffected.
 1. **Detect.** 503 responses from sign-in and `ad.directory_unavailable` log entries (the reason is the exception class
    or result code).
 2. **Triage** from the API container: DNS and TCP to each `AD_HOST:AD_PORT`, the certificate chain and expiry
-   (`openssl s_client`), the CA file, the clock. The `AD_HOST` list already fails over between domain controllers.
+   (see "Verifying LDAPS from the backend container"), the CA file if one is set, the clock. The `AD_HOST` list already fails over between domain controllers.
 3. **Escalate** to the AD owner and the network/firewall owner (contacts are in the requirements document).
 4. **If a business-critical fix cannot wait**, use the controlled server path, not the application: a two-person,
    ticketed console session on the backend server through Delinea (the only way into the client's servers), with the

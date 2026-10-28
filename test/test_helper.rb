@@ -14,8 +14,11 @@ Rails.application.reload_routes!
 require "rails/test_help"
 require_relative "support/postgresql_number_triggers"
 require_relative "support/brunei_id_callback_helper"
+require_relative "support/test_certificates"
+require_relative "support/tls_directory"
 require_relative "support/directory_test_support"
 require_relative "support/directory_accounts_support"
+require_relative "support/active_directory_e2e_support"
 require_relative "support/rocbn_test_support"
 
 # Rails' Ruby schema dump does not retain PostgreSQL functions/triggers. Install the two

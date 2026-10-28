@@ -19,6 +19,18 @@ module Authentication
     MAX_PASSWORD_LENGTH = 256
     UNAVAILABLE_ERRORS = [Net::LDAP::Error, OpenSSL::SSL::SSLError, SystemCallError, SocketError, IOError,
                           Timeout::Error].freeze
+    # Why a certificate was refused, as a fixed vocabulary (first match wins, most specific first): the OpenSSL text is
+    # matched, never logged, because it also carries the peer address and certificate details. net-ldap hides a TLS
+    # failure inside its own error classes, so the match is on the message, which lists every host's failure when
+    # several were tried.
+    TLS_FAILURES = {
+      /certificate has expired/ => "certificate_expired",
+      /not yet valid/ => "certificate_not_yet_valid",
+      /hostname mismatch|does not match the server certificate/ => "hostname_mismatch",
+      /unable to get (local )?issuer certificate|self[- ]signed certificate|unable to verify the first certificate/ =>
+        "untrusted_certificate",
+      /certificate verify failed/ => "certificate_rejected"
+    }.freeze
 
     def self.call(...) = new.call(...)
 
@@ -34,7 +46,7 @@ module Authentication
 
       bind(username, password)
     rescue *UNAVAILABLE_ERRORS => e
-      unavailable(e.class.name)
+      unavailable(e.class.name, tls: tls_failure(e))
     end
 
     private
@@ -78,8 +90,13 @@ module Authentication
     # net-ldap only times out the connection and TLS handshake, so the wait for the bind answer is bounded here.
     def total_timeout = (config.connect_timeout * config.hosts.size) + config.operation_timeout
 
+    def tls_failure(error)
+      message = error.message.to_s
+      TLS_FAILURES.find { |pattern, _category| message.match?(pattern) }&.last
+    end
+
     def unavailable(reason, **details)
-      logger.call(event: "ad.directory_unavailable", level: :error, params: { reason:, **details })
+      logger.call(event: "ad.directory_unavailable", level: :error, params: { reason:, **details.compact })
       Failure(:directory_unavailable)
     end
   end
