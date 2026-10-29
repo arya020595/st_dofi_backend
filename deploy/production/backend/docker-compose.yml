@@ -27,6 +27,11 @@ x-rails: &rails
 
   init: true
 
+  # Set here, not in .env, so a server .env cannot change it. The app refuses to boot with AD_MODE=mock when this
+  # is production.
+  environment:
+    DEPLOY_ENV: production
+
   env_file:
     - .env
 
@@ -47,6 +52,11 @@ services:
 
     ports:
       - "127.0.0.1:3000:3000"
+
+    # Optional, only if the AD certificate is not trusted by the image's system CA store: put the CA PEM on this host,
+    # uncomment, and point AD_CA_FILE at the container path. Create the file first, or Docker creates a directory.
+    # volumes:
+    #   - ./certs/ad-ca.pem:/etc/dofi/ad-ca.pem:ro
 
     # Rails health endpoint
     healthcheck:

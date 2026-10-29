@@ -62,6 +62,9 @@ gem "prawn-table"
 gem "faraday"
 gem "jwt"
 
+# Active Directory (LDAPS) sign-in for internal staff
+gem "net-ldap", "~> 0.19"
+
 # Logging / Monitoring
 gem "lograge"
 gem "sentry-rails"

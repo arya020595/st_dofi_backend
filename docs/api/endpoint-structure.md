@@ -46,7 +46,7 @@ differentiation, or delegates entirely to whichever record owns the resource.
 ```
 GET    /up                                    # rails/health#show — load balancer / uptime check
 
-POST   /api/v1/auth/sign_in                   # devise_for :users → api/v1/sessions#create
+POST   /api/v1/auth/sign_in                   # devise_for :users → api/v1/sessions#create; staff are always checked against Active Directory (the mock on local/staging, LDAPS on production): 401 generic, 503 when the directory is unavailable; a deactivated/suspended/discarded user's earlier JWT gets 401
 DELETE /api/v1/auth/sign_out                  # api/v1/sessions#destroy
 GET    /api/v1/auth/me                        # api/v1/sessions#me
 
