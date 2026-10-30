@@ -18,6 +18,11 @@ module Api
       # The object is gone from storage although the blob row exists.
       rescue_from ActiveStorage::FileNotFoundError, with: :render_not_found
 
+      # Rails reads the bytes itself, so an unreachable or failing storage server is this endpoint's own dependency
+      # being down. ApplicationController answers storage errors with 422 "upload failed", which fits an upload and
+      # not a download: here the client should be told to retry (503), like the ROCBN lookup does.
+      rescue_from Aws::Errors::ServiceError, Seahorse::Client::NetworkingError, with: :render_storage_unavailable
+
       # GET /api/v1/attachments/:signed_id
       #
       # Authorization is evaluated here, at the moment the file is actually requested, not when
@@ -43,6 +48,11 @@ module Api
       end
 
       private
+
+      def render_storage_unavailable(exception)
+        Rails.error.report(exception, handled: true)
+        render_error(I18n.t("errors.storage_unavailable"), :service_unavailable)
+      end
 
       def attachment_for(blob)
         blob.attachments.first || raise(ActiveRecord::RecordNotFound)

@@ -1,81 +1,120 @@
-# Who talks to MinIO, and over which port
+# Who talks to storage, and over which port
 
-Why the browser needs a path to MinIO, and the two ways to give it one with the client's firewall (production, plain HTTP, no domain).
-Servers: backend `10.252.8.12` (nginx :80, Rails :3000 on loopback), storage `10.252.8.13` (MinIO :9000), users' browsers on the client LAN/VPN.
+How files move between the browser and the object storage (MinIO), in the shape the client's network requires:
+**browsers never connect to the storage server.** Files travel through the backend in both directions.
 
-## 1. Upload (works today, needs only backend to storage 9000)
+- Upload: FE -> BE -> MinIO.
+- Download: MinIO -> BE -> FE.
 
-The app has no direct upload: the browser sends the file to Rails, and Rails writes it to MinIO.
+> Superseded 2026-10-27: the earlier designs (a `302` to a presigned MinIO URL, and nginx proxying the bucket paths so
+> the browser could reach MinIO through the backend's address) needed the browser to reach storage, directly or
+> through a proxy. They are kept only as the decision record in
+> [`STORAGE-PROTOCOL-OPTIONS.md`](STORAGE-PROTOCOL-OPTIONS.md) and
+> [`ROUTE-FILES-THROUGH-APP-SERVER.md`](ROUTE-FILES-THROUGH-APP-SERVER.md). The current design and its rollout
+> checklist are in [`PLAN-SINGLE-PRIVATE-BUCKET.md`](PLAN-SINGLE-PRIVATE-BUCKET.md).
+
+Servers (production): frontend `10.246.8.12` (nginx `:4100`, proxies `/api`), backend `10.252.8.12` (nginx `:3000`,
+Rails on loopback), storage `10.252.8.13` (MinIO `:9000`). The browser only ever talks to the frontend.
+
+## 1. Upload
+
+There is no direct upload (`config.active_storage.draw_routes = false` in production). The browser sends the file to
+the API and Rails writes it to MinIO.
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor B as Browser
-    participant N as nginx :80 (backend)
-    participant R as Rails api :3000
+    participant F as Frontend nginx :4100
+    participant N as Backend nginx :3000
+    participant R as Rails api
     participant M as MinIO :9000 (storage)
 
-    B->>N: POST /api/v1/... (file, JWT)
+    B->>F: POST /api/v1/... (multipart file, JWT)
+    F->>N: proxy /api (body limit 12 MB on both nginx)
     N->>R: forward
     R->>M: PUT object (backend to storage, 9000)
     M-->>R: 200
-    R-->>B: 201 JSON
+    R-->>B: 200/201 JSON, file fields are /api/v1/attachments/:signed_id paths
 ```
 
-## 2. Download a private file, today (needs the browser to reach MinIO :9000)
+## 2. Download
 
-Rails never streams the file. It answers with a redirect to a **presigned URL**, and the browser fetches the bytes itself.
+Rails authorizes the request, reads the object from MinIO itself and answers with the bytes. It never redirects and
+never hands out a storage URL.
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor B as Browser
-    participant N as nginx :80 (backend)
-    participant R as Rails api :3000
+    participant F as Frontend nginx :4100
+    participant R as Rails api (via backend nginx)
     participant M as MinIO :9000 (storage)
 
-    B->>N: GET /api/v1/attachments/:signed_id (JWT)
-    N->>R: forward
-    R->>R: authorize, sign URL locally (no network call), host = MINIO_PUBLIC_ENDPOINT
-    R-->>B: 302 Location: http://10.252.8.13:9000/<bucket>/<key>?X-Amz-Signature=...
-    B->>M: GET that URL (browser to storage, 9000)
-    Note over B,M: Blocked if the client only opens backend to storage
-    M-->>B: 200 file bytes
+    B->>F: GET /api/v1/attachments/:signed_id (Authorization: Bearer JWT)
+    F->>R: proxy /api
+    R->>R: authorize against the owning record (Pundit)
+    R->>M: GET object (backend to storage, 9000)
+    M-->>R: bytes
+    R-->>B: 200 bytes, Content-Type, ETag, Cache-Control: private, must-revalidate
 ```
 
-Public images are the same without steps 1 to 3: the JSON already carries `http://10.252.8.13:9000/<public-bucket>/<key>`, and the browser fetches it from MinIO.
+A revisit sends `If-None-Match: <ETag>` and gets a bodyless `304`, but only after the authorization check passed.
 
-## 3. Download a private file, with nginx as the door (proposed; needs only browser to backend :80)
+## What the frontend must do
 
-`MINIO_PUBLIC_ENDPOINT=http://10.252.8.12` (no port). nginx forwards the two bucket paths to MinIO, unchanged, with the original `Host`.
+JSON never contains a storage URL. File fields are **relative API paths**: `image_url` (Dictionary),
+`images.front|back|left|right.url` (vessel, on the company vessels and on the Profiling Approval responses),
+`document_url` (company documents).
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor B as Browser
-    participant N as nginx :80 (backend)
-    participant R as Rails api :3000
-    participant M as MinIO :9000 (storage)
+`<img src="...">` cannot send the JWT, so a path used that way fails (`401`, or the SPA's `index.html` because the path
+resolves against the frontend origin). Fetch it with the `Authorization` header and show the result:
 
-    B->>N: GET /api/v1/attachments/:signed_id (JWT)
-    N->>R: forward
-    R->>R: authorize, sign URL locally, host = 10.252.8.12
-    R-->>B: 302 Location: http://10.252.8.12/<bucket>/<key>?X-Amz-Signature=...
-    B->>N: GET /<bucket>/<key>?... (browser to backend, 80)
-    N->>M: same path and same Host (backend to storage, 9000)
-    M->>M: check signature (Host and path match what was signed)
-    M-->>N: 200 file bytes
-    N-->>B: 200 file bytes
+```js
+const res = await fetch(path, { headers: { Authorization: `Bearer ${jwt}` } });
+if (res.ok) img.src = URL.createObjectURL(await res.blob());
 ```
 
-Why the path must not change: the signature covers the `Host` and the path. If nginx added or stripped a prefix such as `/minio/`, MinIO would see a different path than the one signed and answer `SignatureDoesNotMatch`. The bucket names (`dofi-production-private`, `dofi-production-public`) do not collide with any API route, so each gets its own `location` and is proxied as is.
+| Answer | Meaning |
+|---|---|
+| `200` | bytes (inline; `?disposition=attachment` for a download) |
+| `304` | the cached copy is still valid |
+| `401` | no or revoked JWT |
+| `403` | the user may not see the owning record (see below) |
+| `404` | bad/expired `signed_id`, or the object is missing from storage |
+| `503` | storage server unreachable or failing; retry later |
 
-## Firewall rows each option needs
+## Who may fetch which file
 
-| Option | Users to backend 80 | Users to storage 9000 | Backend to storage 9000 |
-|---|---|---|---|
-| Today (diagram 2) | yes | **yes** | yes |
-| nginx as the door (diagram 3) | yes | no | yes |
+The file is authorized by the **record that owns it**, not by the screen showing it
+(`AttachmentsController::POLICY_CLASS_BY_RECORD_TYPE`):
 
-Status: diagram 3 is a proposal, not yet applied or tested on the servers. The full analysis (architecture, the
-signature trap, proposed nginx block, pros and cons, test plan) is in [`ROUTE-FILES-THROUGH-APP-SERVER.md`](ROUTE-FILES-THROUGH-APP-SERVER.md).
+| File | Needs |
+|---|---|
+| Dictionary image | `dictionaries.view` (fishermen: always) |
+| Vessel image, company document | `company_profiles.view`; a fisherman only for their own company |
+
+So the Profiling Approval screens list the pictures with `companies_vessel_approvals.*`, but the bytes also need
+`company_profiles.view` (the seeded "DoFi Officer" role has every permission). A role with `dictionaries.list` but no
+`dictionaries.view` sees `image_url` in the list and is refused the picture. Policies do not accept another resource's
+code as a fallback (see the RBAC contract in `CLAUDE.md`), so give the role the permission instead.
+
+## Firewall rows this needs
+
+| Path | Needed |
+|---|---|
+| Users' browsers -> frontend `4100` | yes |
+| Frontend -> backend `3000` | yes |
+| Backend -> storage `9000` | yes |
+| Users' browsers -> storage `9000` | **no** |
+
+## How this is kept true
+
+- `test/architecture/files_served_only_through_relay_test.rb`: no app code builds a storage URL, production closes
+  Active Storage's own routes, and every model that attaches files has a policy the relay can authorize with.
+- `test/controllers/api/v1/upload_round_trip_test.rb` and `attachments_relay_test.rb`: upload, then fetch the same
+  bytes back; no response carries a storage URL; a storage outage answers `503`.
+- `script/smoke_file_relay.sh BASE_URL FISHERMAN_JWT [OFFICER_JWT]`: the same round trip against a real deployment,
+  through the frontend proxy, with sha256 comparison.
+- Real-MinIO local run of the production image: checklist item 7.3 in
+  [`PLAN-SINGLE-PRIVATE-BUCKET.md`](PLAN-SINGLE-PRIVATE-BUCKET.md).
