@@ -9,7 +9,7 @@ module Api
 
           def index
             authorize CompaniesVessel, policy_class: CompaniesVesselFishingGearApprovalPolicy
-            result = apply_ransack_search(vessel_scope, default_sort: "created_at desc")
+            result = apply_ransack_search(vessel_scope.with_images, default_sort: "created_at desc")
             pagy, records = pagy(:offset, result)
             render json: { status: "success", data: CompaniesVesselApprovalBlueprint.render_as_hash(records),
                            meta: pagination_meta(pagy) }

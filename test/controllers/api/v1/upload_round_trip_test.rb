@@ -81,6 +81,25 @@ module Api
                       "application/pdf"
       end
 
+      # Browsers cannot reach the storage server: no response that carries a file may hold a storage URL (presigned,
+      # public or otherwise), only the authorized /api/v1/attachments/ path.
+      test "responses that carry files hold relay paths only, never a storage URL" do
+        dictionary = create(:dictionary)
+        dictionary.image.attach(io: StringIO.new(png_bytes), filename: "fish.png", content_type: "image/png")
+        vessel = create(:companies_vessel)
+        vessel.front_image.attach(io: StringIO.new(png_bytes), filename: "boat.png", content_type: "image/png")
+        create(:companies_document, company_profile: vessel.company_profile)
+        company_path = "/api/v1/admin/company_profiles/#{vessel.company_profile_id}"
+
+        bodies = ["/api/v1/admin/dictionaries/#{dictionary.id}", "#{company_path}/vessels/#{vessel.id}",
+                  "#{company_path}/documents"].map do |path|
+          get path, headers: @headers
+          response.body
+        end
+
+        assert_empty bodies.grep(%r{https?://|X-Amz-|:9000}), "a response leaked a storage URL"
+      end
+
       private
 
       def assert_served(path, expected_bytes, expected_type)

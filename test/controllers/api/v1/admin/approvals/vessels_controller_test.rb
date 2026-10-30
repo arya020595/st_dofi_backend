@@ -34,6 +34,38 @@ module Api
           assert_response :ok
         end
 
+        test "show exposes every image slot: a relay path when attached, nil when empty" do
+          @vessel.front_image.attach(io: StringIO.new(png_bytes), filename: "boat.png", content_type: "image/png")
+
+          get "/api/v1/admin/approvals/vessels/#{@vessel.id}", headers: @admin_headers
+
+          assert_response :ok
+          assert_equal({ "front" => { "url" => "/api/v1/attachments/#{@vessel.front_image.blob.signed_id}",
+                                      "filename" => "boat.png" },
+                         "back" => nil, "left" => nil, "right" => nil },
+                       response.parsed_body.dig("data", "images"))
+        end
+
+        test "index exposes the vessel images too" do
+          @vessel.back_image.attach(io: StringIO.new(png_bytes), filename: "stern.png", content_type: "image/png")
+
+          get "/api/v1/admin/approvals/vessels", headers: @admin_headers
+
+          assert_response :ok
+          assert_equal "stern.png", response.parsed_body.dig("data", 0, "images", "back", "filename")
+        end
+
+        test "the officer can fetch the bytes behind each image path" do
+          @vessel.front_image.attach(io: StringIO.new(png_bytes), filename: "boat.png", content_type: "image/png")
+          headers = auth_headers_for(officer_who_can_fetch_images, password: @password)
+
+          get "/api/v1/admin/approvals/vessels/#{@vessel.id}", headers: headers
+          get response.parsed_body.dig("data", "images", "front", "url"), headers: headers
+
+          assert_response :ok
+          assert_equal png_bytes, response.body.b
+        end
+
         test "approve transitions the vessel from pending to approved" do
           owner = create_fisherman_owner(@vessel.company_profile)
 
@@ -78,6 +110,22 @@ module Api
         end
 
         private
+
+        # The image bytes are authorized by company_profiles.view (CompanyProfilePolicy), not by the approval
+        # permissions, so the approving officer needs both to see the pictures on the approval screen.
+        def officer_who_can_fetch_images
+          view = Permission.find_or_create_by!(code: "company_profiles.view") { |p| p.name = "Company Profiles - view" }
+          role = create(:role, permissions: @admin_role.permissions.to_a + [view])
+          create(:user, role:, position: "Administrator", unit: "HQ",
+                        password: @password, password_confirmation: @password)
+        end
+
+        # Minimal valid 1x1 transparent PNG.
+        def png_bytes
+          Base64.decode64(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+          )
+        end
 
         def create_fisherman_owner(company_profile)
           role = create(:role, :fisherman, company_profile:, is_default: true, name: "Owner")

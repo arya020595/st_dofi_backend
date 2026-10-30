@@ -33,10 +33,12 @@ en:
     forbidden: "You are not authorized to perform this action."
     not_found: "Resource not found."
     storage_failed: "Image upload failed. Please try again."
+    storage_unavailable: "The file is temporarily unavailable. Please try again later."
     account_not_found: "Account not found."
     company_contact_not_found: "No company contact matches this IC number."
     rocbn_search_criteria_required: "Enter a company name or a ROCBN number to search."
     rocbn_unavailable: "The company registry is temporarily unavailable. Please try again later."
+    directory_unavailable: "Sign-in is temporarily unavailable. Please try again later."
   activerecord:
     attributes:
       user:

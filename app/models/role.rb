@@ -44,6 +44,14 @@ class Role < ApplicationRecord
   def self.external = where(kind: JETTY_MANAGER).or(where(platform_scope: FISHERMAN_PLATFORM))
   def self.assignable_by_admin = where.not(id: external.select(:id))
 
+  # Internal staff roles: the DoFi Officer platform minus Jetty Managers (who use BruneiID). Staff sign in through
+  # Active Directory. `kind` is nullable (custom roles), hence IS DISTINCT FROM rather than where.not.
+  def directory_managed? = dofi_officer_platform? && kind != JETTY_MANAGER
+
+  def self.directory_managed
+    where(platform_scope: DOFI_OFFICER_PLATFORM).where("roles.kind IS DISTINCT FROM ?", JETTY_MANAGER)
+  end
+
   def self.assignable_by_fisherman(company_profile_id)
     where(platform_scope: FISHERMAN_PLATFORM, company_profile_id: company_profile_id)
   end

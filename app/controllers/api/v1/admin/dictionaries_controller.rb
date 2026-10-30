@@ -10,8 +10,10 @@ module Api
 
         def index
           authorize Dictionary
-          result = apply_ransack_search(policy_scope(Dictionary).includes(:dictionary_group, :dictionary_family),
-                                        default_sort: "created_at desc")
+          result = apply_ransack_search(
+            policy_scope(Dictionary).includes(:dictionary_group, :dictionary_family).with_attached_image,
+            default_sort: "created_at desc"
+          )
           pagy, records = pagy(:offset, result)
           render json: { status: "success", data: DictionaryBlueprint.render_as_hash(records),
                          meta: pagination_meta(pagy) }
@@ -65,10 +67,17 @@ module Api
         # Single create: POST multipart/JSON with `dictionary[local_name]`, `dictionary[image]`, etc.
         def entries_params
           if params[:dictionaries].present?
-            params.require(:dictionaries).values.map { |entry| entry.permit(*DICTIONARY_FIELDS) }
+            bulk_entries.map { |entry| entry.permit(*DICTIONARY_FIELDS) }
           else
             [params.expect(dictionary: DICTIONARY_FIELDS)]
           end
+        end
+
+        # `dictionaries[][local_name]` arrives as an Array of entries, `dictionaries[0][local_name]` as a Hash keyed
+        # by index; both are the same bulk request.
+        def bulk_entries
+          entries = params.require(:dictionaries)
+          entries.is_a?(Array) ? entries : entries.values
         end
 
         def dictionary_params
