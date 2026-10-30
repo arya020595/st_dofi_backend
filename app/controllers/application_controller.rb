@@ -2,9 +2,9 @@ class ApplicationController < ActionController::API
   include Pundit::Authorization
   include Pagy::Method
   include Dry::Monads[:result]
-  # Sets ActiveStorage::Current.url_options from the current request — required by the Disk
-  # service (test/development) whenever a blueprint calls blob.service.url directly; a no-op for
-  # the S3 service (MinIO in staging/production), which never touches Rails' router.
+  # Sets ActiveStorage::Current.url_options from the current request. Files are never given to a browser as a storage
+  # URL (they go out through AttachmentsController, see docs/minio/FILE-ACCESS-SEQUENCE.md), so only the Disk
+  # service used in development/test may still ask for it; the S3 service (MinIO) never touches Rails' router.
   include ActiveStorage::SetCurrent
 
   before_action :authenticate_user!
@@ -31,11 +31,10 @@ class ApplicationController < ActionController::API
     request.headers["Accept-Language"]
   end
 
-  # Only the local Disk service (used in development/test) needs this — it serves files through a
-  # Rails route, so generating a URL requires a host. This is an ActionController::API app, which
-  # (unlike ActionController::Base) never auto-populates ActiveStorage::Current.url_options from the
-  # request the way a view render would, so blueprints calling image.url would otherwise raise
-  # outside this before_action. MinIO/S3/Cloudinary generate their own absolute URLs and ignore this.
+  # Only the local Disk service (used in development/test) needs this — it builds URLs through a
+  # Rails route, which requires a host. This is an ActionController::API app, which (unlike
+  # ActionController::Base) never auto-populates ActiveStorage::Current.url_options from the
+  # request the way a view render would. MinIO/S3/Cloudinary generate their own absolute URLs and ignore this.
   def set_active_storage_url_options
     return unless Rails.application.config.respond_to?(:active_storage_url_host)
 
