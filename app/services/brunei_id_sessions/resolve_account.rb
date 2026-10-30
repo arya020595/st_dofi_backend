@@ -32,7 +32,7 @@ module BruneiIdSessions
       reason, payload = result.failure.is_a?(Array) ? result.failure : [result.failure, {}]
       case reason
       when :not_found then not_provisioned(ic_number, "fisherman")
-      when :suspended, :revoked then inactive_registration(payload.fetch(:user), ic_number)
+      when :inactive, :suspended, :revoked then inactive_registration(payload.fetch(:user), ic_number)
       else
         Failure(status: :unprocessable_content, code: "fisherman_claim_failed",
                 message: "Fisherman account could not be claimed.", kind: :claim_failed, ic_number:)

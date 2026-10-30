@@ -102,8 +102,13 @@ class User < ApplicationRecord
   def active_for_authentication? = super && kept? && ACCESS_DENIED_STATUSES.exclude?(lifecycle_status)
   def inactive_message = :invalid
 
+  # What every screen shows as "the" status. A fisherman has two switches: users.status, the company's own
+  # (Account Management > Assigned Users), and fisherman_status, the claim lifecycle DoFi governs. The account is
+  # only as active as the weaker of the two, so the claim lifecycle shows through only while the company switch is on.
   def lifecycle_status
-    fisherman? && fisherman_status.present? ? fisherman_status : status
+    return status unless status == "active" && fisherman? && fisherman_status.present?
+
+    fisherman_status
   end
 
   # No role in this system requires a real email: DoFi Officers authenticate by `username`,

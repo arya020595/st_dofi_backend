@@ -20,7 +20,11 @@ module Fisherman
       )
     end
 
+    # users.status is the company's own switch and wins over the claim lifecycle: an account created inactive cannot
+    # be claimed by logging in, and a claimed one switched off cannot log in.
     def resolve_user(user, verified_ic_number)
+      return Failure([:inactive, { user: user }]) unless user.active?
+
       case user.fisherman_status
       when "claimable" then claim_user(user, verified_ic_number)
       when "active" then Success(user)
