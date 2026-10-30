@@ -32,7 +32,34 @@ module Api
             assert_equal @company_users.map(&:id).sort, response.parsed_body.fetch("data").pluck("id").sort
           end
 
+          # The tester's report: a company switches a claimed teammate to inactive on Assigned Users, yet this screen
+          # kept showing it as active because it read the claim lifecycle and never the company's own switch.
+          test "users shows a teammate as inactive once the company switched them off on Assigned Users" do
+            crew = @company_users.last
+            crew.update!(fisherman_status: "active", claimed_at: Time.current, brunei_id_verified_at: Time.current)
+            manager_headers = auth_headers_for(create_user_manager, password: @password)
+
+            patch "/api/v1/fisherman/users/#{crew.id}", params: { user: { status: "inactive" } },
+                                                        headers: manager_headers, as: :json
+
+            assert_response :ok
+            get "/api/v1/admin/entity_users/company_profiles/#{@commercial_profile.id}/users", headers: @headers
+
+            assert_equal "inactive", response.parsed_body.fetch("data").find { |user| user["id"] == crew.id }["status"]
+          end
+
           private
+
+          def create_user_manager
+            permission = Permission.find_or_create_by!(code: "fisherman_users.update") do |record|
+              record.name = record.code
+              record.platform_scope = Permission::FISHERMAN_PLATFORM
+            end
+            role = create(:role, :fisherman, company_profile: @commercial_profile, name: "Manager",
+                                             permissions: [permission])
+            create(:user, role:, company_profile: @commercial_profile, ic_number: "01-811003",
+                          registration_type: "Commercial", password: @password, password_confirmation: @password)
+          end
 
           def create_officer
             permission = Permission.find_or_create_by!(code: "entity_users.list") do |record|

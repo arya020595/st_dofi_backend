@@ -26,6 +26,16 @@ module Api
             assert_equal [fisherman.name, "Small - Scale (Full-Time)"], data.first.values_at("name", "type")
           end
 
+          test "index shows a fisherman their company switched to inactive as inactive" do
+            fisherman = create_fisherman(@full_time_profile, "Small - Scale (Full-Time)")
+            fisherman.update!(fisherman_status: "active", claimed_at: Time.current, brunei_id_verified_at: Time.current,
+                              status: "inactive")
+
+            get "/api/v1/admin/entity_users/individual_fishermen", headers: @headers
+
+            assert_equal ["inactive"], response.parsed_body.fetch("data").pluck("status")
+          end
+
           private
 
           def create_officer

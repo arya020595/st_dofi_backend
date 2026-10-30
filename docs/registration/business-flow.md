@@ -176,6 +176,18 @@ stateDiagram-v2
     suspended --> revoked: contact replacement
 ```
 
+A Fisherman account also has a second, independent switch: `users.status` (`active`/`inactive`), the
+company's own on/off that its Owner/Admin flips under Account Management > Assigned Users. It does not
+replace `fisherman_status`, it sits on top of it: an account is usable only while **both** are active.
+
+- **Login:** `Fisherman::Authenticate` refuses an `inactive` account before it looks at `fisherman_status`, so
+  a teammate created inactive cannot claim the account and a claimed one switched off cannot sign in. Both get
+  the same `inactive_registration` 422 as a suspended or revoked account.
+- **Display:** `User#lifecycle_status` is the one status every DoFi screen shows (Data Entity Users, External
+  Users, `/me`). It returns `fisherman_status` while `users.status` is `active`, and `users.status` otherwise, so
+  a company-side deactivation is visible to officers. The Fisherman screen itself still shows the raw `status`.
+- An already-issued JWT outlives either switch until it expires; see the known gap in PR #72.
+
 Both provisioning sources start `claimable`; the source only decides which roles may be assigned:
 
 | Source | Initial state | Roles |
@@ -338,7 +350,7 @@ Approval Remarks) was removed on 2026-09-28 — see §9.
 |---|---|---|---|
 | Endpoint | `POST /api/v1/auth/sign_in` | `POST /api/v1/auth/brunei_id/callback` | `POST /api/v1/auth/brunei_id/callback` |
 | Credential | `username` + real password | OIDC code + PKCE verifier + nonce + redirect URI | OIDC code + PKCE verifier + nonce + redirect URI |
-| Lifecycle gate | Devise credential success | `users.status` | `users.fisherman_status` |
+| Lifecycle gate | Devise credential success | `users.status` | `users.status` and `users.fisherman_status` (§5) |
 | Missing IC behavior | N/A | terminal no-provisioned-account response | terminal no-provisioned-account response |
 | Today's implementation | Real (`encrypted_password` check via Devise) | OIDC callback | OIDC callback plus claim for `claimable` users |
 

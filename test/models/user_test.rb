@@ -100,6 +100,22 @@ class UserTest < ActiveSupport::TestCase
     assert_not owner.fins_governed_fisherman?
   end
 
+  test "lifecycle_status of a fisherman is its fisherman_status, unless the company switched users.status off" do
+    claim_lifecycle = %w[claimable active suspended revoked].map { |status| owner_user(status).lifecycle_status }
+    switched_off = %w[inactive suspended].map do |status|
+      owner_user("active").tap { |user| user.status = status }.lifecycle_status
+    end
+
+    assert_equal [%w[claimable active suspended revoked], %w[inactive suspended]], [claim_lifecycle, switched_off]
+  end
+
+  test "lifecycle_status of officers and jetty managers is users.status" do
+    officer = build(:user, role: create(:role, kind: Role::DOFI_OFFICER), status: "inactive")
+    jetty_manager = build(:user, role: create(:role, kind: Role::JETTY_MANAGER), status: "active")
+
+    assert_equal %w[inactive active], [officer.lifecycle_status, jetty_manager.lifecycle_status]
+  end
+
   private
 
   def owner_user(fisherman_status)

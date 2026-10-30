@@ -74,6 +74,34 @@ class BruneiIdMockLoginTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "a fisherman their company switched to inactive gets the inactive 422 without tokens" do
+    user = create(:user, :fins_governed_fisherman, status: "inactive", fisherman_status: "active",
+                                                   claimed_at: Time.current, brunei_id_verified_at: Time.current)
+
+    mock_login(user.ic_number, audience: "fisherman")
+
+    assert_inactive_response("inactive")
+  end
+
+  test "a fisherman created inactive is not claimed by an audience-scoped login" do
+    user = create(:user, :fins_governed_fisherman, status: "inactive")
+
+    mock_login(user.ic_number, audience: "fisherman")
+
+    assert_inactive_response("inactive")
+    assert_equal ["claimable", nil], [user.reload.fisherman_status, user.claimed_at]
+  end
+
+  test "an unscoped mock login neither claims nor signs in a fisherman created inactive" do
+    user = create(:user, :fins_governed_fisherman, status: "inactive")
+
+    mock_login(user.ic_number)
+
+    assert_response :ok
+    assert_nil response.headers["Authorization"]
+    assert_equal ["claimable", nil], [user.reload.fisherman_status, user.claimed_at]
+  end
+
   test "missing audience keeps the original dashboard payload and claims a fisherman" do
     user = create(:user, :fins_governed_fisherman)
 
