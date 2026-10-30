@@ -36,13 +36,13 @@ module BruneiIdSessions
     end
 
     def claim_if_needed(user, ic_number)
-      return Success(user) unless user.fisherman? && user.fisherman_status == "claimable"
+      return Success(user) unless user.fisherman? && user.fisherman_status == "claimable" && user.active?
 
       account_claimer.call(user:, verified_ic_number: ic_number, verified_at: Time.current)
     end
 
     def login_allowed_for?(user)
-      user.fisherman? ? user.fisherman_status == "active" : user.active?
+      user.active? && (!user.fisherman? || user.fisherman_status == "active")
     end
 
     def log_result(result, audience)
