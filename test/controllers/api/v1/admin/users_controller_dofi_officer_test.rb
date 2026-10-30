@@ -29,16 +29,14 @@ module Api
           assert_response :created
         end
 
-        test "create for the DoFi Officer role returns a working one-time temporary_password" do
+        test "create for the DoFi Officer role issues no password" do
           post "/api/v1/admin/users", params: { user: { name: "Azri Bin Haji Nizam Matussin", position: "Administrator",
                                                         unit: "Block A", username: "mprt/azri.nizam",
                                                         role_id: @officer_role.id } },
                                       headers: @admin_headers, as: :json
 
-          temporary_password = response.parsed_body.dig("data", "temporary_password")
-
-          assert_predicate temporary_password, :present?
-          assert User.last.valid_password?(temporary_password)
+          assert_response :created
+          assert_nil response.parsed_body.dig("data", "temporary_password")
         end
 
         test "create for the DoFi Officer role requires position, unit, and username" do
@@ -49,7 +47,58 @@ module Api
           assert_predicate response.parsed_body["errors"], :present?
         end
 
-        test "create with an admin-supplied password uses it instead of generating one" do
+        test "a created officer has no password stored, and the mock directory password is not one" do
+          post "/api/v1/admin/users", params: { user: { name: "Azri Bin Haji Nizam Matussin", position: "Administrator",
+                                                        unit: "Block A", username: "mprt/azri.nizam",
+                                                        role_id: @officer_role.id } },
+                                      headers: @admin_headers, as: :json
+          created = User.find(response.parsed_body.dig("data", "id"))
+
+          assert_equal "", created.encrypted_password
+          assert_not created.valid_password?(DirectoryTestSupport::MOCK_PASSWORD)
+        end
+
+        test "changing an officer's username revokes their token, a profile edit does not" do
+          officer = create(:user, :officer_shaped, role: @officer_role, username: "mprt/existing")
+          officer_headers = auth_headers_for(officer, password: "unused")
+
+          patch "/api/v1/admin/users/#{officer.id}", params: { user: { name: "Renamed", unit: "Block C" } },
+                                                     headers: @admin_headers, as: :json
+          get "/api/v1/auth/me", headers: officer_headers
+
+          assert_response :ok
+
+          patch "/api/v1/admin/users/#{officer.id}", params: { user: { username: "mprt/renamed.officer" } },
+                                                     headers: @admin_headers, as: :json
+          get "/api/v1/auth/me", headers: officer_headers
+
+          assert_response :unauthorized
+          get "/api/v1/auth/me", headers: @admin_headers
+
+          assert_response :ok
+        end
+
+        test "deactivating an officer in the admin API locks out their token; re-enabling does not restore it" do
+          officer = create(:user, :officer_shaped, role: @officer_role, username: "mprt/existing")
+          officer_headers = auth_headers_for(officer, password: "unused")
+
+          patch "/api/v1/admin/users/#{officer.id}", params: { user: { status: "inactive" } },
+                                                     headers: @admin_headers, as: :json
+          get "/api/v1/auth/me", headers: officer_headers
+
+          assert_response :unauthorized
+
+          patch "/api/v1/admin/users/#{officer.id}", params: { user: { status: "active" } },
+                                                     headers: @admin_headers, as: :json
+          get "/api/v1/auth/me", headers: officer_headers
+
+          assert_response :unauthorized
+          get "/api/v1/auth/me", headers: auth_headers_for(officer, password: "unused")
+
+          assert_response :ok
+        end
+
+        test "create ignores a supplied password: staff sign in through Active Directory, not a local password" do
           post "/api/v1/admin/users", params: { user: { name: "Azri Bin Haji Nizam Matussin", position: "Administrator",
                                                         unit: "Block A", username: "mprt/azri.nizam",
                                                         role_id: @officer_role.id, password: "AdminChosen1!",
@@ -57,20 +106,21 @@ module Api
                                       headers: @admin_headers, as: :json
 
           assert_response :created
-          assert_nil response.parsed_body.dig("data", "temporary_password")
-          assert User.last.valid_password?("AdminChosen1!")
+          assert_not User.last.valid_password?("AdminChosen1!")
         end
 
-        test "update changes the user's password" do
+        test "update ignores a supplied password" do
           officer = create(:user, role: @officer_role, position: "Administrator", unit: "Block A",
                                   username: "mprt/existing")
 
           patch "/api/v1/admin/users/#{officer.id}",
-                params: { user: { password: "NewPassword1!", password_confirmation: "NewPassword1!" } },
+                params: { user: { name: "Renamed Officer", password: "NewPassword1!",
+                                  password_confirmation: "NewPassword1!" } },
                 headers: @admin_headers, as: :json
 
           assert_response :success
-          assert officer.reload.valid_password?("NewPassword1!")
+          assert_equal "Renamed Officer", officer.reload.name
+          assert_not officer.valid_password?("NewPassword1!")
         end
       end
     end

@@ -108,7 +108,7 @@ module Fisherman
       singleton.define_method(method_name, callable)
       yield
     ensure
-      singleton.define_method(method_name) { |*args, **kwargs| original.call(*args, **kwargs) }
+      singleton.define_method(method_name) { |*args, **kwargs, &block| original.call(*args, **kwargs, &block) }
     end
 
     def race_availability_sequence

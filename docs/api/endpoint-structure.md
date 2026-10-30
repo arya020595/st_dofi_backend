@@ -46,7 +46,7 @@ differentiation, or delegates entirely to whichever record owns the resource.
 ```
 GET    /up                                    # rails/health#show — load balancer / uptime check
 
-POST   /api/v1/auth/sign_in                   # devise_for :users → api/v1/sessions#create
+POST   /api/v1/auth/sign_in                   # devise_for :users → api/v1/sessions#create; staff are always checked against Active Directory (the mock on local/staging, LDAPS on production): 401 generic, 503 when the directory is unavailable; a deactivated/suspended/discarded user's earlier JWT gets 401
 DELETE /api/v1/auth/sign_out                  # api/v1/sessions#destroy
 GET    /api/v1/auth/me                        # api/v1/sessions#me
 
@@ -57,8 +57,10 @@ POST   /api/v1/auth/brunei_id/callback        # brunei_id_sessions#callback — 
 
 GET    /api/v1/permissions                    # permissions#index — full catalog, any authenticated user
 
-GET    /api/v1/attachments/:signed_id         # attachments#show — 302 to a freshly-signed MinIO URL,
-                                               # authorized against whichever record owns the blob
+GET    /api/v1/attachments/:signed_id         # attachments#show — 200 with the file bytes (Rails reads them from MinIO;
+                                               # browsers never reach storage), authorized against whichever record owns
+                                               # the blob. Send the JWT in Authorization: an <img src> cannot.
+                                               # See docs/minio/FILE-ACCESS-SEQUENCE.md
 ```
 
 ---
@@ -119,7 +121,9 @@ tab rows via `JettyManagerScope`/`FishermanScope`).
 ### `approvals/` — review queues (`Api::V1::Admin::Approvals::*`)
 
 ```
-/api/v1/admin/approvals/vessels                index show
+/api/v1/admin/approvals/vessels                index show   (each vessel carries `images`: front/back/left/right,
+                                                             nil or { url, filename } — fetching the bytes also needs
+                                                             company_profiles.view)
   POST   .../:id/approve
   POST   .../:id/request_amendment
 

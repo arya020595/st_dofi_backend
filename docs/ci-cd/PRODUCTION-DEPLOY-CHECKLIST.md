@@ -6,6 +6,129 @@ inline; the explanations are in [`deploy/README.md`](../../deploy/README.md), th
 [backend runbook](../../deploy/production/backend/README.md) and the [database runbook](../../deploy/production/database/README.md);
 the design is in [`production-4-server-architecture.md`](../architecture/production-4-server-architecture.md). Tick the boxes in order.
 
+## Go-live readiness: staff sign-in through Active Directory (updated 2026-10-28)
+
+```text
+Application implementation:       [x] LOCAL VERIFIED      branch feat/active-directory-login, PR #101 open; not merged, not deployed
+Automated test suite:             [x] COMPLETE            929 runs, 0 failures, 0 errors, 0 skips (2026-10-28)
+Simulated AD integration:         [x] LOCAL VERIFIED      real LDAPS bind against a local simulator, 29 end-to-end tests
+Real AD connectivity:             [ ] NOT TESTED          PENDING INFRASTRUCTURE (DNS, port, firewall, certificate)
+Real AD authentication:           [ ] NOT TESTED          PENDING CLIENT (test account, bind format)
+Production security readiness:    [ ] BLOCKED             sections 3 and 4 below
+Production deployment approval:   [ ] PENDING CLIENT
+
+Overall Go-Live Decision: NO-GO
+```
+
+**Why NO-GO.** Staff can only sign in through the directory, and nothing has ever been sent to the real one. Until a
+test account has bound successfully from the production backend container, over a verified certificate, the staff
+sign-in is unproven. Fishermen and Jetty Managers (BruneiID) are not affected.
+
+How to read this: `LOCAL VERIFIED` means it passed against code or the **local simulator only** (a test stand-in
+that proves our side of the protocol, not the client's directory). Nothing marked `[x]` here has been tested against the
+real Active Directory. Evidence is a test class under `test/` or a command that was run; run them with
+`bin/rails test test/integration/active_directory` (the simulator needs no setup). Detail and diagrams:
+[`docs/active-directory/`](../active-directory/README.md), runbook:
+[`active-directory-login.md`](../registration/active-directory-login.md).
+
+Status words: `[x] COMPLETE` verified with evidence · `[x] LOCAL VERIFIED` simulator or unit only · `[ ] PENDING CLIENT` ·
+`[ ] PENDING INFRASTRUCTURE` · `[ ] NOT TESTED` · `[ ] BLOCKED` · `[ ] FAILED`.
+
+### 1. Application readiness
+
+| Item | Status | Env | Evidence | Owner | Dependency | Last verified |
+|---|---|---|---|---|---|---|
+| Rails API running on the production backend (the release **before** the AD change) | [x] COMPLETE | Production | Section D of this file: `api`/`jobs` healthy, 2026-10-27 | Engineering | none | 2026-10-27 (not re-checked) |
+| AD release merged, image built, deployed | [ ] NOT TESTED | Production | PR #101 is open; later CA-trust and end-to-end work is uncommitted | Engineering | review and merge, then section E | n/a |
+| Production `.env` for AD (`AD_MODE=ldap`, `AD_*`) | [ ] PENDING CLIENT | Production | The app refuses to boot without `AD_MODE`; values are unconfirmed (section 3) | Engineering + AD Team | confirmed host, port, bind format | n/a |
+| Local user eligibility (active, not discarded) | [x] LOCAL VERIFIED | Local | `ActiveDirectory::SignInTest` ("valid AD credentials cannot override an inactive, suspended or discarded local account") | Engineering | none | 2026-10-28 |
+| JWT issue, sign-out and revocation | [x] LOCAL VERIFIED | Local | `ActiveDirectory::SessionAndAccessTest`, `SessionsTokenRevocationTest` | Engineering | none | 2026-10-28 |
+| Authorization comes from local roles | [x] LOCAL VERIFIED | Local | `SessionAndAccessTest` ("permissions are the local role's"); `bin/rbac-lint` passed | Engineering | none | 2026-10-28 |
+| Security logging (`ad.login`, `ad.directory_unavailable`, no secrets) | [x] LOCAL VERIFIED | Local | `SignInTest` (log test), `FailureModesTest` (category logged, nothing sensitive) | Engineering | none | 2026-10-28 |
+| Quality checks | [x] COMPLETE | Local | `bin/rails test` 929 runs 0 failures; `bin/rubocop` 730 files clean; `bin/rbac-lint` passed; `bin/brakeman` 0 warnings; `bin/bundler-audit` none | Engineering | none | 2026-10-28 |
+
+### 2. Active Directory integration (code and simulator)
+
+| Item | Status | Env | Evidence | Owner | Dependency | Last verified |
+|---|---|---|---|---|---|---|
+| AD implementation (Warden strategy, `OfficerLogin`, `LdapAuthenticator`) | [x] LOCAL VERIFIED | Local | `test/services/authentication/`, `test/integration/active_directory/` | Engineering | none | 2026-10-28 |
+| Mock directory (local, staging) | [x] LOCAL VERIFIED | Local | `SessionsSharedMockPasswordTest`, `SessionAndAccessTest` ("mock directory still works") | Engineering | staging `.env` needs the mock password | 2026-10-28 |
+| Real LDAP mode against a local simulator (TCP + TLS + LDAP simple bind through `POST /api/v1/auth/sign_in`) | [x] LOCAL VERIFIED | Local | `SignInTest`, `FailureModesTest`, `SessionAndAccessTest` (29 tests) | Engineering | none | 2026-10-28 |
+| Valid bind returns 200 + JWT; both bind formats (`MPRT\name`, `name@MPRT.EG.GOV.BN`) | [x] LOCAL VERIFIED | Local | `SignInTest` first test | Engineering | which format the real AD accepts is unconfirmed | 2026-10-28 |
+| Wrong password: 401, no JWT, no local fall back | [x] LOCAL VERIFIED | Local | `SignInTest` | Engineering | none | 2026-10-28 |
+| Disabled or locked account (simulated as LDAP result 49): 401, same body as a wrong password | [x] LOCAL VERIFIED | Local | `SignInTest`; proves our handling only, not AD's lockout policy | Engineering | approved real test accounts | 2026-10-28 |
+| TLS certificate verification (untrusted CA, expired, wrong host name, invalid CA file) | [x] LOCAL VERIFIED | Local | `FailureModesTest`; with `VERIFY_PEER` replaced by `VERIFY_NONE` 5 of these fail | Engineering | none | 2026-10-28 |
+| System CA store used when `AD_CA_FILE` is empty | [x] LOCAL VERIFIED | Local | `LdapAuthenticatorTlsTest` (child process with `SSL_CERT_FILE`); the dev image holds 148 CAs | Engineering | whether the real AD certificate chains to one | 2026-10-28 |
+| Optional `AD_CA_FILE`; an invalid one is a 503, never a fall back | [x] LOCAL VERIFIED | Local | `LdapAuthenticatorTlsTest`, `FailureModesTest`, `DirectoryConfigTest` | Engineering | CA file only if the AD team supplies one | 2026-10-28 |
+| AD unavailable, hang-up and silent server: 503 within the timeouts, rest of the API works | [x] LOCAL VERIFIED | Local | `FailureModesTest` | Engineering | none | 2026-10-28 |
+| Failover (first server hangs up, or presents a refused certificate); a refused password is bound once. An unresolvable first host name is not simulated: it depends on the local DNS and made the test flaky | [x] LOCAL VERIFIED | Local | `FailureModesTest` (server-side bind counts) | Engineering | real multi-server failover is untested | 2026-10-28 |
+| JWT lifecycle with LDAP sign-ins (sign-out, deactivate, suspend, discard, username change, re-enable) | [x] LOCAL VERIFIED | Local | `SessionAndAccessTest` | Engineering | none | 2026-10-28 |
+| Jetty Manager, Fisherman and BruneiID flows unchanged | [x] COMPLETE | Local | Full suite green; `SessionAndAccessTest` (they never reach the directory) | Engineering | none | 2026-10-28 |
+| Hostile input (empty, missing, NUL byte, oversized, malformed payload), throttling (429), password never logged | [x] LOCAL VERIFIED | Local | `SignInTest`. The test env uses a null cache, so the 429 test installs an in-memory store. **Found and fixed:** a NUL byte in a username or in a local password made Devise's own lookup raise (HTTP 500); the strategy now refuses it with 401 | Engineering | none | 2026-10-28 |
+
+### 3. Active Directory infrastructure (all of this is the real environment, and none of it is tested)
+
+Candidate servers, **not confirmed**: `prtauthpro1.mprt.eg.gov.bn` (10.112.12.13), `prtauthpro2.mprt.eg.gov.bn`
+(10.112.12.17), `prtauthpro3.mprt.eg.gov.bn` (10.240.64.16); candidate port TCP `3269`. The IPs are for the firewall
+only; the application rejects IPs as `AD_HOST` because the certificate name is verified.
+
+| Item | Status | Env | Evidence | Owner | Dependency | Last verified |
+|---|---|---|---|---|---|---|
+| AD DNS domain `MPRT.EG.GOV.BN`, NetBIOS `MPRT` | [ ] PENDING CLIENT | Production | Given in the client's initial information; not checked against the directory | AD Team | written confirmation | n/a |
+| The three FQDNs | [ ] PENDING CLIENT | Production | Expected names only | AD Team | confirm names and certificate SANs | n/a |
+| DNS resolution from the backend container | [ ] NOT TESTED | Production | Runbook step A | Infrastructure | server access (Delinea) | n/a |
+| LDAPS port confirmed (3269 Global Catalog, or 636) | [ ] PENDING CLIENT | Production | The firewall document lists 3268/3269; LDAPS operation is unconfirmed | AD Team | confirm per server | n/a |
+| Firewall backend to AD hosts and port | [ ] PENDING INFRASTRUCTURE | Production | Runbook step B | Infrastructure | rule requested and opened | n/a |
+| TLS chain verified against the system store | [ ] NOT TESTED | Production | Runbook step C | Infrastructure | reachability | n/a |
+| Certificate host name verified | [ ] NOT TESTED | Production | Runbook step C | Infrastructure | reachability | n/a |
+| CA file needed? (AIMS/TIMS reportedly needed none) | [ ] PENDING CLIENT | Production | Answered by step C; if needed the AD team supplies the CA PEM | AD Team | step C result | n/a |
+| Bind username format (`netbios` or `upn`) | [ ] PENDING CLIENT | Production | `AD_BIND_FORMAT` stays configurable | AD Team | test with the account below | n/a |
+| Dedicated AD test account received securely (plus a disabled and a locked one) | [ ] PENDING CLIENT | Production | none yet | AD Team | secure hand-over | n/a |
+| Real bind with valid credentials | [ ] NOT TESTED | Production | Runbook step D, once | Engineering | all rows above | n/a |
+| Real bind with invalid credentials (approved test account, once) | [ ] NOT TESTED | Production | Never repeat: AD locks accounts | Engineering + AD Team | approval | n/a |
+| Real disabled/locked account handling | [ ] NOT TESTED | Production | Simulated only so far | AD Team | approved accounts | n/a |
+| Real multi-server failover | [ ] NOT TESTED | Production | Simulated only so far | Engineering + Infrastructure | approval | n/a |
+
+### 4. Production security
+
+| Item | Status | Env | Evidence | Owner | Dependency | Last verified |
+|---|---|---|---|---|---|---|
+| TLS verification cannot be bypassed | [x] LOCAL VERIFIED | Local | `LdapAuthenticatorTlsOptionsTest` (source scan for `VERIFY_NONE` and similar) and the `VERIFY_NONE` mutation above | Engineering | none | 2026-10-28 |
+| No local password fallback for DoFi Officers | [x] LOCAL VERIFIED | Local | `SignInTest`, `FailureModesTest`, `UserDirectoryTest`; staff store no password | Engineering | migration `BlankStaffEncryptedPasswords` runs on the first deploy (one way, not yet run on production: back up first, section G) | 2026-10-28 |
+| Mock AD cannot run in production | [x] LOCAL VERIFIED | Local | `DirectoryConfigTest` (boot refuses), `DeploymentEnvironmentTest` (compose files). Not yet seen on the real server | Engineering | deploy the AD release | 2026-10-28 |
+| No demo accounts with known passwords on production | [ ] BLOCKED | Production | New seeds skip them (`DemoSeedsProductionGuardTest`), but the production database still holds the demo rows from 2026-10-27 | Engineering | end of dummy-data testing, then the reset in "After testing" | 2026-10-27 |
+| Secrets stored securely (no committed values) | [x] LOCAL VERIFIED | Local | `DeploymentEnvironmentTest` scans committed files; production `.env` handling is not audited | Engineering | review of the server `.env` permissions | 2026-10-28 |
+| Sensitive values filtered from logs | [x] LOCAL VERIFIED | Local | `SignInTest` (log test), `FailureModesTest` | Engineering | none | 2026-10-28 |
+| Authentication errors mapped safely (identical 401, generic 503) | [x] LOCAL VERIFIED | Local | `SignInTest` (identical bodies) | Engineering | none | 2026-10-28 |
+| User revocation behaviour | [x] LOCAL VERIFIED | Local | `SessionAndAccessTest`, `UserTokenRevocationTest` | Engineering | none | 2026-10-28 |
+| Superadmin mapped to a real AD username | [ ] PENDING CLIENT | Production | `admin:assign_ad_username` is ready; the real name is missing | Client | the superadmin's AD name | n/a |
+| Access controls and audit logs reviewed on the server | [ ] NOT TESTED | Production | none | Engineering + Security | deploy | n/a |
+
+### 5. Deployment and operational readiness
+
+| Item | Status | Env | Evidence | Owner | Dependency | Last verified |
+|---|---|---|---|---|---|---|
+| Required production variables verified (`AD_MODE`, `AD_HOST`, `AD_PORT`, `AD_NETBIOS_DOMAIN`, `AD_DNS_DOMAIN`, `AD_BIND_FORMAT`, optional `AD_CA_FILE`, `ADMIN_AD_USERNAME`) | [ ] PENDING CLIENT | Production | Candidate values are in `deploy/production/backend/.env.example` | Engineering | section 3 | n/a |
+| Production image built and validated | [ ] NOT TESTED | Production | Built by CI on merge to `main` | Engineering | PR #101 merged | n/a |
+| Backend connectivity from the deployment environment | [ ] NOT TESTED | Production | Database, MinIO and ROCBN proven 2026-10-27 (section C); AD not tried | Infrastructure | section 3 | 2026-10-27 (non-AD) |
+| Database migration for the AD release | [ ] NOT TESTED | Production | `BlankStaffEncryptedPasswords` is tested locally only | Engineering | backup taken first | n/a |
+| Health checks | [x] COMPLETE | Production | `api` and `jobs` healthy (pre-AD release), section D | Engineering | recheck after the AD release | 2026-10-27 |
+| Backup and rollback | [ ] NOT TESTED | Production | Sections G and H. Rolling back the code does not bring back local staff passwords | Engineering | backup before the migration | n/a |
+| Restart procedure | [x] COMPLETE | Production | Section E, used 2026-10-27 | Engineering | none | 2026-10-27 |
+| Monitoring and error logging | [ ] NOT TESTED | Production | Sentry works (2026-10-27); no alert on `ad.directory_unavailable` yet | Engineering | alert rule | n/a |
+| Incident handling for an AD outage | [ ] NOT TESTED | Production | Written in the runbook ("Emergency access"); never rehearsed; no in-app bypass by design | Engineering + Client | break-glass decision | n/a |
+| Final UAT sign-off | [ ] PENDING CLIENT | Production | none | Client | real AD verification | n/a |
+| Production deployment approval | [ ] PENDING CLIENT | Production | none | Client | all of the above | n/a |
+
+### Go-live blockers
+
+1. Confirmed AD host names, port, bind format, and whether a CA file is needed (AD Team).
+2. Firewall from the backend server to the AD hosts (Infrastructure).
+3. Real DNS, TCP, TLS and bind checks passing from the backend container (runbook steps A to D).
+4. A dedicated AD test account, and the superadmin's real AD username (Client).
+5. The production database cleared of demo accounts, and a backup taken before the one-way migration.
+6. UAT sign-off and deployment approval (Client).
+
 Servers (hostname, IP, role):
 
 | Placeholder | Value | Server |
@@ -27,14 +150,44 @@ Servers (hostname, IP, role):
 | Area | State |
 |---|---|
 | Database server (C1) and storage server (C2) | Set up earlier. Backend to database `5432` and backend to MinIO `9000` are open and **proven**: `db:prepare` created the four databases and uploaded 17 files to MinIO. |
-| Backend server prepared (C3) | Done: Docker group, `/opt/dofi`, GHCR login, the three files (checksums match), `.env` filled and validated. `BRUNEIID_*` and `SENTRY_DSN` are empty (not supplied yet); `ROCBN_DB_USERNAME=stuser`. |
+| Backend server prepared (C3) | Done: Docker group, `/opt/dofi`, GHCR login, the three files (checksums match), `.env` filled and validated. `SENTRY_DSN` is set and tested (2026-10-27: an event reached Sentry); `BRUNEIID_*` is empty (not supplied yet); `ROCBN_DB_USERNAME=stuser`. |
 | First run (D) | **Done 2026-10-27:** `pull`, `db:prepare`, `up -d --wait` (`api` and `jobs` healthy, image from `main` with the file relay), nginx vhost installed and the Ubuntu `default` site disabled, `rocbn:check` passes (185,324 rows). Frontend to backend works on **`http://10.252.8.12:3000`**: `/up` 200, CORS preflight allows `http://10.246.8.12:4100`, `/cable` upgrades (101). It needed nginx to listen on `10.252.8.12:3000` (and only there, no port 80) and a `firewalld` rich rule on the App server (runbook step 6); it was not the client's network. |
-| Seed data | `db:prepare` also loaded **demo data and default passwords** into this production database (see the warning in section D). **Open decision:** keep it for acceptance testing and change every seeded password before opening port 80, or reset the databases and seed reference data only. |
+| Seed data | **Decided 2026-10-27: keep the demo data for testing on production, with dummy data only.** The demo accounts still have the default password `ChangeMe123!` (seeded by `db:prepare`, see the warning in section D); change at least `admin@dofi.gov.bn` now, and **reset the databases and change every seeded password before any real data goes in** (to do item 3 below). |
 | Firewall, to request from the client | **Nothing left to request for the first round.** `9139` (ROCBN) is open and proven. Web to App `3000` is the client's own rule and works (the block was `firewalld` on our server, fixed). Users to storage `9000` is **not** requested: browsers reach only the Web server. BruneiID `443` waits for its hostname. **To ask the MySQL owner:** `stuser` holds `ALL PRIVILEGES` and may log in from any host (`rocbn:check` warns); the app only needs `SELECT` on `tdd_db.sync_rocbn_hotel`. |
-| Not needed | LDAP/AD `3268/3269` (the app does not use it); MinIO console `9001` (not published). |
+| AD (LDAP over TLS) | **Needed since staff sign in through Active Directory:** TCP `3269` (or the port the AD team confirms) from this backend server to the AD hosts. The app will not boot on production until `AD_MODE=ldap` is set; follow the cut-over in `docs/registration/active-directory-login.md`. |
+| Not needed | MinIO console `9001` (not published). |
 | File viewing (decision) | **Decided 2026-10-27: relay files through Rails.** The FE server may not reach storage either, and it proxies `/api` to the BE. Code is on branch `feat/relay-attachments` (tests, rubocop, rbac-lint, brakeman green; production route table has no Active Storage routes), **not yet merged, built or deployed**. The first deploy is not blocked: start the stack with the current image; until the relay image ships, testers can upload but not view files. Still to do: FE loader for Dictionary images, FE nginx proxy, FE to BE firewall port, run `dictionaries:migrate_images_to_minio` only if old blobs must move. |
 | Upload regression (2026-10-27) | Uploads re-tested after the relay change: vessel images, company documents, Dictionary create and update, spoofed type rejected, and an upload-then-fetch round trip. Full suite 776 runs, 0 failures (3 unrelated ROCBN errors). Not run against a real MinIO; verify one upload and one view on the App server after deploy. Record: [`UPLOAD-REGRESSION-2026-10-27.md`](../minio/UPLOAD-REGRESSION-2026-10-27.md). |
 | File viewing (analysis) | Client management drew "only the Back End talks to storage" and suggested NFS (2049) or SFTP (22). Our analysis, recommending to keep S3 on `9000` (already open) and build the relay: [`STORAGE-PROTOCOL-OPTIONS.md`](../minio/STORAGE-PROTOCOL-OPTIONS.md). Until it is released testers can upload but not view files. Open question for management. |
+
+## To do, in order (added 2026-10-27, so nothing is forgotten)
+
+The backend is deployed and reachable from the frontend server. Testing on production uses **dummy data only**. The list
+has two parts: what happens during testing, and what must be finished **before real data** goes in.
+
+### Now, during testing
+
+- [ ] Give `admin@dofi.gov.bn` its real Active Directory name. Staff have no DoFi password (the default `ChangeMe123!` hash is cleared by migration `BlankStaffEncryptedPasswords` on the first deploy of the AD change), so there is no password to change:
+
+  ```bash
+  cd /opt/dofi
+  docker compose exec api bin/rails admin:assign_ad_username EMAIL=admin@dofi.gov.bn AD_USERNAME=mprt/<real ad name>
+  ```
+
+- [ ] Frontend team: call the API at `http://10.252.8.12:3000`; one JWT-authenticated loader for Dictionary images (no bare `<img src>`); their nginx proxies `/api` and `/cable` with bodies of at least 12 MB. Brief: [`FE-DISCUSSION-FILE-DELIVERY.md`](../minio/FE-DISCUSSION-FILE-DELIVERY.md).
+- [ ] Human end-to-end test from the frontend: log in, upload a vessel image and a PDF, open both again. This is the first real proof of upload and the file relay against the real MinIO (tests used the disk service); in the browser's Network tab no request may go to `10.252.8.13`. Record the result in [`UPLOAD-REGRESSION-2026-10-27.md`](../minio/UPLOAD-REGRESSION-2026-10-27.md).
+
+### After testing, before real data (nothing here blocks testing)
+
+| # | Item | Done when |
+|---|---|---|
+| 1 | **Backups.** Install the nightly `pg_dump` on the database server ([section G](#g-backups-minimum)) and copy it off the host. | A dump exists, is copied off-host, and one restore into a scratch database has been tested. |
+| 2 | **ROCBN account.** Ask the MySQL owner to limit `stuser` to `SELECT` on `tdd_db.sync_rocbn_hotel`, ideally only from `10.252.8.12` (today: `ALL PRIVILEGES` from any host, flagged by `rocbn:check`). | `bin/rails rocbn:check` on the backend no longer prints the `ALL PRIVILEGES` warning and the lookup still works. |
+| 3 | **Reset the demo data.** Reset the databases and seed reference data only. The demo seeds no longer run on production (`db/seeds.rb`, using `DEPLOY_ENV`), so set `ADMIN_AD_USERNAME` (the superadmin's real AD name) in `.env` before the first `db:prepare` instead of a password. Only the databases on this server, only with explicit confirmation. | No `ChangeMe123!` account exists, no demo manifests or companies remain, reference data is back. |
+| 4 | **BruneiID.** Get the host and credentials from the client, fill `BRUNEIID_*` in `/opt/dofi/.env`, register the redirect URI (it must match character for character: see the [post-mortem](../incidents/POSTMORTEM-2026-10-02-brunei-id-redirect-uri-mismatch.md)), and ask for outbound `443` to that host. | A Brunei ID login completes from the frontend. |
+| 5 | **Domain and TLS.** HTTPS on the backend's nginx ([runbook, step 10](../../deploy/production/backend/README.md#10-later-a-domain-and-tls)), `FORCE_SSL=true`, `https://` origins in `CORS_ORIGINS` and `CABLE_ALLOWED_ORIGINS`, and `wss://` for the WebSocket. Tell the frontend team. | The frontend works over HTTPS with no mixed-content errors. |
+
+Also open, lower priority: Sentry events need outbound `443` to `*.ingest.us.sentry.io` (works today; add it to the client's whitelist so it survives a firewall review), and the rest of [section I](#i-not-done-yet).
 
 ## A. Get from the client
 
@@ -282,7 +435,7 @@ This is the first release, and it also sets up nginx and the firewall, which rel
 
   **Status 2026-10-27:** `pull` and `db:prepare` done on the backend server. The four databases were created, the migrations and seeds ran, and 17 files were uploaded to MinIO, which proves backend to database and backend to MinIO. `up -d`, `ps`, logs and `/up` are still to do.
 
-  > **Warning: `db:prepare` on a new database runs the whole `db/seeds.rb`, which is not only reference data.** It also created demo records: 16 company profiles, 21 vessels, 23 crew, 24 fisherman users, 1 jetty manager, the Brunei ID sandbox users, and 11 manifests with notifications. The admin `admin@dofi.gov.bn` and the seeded users get the default password `ChangeMe123!` unless `ADMIN_DEFAULT_PASSWORD` is set in `.env` **before** the first `db:prepare` (it only applies when the row is created). Decide before opening port 80 to users: keep the demo data for acceptance testing and change every seeded password first, or reset the (still empty of real data) databases and seed only reference data.
+  > **Historical note (2026-10-27): the first `db:prepare` ran the whole `db/seeds.rb`, which then included demo records** (16 company profiles, 21 vessels, 23 crew, 24 fisherman users, 1 jetty manager, the Brunei ID sandbox users, 11 manifests) with the default password `ChangeMe123!`. **This server still has them.** `db/seeds.rb` now skips the demo seeds when `DEPLOY_ENV=production`, so a new or reset database gets reference data only, but nothing removes the existing rows: delete them (or reset the databases) as part of the AD cut-over in `docs/registration/active-directory-login.md`, before real users are told the system is live.
 
 - [ ] The ROCBN registry answers (needs firewall row 12 and the account from section A). Read-only: it prints the account's privileges and warns if it holds more than `SELECT`:
 

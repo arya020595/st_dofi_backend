@@ -1,13 +1,24 @@
 ENV["RAILS_ENV"] ||= "test"
 # Keep tests independent of the developer's .env; mock tests enable the route explicitly.
 ENV["BRUNEIID_MOCK_ENABLED"] = "false"
+# Likewise for Active Directory: staff always sign in through the (mock) directory with this fake shared password.
+ENV["AD_MODE"] = "mock"
+ENV["AD_MOCK_PASSWORD"] = "mock-ad-password"
+ENV["DEPLOY_ENV"] = "test"
 require_relative "../config/environment"
 # The Rails test command may load application.rb before this helper sets ENV.
 Rails.configuration.x.brunei_id_mock_enabled = false
+# Same reason: the config may already have been read at boot, before the ENV above was set.
+Authentication::DirectoryConfig.instance_variable_set(:@current, Authentication::DirectoryConfig.load)
 Rails.application.reload_routes!
 require "rails/test_help"
 require_relative "support/postgresql_number_triggers"
 require_relative "support/brunei_id_callback_helper"
+require_relative "support/test_certificates"
+require_relative "support/tls_directory"
+require_relative "support/directory_test_support"
+require_relative "support/directory_accounts_support"
+require_relative "support/active_directory_e2e_support"
 require_relative "support/rocbn_test_support"
 
 # Rails' Ruby schema dump does not retain PostgreSQL functions/triggers. Install the two
@@ -49,7 +60,9 @@ end
 class ActionDispatch::IntegrationTest
   include BruneiIdCallbackHelper
 
+  # Staff have no DoFi password and sign in with the shared mock-directory password; everyone else with `password`.
   def auth_headers_for(user, password:)
+    password = DirectoryTestSupport::MOCK_PASSWORD if user.directory_managed?
     post "/api/v1/auth/sign_in", params: { user: { username: user.username, password: password } }, as: :json
     { "Authorization" => response.headers["Authorization"] }
   end

@@ -49,6 +49,27 @@ module Api
           assert_equal %w[a.png b.png], response.parsed_body.dig("data", "images").values.compact.pluck("filename")
         end
 
+        # The largest legitimate request body is four views at IMAGE_MAX_SIZE; nginx on both the Frontend and the App
+        # Server must allow that (client_max_body_size 12m), so this pins the budget that number is based on.
+        test "images upload accepts all four views at the size limit and serves each back unchanged" do
+          vessel = create(:companies_vessel, company_profile: @company_profile)
+          bytes = png_bytes + ("\0" * (CompaniesVessel::IMAGE_MAX_SIZE - png_bytes.bytesize))
+          files = CompaniesVessel::IMAGE_VIEWS.index_with do |view|
+            Rack::Test::UploadedFile.new(StringIO.new(bytes), "image/png", original_filename: "#{view}.png")
+          end
+
+          post vessel_images_url(vessel), params: { images: files }, headers: @admin_headers
+
+          assert_response :ok
+          images = response.parsed_body.dig("data", "images")
+          served_sizes = CompaniesVessel::IMAGE_VIEWS.index_with do |view|
+            get images.dig(view, "url"), headers: @admin_headers
+            response.body.bytesize
+          end
+
+          assert_equal CompaniesVessel::IMAGE_VIEWS.index_with { bytes.bytesize }, served_sizes
+        end
+
         test "images upload replaces a re-uploaded slot and keeps the others" do
           vessel = create(:companies_vessel, company_profile: @company_profile)
           vessel.front_image.attach(io: StringIO.new(png_bytes), filename: "a.png", content_type: "image/png")
