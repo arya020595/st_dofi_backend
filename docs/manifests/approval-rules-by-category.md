@@ -10,6 +10,10 @@ Who has to approve what depends on the manifest's `fisherman_category`. It is de
 
 Part-Time, Full-Time and Small-Scale (Company) follow identical rules, so they share the `small_scale?` group.
 
+The Jetty Manager's Approvals list (`ManifestApprovalPolicy::Scope`) shows only `commercial` and `small_scale_company`
+manifests; individual `small_scale_full_time` / `small_scale_part_time` manifests are hidden from them. Small-scale
+company manifests are visible but still need no Jetty Manager approval. DoFi Officers see every category.
+
 ## Where each rule lives
 
 Statuses, diagrams and the completion rules in full: [lifecycle-status.md](lifecycle-status.md).

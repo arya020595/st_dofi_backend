@@ -68,6 +68,49 @@ module Api
           assert_equal 2, response.parsed_body["data"].size
         end
 
+        test "jetty manager only sees commercial and small-scale company manifests, an officer sees all" do
+          manifests = create_manifest_per_category
+
+          get "/api/v1/admin/approvals/manifests", headers: @jetty_headers
+
+          assert_response :ok
+          assert_equal manifests.values_at("commercial", "small_scale_company").map(&:id).sort,
+                       response.parsed_body["data"].pluck("id").sort
+
+          get "/api/v1/admin/approvals/manifests", headers: @officer_headers
+
+          assert_equal manifests.values.map(&:id).sort, response.parsed_body["data"].pluck("id").sort
+        end
+
+        test "jetty manager tab_counts exclude individual small-scale manifests" do
+          create_manifest_per_category
+
+          get "/api/v1/admin/approvals/manifests/tab_counts", headers: @jetty_headers
+
+          assert_response :ok
+          assert_equal 2, response.parsed_body["data"]["port_out"]
+
+          get "/api/v1/admin/approvals/manifests/tab_counts", headers: @officer_headers
+
+          assert_equal 4, response.parsed_body["data"]["port_out"]
+        end
+
+        test "jetty manager can open company manifests but not individual small-scale ones" do
+          manifests = create_manifest_per_category
+
+          %w[commercial small_scale_company].each do |category|
+            get "/api/v1/admin/approvals/manifests/#{manifests[category].id}", headers: @jetty_headers
+
+            assert_response :ok
+          end
+
+          %w[small_scale_full_time small_scale_part_time].each do |category|
+            get "/api/v1/admin/approvals/manifests/#{manifests[category].id}", headers: @jetty_headers
+
+            assert_response :not_found
+          end
+        end
+
         test "update lets an officer correct manifest fields" do
           manifest = create(:manifest, company_profile: @company_profile, companies_vessel: @vessel)
 
@@ -242,6 +285,13 @@ module Api
           assert_equal approver_name, history.dig("changed_by", "name")
         end
         # rubocop:enable Metrics/AbcSize
+
+        def create_manifest_per_category
+          %w[commercial small_scale_company small_scale_full_time small_scale_part_time].index_with do |category|
+            create(:manifest, company_profile: @company_profile, companies_vessel: @vessel,
+                              fisherman_category: category)
+          end
+        end
 
         def assert_histories_approved(histories)
           approved_only = histories.all? { |history| history["to_state"] == "approved" }
