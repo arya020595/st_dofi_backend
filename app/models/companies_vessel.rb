@@ -17,6 +17,9 @@ class CompaniesVessel < ApplicationRecord
   has_many :companies_fishing_gears, dependent: :restrict_with_error
   IMAGE_VIEWS.each { |view| has_one_attached :"#{view}_image" }
 
+  # Loads the four image slots (and their blobs) up front, for lists whose blueprint renders `images`.
+  scope :with_images, -> { includes(IMAGE_VIEWS.map { |view| { "#{view}_image_attachment": :blob } }) }
+
   validates :vessel_name, :boat_number, presence: true
   validates :status, inclusion: { in: STATUSES }
   validates :category, inclusion: { in: CATEGORIES }, allow_nil: true

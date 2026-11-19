@@ -75,7 +75,27 @@ module Api
         assert_response :not_found
       end
 
+      # The relay reads the bytes itself, so an unreachable storage server is the API's own dependency being down: a
+      # 503 the client can retry, not the 422 "upload failed" the upload paths use.
+      test "answers 503 when the storage server cannot be reached" do
+        unreachable = Seahorse::Client::NetworkingError.new(Errno::ECONNREFUSED.new("storage is down"))
+
+        with_failing_download(unreachable) { get "/api/v1/attachments/#{@blob.signed_id}", headers: @headers }
+
+        assert_response :service_unavailable
+        assert_equal I18n.t("errors.storage_unavailable"), response.parsed_body["message"]
+      end
+
       private
+
+      # No stubbing library in this suite: swap download on the shared storage service, then put it back.
+      def with_failing_download(error)
+        service = @blob.service
+        service.define_singleton_method(:download) { |*| raise error }
+        yield
+      ensure
+        service.singleton_class.remove_method(:download)
+      end
 
       def user_with_permission(code)
         permission = Permission.find_or_create_by!(code:) { |p| p.name = code }

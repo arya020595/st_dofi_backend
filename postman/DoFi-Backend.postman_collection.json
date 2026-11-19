@@ -8511,7 +8511,7 @@
                 }
               ]
             },
-            "description": "Requires companies_vessel_approvals.list."
+            "description": "Requires companies_vessel_approvals.list. Each vessel carries `images` (front/back/left/right, each `null` or `{ url, filename }`): the url is a `/api/v1/attachments/:signed_id` path. Request it with the same Authorization header to get the picture bytes; that also needs company_profiles.view."
           },
           "event": [
             {
@@ -8598,7 +8598,7 @@
                 "{{companies_vessel_id}}"
               ]
             },
-            "description": "Requires companies_vessel_approvals.view."
+            "description": "Requires companies_vessel_approvals.view. Each vessel carries `images` (front/back/left/right, each `null` or `{ url, filename }`): the url is a `/api/v1/attachments/:signed_id` path. Request it with the same Authorization header to get the picture bytes; that also needs company_profiles.view."
           },
           "event": [
             {
