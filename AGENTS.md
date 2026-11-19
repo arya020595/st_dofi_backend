@@ -189,6 +189,21 @@ end
   `docs/rocbn/company-lookup.md`). Never register it in `database.yml` (that exposes it to the `db:*` tasks and to the
   per-worker test databases), never write to it, and never aim `rocbn:seed` or the tests at a non-local host.
 
+## Git workflow: `main` and `develop` change only through pull requests
+
+- Never push to `main` or `develop`, not even a one-line docs fix or a hotfix. Every change reaches them through a
+  pull request. The GitHub ruleset "Develop" enforces this: it rejects direct pushes, force pushes and deletion on
+  both branches. The Admin role can only bypass it through a pull request, so an admin can merge their own PR without
+  an approval but still cannot push directly.
+- Branch from the remote base **without tracking it**, then publish the branch under its own name:
+  `git switch -c <type>/<name> --no-track origin/develop` (`origin/main` for a hotfix), then
+  `git push -u origin <type>/<name>`. Without `--no-track`, the new branch's upstream is `main`/`develop`, and an
+  IDE "Sync" pushes straight there (this happened on 2026-11-19).
+- A hotfix PR to `main` also needs a PR to `develop`. If the hotfix branch conflicts with `develop`, use a second
+  branch cut from `develop` (the #107/#108 pattern).
+- Agents: commit, push and open PRs only when asked, and never merge a PR or change repository settings or rulesets
+  on your own.
+
 ## Definition of done
 
 Before considering a change complete: `bin/rbac-lint`, `bin/rubocop`, `bin/rails test`, and (for anything security-sensitive) `bin/brakeman` all pass. Prefer `bin/ci` for a full check.
