@@ -128,6 +128,7 @@ only; the application rejects IPs as `AD_HOST` because the certificate name is v
 4. A dedicated AD test account, and the superadmin's real AD username (Client).
 5. The production database cleared of demo accounts, and a backup taken before the one-way migration.
 6. UAT sign-off and deployment approval (Client).
+7. The BruneiID IC-only mock closed on production (item 2 of the [security test follow-up](#security-test-follow-up-added-2026-11-19)).
 
 Servers (hostname, IP, role):
 
@@ -176,6 +177,37 @@ has two parts: what happens during testing, and what must be finished **before r
 
 - [ ] Frontend team: call the API at `http://10.252.8.12:3000`; one JWT-authenticated loader for Dictionary images (no bare `<img src>`); their nginx proxies `/api` and `/cable` with bodies of at least 12 MB. Brief: [`FE-DISCUSSION-FILE-DELIVERY.md`](../minio/FE-DISCUSSION-FILE-DELIVERY.md).
 - [ ] Human end-to-end test from the frontend: log in, upload a vessel image and a PDF, open both again. This is the first real proof of upload and the file relay against the real MinIO (tests used the disk service); in the browser's Network tab no request may go to `10.252.8.13`. Record the result in [`UPLOAD-REGRESSION-2026-10-27.md`](../minio/UPLOAD-REGRESSION-2026-10-27.md).
+
+### Security test follow-up (added 2026-11-19)
+
+From the November 2026 security test of this deployment (the report is confidential and held by management, so it is not
+in this repo). Its targets: High items within 14 to 30 days of the report (17 November), Medium items within 30 to 60.
+
+**First, a decision from management:** during UAT, do users sign in through the **BruneiID sandbox** (the real QR flow,
+`POST /api/v1/auth/brunei_id/callback`) or the **IC-only mock** (`POST /api/v1/auth/brunei_id`, frontend page
+`/fisherman/brunei-id-sim`, which signs anyone in with just an IC number)? Items 2 and 3 depend on the answer. Evidence
+to bring to that conversation, from the backend server (logs rotate at 3 × 10 MB per container, so old entries may be gone):
+
+```bash
+cd /opt/dofi
+docker compose logs api | grep -c '"event":"brunei_id.mock_authentication"'   # sign-ins through the mock
+docker compose logs api | grep -c '"event":"brunei_id.authentication"'        # sign-ins through the sandbox
+grep '^BRUNEIID_MOCK_ENABLED=' .env
+grep -E '^BRUNEIID_(BASE_URL|CLIENT_ID|CLIENT_SECRET|REDIRECT_URI)=.' .env | cut -d= -f1   # names of the filled ones, no values
+```
+
+On 2026-10-27 every `BRUNEIID_*` value was still empty (see Progress), so the sandbox could not have worked then.
+
+| # | Item | Done when |
+|---|---|---|
+| 1 | **Rails 8.1.4.1 to production** (Active Storage advisory GHSA-f3w6-w445-fwh9). Not exploitable as deployed (the image has libvips, no ImageMagick), but patch anyway. On `develop` since `141f83e`; for a release ahead of `develop`, the local branch `hotfix/pentest-brunei-id-mock` (from `main`) carries it as `fe7a1df`. Does not depend on the decision above. | `docker compose exec api bin/rails runner 'puts Rails.version'` prints `8.1.4.1` on the backend server. |
+| 2 | **Sandbox green-lit: close the mock in the routes.** In [`config/routes.rb`](../../config/routes.rb), draw `auth/brunei_id` only when `BRUNEIID_MOCK_ENABLED=true` **and** `DEPLOY_ENV` is not `production`; log a warning at boot when the flag is set but ignored; cover it in `test/integration/brunei_id_mock_configuration_test.rb`. Then set `BRUNEIID_MOCK_ENABLED=false` in `/opt/dofi/.env`. A route gate, not a refuse-to-boot guard: a wrong `.env` then only leaves the mock off instead of taking production down (the boot-guard draft is in `git stash list`, "refuse-to-boot guard WIP"; drop it once this lands). A release from `main` without the AD release also needs `DEPLOY_ENV: production` in both production compose files. | `POST /api/v1/auth/brunei_id` answers `404` both through `http://10.246.8.12:4100/api` and on `http://10.252.8.12:3000`, and a sandbox login completes from the frontend. |
+| 3 | **Mock still needed for UAT:** keep it on until cut-over, but item 2 becomes a **go-live blocker**. Do not deploy anything that refuses to boot while the flag is on: every UAT user would lose sign-in. | Management has agreed a cut-over date, and item 2 is scheduled for it. |
+| 4 | **Review the mock sign-ins** found by the command above (each log line has `user_id`): only known test accounts should appear. The mock also **claims** `claimable` fisherman accounts (sets them `active`), so list any account it changed and decide with management whether to put it back. | A short written note of what was found and what was reverted, if anything. |
+| 5 | **Frontend (their repo):** remove the simulator page from the production build; upgrade nginx on `:4100` to ≥ 1.30.6 (stable) or ≥ 1.31.7 (mainline) and set `server_tokens off`. | `curl -sI http://10.246.8.12:4100` shows no version in `Server:`, and `/fisherman/brunei-id-sim` is gone. |
+| 6 | **Backend host nginx:** run `nginx -v` on `10.252.8.12` and upgrade the OS package if it is older than 1.30.6 (our vhost already sets `server_tokens off`). | `nginx -v` prints 1.30.6 or later. |
+| 7 | **Real client addresses before any per-IP limit.** Our nginx sets `X-Forwarded-For $remote_addr`, which is the frontend server, so Rack::Attack sees `10.246.8.12` for every browser request and its per-IP limits act as one shared limit. Have the frontend's nginx forward the browser address, and make ours trust it from the frontend only (`set_real_ip_from 10.246.8.12; real_ip_header X-Forwarded-For;`). Only then add a throttle on `POST /api/v1/auth/brunei_id/callback` like `logins/ip` in [`rack_attack.rb`](../../config/initializers/rack_attack.rb). | The api log shows browser addresses instead of `10.246.8.12`, and a test proves the 11th sign-in in a minute gets `429`. |
+| 8 | **Re-test** with the security testers once items 1, 2, 5 and 6 are deployed. | The testers confirm both findings closed. |
 
 ### After testing, before real data (nothing here blocks testing)
 
