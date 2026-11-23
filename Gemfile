@@ -1,6 +1,6 @@
 source "https://rubygems.org"
 
-ruby "3.4.11"
+ruby "3.4.13"
 
 # Core
 gem "bootsnap", require: false
@@ -88,6 +88,7 @@ group :development do
   gem "annotaterb"
   gem "bullet"
   gem "kamal", require: false
+  gem "net-ssh", "~> 7.3.10", require: false
   gem "thruster", require: false
 end
 

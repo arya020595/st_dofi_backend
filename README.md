@@ -4,7 +4,7 @@ API-only Rails backend for the FINS Capture Fisheries module: vessels, crews, ma
 
 ## Stack
 
-- Ruby 3.4.11 / Rails 8.1.3 (API-only)
+- Ruby 3.4.13 / Rails 8.1.3 (API-only)
 - PostgreSQL, plus one external read-only MySQL table (the ROCBN company registry, [`docs/rocbn/company-lookup.md`](docs/rocbn/company-lookup.md))
 - Solid Queue / Solid Cache (DB-backed, no Redis)
 - Devise + devise-jwt for authentication, Pundit for authorization
@@ -110,7 +110,7 @@ File storage on both staging and production is self-hosted MinIO rather than Clo
 
 Requires locally installed:
 
-- Ruby 3.4.11 (see `.ruby-version`; a version manager such as `rbenv`/`asdf`/`mise` is recommended)
+- Ruby 3.4.13 (see `.ruby-version`; a version manager such as `rbenv`/`asdf`/`mise` is recommended)
 - PostgreSQL
 - `libpq`, `libvips` (native deps for `pg` and `image_processing`)
 
