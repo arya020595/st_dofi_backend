@@ -8,7 +8,7 @@ stays intentionally at the "one screen" level rather than duplicating those.
 
 | Concern                   | Choice                                                                                                |
 | ------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Language / framework      | Ruby 3.4.11, Rails 8.1.3 (API-only, no views/assets)                                                   |
+| Language / framework      | Ruby 3.4.13, Rails 8.1.3 (API-only, no views/assets)                                                   |
 | Database                  | PostgreSQL, plus one external read-only MySQL table (the ROCBN company registry)                      |
 | Background jobs / cache   | Solid Queue / Solid Cache — DB-backed, no Redis                                                       |
 | Auth                      | Devise + devise-jwt (JWT sessions)                                                                    |
