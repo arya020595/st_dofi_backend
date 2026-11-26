@@ -118,7 +118,7 @@ jobs:
           )
 
           LOCK_RUBY_VERSION=$(
-            sed -n '/^RUBY VERSION$/{n;s/^ *ruby \([0-9.]*\)p.*$/\1/p;}' Gemfile.lock
+            sed -n '/^RUBY VERSION$/{n;s/^ *ruby \([0-9.]*\).*$/\1/p;}' Gemfile.lock
           )
 
           DOCKER_RUBY_VERSION=$(
