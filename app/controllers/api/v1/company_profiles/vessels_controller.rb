@@ -10,7 +10,7 @@ module Api
         def index
           authorize CompaniesVessel, policy_class: CompanyProfilePolicy
           scope = policy_scope(@company_profile.companies_vessels, policy_scope_class: CompanyProfilePolicy::Scope)
-                  .includes(CompaniesVessel::IMAGE_VIEWS.map { |view| { "#{view}_image_attachment": :blob } })
+                  .with_images
           result = apply_ransack_search(scope, default_sort: "created_at desc")
           pagy, records = pagy(:offset, result)
           render json: { status: "success", data: CompaniesVesselBlueprint.render_as_hash(records),

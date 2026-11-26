@@ -43,7 +43,15 @@ class User < ApplicationRecord
     end
   end
 
+  # Internal staff (DoFi Officer and custom DoFi roles): their sign-in is always delegated to Active Directory,
+  # as opposed to Jetty Managers and Fishermen, who use BruneiID. See Authentication::OfficerLogin.
+  scope :directory_managed, -> { where(role_id: Role.directory_managed) }
+
+  # Access is refused for these states on every request (Devise's activatable hook runs for the JWT strategy too).
+  ACCESS_DENIED_STATUSES = %w[inactive suspended revoked].freeze
+
   before_validation :normalize_ic_number
+  before_save :revoke_tokens, if: :token_revocation_needed?
 
   validates :name, presence: true
   validates :preferred_locale, inclusion: { in: VALID_LOCALES }
@@ -75,6 +83,24 @@ class User < ApplicationRecord
   def fisherman? = role&.fisherman_platform? || false
   def dofi_officer_platform? = role&.dofi_officer_platform? || false
   def fins_governed_jetty_manager? = kept? && jetty_manager?
+
+  def directory_managed? = role&.directory_managed? || false
+
+  # Staff have no DoFi password: none is required or stored, and whatever Devise's own lookup finds, a local
+  # password is never accepted, so the directory is the only way in. The same goes for a user not yet given a role
+  # (Add User allows that): there is nothing to sign in with until the role makes them staff.
+  def password_required? = role.present? && !directory_managed? && super
+
+  def valid_password?(password)
+    return false if directory_managed?
+
+    super
+  end
+
+  # Devise calls this on every authenticated request, JWT included, so a deactivated, suspended, revoked or
+  # discarded user is refused even with a token issued earlier. The reply is the generic invalid-credentials one.
+  def active_for_authentication? = super && kept? && ACCESS_DENIED_STATUSES.exclude?(lifecycle_status)
+  def inactive_message = :invalid
 
   # What every screen shows as "the" status. A fisherman has two switches: users.status, the company's own
   # (Account Management > Assigned Users), and fisherman_status, the claim lifecycle DoFi governs. The account is
@@ -111,6 +137,22 @@ class User < ApplicationRecord
   # Fisherman::ProvisionUser, so only the account-status machine (users.status) keeps this default.
   def aasm_ensure_initial_state
     aasm(:default).enter_initial_state if aasm_column_is_blank?(:default)
+  end
+
+  # Reuses JTIMatcher: replacing the jti invalidates every token issued before, and re-enabling the account does
+  # not bring them back. Sign-out already does this through devise-jwt's revocation, so it is not repeated here.
+  def revoke_tokens = self.jti = self.class.generate_jti
+
+  # Access removed (denied now, and the status/discard just changed), or the sign-in identity itself changed.
+  # Ordinary profile edits (name, position, unit, contact, email, locale) do neither. A new record gets its
+  # jti from JTIMatcher.
+  def token_revocation_needed?
+    return false if new_record?
+
+    username_changed = will_save_change_to_username?
+    access_changed = will_save_change_to_status? || will_save_change_to_fisherman_status? ||
+                     will_save_change_to_discarded_at?
+    username_changed || (access_changed && !active_for_authentication?)
   end
 
   def normalize_ic_number

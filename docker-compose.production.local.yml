@@ -75,6 +75,8 @@ services:
         condition: service_healthy
     environment:
       RAILS_ENV: production
+      # A local run of the production image, not a deployment: AD_MODE=mock is allowed.
+      DEPLOY_ENV: development
       DATABASE_HOST: db
       DATABASE_PORT: 5432
     env_file:
@@ -94,6 +96,8 @@ services:
         condition: service_healthy
     environment:
       RAILS_ENV: production
+      # A local run of the production image, not a deployment: AD_MODE=mock is allowed.
+      DEPLOY_ENV: development
       DATABASE_HOST: db
       DATABASE_PORT: 5432
     env_file:

@@ -123,6 +123,8 @@ services:
         condition: service_healthy
     environment:
       RAILS_ENV: production
+      # Which deployment this is (RAILS_ENV is production for both staging and production); AD_MODE=mock is allowed here.
+      DEPLOY_ENV: staging
       DATABASE_HOST: db
       DATABASE_PORT: 5432
       # ROCBN registry: the reader the API runs as and the account `rocbn:seed` uses. Their passwords
@@ -155,6 +157,8 @@ services:
         condition: service_healthy
     environment:
       RAILS_ENV: production
+      # Which deployment this is (RAILS_ENV is production for both staging and production); AD_MODE=mock is allowed here.
+      DEPLOY_ENV: staging
       DATABASE_HOST: db
       DATABASE_PORT: 5432
     env_file:

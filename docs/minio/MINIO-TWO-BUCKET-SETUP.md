@@ -184,9 +184,9 @@ docker compose --env-file .env.docker-test -f docker-compose.production.local.ym
 ```
 
 Confirms the `record_id` uuid migration (§1) applies cleanly to a brand-new database, and seeds
-the DB (including a default admin user — see output for credentials, or `db/seeds/admin_user.rb`
-for the defaults: username `MPRT/DOF-001`, password `ChangeMe123!` unless overridden by
-`ADMIN_DEFAULT_USERNAME`/`ADMIN_DEFAULT_PASSWORD`).
+the DB (including a default admin user with the mock Active Directory username `mprt/dof-001` and no password:
+it signs in with `AD_MOCK_PASSWORD`; see `db/seeds/admin_user.rb` and
+`docs/registration/active-directory-login.md`).
 
 ### 3.5 Bring up the app, exercise both flows over real HTTP
 
@@ -201,7 +201,7 @@ curl -s -o /dev/null -w "HTTP %{http_code}\n" http://localhost:3000/up   # expec
 ```bash
 TOKEN=$(curl -s -i -X POST http://localhost:3000/api/v1/auth/sign_in \
   -H "Content-Type: application/json" \
-  -d '{"user":{"username":"MPRT/DOF-001","password":"ChangeMe123!"}}' \
+  -d "{\"user\":{\"username\":\"MPRT/DOF-001\",\"password\":\"${AD_MOCK_PASSWORD}\"}}" \
   | grep -i "^authorization:" | sed 's/authorization: //I' | tr -d '\r')
 
 curl -s -X POST http://localhost:3000/api/v1/admin/dictionaries \

@@ -194,7 +194,7 @@ bin/rails db:seed:replant                # truncate seed-relevant tables, then r
 RAILS_ENV=test bin/rails db:seed:replant # reseed the test database (what bin/ci runs)
 ```
 
-Seed files live in `db/seeds/*.rb` and are loaded by `db/seeds.rb`; add a new seed module there and append it to `SEED_FILES`.
+Seed files live in `db/seeds/*.rb` and are loaded by `db/seeds.rb`; add a new seed module there and append it to `reference_seed_files` (needed everywhere) or `demo_seed_files` (skipped on production, where `DEPLOY_ENV=production`).
 
 ### Rake / custom tasks
 
@@ -260,6 +260,7 @@ docs/
 - [Business flow — actors, roles & lifecycles](docs/registration/business-flow.md) — who the three actors are (DoFi Officer, Jetty Manager, Fisherman), how each gets an account, who approves what, and the reasoning behind non-obvious decisions (`Role#kind`, single-role model, why passwords are never manually chosen).
 - [Registration flow](docs/registration/registration-flow.md) — endpoint request/response contracts for Jetty Manager creation, Fisherman provisioning, and login, for all three actors.
 - [Testing BruneiID login](docs/registration/testing-brunei-id-login.md) — OIDC, optional local/staging mock flag, and provisioned-account outcomes.
+- [Active Directory integration requirements](docs/registration/active-directory-integration-requirements.md) — information the AD, network, security, product, and application teams must provide before DoFi Officer AD login is designed, developed, and tested.
 
 ### [`docs/api/`](docs/api/) — frontend-facing API contracts
 

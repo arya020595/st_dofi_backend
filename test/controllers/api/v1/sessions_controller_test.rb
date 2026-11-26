@@ -10,8 +10,10 @@ module Api
         @user = create(:user, role: @role, password: @password, password_confirmation: @password)
       end
 
+      # @user is staff (a DoFi-platform role): it signs in with the shared directory (mock) password, never a local one.
       test "sign in with valid credentials returns a JWT and the user payload" do
-        post "/api/v1/auth/sign_in", params: { user: { username: @user.username, password: @password } }, as: :json
+        post "/api/v1/auth/sign_in",
+             params: { user: { username: @user.username, password: DirectoryTestSupport::MOCK_PASSWORD } }, as: :json
 
         assert_response :ok
         assert_predicate response.headers["Authorization"], :present?
@@ -19,7 +21,8 @@ module Api
       end
 
       test "sign in response includes the access token alongside the Authorization header" do
-        post "/api/v1/auth/sign_in", params: { user: { username: @user.username, password: @password } }, as: :json
+        post "/api/v1/auth/sign_in",
+             params: { user: { username: @user.username, password: DirectoryTestSupport::MOCK_PASSWORD } }, as: :json
 
         access_token = response.parsed_body.dig("data", "access_token")
 
@@ -28,7 +31,8 @@ module Api
       end
 
       test "sign in returns a short-lived WebSocket token" do
-        post "/api/v1/auth/sign_in", params: { user: { username: @user.username, password: @password } }, as: :json
+        post "/api/v1/auth/sign_in",
+             params: { user: { username: @user.username, password: DirectoryTestSupport::MOCK_PASSWORD } }, as: :json
 
         assert_predicate response.parsed_body.dig("data", "realtime_token"), :present?
         assert_predicate response.parsed_body.dig("data", "realtime_token_expires_at"), :present?

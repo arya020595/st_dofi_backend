@@ -300,6 +300,12 @@ Devise.setup do |config|
   #   warden_config.default_strategies(scope: :user).unshift :some_external_strategy
   # end
 
+  # Staff sign in against Active Directory; the strategy is registered in
+  # config/initializers/directory_authentication.rb and decides for staff before the local password is looked at.
+  config.warden do |warden_config|
+    warden_config.default_strategies(scope: :user).unshift :active_directory
+  end
+
   # ==> Mountable engine configurations
   # When using Devise inside an engine, let's call it `MyEngine`, and this engine
   # is mountable, there are some extra configurations to be taken into account.

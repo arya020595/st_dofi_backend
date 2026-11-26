@@ -23,9 +23,7 @@ module Api
 
           case Users::Create.call(user_params, assignable_roles: Role.assignable_by_admin)
           in Success(user)
-            data = UserBlueprint.render_as_hash(user)
-            data = data.merge(temporary_password: user.password) if user_params[:password].blank?
-            render json: { status: "success", data: data }, status: :created
+            render json: { status: "success", data: UserBlueprint.render_as_hash(user) }, status: :created
           in Failure(user)
             render json: { status: "fail", errors: user.errors.full_messages }, status: :unprocessable_content
           end
@@ -59,8 +57,8 @@ module Api
         end
 
         def user_params
-          params.expect(user: %i[name email password password_confirmation employee_id role_id username
-                                 status preferred_locale unit position contact_no designation])
+          params.expect(user: %i[name email employee_id role_id username status preferred_locale unit position
+                                 contact_no designation])
         end
       end
     end

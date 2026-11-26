@@ -65,6 +65,9 @@ The 3 errors are `Rocbn::Seeding::SeederTest`, which needs the ROCBN MySQL on `l
   the client's servers (`db:prepare` uploaded 17 files over `9000`), before the relay change. Re-check with one upload
   and one view on the client's App server after the new image is deployed.
 - Not tested on the client servers, and not tested through the Frontend proxy (its `/api` body-size limit must allow
-  at least 12 MB).
+  at least 12 MB). **Update 2026-10-30:** this gap showed up in practice. Vessel-image uploads from
+  `http://10.246.8.12:4100` failed with `413 Request Entity Too Large` (Profiling page, `POST .../vessels/:id/images`),
+  and a `413` can only come from a request that has a body, so it was the upload and not the file fetch. The App
+  Server's nginx already allows 12 MB; the Frontend's nginx has to as well (see the runbook's troubleshooting table).
 - A storage outage during an upload (the `Aws::Errors::ServiceError` path in `Dictionaries::Update`) has no test
   because the repo has no stubbing library; the rescue code is unchanged.
