@@ -5,17 +5,25 @@ module Authentication
   #
   # Staff always authenticate through the directory; AD_MODE only says which one:
   #   mock - local/staging stand-in (MockLdapAuthenticator): every staff user shares AD_MOCK_PASSWORD
-  #   ldap - the real directory over LDAPS (LdapAuthenticator)
+  #   ldap - the real directory (LdapAuthenticator), over the transport AD_TRANSPORT names:
+  #            ldaps (default) - TLS from the first byte, certificate and host name verified
+  #            plain           - no TLS at all: the password crosses the network readable. Only because the client
+  #                              chose it (2026-11-26, matching their other AD integrations); never a default, and
+  #                              the app warns at boot while it is on
   # DEPLOY_ENV says where the app runs. RAILS_ENV cannot: staging runs with RAILS_ENV=production too. It is set by
   # each deployment's compose file, and mock is refused on production. Every inconsistency raises at boot, so a
   # typo or a missing variable can never leave staff on a weaker path.
   # The constants live in the class body (not a Data.define block, where they would land on Authentication).
   class DirectoryConfig < Data.define(:mode, :deploy_env, :hosts, :port, :netbios_domain, :dns_domain, # rubocop:disable Style/DataInheritance
-                                      :bind_format, :ca_file, :connect_timeout, :operation_timeout, :mock_password)
+                                      :bind_format, :ca_file, :connect_timeout, :operation_timeout, :mock_password,
+                                      :transport)
     MODES = %w[mock ldap].freeze
     DEPLOY_ENVS = %w[development test staging production].freeze
     BIND_FORMATS = %w[netbios upn].freeze
+    TRANSPORTS = %w[ldaps plain].freeze
     PLAINTEXT_LDAP_PORT = 389
+    # Ports that only speak TLS: plain LDAP sent there would never get an answer.
+    TLS_ONLY_PORTS = [636, 3269].freeze
 
     class << self
       def current = @current ||= load
@@ -26,10 +34,12 @@ module Authentication
 
         new(mode: mode.to_sym, deploy_env: deploy_env, **connection_settings(env),
             **identity_settings(env, default_domain: (User::USERNAME_PREFIX if mode == "mock")),
-            mock_password: env["AD_MOCK_PASSWORD"].to_s)
+            mock_password: env["AD_MOCK_PASSWORD"].to_s, transport: transport_from(env))
       end
 
       private
+
+      def transport_from(env) = env.fetch("AD_TRANSPORT", "ldaps").strip.downcase
 
       def connection_settings(env)
         { hosts: env["AD_HOST"].to_s.split(",").map(&:strip).compact_blank,
@@ -70,6 +80,7 @@ module Authentication
     def mock? = mode == :mock
     def ldap? = mode == :ldap
     def production? = deploy_env == "production"
+    def plain_transport? = ldap? && transport == "plain"
 
     # Human-readable reasons the current mode cannot work; empty when it is usable. Used by the authenticators to
     # fail closed (503) instead of attempting a half-configured bind.
@@ -77,7 +88,7 @@ module Authentication
       return ["AD_MOCK_PASSWORD is not set"] if mock? && mock_password.blank?
       return [] unless ldap?
 
-      [*host_problems, *domain_problems, *tls_problems, *timeout_problems]
+      [*host_problems, *transport_problems, *domain_problems, *tls_problems, *timeout_problems]
     end
 
     private
@@ -86,9 +97,20 @@ module Authentication
       found = []
       found << "AD_HOST is not set" if hosts.empty?
       found << "AD_HOST must be DNS names covered by the server certificate, not IP addresses" if hosts.any? { ip?(it) }
-      found << "AD_PORT must be a valid LDAPS port (not #{PLAINTEXT_LDAP_PORT})" unless valid_port?
       found
     end
+
+    # LDAPS never accepts 389, so plaintext can only ever be the explicit AD_TRANSPORT=plain choice.
+    def transport_problems
+      return ["AD_TRANSPORT must be one of: #{TRANSPORTS.join(', ')}"] unless TRANSPORTS.include?(transport)
+      return ["AD_PORT must be a port number"] unless port.is_a?(Integer) && port.between?(1, 65_535)
+      return ["AD_PORT #{port} only speaks TLS; plain LDAP uses #{PLAINTEXT_LDAP_PORT}"] if plain_on_tls_port?
+      return [] unless transport == "ldaps" && port == PLAINTEXT_LDAP_PORT
+
+      ["AD_PORT must be a valid LDAPS port (not #{PLAINTEXT_LDAP_PORT}; plain LDAP needs AD_TRANSPORT=plain)"]
+    end
+
+    def plain_on_tls_port? = transport == "plain" && TLS_ONLY_PORTS.include?(port)
 
     def domain_problems
       found = []
@@ -99,8 +121,9 @@ module Authentication
     end
 
     # AD_CA_FILE is optional (unset means the system trust store), but a file that was asked for must work: it is never
-    # quietly replaced by the system store.
+    # quietly replaced by the system store. With plain LDAP there is no TLS for it to secure.
     def tls_problems
+      return ["AD_CA_FILE has no effect with AD_TRANSPORT=plain; leave it blank"] if ca_file && transport == "plain"
       return [] if ca_file.nil? || certificate_file?
 
       ["AD_CA_FILE must be a readable PEM file with at least one certificate"]
@@ -119,8 +142,6 @@ module Authentication
 
       ["AD_CONNECT_TIMEOUT and AD_OPERATION_TIMEOUT must be positive whole seconds"]
     end
-
-    def valid_port? = port.is_a?(Integer) && port.between?(1, 65_535) && port != PLAINTEXT_LDAP_PORT
 
     def ip?(host)
       IPAddr.new(host)

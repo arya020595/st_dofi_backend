@@ -18,6 +18,7 @@ have never seen this code. Read it in order the first time; later, jump to the f
 | 4 | [04-sequence-diagrams.md](04-sequence-diagrams.md) | Sequence diagrams for every scenario (success, wrong password, AD down, sign-out, deactivation...) | 15 min |
 | 5 | [05-token-revocation-and-security.md](05-token-revocation-and-security.md) | How a JWT is killed, the security decisions and their reasons | 15 min |
 | 6 | [06-testing-and-troubleshooting.md](06-testing-and-troubleshooting.md) | Test map, recipes ("how do I..."), debugging a 401 or a 503, FAQ | 15 min |
+| 7 | [07-production-connectivity-check.md](07-production-connectivity-check.md) | Step-by-step check (in Indonesian) of DNS, ports, TLS and one bind against the real MPRT AD from the production server | 15 min |
 
 ## The feature in one minute
 

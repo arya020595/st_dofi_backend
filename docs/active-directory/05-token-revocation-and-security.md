@@ -123,9 +123,9 @@ person is not told "your account is disabled", and nobody can probe which accoun
 
 | Property | Enforced by | Tested in |
 |---|---|---|
-| Plaintext LDAP is never used | `encryption: { method: :simple_tls }`; port 389 rejected by `DirectoryConfig#problems` | `ldap_authenticator_tls_test`, `directory_config_test` |
-| Server certificate is verified, with or without `AD_CA_FILE` | `verify_mode: VERIFY_PEER`, TLS 1.2+; system store unless an explicit CA file is given; an invalid explicit file is a 503, never a fallback | `ldap_authenticator_tls_test`, `ldap_authenticator_tls_options_test` |
-| Verification cannot be switched off | no setting exists; a test scans `app/`, `lib/`, `config/` for `VERIFY_NONE` and similar | `ldap_authenticator_tls_options_test` |
+| Plaintext LDAP only by explicit choice | `encryption: { method: :simple_tls }` unless `AD_TRANSPORT=plain`; with `ldaps`, port 389 is rejected and a plaintext server is a 503, never a fallback. **Production runs `plain` by the client's decision (2026-11-26)**: the password crosses the network unencrypted, and the app warns at boot. See [Plain LDAP](../registration/active-directory-login.md#plain-ldap-ad_transportplain) | `ldap_authenticator_plain_test`, `ldap_authenticator_tls_options_test`, `directory_config_test` |
+| Server certificate is verified (with `ldaps`), with or without `AD_CA_FILE` | `verify_mode: VERIFY_PEER`, TLS 1.2+; system store unless an explicit CA file is given; an invalid explicit file is a 503, never a fallback | `ldap_authenticator_tls_test`, `ldap_authenticator_tls_options_test` |
+| Verification cannot be switched off while TLS is used | no setting exists; a test scans `app/`, `lib/`, `config/` for `VERIFY_NONE` and similar | `ldap_authenticator_tls_options_test` |
 | Host name must match the certificate | DNS names only (IPs rejected); net-ldap host check | `directory_config_test` |
 | Empty password never reaches AD (unauthenticated bind) | `LdapAuthenticator#usable?` | `ldap_authenticator_test` |
 | Bind name cannot be injected | `SHORT_NAME` allow-list; identity built from the **stored** username | `directory_username_test`, `officer_login_test` |
