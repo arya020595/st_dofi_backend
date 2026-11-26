@@ -209,7 +209,8 @@ The four guards, in order:
 1. **`usable?`**: blank password, NUL, longer than 256 characters, or a name that is not a valid short name → 401
    without touching the network. A blank password is the critical one: an LDAP simple bind with an empty password is an
    *unauthenticated bind*, which many servers answer with **success**.
-2. **`config.problems`**: missing host, IP address instead of DNS name, port 389, an `AD_CA_FILE` that is not a readable PEM certificate, bad timeouts →
+2. **`config.problems`**: missing host, IP address instead of DNS name, port 389 with `ldaps` (or a TLS-only port with
+   `plain`), an unknown `AD_TRANSPORT`, an `AD_CA_FILE` that is not a readable PEM certificate, bad timeouts →
    503, not an attempt.
 3. **`bind`**: the real work (below).
 4. **`rescue`**: any network, TLS or timeout error → 503, logging the exception **class** and, for a refused
@@ -235,8 +236,11 @@ treated as *unavailable*, not as a wrong password, so a directory problem never 
 ```ruby
 def build_ldap(identity, password)
   ldap_class.new(hosts: config.hosts.map { [it, config.port] }, connect_timeout: config.connect_timeout,
-                 encryption: { method: :simple_tls, tls_options: tls_options },
-                 auth: { method: :simple, username: identity, password: password })
+                 **encryption, auth: { method: :simple, username: identity, password: password })
+end
+
+def encryption
+  config.plain_transport? ? {} : { encryption: { method: :simple_tls, tls_options: tls_options } }
 end
 
 def bind_identity(username)
@@ -244,7 +248,9 @@ def bind_identity(username)
 end
 ```
 
-`simple_tls` means the TCP connection is wrapped in TLS from the first byte (LDAPS). `bind_identity` builds
+`simple_tls` means the TCP connection is wrapped in TLS from the first byte (LDAPS). With `AD_TRANSPORT=plain` the
+`encryption` key is left out, which is how net-ldap speaks plaintext LDAP (production, by the client's choice; see
+[Plain LDAP](../registration/active-directory-login.md#plain-ldap-ad_transportplain)). `bind_identity` builds
 `MPRT\azri.nizam` (netbios) or `azri.nizam@MPRT.EG.GOV.BN` (upn).
 
 ```ruby

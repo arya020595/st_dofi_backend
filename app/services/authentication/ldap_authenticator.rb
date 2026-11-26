@@ -1,8 +1,9 @@
 require "net/ldap"
 
 module Authentication
-  # Checks one password against Active Directory over LDAPS. All the LDAP networking lives here (TLS, timeouts,
-  # host failover, bind), and nothing else: it knows nothing about users, roles or DoFi accounts.
+  # Checks one password against Active Directory. All the LDAP networking lives here (TLS, timeouts, host failover,
+  # bind), and nothing else: it knows nothing about users, roles or DoFi accounts. The transport is LDAPS unless the
+  # configuration explicitly says plain (AD_TRANSPORT=plain, see DirectoryConfig).
   #
   # Contract (shared with MockLdapAuthenticator): call(username:, password:) returns
   #   Success(:authenticated)
@@ -72,8 +73,12 @@ module Authentication
 
     def build_ldap(identity, password)
       ldap_class.new(hosts: config.hosts.map { [it, config.port] }, connect_timeout: config.connect_timeout,
-                     encryption: { method: :simple_tls, tls_options: tls_options },
-                     auth: { method: :simple, username: identity, password: password })
+                     **encryption, auth: { method: :simple, username: identity, password: password })
+    end
+
+    # No encryption key at all is how net-ldap speaks plaintext, so it is left out only for the explicit plain choice.
+    def encryption
+      config.plain_transport? ? {} : { encryption: { method: :simple_tls, tls_options: tls_options } }
     end
 
     def bind_identity(username)

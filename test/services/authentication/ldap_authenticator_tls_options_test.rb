@@ -36,6 +36,17 @@ class Authentication::LdapAuthenticatorTlsOptionsTest < ActiveSupport::TestCase
     end
   end
 
+  test "only AD_TRANSPORT=plain leaves encryption out; LDAPS is the default" do
+    ldap_class = FakeLdap.answering
+    [directory_config, directory_config(ad_transport: "plain", ad_port: "389")].each do |config|
+      Authentication::LdapAuthenticator.new(config:, ldap_class:, logger: ->(**) {})
+                                       .call(username: "ahmad", password: FakeLdap::RIGHT_PASSWORD)
+    end
+
+    assert_equal([:simple_tls, nil], ldap_class.built.map { it.dig(:encryption, :method) })
+    assert_not_includes ldap_class.built.last.keys, :encryption
+  end
+
   test "nothing in the application can turn certificate verification off" do
     sources = Rails.root.glob("{app,lib,config}/**/*.{rb,rake,yml}").reject { it.to_s.end_with?("_test.rb") }
     bypass = /VERIFY_NONE|verify_certificates|verify_hostname\s*[:=]+>?\s*false/
