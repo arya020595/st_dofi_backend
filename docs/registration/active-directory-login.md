@@ -67,24 +67,51 @@ All read in one place, `Authentication::DirectoryConfig`.
 | `AD_MODE` | `mock` outside production, required in production | `mock` or `ldap` |
 | `AD_MOCK_PASSWORD` | none | The shared mock password (mock mode only) |
 | `AD_HOST` | none | Comma-separated DNS names, tried in order. They must be covered by the server certificate. **IP addresses are rejected.** |
-| `AD_PORT` | `3269` | LDAPS port. Port 389 (plaintext) is rejected. 3269 is the Global Catalog over TLS; 636 is plain LDAPS. Use the one the AD team confirms. |
+| `AD_TRANSPORT` | `ldaps` | `ldaps`: TLS with certificate and host-name verification. `plain`: **no TLS**, the password reaches AD readable on the network (see "Plain LDAP" below). Production uses `plain` by the client's decision. |
+| `AD_PORT` | `3269` | With `ldaps`: the LDAPS port (636, or 3269 for the Global Catalog over TLS); 389 is rejected. With `plain`: 389; 636 and 3269 are rejected because they only speak TLS. |
 | `AD_NETBIOS_DOMAIN` | `MPRT` in mock mode, required for ldap | e.g. `MPRT`. Used for the bind name and to recognise `MPRT/` and `MPRT\` in what people type. |
 | `AD_DNS_DOMAIN` | none | e.g. `MPRT.EG.GOV.BN`. Only used by the `upn` bind format. |
 | `AD_BIND_FORMAT` | `netbios` | `netbios` binds as `MPRT\name`, `upn` as `name@MPRT.EG.GOV.BN`. **Not yet confirmed against the real AD.** |
-| `AD_CA_FILE` | none: the container's system trust store | **Optional.** PEM file with the CA certificate(s) to trust instead of the system store, as a path inside the container. See "The CA certificate". |
+| `AD_CA_FILE` | none: the container's system trust store | **Optional**, `ldaps` only (a problem with `plain`). PEM file with the CA certificate(s) to trust instead of the system store, as a path inside the container. See "The CA certificate". |
 | `AD_CONNECT_TIMEOUT` | `3` | Seconds to connect and complete TLS, per host |
 | `AD_OPERATION_TIMEOUT` | `5` | Seconds to wait for the bind answer |
 | `ADMIN_AD_USERNAME` | mock default outside production, **required in production** | The superadmin's AD username, used only by `db:seed` on a fresh database |
 
-A real-directory configuration that cannot work (missing host, IP address, port 389, unreadable CA file, ...) does not
+A real-directory configuration that cannot work (missing host, IP address, port 389 with `ldaps`, unreadable CA file, ...) does not
 break boot: it makes staff sign-in return **503** and logs the reasons (`ad.directory_unavailable`). It never falls back
 to anything else.
 
+### Plain LDAP (`AD_TRANSPORT=plain`)
+
+**Decided 2026-11-26 by the client** for production, to match their existing AIMS and TIMS AD integrations. The first
+check from the production server found DNS working, 389 and 636 open, 3269 blocked. TLS on 636 (and StartTLS on 389)
+failed only because the DC certificate is issued by an internal MPRT CA that the image does not trust, and no CA file
+was supplied. See
+[07-production-connectivity-check.md](../active-directory/07-production-connectivity-check.md#catatan-hasil).
+
+What it means:
+
+- The officer's AD password crosses the network between the backend server and the domain controller **unencrypted**.
+  Anyone who can observe that traffic can read it. The same password opens the officer's email, PC and other
+  government systems.
+- No certificate is involved, so nothing proves the server answering is the real AD.
+- Everything else is unchanged: a blank password is still never sent (an empty simple bind is an unauthenticated bind),
+  a wrong password is not replayed on every DC, AD's messages and the password are never logged, and only existing,
+  active DoFi staff can sign in.
+- The app logs `AD_TRANSPORT=plain (...): staff passwords reach Active Directory unencrypted.` at every boot.
+
+Plaintext is reachable only through this explicit setting. `ldaps` (the default) still refuses port 389 and never falls
+back to plaintext, and a plaintext server makes it answer 503 (`ldap_authenticator_plain_test`).
+
+**To move to LDAPS later (no code change):** get the MPRT root CA (and any intermediate) as PEM, mount it as described
+below, and in `.env` set `AD_TRANSPORT=ldaps`, `AD_PORT=636`, `AD_CA_FILE=/etc/dofi/ad-ca.pem`. Port 636 is already
+open to all three DCs.
+
 ### The CA certificate
 
-Certificate verification is **always on**: the server's certificate chain must be trusted, it must be valid today, and
-its name must match the `AD_HOST` entry that was dialled (TLS 1.2 or newer). Nothing in the application can switch this
-off, and a test fails if code that does so is added. A failed check is the same 503 as any directory outage.
+With `ldaps`, certificate verification is **always on**: the server's certificate chain must be trusted, it must be valid
+today, and its name must match the `AD_HOST` entry that was dialled (TLS 1.2 or newer). Nothing in the application can
+switch verification off while TLS is used, and a test fails if code that does so is added. A failed check is the same 503 as any directory outage.
 
 `AD_CA_FILE` only decides **who is trusted**:
 
@@ -122,9 +149,10 @@ openssl s_client -connect prtauthpro1.mprt.eg.gov.bn:3269 -servername prtauthpro
   -verify_hostname prtauthpro1.mprt.eg.gov.bn -verify_return_error -CAfile /etc/dofi/ad-ca.pem -brief </dev/null
 
 # D. The application's own bind, once, with a dedicated AD test account (the password is not echoed or stored)
+# (-e AD_P without a value passes it from this shell, so the password never appears in the process list)
 read -rp "AD test username (no domain): " T; read -rsp "AD test password: " P; echo
-docker compose exec -e AD_T="$T" -e AD_P="$P" api bin/rails runner \
-  'p Authentication::LdapAuthenticator.call(username: ENV.fetch("AD_T"), password: ENV.fetch("AD_P"))'
+AD_T="$T" AD_P="$P" docker compose exec -e AD_T -e AD_P api bin/rails runner \
+  'p Authentication::LdapAuthenticator.call(username: ENV.fetch("AD_T").downcase, password: ENV.fetch("AD_P"))'
 unset T P
 ```
 
@@ -151,18 +179,23 @@ and, for a refused certificate, `tls` with one of: `untrusted_certificate`, `cer
 (network, timeout, an unexpected LDAP result code). The log never contains the password, the account, the server
 address or OpenSSL's own message.
 
-## Values still awaiting the AD and infrastructure teams
+## Production values
 
-Candidate configuration (proposed, **not** proven reachable):
+Confirmed from the production backend container on 2026-11-26 (DNS, ports); the transport is the client's decision (see
+"Plain LDAP"). The bind itself is still to be demonstrated with a test account (step D).
 
 ```dotenv
+AD_MODE=ldap
+AD_TRANSPORT=plain
 AD_HOST=prtauthpro1.mprt.eg.gov.bn,prtauthpro2.mprt.eg.gov.bn,prtauthpro3.mprt.eg.gov.bn
-AD_PORT=3269
+AD_PORT=389
 AD_NETBIOS_DOMAIN=MPRT
 AD_DNS_DOMAIN=MPRT.EG.GOV.BN
 AD_BIND_FORMAT=netbios
 AD_CA_FILE=
 ```
+
+The original candidate list below assumed LDAPS on 3269. 3269 turned out to be blocked; 636 is open.
 
 | Still to confirm | Why it matters |
 |---|---|

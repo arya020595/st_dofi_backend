@@ -9,4 +9,7 @@ Rails.application.config.after_initialize do
   if config.mock? && !Rails.env.local?
     Rails.logger.warn("AD_MODE=mock (#{config.deploy_env}): every staff user signs in with AD_MOCK_PASSWORD.")
   end
+  if config.plain_transport?
+    Rails.logger.warn("AD_TRANSPORT=plain (#{config.deploy_env}): staff passwords reach Active Directory unencrypted.")
+  end
 end
